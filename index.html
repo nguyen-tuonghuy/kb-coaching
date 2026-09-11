@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kinball Coach — V1.20 Cloud</title>
+<style>
+:root{
+ --bg:#0f1115;--panel:#171a21;--panel2:#20242d;--text:#f5f7fa;--muted:#aab1bc;
+ --accent:#3d7bfd;--good:#218a50;--bad:#bd4141;--warn:#d29a29;--line:#2e3440;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px system-ui,-apple-system,Segoe UI,sans-serif}
+.app{max-width:900px;margin:auto;padding:14px 14px 112px}
+h1,h2,p{margin:0}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+h1{font-size:22px}.sub{font-size:13px;color:var(--muted);margin-top:3px}
+.badge{background:var(--panel2);padding:8px 11px;border-radius:999px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:12px}
+.row{display:flex;gap:9px;flex-wrap:wrap}
+.field{flex:1 1 180px}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:5px}
+input,select,button{font:inherit}
+input,select{width:100%;padding:12px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:12px}
+button{border:0;border-radius:14px;padding:13px 11px;background:var(--panel2);color:var(--text);font-weight:750;cursor:pointer}
+button:active{transform:scale(.985)}
+.primary{background:var(--accent)} .good{background:var(--good)} .bad{background:var(--bad)}
+.warn{background:var(--warn);color:#121212}.ghost{background:transparent;border:1px solid var(--line)}
+.hidden{display:none!important}
+.players{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.players button{min-height:54px}
+.on{background:var(--accent)} .off{color:var(--muted)}
+.tabs{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.tab.active{background:var(--accent)}
+.actiongrid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+.actiongrid button{min-height:68px;font-size:16px}
+.popupBackdrop{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;justify-content:center;padding:12px;z-index:10}
+.sheet{width:min(900px,100%);background:#161a21;border:1px solid var(--line);border-radius:22px 22px 14px 14px;padding:14px;max-height:88vh;overflow:auto}
+.sheet h2{font-size:19px;margin-bottom:4px}
+.sheetTop{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;position:sticky;top:-14px;background:#161a21;padding:14px 0 8px;z-index:2}
+.closePopup{width:42px;height:42px;padding:0;border-radius:999px;font-size:22px;line-height:1;background:var(--panel2);border:1px solid var(--line)}
+.meta{font-size:13px;color:var(--muted);margin-bottom:12px}
+.step{margin-top:14px}
+.step h3{font-size:14px;color:var(--muted);margin:0 0 8px}
+.options,.faultgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.options button,.faultgrid button{min-height:51px}
+.choice{outline:none!important;background:var(--accent)!important;color:#fff!important}
+.entryAction.selected{background:var(--accent)!important;color:#fff!important}
+.full{grid-column:1/-1}
+.timeline{display:flex;flex-direction:column;gap:8px;max-height:350px;overflow:auto}
+.item{display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:9px;align-items:center;background:var(--panel2);padding:10px;border-radius:12px;cursor:pointer}
+.time{font-size:12px;color:var(--muted)}
+.small{font-size:12px;color:var(--muted)}
+.last{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.footer{position:fixed;bottom:0;left:0;right:0;padding:10px;background:rgba(15,17,21,.95);border-top:1px solid var(--line)}
+.footerin{max-width:900px;margin:auto;display:flex;gap:8px}.footerin button{flex:1}
+.note{font-size:12px;line-height:1.4;color:var(--muted)}
+.roster{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.check{display:flex;gap:8px;align-items:center;background:var(--panel2);padding:9px;border-radius:12px}.check input{width:auto}
+@media(min-width:650px){
+ .players,.roster{grid-template-columns:repeat(4,1fr)}
+ .tabs{grid-template-columns:repeat(5,1fr)}
+ .actiongrid{grid-template-columns:repeat(3,1fr)}
+ .faultgrid{grid-template-columns:repeat(3,1fr)}
+}
+
+.authStatus{font-size:13px;color:var(--muted);margin-top:9px;min-height:18px}
+.cloudOk{color:#7ddc9f}.cloudErr{color:#ff8d8d}
+.topActions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.statusDot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#777;margin-right:5px}
+.statusDot.online{background:#41c878}.statusDot.offline{background:#d29a29}
+.matchHistory{display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-bottom:12px}
+.matchHistory .field{min-width:220px}
+</style>
+</head>
+<body>
+<div class="app">
+ <div class="top">
+   <div><h1>Kinball Coach</h1><div class="sub">V1.20 Cloud — base centralisée</div></div>
+   <div class="topActions">
+    <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
+    <div class="badge" id="count">0 actions</div>
+    <button class="ghost hidden" id="newMatchTop">Nouveau match</button>
+    <button class="ghost hidden" id="logout">Déconnexion</button>
+   </div>
+ </div>
+
+
+ 
+ <section class="panel" id="authPanel">
+   <h2 style="font-size:20px;margin-bottom:6px">Bienvenue sur Kinball Coach</h2>
+   <p class="small" style="margin-bottom:16px">
+     Connectez-vous pour retrouver vos matchs enregistrés. Si vous utilisez Kinball Coach pour la première fois, créez simplement votre compte ci-dessous.
+   </p>
+
+   <div style="padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--panel2);margin-bottom:14px">
+    <h3 style="font-size:16px;margin-bottom:10px">Déjà un compte ?</h3>
+    <div class="row">
+     <div class="field"><label>Email</label><input id="authEmail" type="email" autocomplete="email" placeholder="vous@exemple.fr"></div>
+     <div class="field"><label>Mot de passe</label><input id="authPassword" type="password" autocomplete="current-password" placeholder="Votre mot de passe"></div>
+    </div>
+    <button class="primary" id="login" style="width:100%;margin-top:12px">Se connecter</button>
+   </div>
+
+   <div style="padding:14px;border:1px solid var(--line);border-radius:14px">
+    <h3 style="font-size:16px;margin-bottom:6px">Première utilisation ?</h3>
+    <p class="small" style="margin-bottom:12px">
+      Créez votre compte pour enregistrer vos matchs dans la base centrale et retrouver vos données sur tous vos appareils.
+    </p>
+    <button class="primary" id="signup" style="width:100%">Créer mon compte</button>
+   </div>
+
+   <div class="authStatus" id="authStatus"></div>
+ </section>
+
+ <section class="panel hidden" id="setup">
+   <h2 style="font-size:18px;margin-bottom:10px">Préparer le match</h2>
+   <div class="row" style="margin-bottom:12px">
+    <button class="primary" id="freshMatch">＋ Nouveau match</button>
+   </div>
+   <div class="matchHistory">
+    <div class="field">
+     <label>Reprendre un match enregistré</label>
+     <select id="recentMatches"><option value="">— Nouveau match —</option></select>
+    </div>
+    <button class="ghost" id="resumeMatch">Ouvrir</button>
+   </div>
+   <div class="row">
+    <div class="field"><label>Match</label><input id="matchName" value="Match test vidéo"></div>
+    <div class="field"><label>Équipe suivie</label><input id="teamName" value="Mon équipe"></div>
+    <div class="field"><label>Date</label><input id="matchDate" type="date"></div>
+   </div>
+   <div class="field" style="margin-top:10px">
+    <label>Effectif complet — séparé par des virgules</label>
+    <input id="rosterInput" value="3 Lucas, 5 Hugo, 7 Paul, 9 Martin, 12 Antoine, 14 Julien">
+   </div>
+   <button class="ghost" style="width:100%;margin-top:9px" id="loadRoster">Sélectionner les joueurs en jeu</button>
+   <div id="rosterWrap" class="hidden" style="margin-top:10px">
+    <div class="roster" id="rosterChecks"></div>
+   </div>
+   <div class="row" style="margin-top:10px">
+    <div class="field"><label>Période</label><select id="startPeriod"><option>P1</option><option>P2</option><option>P3</option><option>P4</option></select></div>
+   </div>
+   <button class="primary" style="width:100%;margin-top:11px" id="start">Commencer</button>
+ </section>
+
+ <div id="live" class="hidden">
+
+  <section class="panel">
+    <div class="row">
+      <div class="field">
+        <label>Position vidéo — facultatif</label>
+        <input id="videoPosition" placeholder="ex. 12:43">
+      </div>
+      <div class="field">
+        <label>Période</label>
+        <select id="period"><option>P1</option><option>P2</option><option>P3</option><option>P4</option></select>
+      </div>
+    </div>
+    <div class="note" style="margin-top:8px">Tu peux laisser la position vidéo vide et ne la renseigner que pour certaines actions utiles à retrouver.</div>
+  </section>
+
+  <section class="panel">
+   <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:9px">
+    <h2 style="font-size:18px">Joueurs en jeu</h2>
+    <button class="ghost" id="editPlayers">Modifier</button>
+   </div>
+   <div class="players" id="activePlayers"></div>
+  </section>
+
+  <section class="panel hidden" id="playerEditor">
+   <h2 style="font-size:18px;margin-bottom:9px">Joueurs en jeu</h2>
+   <div class="players" id="allPlayers"></div>
+   <button class="primary" style="width:100%;margin-top:9px" id="closeEditor">Terminé</button>
+  </section>
+
+  <section class="panel">
+   <h2 style="font-size:18px;margin-bottom:9px">Choisir l’action</h2>
+
+   <div class="small" style="margin-bottom:7px">Jeu au centre</div>
+   <div class="tabs" style="grid-template-columns:repeat(2,1fr);margin-bottom:12px">
+    <button class="entryAction" data-family="centre" data-actiontype="Attaque">ATTAQUE AU CENTRE</button>
+    <button class="entryAction" data-family="centre" data-actiontype="Défense">DÉFENSE AU CENTRE</button>
+   </div>
+
+   <div class="small" style="margin-bottom:7px">Remise en jeu</div>
+   <div class="tabs" style="grid-template-columns:repeat(2,1fr);margin-bottom:12px">
+    <button class="entryAction" data-family="remise" data-actiontype="Attaque">ATTAQUE SUR REMISE EN JEU</button>
+    <button class="entryAction" data-family="remise" data-actiontype="Défense">DÉFENSE SUR REMISE EN JEU</button>
+   </div>
+
+  </section>
+
+  <section class="panel">
+   <div class="last">
+    <div><div class="small">Dernière action</div><strong id="last">Aucune</strong></div>
+    <div class="row">
+     <button class="ghost" id="editLast">Modifier</button>
+     <button class="ghost" id="undo">↶ Annuler</button>
+    </div>
+   </div>
+  </section>
+
+  <section class="panel">
+   <h2 style="font-size:18px;margin-bottom:9px">Chronologie</h2>
+   <div class="timeline" id="timeline"></div>
+  </section>
+ </div>
+</div>
+
+<div class="footer hidden" id="footer">
+ <div class="footerin"><button class="ghost" id="csv">Exporter CSV</button><button class="primary" id="json">Sauvegarder JSON</button></div>
+</div>
+
+<div class="popupBackdrop hidden" id="popup">
+ <div class="sheet">
+   <div class="sheetTop">
+    <div>
+     <h2 id="popupTitle">Action</h2>
+     <div class="meta" id="popupMeta"></div>
+    </div>
+    <button class="closePopup" id="closeMainPopup" aria-label="Fermer">×</button>
+   </div>
+
+   <div class="step hidden" id="restartLocationStep">
+    <h3>Position de la remise en jeu</h3>
+    <div class="options" id="restartLocationOptions">
+      <button data-restart="centre">CENTRE</button>
+      <button data-restart="ligne">LIGNE</button>
+      <button data-restart="coin">COIN</button>
+    </div>
+   </div>
+
+   <div class="step" id="resultStep">
+    <h3>Issue de l’action</h3>
+    <div class="options" id="resultOptions"></div>
+   </div>
+   <div class="step hidden" id="moveStep">
+    <h3>Déplacement — facultatif</h3>
+    <div class="options" id="moveOptions">
+      <button data-move="Non">SANS DÉPLACEMENT</button>
+      <button data-move="Oui">AVEC DÉPLACEMENT</button>
+    </div>
+   </div>
+   <div class="step hidden" id="zoneStep">
+    <h3>Zone — facultatif</h3>
+    <div class="options" id="zoneOptions">
+      <button data-zone="">NON PRÉCISÉE</button>
+      <button data-zone="RE">RE</button>
+      <button data-zone="EE">EE</button>
+    </div>
+   </div>
+
+   <div class="step hidden" id="whoStep">
+    <h3>Attribution — facultatif</h3>
+    <div class="options" id="whoOptions"></div>
+   </div>
+   <div class="row" style="margin-top:14px">
+    <button class="ghost" style="flex:1" id="cancelPopup">Annuler</button>
+    <button class="primary hidden" style="flex:2" id="savePopup">Enregistrer</button>
+   </div>
+ </div>
+</div>
+
+<div class="popupBackdrop hidden" id="faultPopup">
+ <div class="sheet">
+   <div class="sheetTop">
+    <div>
+     <h2>Faute</h2>
+     <div class="meta" id="faultMeta"></div>
+    </div>
+    <button class="closePopup" id="closeFaultPopup" aria-label="Fermer">×</button>
+   </div>
+   <div class="step">
+    <h3>Type de faute</h3>
+    <div class="faultgrid" id="faultTypes">
+      <button data-fault="Faute d'appellation">FAUTE D’APPELLATION</button>
+      <button data-fault="Manque un contact">MANQUE UN CONTACT</button>
+      <button data-fault="Pente descendante">PENTE DESCENDANTE</button>
+      <button data-fault="Extérieur">EXTÉRIEUR</button>
+      <button data-fault="Offensive illégale">OFFENSIVE ILLÉGALE</button>
+      <button data-fault="Déplacement illégal du ballon">DÉPLACEMENT ILLÉGAL DU BALLON</button>
+    </div>
+   </div>
+   <div class="step">
+    <h3>Attribution — facultatif</h3>
+    <div class="options" id="faultWhoOptions"></div>
+   </div>
+   <div class="row" style="margin-top:14px">
+    <button class="ghost" style="flex:1" id="cancelFault">Annuler</button>
+    <button class="primary" style="flex:2" id="saveFault">Enregistrer</button>
+   </div>
+ </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const KEY='kinball_coach_cloud_v120';
+const SUPABASE_URL='https://chrbzchthloxowlzdvpe.supabase.co';
+const SUPABASE_KEY='sb_publishable_4pQGJ5DSzMRBuHLrAUb30g_MGZVYvEY';
+if(!window.supabase){
+  document.body.innerHTML='<div style="padding:24px;font-family:sans-serif;color:white;background:#111;min-height:100vh"><h2>Erreur de chargement</h2><p>La bibliothèque Supabase ne s’est pas chargée. Recharge la page avec une connexion Internet active.</p></div>';
+  throw new Error('Supabase library failed to load');
+}
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+let state={
+  matchName:'',teamName:'',matchDate:'',players:[],activePlayers:[],events:[],
+  currentMatchId:null,currentTeamId:null,workspaceId:null,playerIds:{}
+};
+let context='jeu_centre', pending=null, zone='', movement='', who='', faultType='', faultWho='', editingId=null;
+let family='centre',actionType='Attaque',actionResult='',restartLocation='';
+let currentUser=null;
+
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const today=()=>new Date().toISOString().slice(0,10);
+const setCloud=(text,ok=true)=>{
+  $('#cloudStatus').textContent=text;
+  $('#cloudDot').classList.toggle('online',ok);
+  $('#cloudDot').classList.toggle('offline',!ok);
+};
+const authMessage=(text,error=false)=>{
+  $('#authStatus').textContent=text||'';
+  $('#authStatus').className='authStatus '+(error?'cloudErr':'cloudOk');
+};
+const handleError=(where,error)=>{
+  console.error(where,error);
+  setCloud('Erreur de synchronisation',false);
+  alert((error&&error.message)||String(error)||'Erreur de synchronisation');
+};
+
+function saveLocal(){
+  localStorage.setItem(KEY,JSON.stringify({
+    currentMatchId:state.currentMatchId,
+    workspaceId:state.workspaceId
+  }));
+}
+function loadLocal(){
+  try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){return {}}
+}
+function roster(){return $('#rosterInput').value.split(',').map(x=>x.trim()).filter(Boolean)}
+
+async function ensureWorkspace(){
+  const {data:members,error}=await db
+    .from('workspace_members')
+    .select('workspace_id, role')
+    .eq('user_id',currentUser.id)
+    .limit(1);
+  if(error) throw error;
+  if(members&&members.length){
+    state.workspaceId=members[0].workspace_id;
+    saveLocal();
+    return state.workspaceId;
+  }
+  const {data:w,error:we}=await db
+    .from('workspaces')
+    .insert({name:'Kinball Coach',created_by:currentUser.id})
+    .select('id')
+    .single();
+  if(we) throw we;
+  const {error:me}=await db
+    .from('workspace_members')
+    .insert({workspace_id:w.id,user_id:currentUser.id,role:'owner'});
+  if(me) throw me;
+  state.workspaceId=w.id;
+  saveLocal();
+  return w.id;
+}
+
+async function refreshRecentMatches(){
+  if(!state.workspaceId) return;
+  const {data,error}=await db
+    .from('matches')
+    .select('id,label,played_on,created_at,teams(name)')
+    .eq('workspace_id',state.workspaceId)
+    .order('created_at',{ascending:false})
+    .limit(40);
+  if(error) throw error;
+  const sel=$('#recentMatches');
+  sel.innerHTML='<option value="">— Nouveau match —</option>';
+  (data||[]).forEach(m=>{
+    const o=document.createElement('option');
+    o.value=m.id;
+    const team=m.teams?.name||'Équipe';
+    o.textContent=`${m.played_on||'Date ?'} · ${m.label} · ${team}`;
+    sel.append(o);
+  });
+}
+
+async function initAuthenticated(user){
+  currentUser=user;
+  $('#authPanel').classList.add('hidden');
+  $('#setup').classList.remove('hidden');
+  $('#logout').classList.remove('hidden');
+  $('#newMatchTop').classList.remove('hidden');
+  setCloud('Synchronisé',true);
+  await ensureWorkspace();
+  await refreshRecentMatches();
+}
+
+async function initAuth(){
+  $('#matchDate').value=today();
+  const {data:{session}}=await db.auth.getSession();
+  if(session?.user){
+    try{await initAuthenticated(session.user)}catch(e){handleError('initAuthenticated',e)}
+  }else{
+    $('#authPanel').classList.remove('hidden');
+    $('#setup').classList.add('hidden');
+    setCloud('Non connecté',false);
+  }
+  db.auth.onAuthStateChange(async (_event,session)=>{
+    if(session?.user && (!currentUser || currentUser.id!==session.user.id)){
+      try{await initAuthenticated(session.user)}catch(e){handleError('auth change',e)}
+    }
+  });
+}
+
+$('#login').onclick=async()=>{
+  authMessage('Connexion…');
+  const email=$('#authEmail').value.trim();
+  const password=$('#authPassword').value;
+  const {data,error}=await db.auth.signInWithPassword({email,password});
+  if(error){authMessage(error.message,true);return}
+  authMessage('');
+  try{await initAuthenticated(data.user)}catch(e){handleError('login init',e)}
+};
+$('#signup').onclick=async()=>{
+  authMessage('Création du compte…');
+  const email=$('#authEmail').value.trim();
+  const password=$('#authPassword').value;
+  const {data,error}=await db.auth.signUp({
+    email,password,
+    options:{emailRedirectTo:location.origin}
+  });
+  if(error){authMessage(error.message,true);return}
+  if(data.session){
+    authMessage('');
+    try{await initAuthenticated(data.user)}catch(e){handleError('signup init',e)}
+  }else{
+    authMessage('Compte créé. Confirme ton adresse e-mail puis reviens te connecter.');
+  }
+};
+$('#logout').onclick=async()=>{
+  await db.auth.signOut();
+  currentUser=null;
+  state={matchName:'',teamName:'',matchDate:'',players:[],activePlayers:[],events:[],currentMatchId:null,currentTeamId:null,workspaceId:null,playerIds:{}};
+  localStorage.removeItem(KEY);
+  $('#live').classList.add('hidden');
+  $('#footer').classList.add('hidden');
+  $('#setup').classList.add('hidden');
+  $('#authPanel').classList.remove('hidden');
+  $('#logout').classList.add('hidden');
+  $('#newMatchTop').classList.add('hidden');
+  setCloud('Non connecté',false);
+};
+
+function buildChecks(){
+  const r=roster(), box=$('#rosterChecks'); box.innerHTML='';
+  r.forEach((p,i)=>{
+    const l=document.createElement('label');l.className='check';
+    const c=document.createElement('input');c.type='checkbox';c.value=p;c.checked=i<4;
+    l.append(c,document.createTextNode(p));box.append(l)
+  });
+  $('#rosterWrap').classList.remove('hidden');
+}
+functi
