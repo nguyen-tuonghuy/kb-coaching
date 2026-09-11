@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Kinball Coach — V1.23 Cloud</title>
+<title>Kinball Coach — V2.0 Préliminaire</title>
 <style>
 :root{
  --bg:#0f1115;--panel:#171a21;--panel2:#20242d;--text:#f5f7fa;--muted:#aab1bc;
@@ -71,12 +71,23 @@ button:active{transform:scale(.985)}
 .statusDot.online{background:#41c878}.statusDot.offline{background:#d29a29}
 .matchHistory{display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-bottom:12px}
 .matchHistory .field{min-width:220px}
+
+.moduleGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.moduleCard{min-height:120px;text-align:left;padding:18px;border:1px solid var(--line)}
+.moduleCard strong{display:block;font-size:20px;margin-bottom:7px}.moduleCard span{font-size:13px;color:var(--muted);font-weight:500}
+.trainingList{display:flex;flex-direction:column;gap:9px}.trainingCard{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:12px}
+.trainingCard h3{margin:0 0 4px;font-size:16px}.trainingCard .small{line-height:1.35}
+.trainingResults{display:flex;flex-direction:column;gap:8px;margin-top:10px}.resultRow{background:#171a21;border-radius:12px;padding:10px}
+.resultRow .name{font-weight:750;margin-bottom:7px}.miniGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}
+.trainingToolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}.trainingToolbar button{flex:1;min-width:140px}
+.historyItem{background:var(--panel2);border-radius:12px;padding:10px;margin-bottom:8px}
+@media(max-width:520px){.moduleGrid{grid-template-columns:1fr}.miniGrid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V1.23 Cloud — base centralisée</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V2.0 Préliminaire — Match + Entraînement</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge" id="count">0 actions</div>
@@ -111,6 +122,79 @@ button:active{transform:scale(.985)}
    </div>
 
    <div class="authStatus" id="authStatus"></div>
+ </section>
+
+
+ <section class="panel hidden" id="appHome">
+   <h2 style="font-size:20px;margin-bottom:6px">Que veux-tu faire ?</h2>
+   <p class="small" style="margin-bottom:14px">Choisis le module à utiliser.</p>
+   <div class="moduleGrid">
+    <button class="moduleCard primary" id="openMatchModule"><strong>🏐 Match</strong><span>Prise de notes vidéo et chronologie des actions</span></button>
+    <button class="moduleCard" id="openTrainingModule"><strong>🎯 Entraînement</strong><span>Présences, exercices, résultats et progression des joueurs</span></button>
+   </div>
+ </section>
+
+ <section class="panel hidden" id="trainingHome">
+   <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div><h2 style="font-size:20px">Entraînement</h2><div class="small">Version préliminaire</div></div>
+    <button class="ghost" id="trainingBackHome">← Accueil</button>
+   </div>
+   <div class="trainingToolbar">
+    <button class="primary" id="newTraining">＋ Nouvelle séance</button>
+    <button class="ghost" id="openTrainingHistory">Historique joueur</button>
+   </div>
+   <div class="small">Les séances et résultats sont enregistrés dans la même base Supabase que les matchs.</div>
+ </section>
+
+ <section class="panel hidden" id="trainingSession">
+   <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div><h2 style="font-size:20px">Nouvelle séance</h2><div class="small">1. Informations · 2. Présents · 3. Exercices · 4. Résultats</div></div>
+    <button class="ghost" id="cancelTraining">← Retour</button>
+   </div>
+   <div class="row">
+    <div class="field"><label>Date</label><input id="trainingDate" type="date"></div>
+    <div class="field"><label>Équipe / groupe</label><input id="trainingTeam" placeholder="ex. Équipe masculine"></div>
+    <div class="field"><label>Thème</label><input id="trainingTheme" placeholder="ex. Défense et transition"></div>
+    <div class="field"><label>Durée prévue (min)</label><input id="trainingDuration" type="number" min="1" inputmode="numeric" placeholder="90"></div>
+   </div>
+   <div class="field" style="margin-top:9px"><label>Notes de séance</label><input id="trainingNotes" placeholder="Objectifs, contexte, remarques…"></div>
+
+   <div style="margin-top:18px">
+    <h3 style="font-size:16px;margin:0 0 7px">Joueurs présents</h3>
+    <div class="small" style="margin-bottom:8px">Les joueurs connus dans ton espace apparaissent ici. Tu peux aussi en ajouter.</div>
+    <div class="row" style="margin-bottom:9px"><div class="field"><input id="trainingAddPlayers" placeholder="Nouveaux joueurs, séparés par des virgules"></div><button class="ghost" id="trainingAddPlayersBtn">Ajouter</button></div>
+    <div class="roster" id="trainingAttendance"></div>
+   </div>
+
+   <div style="margin-top:18px">
+    <h3 style="font-size:16px;margin:0 0 7px">Exercices</h3>
+    <div class="row">
+     <div class="field"><label>Exercice existant</label><select id="trainingExerciseSelect"><option value="">— Choisir —</option></select></div>
+     <button class="ghost" id="addExistingExercise">Ajouter à la séance</button>
+    </div>
+    <div style="margin:12px 0 8px" class="small">ou créer un nouvel exercice</div>
+    <div class="row">
+     <div class="field"><label>Nom</label><input id="newExerciseName" placeholder="ex. Smash ligne 10 ballons"></div>
+     <div class="field"><label>Catégorie</label><select id="newExerciseCategory"><option>Attaque</option><option>Défense</option><option>Passe</option><option>Déplacement</option><option>Remise en jeu</option><option>Physique</option><option>Collectif</option><option>Autre</option></select></div>
+     <div class="field"><label>Mesure</label><select id="newExerciseMeasure"><option value="success_attempts">Réussites / tentatives</option><option value="count">Nombre</option><option value="time_seconds">Temps (s)</option><option value="distance">Distance</option><option value="score">Score</option><option value="rating_5">Note / 5</option><option value="rating_10">Note / 10</option></select></div>
+    </div>
+    <div class="row" style="margin-top:8px"><div class="field"><label>Description</label><input id="newExerciseDescription" placeholder="Consigne courte"></div><div class="field"><label>Objectif</label><input id="newExerciseObjective" placeholder="Ce qu'on cherche à travailler"></div></div>
+    <button class="ghost" id="createTrainingExercise" style="width:100%;margin-top:9px">Créer et ajouter l’exercice</button>
+   </div>
+
+   <div id="trainingExerciseCards" class="trainingList" style="margin-top:16px"></div>
+   <button class="primary" id="saveTrainingSession" style="width:100%;margin-top:16px">Enregistrer la séance</button>
+   <div class="authStatus" id="trainingSaveStatus"></div>
+ </section>
+
+ <section class="panel hidden" id="trainingHistory">
+   <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div><h2 style="font-size:20px">Historique joueur</h2><div class="small">Séances et résultats enregistrés</div></div>
+    <button class="ghost" id="historyBack">← Retour</button>
+   </div>
+   <div class="field"><label>Joueur</label><select id="historyPlayer"><option value="">— Choisir un joueur —</option></select></div>
+   <div id="historySummary" class="small" style="margin:10px 0"></div>
+   <div id="historyResults"></div>
  </section>
 
  <section class="panel hidden" id="setup">
@@ -333,7 +417,7 @@ button:active{transform:scale(.985)}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const KEY='kinball_coach_cloud_v120';
+const KEY='kinball_coach_cloud_v200';
 const SUPABASE_URL='https://chrbzchthloxowlzdvpe.supabase.co';
 const SUPABASE_KEY='sb_publishable_4pQGJ5DSzMRBuHLrAUb30g_MGZVYvEY';
 if(!window.supabase){
@@ -437,9 +521,13 @@ async function refreshRecentMatches(){
 async function initAuthenticated(user){
   currentUser=user;
   $('#authPanel').classList.add('hidden');
-  $('#setup').classList.remove('hidden');
+  $('#setup').classList.add('hidden');
+  $('#appHome').classList.remove('hidden');
+  $('#trainingHome').classList.add('hidden');
+  $('#trainingSession').classList.add('hidden');
+  $('#trainingHistory').classList.add('hidden');
   $('#logout').classList.remove('hidden');
-  $('#newMatchTop').classList.remove('hidden');
+  $('#newMatchTop').classList.add('hidden');
   setCloud('Synchronisé',true);
   await ensureWorkspace();
   await refreshRecentMatches();
@@ -447,6 +535,7 @@ async function initAuthenticated(user){
 
 async function initAuth(){
   $('#matchDate').value=today();
+  if($('#trainingDate')) $('#trainingDate').value=today();
   const {data:{session}}=await db.auth.getSession();
   if(session?.user){
     try{await initAuthenticated(session.user)}catch(e){handleError('initAuthenticated',e)}
@@ -518,6 +607,10 @@ $('#logout').onclick=async()=>{
   $('#live').classList.add('hidden');
   $('#footer').classList.add('hidden');
   $('#setup').classList.add('hidden');
+  $('#appHome').classList.add('hidden');
+  $('#trainingHome').classList.add('hidden');
+  $('#trainingSession').classList.add('hidden');
+  $('#trainingHistory').classList.add('hidden');
   $('#authPanel').classList.remove('hidden');
   $('#logout').classList.add('hidden');
   $('#newMatchTop').classList.add('hidden');
@@ -623,6 +716,7 @@ function resetForNewMatch(){
   $('#opponentTeam1').value='';
   $('#opponentTeam2').value='';
   $('#matchDate').value=today();
+  if($('#trainingDate')) $('#trainingDate').value=today();
   $('#rosterInput').value='';
   $('#rosterChecks').innerHTML='';
   $('#rosterWrap').classList.add('hidden');
@@ -639,7 +733,12 @@ function resetForNewMatch(){
 
   $('#live').classList.add('hidden');
   $('#footer').classList.add('hidden');
+  $('#appHome').classList.add('hidden');
+  $('#trainingHome').classList.add('hidden');
+  $('#trainingSession').classList.add('hidden');
+  $('#trainingHistory').classList.add('hidden');
   $('#setup').classList.remove('hidden');
+  $('#newMatchTop').classList.remove('hidden');
 
   localStorage.removeItem(KEY);
   setCloud('Prêt pour un nouveau match',true);
@@ -1157,6 +1256,204 @@ function eventAttributionLabel(e){
   if(e.attributedPlayers?.length) return e.attributedPlayers.join(', ');
   return e.player||'Collectif/non spécifié';
 }
+
+// ===== MODULE ENTRAÎNEMENT V2.0 PRÉLIMINAIRE =====
+let trainingState={players:[],exercises:[],sessionExercises:[]};
+
+function hideMainModules(){
+  ['appHome','setup','live','trainingHome','trainingSession','trainingHistory'].forEach(id=>$('#'+id)?.classList.add('hidden'));
+  $('#footer').classList.add('hidden');
+  $('#newMatchTop').classList.add('hidden');
+}
+function showAppHome(){
+  hideMainModules();
+  $('#appHome').classList.remove('hidden');
+  setCloud('Synchronisé',true);
+  window.scrollTo({top:0,behavior:'instant'});
+}
+async function openMatchModule(){
+  hideMainModules();
+  $('#setup').classList.remove('hidden');
+  $('#newMatchTop').classList.remove('hidden');
+  await refreshRecentMatches();
+  window.scrollTo({top:0,behavior:'instant'});
+}
+async function fetchTrainingPlayers(){
+  const {data,error}=await db.from('players').select('id,display_name').eq('workspace_id',state.workspaceId).order('display_name');
+  if(error) throw error;
+  trainingState.players=data||[];
+  renderTrainingAttendance();
+  renderHistoryPlayers();
+}
+async function fetchTrainingExercises(){
+  const {data,error}=await db.from('exercises').select('id,name,category,measurement_type,description,objective').eq('workspace_id',state.workspaceId).eq('active',true).order('name');
+  if(error) throw error;
+  trainingState.exercises=data||[];
+  const sel=$('#trainingExerciseSelect');
+  sel.innerHTML='<option value="">— Choisir —</option>';
+  trainingState.exercises.forEach(ex=>{
+    const o=document.createElement('option');o.value=ex.id;o.textContent=`${ex.name}${ex.category?' · '+ex.category:''}`;sel.append(o);
+  });
+}
+async function openTrainingModule(){
+  try{
+    hideMainModules();
+    $('#trainingHome').classList.remove('hidden');
+    await Promise.all([fetchTrainingPlayers(),fetchTrainingExercises()]);
+    window.scrollTo({top:0,behavior:'instant'});
+  }catch(e){handleError('openTrainingModule',e)}
+}
+function renderTrainingAttendance(){
+  const box=$('#trainingAttendance'); if(!box)return; box.innerHTML='';
+  if(!trainingState.players.length){box.innerHTML='<div class="small">Aucun joueur enregistré pour le moment.</div>';return}
+  trainingState.players.forEach(p=>{
+    const l=document.createElement('label');l.className='check';
+    const c=document.createElement('input');c.type='checkbox';c.value=p.id;c.dataset.name=p.display_name;c.checked=true;
+    c.onchange=renderTrainingExerciseCards;
+    l.append(c,document.createTextNode(p.display_name));box.append(l);
+  });
+}
+function trainingPresentPlayers(){
+  return $$('#trainingAttendance input:checked').map(c=>({id:c.value,name:c.dataset.name}));
+}
+function renderHistoryPlayers(){
+  const sel=$('#historyPlayer');if(!sel)return;
+  const current=sel.value;
+  sel.innerHTML='<option value="">— Choisir un joueur —</option>';
+  trainingState.players.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.display_name;sel.append(o)});
+  if([...sel.options].some(o=>o.value===current)) sel.value=current;
+}
+function startNewTraining(){
+  trainingState.sessionExercises=[];
+  $('#trainingDate').value=today();
+  $('#trainingTheme').value='';$('#trainingDuration').value='';$('#trainingNotes').value='';
+  $('#trainingAddPlayers').value='';
+  $('#trainingSaveStatus').textContent='';
+  const suggested=$('#teamName')?.value?.trim(); if(suggested && suggested!=='Mon équipe') $('#trainingTeam').value=suggested;
+  $$('#trainingAttendance input').forEach(c=>c.checked=true);
+  renderTrainingExerciseCards();
+  hideMainModules();$('#trainingSession').classList.remove('hidden');window.scrollTo({top:0,behavior:'instant'});
+}
+function measurementLabel(t){
+  return ({success_attempts:'Réussites / tentatives',count:'Nombre',time_seconds:'Temps (s)',distance:'Distance',score:'Score',rating_5:'Note / 5',rating_10:'Note / 10'})[t]||t;
+}
+function addSessionExercise(ex){
+  trainingState.sessionExercises.push({...ex,localKey:crypto.randomUUID()});
+  renderTrainingExerciseCards();
+}
+function removeSessionExercise(key){trainingState.sessionExercises=trainingState.sessionExercises.filter(x=>x.localKey!==key);renderTrainingExerciseCards()}
+function resultInputsHtml(ex,p){
+  const key=`${ex.localKey}__${p.id}`;
+  if(ex.measurement_type==='success_attempts') return `<div class="miniGrid"><div><label>Réussites</label><input class="tr-success" data-key="${key}" type="number" min="0" inputmode="numeric"></div><div><label>Tentatives</label><input class="tr-attempts" data-key="${key}" type="number" min="0" inputmode="numeric"></div></div>`;
+  let max=''; if(ex.measurement_type==='rating_5')max=' max="5"';if(ex.measurement_type==='rating_10')max=' max="10"';
+  return `<label>${measurementLabel(ex.measurement_type)}</label><input class="tr-value" data-key="${key}" type="number" step="any" inputmode="decimal"${max}>`;
+}
+function renderTrainingExerciseCards(){
+  const box=$('#trainingExerciseCards');if(!box)return;box.innerHTML='';
+  const present=trainingPresentPlayers();
+  if(!trainingState.sessionExercises.length){box.innerHTML='<div class="small">Ajoute au moins un exercice à la séance.</div>';return}
+  trainingState.sessionExercises.forEach((ex,idx)=>{
+    const card=document.createElement('div');card.className='trainingCard';
+    card.innerHTML=`<div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3>${idx+1}. ${ex.name}</h3><div class="small">${ex.category||'Sans catégorie'} · ${measurementLabel(ex.measurement_type)}${ex.objective?' · '+ex.objective:''}</div></div><button class="ghost" data-remove="${ex.localKey}">Retirer</button></div><div class="trainingResults"></div>`;
+    card.querySelector('[data-remove]').onclick=()=>removeSessionExercise(ex.localKey);
+    const rb=card.querySelector('.trainingResults');
+    if(!present.length) rb.innerHTML='<div class="small">Sélectionne au moins un joueur présent.</div>';
+    present.forEach(p=>{
+      const row=document.createElement('div');row.className='resultRow';row.dataset.exercise=ex.localKey;row.dataset.player=p.id;
+      row.innerHTML=`<div class="name">${p.name}</div>${resultInputsHtml(ex,p)}<div style="margin-top:7px"><label>Note facultative</label><input class="tr-note" placeholder="Observation courte"></div>`;
+      rb.append(row);
+    });
+    box.append(card);
+  });
+}
+async function createExerciseFromForm(){
+  const name=$('#newExerciseName').value.trim();
+  if(!name){alert('Renseigne le nom de l’exercice.');return}
+  const payload={workspace_id:state.workspaceId,name,category:$('#newExerciseCategory').value,measurement_type:$('#newExerciseMeasure').value,description:$('#newExerciseDescription').value.trim()||null,objective:$('#newExerciseObjective').value.trim()||null,active:true};
+  const {data,error}=await db.from('exercises').insert(payload).select('id,name,category,measurement_type,description,objective').single();
+  if(error) throw error;
+  trainingState.exercises.push(data);addSessionExercise(data);
+  ['newExerciseName','newExerciseDescription','newExerciseObjective'].forEach(id=>$('#'+id).value='');
+  await fetchTrainingExercises();
+}
+async function addTrainingPlayers(){
+  const names=$('#trainingAddPlayers').value.split(',').map(x=>x.trim()).filter(Boolean);
+  if(!names.length)return;
+  await ensurePlayers(names);
+  $('#trainingAddPlayers').value='';
+  await fetchTrainingPlayers();
+  const wanted=new Set(names.map(x=>x.toLowerCase()));
+  $$('#trainingAttendance input').forEach(c=>{if(wanted.has(c.dataset.name.toLowerCase()))c.checked=true});
+  renderTrainingExerciseCards();
+}
+function trainingStatus(text,error=false){const el=$('#trainingSaveStatus');el.textContent=text||'';el.className='authStatus '+(error?'cloudErr':'cloudOk')}
+async function saveTrainingSession(){
+  try{
+    trainingStatus('Enregistrement…');
+    const teamName=$('#trainingTeam').value.trim();
+    const date=$('#trainingDate').value||today();
+    const present=trainingPresentPlayers();
+    if(!teamName){trainingStatus('Renseigne le nom de l’équipe ou du groupe.',true);return}
+    if(!present.length){trainingStatus('Sélectionne au moins un joueur présent.',true);return}
+    if(!trainingState.sessionExercises.length){trainingStatus('Ajoute au moins un exercice.',true);return}
+    const teamId=await ensureTeam(teamName);
+    const duration=$('#trainingDuration').value?Number($('#trainingDuration').value):null;
+    const {data:session,error:se}=await db.from('training_sessions').insert({workspace_id:state.workspaceId,team_id:teamId,trained_on:date,label:$('#trainingTheme').value.trim()||'Entraînement',theme:$('#trainingTheme').value.trim()||null,duration_minutes:duration,notes:$('#trainingNotes').value.trim()||null}).select('id').single();
+    if(se)throw se;
+    const attendance=trainingState.players.map(p=>({session_id:session.id,player_id:p.id,present:present.some(x=>x.id===p.id)}));
+    if(attendance.length){const {error}=await db.from('training_attendance').insert(attendance);if(error)throw error}
+    const sessionExRows=trainingState.sessionExercises.map((ex,i)=>({session_id:session.id,exercise_id:ex.id,position:i+1}));
+    const {error:xe}=await db.from('training_session_exercises').insert(sessionExRows);if(xe)throw xe;
+    const results=[];
+    trainingState.sessionExercises.forEach(ex=>{
+      present.forEach(p=>{
+        const row=$(`.resultRow[data-exercise="${ex.localKey}"][data-player="${p.id}"]`);if(!row)return;
+        const note=row.querySelector('.tr-note')?.value.trim()||null;
+        if(ex.measurement_type==='success_attempts'){
+          const sv=row.querySelector('.tr-success')?.value, av=row.querySelector('.tr-attempts')?.value;
+          if(sv===''&&av===''&&!note)return;
+          results.push({session_id:session.id,exercise_id:ex.id,player_id:p.id,successes:sv===''?null:Number(sv),attempts:av===''?null:Number(av),note});
+        }else{
+          const vv=row.querySelector('.tr-value')?.value;
+          if(vv===''&&!note)return;
+          results.push({session_id:session.id,exercise_id:ex.id,player_id:p.id,numeric_value:vv===''?null:Number(vv),note});
+        }
+      });
+    });
+    if(results.length){const {error:re}=await db.from('training_results').insert(results);if(re)throw re}
+    trainingStatus('Séance enregistrée ✓');setCloud('Synchronisé',true);
+    setTimeout(()=>openTrainingModule(),650);
+  }catch(e){trainingStatus(e.message||String(e),true);handleError('saveTrainingSession',e)}
+}
+async function loadPlayerHistory(playerId){
+  const out=$('#historyResults'),summary=$('#historySummary');out.innerHTML='';summary.textContent='Chargement…';
+  if(!playerId){summary.textContent='';return}
+  const {data,error}=await db.from('training_results').select('id,successes,attempts,numeric_value,note,created_at,session:training_sessions!training_results_session_id_fkey(trained_on,label,theme),exercise:exercises!training_results_exercise_id_fkey(name,measurement_type,category)').eq('player_id',playerId).order('created_at',{ascending:false}).limit(100);
+  if(error)throw error;
+  const rows=data||[];summary.textContent=`${rows.length} résultat${rows.length>1?'s':''} enregistré${rows.length>1?'s':''}`;
+  if(!rows.length){out.innerHTML='<div class="small">Aucun résultat d’entraînement pour ce joueur.</div>';return}
+  rows.forEach(r=>{
+    let val='—';
+    if(r.exercise?.measurement_type==='success_attempts'){
+      val=`${r.successes??'—'} / ${r.attempts??'—'}`;
+      if(r.attempts>0&&r.successes!=null) val+=` · ${Math.round(100*r.successes/r.attempts)} %`;
+    }else if(r.numeric_value!=null) val=String(r.numeric_value);
+    const d=document.createElement('div');d.className='historyItem';d.innerHTML=`<strong>${r.exercise?.name||'Exercice'}</strong><div>${val}</div><div class="small">${r.session?.trained_on||''}${r.session?.theme?' · '+r.session.theme:''}${r.note?' · '+r.note:''}</div>`;out.append(d);
+  });
+}
+
+$('#openMatchModule').onclick=()=>openMatchModule().catch(e=>handleError('openMatchModule',e));
+$('#openTrainingModule').onclick=()=>openTrainingModule();
+$('#trainingBackHome').onclick=showAppHome;
+$('#newTraining').onclick=startNewTraining;
+$('#cancelTraining').onclick=()=>openTrainingModule();
+$('#trainingAddPlayersBtn').onclick=()=>addTrainingPlayers().catch(e=>handleError('addTrainingPlayers',e));
+$('#addExistingExercise').onclick=()=>{const id=$('#trainingExerciseSelect').value;if(!id)return;const ex=trainingState.exercises.find(x=>x.id===id);if(ex)addSessionExercise(ex)};
+$('#createTrainingExercise').onclick=()=>createExerciseFromForm().catch(e=>handleError('createExercise',e));
+$('#saveTrainingSession').onclick=saveTrainingSession;
+$('#openTrainingHistory').onclick=async()=>{try{await fetchTrainingPlayers();hideMainModules();$('#trainingHistory').classList.remove('hidden');$('#historyPlayer').value='';$('#historySummary').textContent='';$('#historyResults').innerHTML=''}catch(e){handleError('history',e)}};
+$('#historyBack').onclick=()=>openTrainingModule();
+$('#historyPlayer').onchange=()=>loadPlayerHistory($('#historyPlayer').value).catch(e=>handleError('history player',e));
 
 function render(){
   $('#count').textContent=state.events.length+' action'+(state.events.length>1?'s':'');
