@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Kinball Coach — V1.22 Cloud</title>
+<title>Kinball Coach — V1.23 Cloud</title>
 <style>
 :root{
  --bg:#0f1115;--panel:#171a21;--panel2:#20242d;--text:#f5f7fa;--muted:#aab1bc;
@@ -76,7 +76,7 @@ button:active{transform:scale(.985)}
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V1.22 Cloud — base centralisée</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V1.23 Cloud — base centralisée</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge" id="count">0 actions</div>
@@ -90,7 +90,7 @@ button:active{transform:scale(.985)}
  <section class="panel" id="authPanel">
    <h2 style="font-size:20px;margin-bottom:6px">Bienvenue sur Kinball Coach</h2>
    <p class="small" style="margin-bottom:16px">
-     Connectez-vous pour retrouver vos matchs enregistrés. Si vous utilisez Kinball Coach pour la première fois, créez simplement votre compte ci-dessous.
+     Connectez-vous pour retrouver vos matchs enregistrés. Si vous utilisez Kinball Coach pour la première fois, créez votre compte depuis le bouton dédié.
    </p>
 
    <div style="padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--panel2);margin-bottom:14px">
@@ -128,11 +128,13 @@ button:active{transform:scale(.985)}
    <div class="row">
     <div class="field"><label>Match</label><input id="matchName" value="Match test vidéo"></div>
     <div class="field"><label>Équipe suivie</label><input id="teamName" value="Mon équipe"></div>
+    <div class="field"><label>Équipe adverse 1</label><input id="opponentTeam1" placeholder="Équipe 2"></div>
+    <div class="field"><label>Équipe adverse 2</label><input id="opponentTeam2" placeholder="Équipe 3"></div>
     <div class="field"><label>Date</label><input id="matchDate" type="date"></div>
    </div>
    <div class="field" style="margin-top:10px">
     <label>Effectif complet — séparé par des virgules</label>
-    <input id="rosterInput" value="3 Lucas, 5 Hugo, 7 Paul, 9 Martin, 12 Antoine, 14 Julien">
+    <input id="rosterInput" value="" placeholder="ex. Philippe, Adrien, Lenny, Thibault">
    </div>
    <button class="ghost" style="width:100%;margin-top:9px" id="loadRoster">Sélectionner les joueurs en jeu</button>
    <div id="rosterWrap" class="hidden" style="margin-top:10px">
@@ -141,7 +143,7 @@ button:active{transform:scale(.985)}
    <div class="row" style="margin-top:10px">
     <div class="field"><label>Période</label><select id="startPeriod"><option>P1</option><option>P2</option><option>P3</option><option>P4</option><option>P5</option><option>P6</option><option>P7</option><option>P8</option><option>P9</option><option>P10</option></select></div>
    </div>
-   <button class="primary" style="width:100%;margin-top:11px" id="start">Commencer</button>
+   <button class="primary" style="width:100%;margin-top:11px" id="start" disabled title="Renseignez au moins 4 joueurs puis sélectionnez exactement 4 joueurs pour commencer la période.">Commencer</button>
  </section>
 
  <div id="live" class="hidden">
@@ -218,6 +220,31 @@ button:active{transform:scale(.985)}
  <div class="footerin"><button class="ghost" id="csv">Exporter CSV</button><button class="primary" id="json">Sauvegarder JSON</button></div>
 </div>
 
+<div class="popupBackdrop hidden" id="signupPopup">
+ <div class="sheet" style="max-width:560px">
+   <div class="sheetTop">
+    <div>
+     <h2>Créer mon compte</h2>
+     <div class="meta">Choisis l’adresse e-mail et le mot de passe de ton compte Kinball Coach.</div>
+    </div>
+    <button class="closePopup" id="closeSignupPopup" aria-label="Fermer">×</button>
+   </div>
+   <div class="field" style="margin-bottom:12px">
+    <label>Email</label>
+    <input id="signupEmail" type="email" autocomplete="email" placeholder="vous@exemple.fr">
+   </div>
+   <div class="field">
+    <label>Mot de passe</label>
+    <input id="signupPassword" type="password" autocomplete="new-password" placeholder="Choisissez un mot de passe">
+   </div>
+   <div class="authStatus" id="signupStatus"></div>
+   <div class="row" style="margin-top:14px">
+    <button class="ghost" style="flex:1" id="cancelSignup">Annuler</button>
+    <button class="primary" style="flex:2" id="confirmSignup">Créer mon compte</button>
+   </div>
+ </div>
+</div>
+
 <div class="popupBackdrop hidden" id="popup">
  <div class="sheet">
    <div class="sheetTop">
@@ -226,6 +253,11 @@ button:active{transform:scale(.985)}
      <div class="meta" id="popupMeta"></div>
     </div>
     <button class="closePopup" id="closeMainPopup" aria-label="Fermer">×</button>
+   </div>
+
+   <div class="step" id="opponentStep">
+    <h3 id="opponentTitle">Équipe concernée</h3>
+    <div class="options" id="opponentOptions"></div>
    </div>
 
    <div class="step hidden" id="restartLocationStep">
@@ -258,7 +290,7 @@ button:active{transform:scale(.985)}
    </div>
 
    <div class="step hidden" id="whoStep">
-    <h3>Attribution — facultatif</h3>
+    <h3 id="whoTitle">Attribution — facultatif</h3>
     <div class="options" id="whoOptions"></div>
    </div>
    <div class="row" style="margin-top:14px">
@@ -311,10 +343,10 @@ if(!window.supabase){
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
 let state={
-  matchName:'',teamName:'',matchDate:'',players:[],activePlayers:[],events:[],
+  matchName:'',teamName:'',opponentTeams:[],opponentTeamIds:{},matchDate:'',players:[],activePlayers:[],events:[],
   currentMatchId:null,currentTeamId:null,workspaceId:null,playerIds:{}
 };
-let context='jeu_centre', pending=null, zone='', movement='', who='', faultType='', faultWho='', editingId=null;
+let context='jeu_centre', pending=null, zone='', movement='', who='', whoMany=[], faultType='', faultWho='', editingId=null, opponentTeam='';
 let family='centre',actionType='Attaque',actionResult='',restartLocation='';
 let currentUser=null;
 
@@ -344,7 +376,16 @@ function saveLocal(){
 function loadLocal(){
   try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){return {}}
 }
-function roster(){return $('#rosterInput').value.split(',').map(x=>x.trim()).filter(Boolean)}
+function roster(){
+  const names=$('#rosterInput').value.split(',').map(x=>x.trim()).filter(Boolean);
+  const seen=new Set();
+  return names.filter(name=>{
+    const key=name.toLowerCase();
+    if(seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 async function ensureWorkspace(){
   const {data:members,error}=await db
@@ -377,7 +418,7 @@ async function refreshRecentMatches(){
   if(!state.workspaceId) return;
   const {data,error}=await db
     .from('matches')
-    .select('id,label,played_on,created_at,teams(name)')
+    .select('id,label,played_on,created_at,followed_team:teams!matches_team_id_fkey(name)')
     .eq('workspace_id',state.workspaceId)
     .order('created_at',{ascending:false})
     .limit(40);
@@ -387,7 +428,7 @@ async function refreshRecentMatches(){
   (data||[]).forEach(m=>{
     const o=document.createElement('option');
     o.value=m.id;
-    const team=m.teams?.name||'Équipe';
+    const team=m.followed_team?.name||'Équipe';
     o.textContent=`${m.played_on||'Date ?'} · ${m.label} · ${team}`;
     sel.append(o);
   });
@@ -430,26 +471,49 @@ $('#login').onclick=async()=>{
   authMessage('');
   try{await initAuthenticated(data.user)}catch(e){handleError('login init',e)}
 };
-$('#signup').onclick=async()=>{
-  authMessage('Création du compte…');
-  const email=$('#authEmail').value.trim();
-  const password=$('#authPassword').value;
+const signupMessage=(text,error=false)=>{
+  const el=$('#signupStatus');
+  el.textContent=text||'';
+  el.className='authStatus '+(error?'cloudErr':'');
+};
+function openSignupPopup(){
+  $('#signupEmail').value='';
+  $('#signupPassword').value='';
+  signupMessage('');
+  $('#signupPopup').classList.remove('hidden');
+  resetPopupScroll('#signupPopup');
+  setTimeout(()=>$('#signupEmail').focus(),0);
+}
+function closeSignupPopup(){
+  $('#signupPopup').classList.add('hidden');
+  signupMessage('');
+}
+$('#signup').onclick=openSignupPopup;
+$('#cancelSignup').onclick=closeSignupPopup;
+$('#closeSignupPopup').onclick=closeSignupPopup;
+$('#signupPopup').onclick=e=>{if(e.target===$('#signupPopup'))closeSignupPopup()};
+$('#confirmSignup').onclick=async()=>{
+  const email=$('#signupEmail').value.trim();
+  const password=$('#signupPassword').value;
+  if(!email){signupMessage('Saisis une adresse e-mail.',true);return}
+  if(!password){signupMessage('Choisis un mot de passe.',true);return}
+  signupMessage('Création du compte…');
   const {data,error}=await db.auth.signUp({
     email,password,
     options:{emailRedirectTo:location.origin}
   });
-  if(error){authMessage(error.message,true);return}
+  if(error){signupMessage(error.message,true);return}
   if(data.session){
-    authMessage('');
+    closeSignupPopup();
     try{await initAuthenticated(data.user)}catch(e){handleError('signup init',e)}
   }else{
-    authMessage('Compte créé. Confirme ton adresse e-mail puis reviens te connecter.');
+    signupMessage('Compte créé. Confirme ton adresse e-mail puis reviens te connecter.');
   }
 };
 $('#logout').onclick=async()=>{
   await db.auth.signOut();
   currentUser=null;
-  state={matchName:'',teamName:'',matchDate:'',players:[],activePlayers:[],events:[],currentMatchId:null,currentTeamId:null,workspaceId:null,playerIds:{}};
+  state={matchName:'',teamName:'',opponentTeams:[],opponentTeamIds:{},matchDate:'',players:[],activePlayers:[],events:[],currentMatchId:null,currentTeamId:null,workspaceId:null,playerIds:{}};
   localStorage.removeItem(KEY);
   $('#live').classList.add('hidden');
   $('#footer').classList.add('hidden');
@@ -460,14 +524,28 @@ $('#logout').onclick=async()=>{
   setCloud('Non connecté',false);
 };
 
+function updateStartButton(){
+  const count=$$('#rosterChecks input:checked').length;
+  const btn=$('#start');
+  btn.disabled=count!==4;
+  btn.title=count===4?'':'Sélectionnez exactement 4 joueurs pour commencer la période.';
+}
 function buildChecks(){
   const r=roster(), box=$('#rosterChecks'); box.innerHTML='';
+  if(r.length<4){
+    $('#rosterWrap').classList.add('hidden');
+    updateStartButton();
+    alert('Renseigne au moins 4 joueurs distincts dans l’effectif.');
+    return;
+  }
   r.forEach((p,i)=>{
     const l=document.createElement('label');l.className='check';
     const c=document.createElement('input');c.type='checkbox';c.value=p;c.checked=i<4;
+    c.onchange=updateStartButton;
     l.append(c,document.createTextNode(p));box.append(l)
   });
   $('#rosterWrap').classList.remove('hidden');
+  updateStartButton();
 }
 function renderPlayers(){
   const b=$('#activePlayers');b.innerHTML='';
@@ -530,6 +608,8 @@ async function ensurePlayers(names){
 function resetForNewMatch(){
   state.matchName='';
   state.teamName='';
+  state.opponentTeams=[];
+  state.opponentTeamIds={};
   state.matchDate='';
   state.players=[];
   state.activePlayers=[];
@@ -540,6 +620,8 @@ function resetForNewMatch(){
 
   $('#matchName').value='Match';
   $('#teamName').value='Mon équipe';
+  $('#opponentTeam1').value='';
+  $('#opponentTeam2').value='';
   $('#matchDate').value=today();
   $('#rosterInput').value='';
   $('#rosterChecks').innerHTML='';
@@ -569,19 +651,35 @@ async function start(){
     setCloud('Enregistrement…',true);
     state.matchName=$('#matchName').value.trim()||'Match';
     state.teamName=$('#teamName').value.trim()||'Mon équipe';
+    state.opponentTeams=[$('#opponentTeam1').value.trim(),$('#opponentTeam2').value.trim()];
+    if(state.opponentTeams.some(x=>!x)){alert('Renseigne le nom des 3 équipes du match.');return}
+    if(new Set([state.teamName,...state.opponentTeams].map(x=>x.toLowerCase())).size!==3){alert('Les 3 équipes doivent avoir des noms différents.');return}
     state.matchDate=$('#matchDate').value||today();
     state.players=roster();
-    if(!state.players.length){alert('Renseigne au moins un joueur.');return}
+    if(state.players.length<4){alert('Renseigne au moins 4 joueurs distincts dans l’effectif.');return}
 
     const checked=$$('#rosterChecks input:checked');
-    state.activePlayers=checked.length?checked.map(c=>c.value):state.players.slice(0,4);
+    if(checked.length!==4){
+      alert('Sélectionnez exactement 4 joueurs pour commencer la période.');
+      updateStartButton();
+      return;
+    }
+    state.activePlayers=checked.map(c=>c.value);
 
     state.currentTeamId=await ensureTeam(state.teamName);
+    const opp1Id=await ensureTeam(state.opponentTeams[0]);
+    const opp2Id=await ensureTeam(state.opponentTeams[1]);
+    state.opponentTeamIds={
+      [state.opponentTeams[0]]:opp1Id,
+      [state.opponentTeams[1]]:opp2Id
+    };
     state.playerIds=await ensurePlayers(state.players);
 
     const {data:m,error}=await db.from('matches').insert({
       workspace_id:state.workspaceId,
       team_id:state.currentTeamId,
+      opponent_team_1_id:state.opponentTeamIds[state.opponentTeams[0]],
+      opponent_team_2_id:state.opponentTeamIds[state.opponentTeams[1]],
       label:state.matchName,
       played_on:state.matchDate,
       status:'draft'
@@ -649,6 +747,14 @@ async function insertLineup(eventId,activePlayers){
   if(error) throw error;
 }
 
+async function insertAttributions(eventId,players){
+  if(!players?.length) return;
+  const rows=[...new Set(players)].map(name=>state.playerIds[name]).filter(Boolean).map(id=>({event_id:eventId,player_id:id}));
+  if(!rows.length) return;
+  const {error}=await db.from('match_event_attributions').insert(rows);
+  if(error) throw error;
+}
+
 async function persistEvent(base,isEdit=false){
   const payload={
     match_id:state.currentMatchId,
@@ -664,8 +770,9 @@ async function persistEvent(base,isEdit=false){
     fault_type:base.faultType||null,
     movement:base.movement==null?null:(base.movement==='Oui'),
     zone:base.zone||null,
-    player_id:playerIdFor(base.player),
-    is_collective:!base.player
+    player_id:playerIdFor(base.player)||(base.attributedPlayers?.length===1?playerIdFor(base.attributedPlayers[0]):null),
+    is_collective:!base.player&&!base.attributedPlayers?.length,
+    opponent_team_id:base.opponentTeam?state.opponentTeamIds[base.opponentTeam]||null:null
   };
 
   let eventId=editingId;
@@ -674,6 +781,8 @@ async function persistEvent(base,isEdit=false){
     if(error) throw error;
     const {error:de}=await db.from('match_event_lineup').delete().eq('event_id',editingId);
     if(de) throw de;
+    const {error:dae}=await db.from('match_event_attributions').delete().eq('event_id',editingId);
+    if(dae) throw dae;
   }else{
     const {data,error}=await db.from('match_events').insert(payload).select('id,sequence_no,created_at').single();
     if(error) throw error;
@@ -682,6 +791,7 @@ async function persistEvent(base,isEdit=false){
     base.sequenceNo=data.sequence_no;
   }
   await insertLineup(eventId,base.activePlayers);
+  await insertAttributions(eventId,base.attributedPlayers||[]);
   return eventId;
 }
 
@@ -689,7 +799,7 @@ async function loadMatch(matchId){
   try{
     setCloud('Chargement…',true);
     const [{data:m,error:me},{data:players,error:pe},{data:events,error:ee}] = await Promise.all([
-      db.from('matches').select('id,label,played_on,team_id,teams(name)').eq('id',matchId).single(),
+      db.from('matches').select('id,label,played_on,team_id,opponent_team_1_id,opponent_team_2_id,followed_team:teams!matches_team_id_fkey(name)').eq('id',matchId).single(),
       db.from('players').select('id,display_name').eq('workspace_id',state.workspaceId),
       db.from('match_events').select('*').eq('match_id',matchId).order('sequence_no',{ascending:true})
     ]);
@@ -698,7 +808,17 @@ async function loadMatch(matchId){
     state.currentMatchId=m.id;
     state.currentTeamId=m.team_id;
     state.matchName=m.label;
-    state.teamName=m.teams?.name||'Mon équipe';
+    state.teamName=m.followed_team?.name||'Mon équipe';
+    const opponentIds=[m.opponent_team_1_id,m.opponent_team_2_id].filter(Boolean);
+    let opponentRows=[];
+    if(opponentIds.length){
+      const {data,error}=await db.from('teams').select('id,name').in('id',opponentIds);
+      if(error) throw error;
+      opponentRows=data||[];
+    }
+    const opponentById=Object.fromEntries(opponentRows.map(t=>[t.id,t.name]));
+    state.opponentTeams=[m.opponent_team_1_id,m.opponent_team_2_id].map(id=>opponentById[id]||'').filter(Boolean);
+    state.opponentTeamIds=Object.fromEntries(opponentRows.map(t=>[t.name,t.id]));
     state.matchDate=m.played_on||'';
     state.playerIds={};
     const idToName={};
@@ -723,6 +843,18 @@ async function loadMatch(matchId){
       if(playerName) (lineupMap[x.event_id]??=[]).push(playerName);
     });
 
+    let attributions=[];
+    if(ids.length){
+      const {data,error}=await db.from('match_event_attributions').select('event_id,player_id').in('event_id',ids);
+      if(error) throw error;
+      attributions=data||[];
+    }
+    const attributionMap={};
+    attributions.forEach(x=>{
+      const playerName=idToName[x.player_id];
+      if(playerName) (attributionMap[x.event_id]??=[]).push(playerName);
+    });
+
     state.events=(events||[]).map(e=>{
       const at=e.action_type==='attaque'?'Attaque':e.action_type==='defense'?'Défense':'Faute';
       return {
@@ -735,7 +867,9 @@ async function loadMatch(matchId){
         zone:e.zone,
         movement:e.movement==null?null:(e.movement?'Oui':'Non'),
         player:e.player_id?idToName[e.player_id]||null:null,
+        attributedPlayers:attributionMap[e.id]||((e.action_type==='defense'&&e.player_id&&idToName[e.player_id])?[idToName[e.player_id]]:[]),
         activePlayers:lineupMap[e.id]||[],
+        opponentTeam:e.opponent_team_id?opponentById[e.opponent_team_id]||null:null,
         createdAt:e.created_at
       };
     });
@@ -744,6 +878,8 @@ async function loadMatch(matchId){
 
     $('#matchName').value=state.matchName;
     $('#teamName').value=state.teamName;
+    $('#opponentTeam1').value=state.opponentTeams[0]||'';
+    $('#opponentTeam2').value=state.opponentTeams[1]||'';
     $('#matchDate').value=state.matchDate||today();
     $('#rosterInput').value=state.players.join(', ');
     $('#setup').classList.add('hidden');
@@ -779,18 +915,37 @@ function handleOutcome(value,button){
   if(actionType==='Défense'&&value==='Défensive illégale'){
     pending='Faute';faultType='Défensive illégale';zone='';movement='Non';
     $('#zoneStep').classList.add('hidden');$('#moveStep').classList.add('hidden');$('#whoStep').classList.remove('hidden');
-    if(family!=='remise'||restartLocation) $('#savePopup').classList.remove('hidden');
+    updatePopupSaveVisibility();
     return
   }
   pending=actionType+' · '+value;
   $('#zoneStep').classList.remove('hidden');$('#moveStep').classList.remove('hidden');$('#whoStep').classList.remove('hidden');
-  if(family!=='remise'||restartLocation) $('#savePopup').classList.remove('hidden');
+  updatePopupSaveVisibility();
 }
 function resetPopupScroll(popupId){const sheet=$(popupId+' .sheet');if(sheet) sheet.scrollTop=0}
+function buildOpponentOptions(){
+  const box=$('#opponentOptions');box.innerHTML='';
+  state.opponentTeams.forEach(name=>{
+    const b=document.createElement('button');
+    b.dataset.opponent=name;b.textContent=name;
+    b.classList.toggle('choice',opponentTeam===name);
+    b.onclick=()=>{
+      opponentTeam=name;
+      $$('#opponentOptions button').forEach(x=>x.classList.toggle('choice',x.dataset.opponent===name));
+      updatePopupSaveVisibility();
+    };
+    box.append(b);
+  });
+  $('#opponentTitle').textContent=actionType==='Attaque'?'Équipe attaquée':'Équipe attaquante';
+}
+function updatePopupSaveVisibility(){
+  const ready=!!pending && !!opponentTeam && (family!=='remise'||!!restartLocation);
+  $('#savePopup').classList.toggle('hidden',!ready);
+}
 function openActionPopup(selectedFamily,selectedActionType){
   family=selectedFamily;actionType=selectedActionType;restartLocation='';
   context=family==='centre'?'centre':(family==='gel'?'gel':'remise_centre');
-  pending=null;actionResult='';zone='';movement='Non';who='';editingId=null;
+  pending=null;actionResult='';zone='';movement='Non';who='';whoMany=[];opponentTeam='';editingId=null;
   $('#popupTitle').textContent=actionType+(family==='centre'?' au centre':family==='gel'?' Gel':' sur remise en jeu');
   $('#popupMeta').textContent=(currentVideoPosition()?'Vidéo '+currentVideoPosition()+' · ':'')+$('#period').value;
   $$('#restartLocationOptions button').forEach(b=>b.classList.remove('choice'));
@@ -798,14 +953,33 @@ function openActionPopup(selectedFamily,selectedActionType){
   $('#zoneOptions button[data-zone=""]').classList.add('choice');
   $$('#moveOptions button').forEach(b=>b.classList.remove('choice'));
   $('#moveOptions button[data-move="Non"]').classList.add('choice');
+  buildOpponentOptions();
   $('#restartLocationStep').classList.toggle('hidden',family!=='remise');
   buildOutcomeButtons();
   $('#resultStep').classList.remove('hidden');$('#zoneStep').classList.toggle('hidden',family==='gel');$('#moveStep').classList.remove('hidden');$('#whoStep').classList.remove('hidden');
   $('#savePopup').classList.add('hidden');
   buildWho('#whoOptions');
+  $('#whoTitle').textContent=actionType==='Défense'?'Attribution — plusieurs joueurs possibles':'Attribution — facultatif';
   $$('#whoOptions button').forEach(b=>b.classList.remove('choice'));
   $('#whoOptions button[data-who=""]').classList.add('choice');
-  $$('#whoOptions button').forEach(b=>b.onclick=()=>{who=b.dataset.who;$$('#whoOptions button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice')});
+  $$('#whoOptions button').forEach(b=>b.onclick=()=>{
+    const name=b.dataset.who;
+    if(actionType==='Défense'){
+      if(!name){
+        whoMany=[];
+        $$('#whoOptions button').forEach(x=>x.classList.remove('choice'));
+        b.classList.add('choice');
+      }else{
+        whoMany=whoMany.includes(name)?whoMany.filter(x=>x!==name):[...whoMany,name];
+        $('#whoOptions button[data-who=""]').classList.toggle('choice',whoMany.length===0);
+        b.classList.toggle('choice',whoMany.includes(name));
+      }
+    }else{
+      who=name;
+      $$('#whoOptions button').forEach(x=>x.classList.remove('choice'));
+      b.classList.add('choice');
+    }
+  });
   $('#popup').classList.remove('hidden');resetPopupScroll('#popup');
 }
 $$('.entryAction').forEach(b=>b.onclick=()=>{
@@ -815,7 +989,7 @@ $$('.entryAction').forEach(b=>b.onclick=()=>{
 $$('#restartLocationOptions button').forEach(b=>b.onclick=()=>{
   restartLocation=b.dataset.restart;context='remise_'+restartLocation;
   $$('#restartLocationOptions button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice');
-  if(pending) $('#savePopup').classList.remove('hidden');
+  updatePopupSaveVisibility();
 });
 function openFaultPopup(){
   faultType='';faultWho='';
@@ -839,10 +1013,12 @@ $('#savePopup').onclick=async()=>{
     const isDefenseFault=actionType==='Défense'&&actionResult==='Défensive illégale';
     const base={
       videoPosition:currentVideoPosition(),period:$('#period').value,context,family,
-      restartLocation:restartLocation||null,action:isDefenseFault?'Faute':pending,
+      restartLocation:restartLocation||null,opponentTeam:opponentTeam||null,action:isDefenseFault?'Faute':pending,
       faultType:isDefenseFault?'Défensive illégale':null,
       zone:(isDefenseFault||family==='gel')?null:(zone||null),movement:isDefenseFault?null:(movement||null),
-      player:who||null,activePlayers:[...state.activePlayers],createdAt:new Date().toISOString()
+      player:actionType==='Défense'?null:(who||null),
+      attributedPlayers:actionType==='Défense'?[...whoMany]:[],
+      activePlayers:[...state.activePlayers],createdAt:new Date().toISOString()
     };
     const isEdit=!!editingId;
     const eventId=await persistEvent(base,isEdit);
@@ -861,8 +1037,8 @@ $('#saveFault').onclick=async()=>{
     setCloud('Enregistrement…',true);
     const base={
       videoPosition:currentVideoPosition(),period:$('#period').value,context,family,
-      restartLocation:restartLocation||null,action:'Faute',zone:null,movement:null,
-      player:faultWho||null,faultType,activePlayers:[...state.activePlayers],createdAt:new Date().toISOString()
+      restartLocation:restartLocation||null,opponentTeam:opponentTeam||null,action:'Faute',zone:null,movement:null,
+      player:faultWho||null,attributedPlayers:[],faultType,activePlayers:[...state.activePlayers],createdAt:new Date().toISOString()
     };
     const isEdit=!!editingId;
     const eventId=await persistEvent(base,isEdit);
@@ -890,7 +1066,16 @@ $('#newMatchTop').onclick=()=>{
   resetForNewMatch();
 };
 $('#loadRoster').onclick=buildChecks;
-$('#start').onclick=()=>{if($('#rosterWrap').classList.contains('hidden'))buildChecks();start()};
+$('#start').onclick=()=>{
+  if($('#rosterWrap').classList.contains('hidden')) buildChecks();
+  const checked=$$('#rosterChecks input:checked');
+  if(checked.length!==4){
+    alert('Sélectionnez exactement 4 joueurs pour commencer la période.');
+    updateStartButton();
+    return;
+  }
+  start();
+};
 $('#resumeMatch').onclick=()=>{const id=$('#recentMatches').value;if(id)loadMatch(id)};
 $('#editPlayers').onclick=()=>$('#playerEditor').classList.remove('hidden');
 $('#closeEditor').onclick=()=>$('#playerEditor').classList.add('hidden');
@@ -911,7 +1096,7 @@ function editEvent(id){
   restartLocation=e.restartLocation||(context.startsWith('remise_')?context.replace('remise_',''):'');
   $('#period').value=e.period||'P1';$('#videoPosition').value=e.videoPosition||'';
   if(e.action==='Faute'){
-    faultType=e.faultType||'';faultWho=e.player||'';
+    faultType=e.faultType||'';faultWho=e.player||'';opponentTeam=e.opponentTeam||'';
     if(faultType==='Défensive illégale'&&!$('#faultTypes button[data-fault="Défensive illégale"]')){
       const b=document.createElement('button');b.dataset.fault='Défensive illégale';b.textContent='DÉFENSIVE ILLÉGALE';
       $('#faultTypes').appendChild(b);
@@ -931,9 +1116,10 @@ function editEvent(id){
   else if(e.action.includes('Ballon défendu'))actionResult='Ballon défendu';
   else if(e.action.includes('Échappé'))actionResult='Échappé';
   else actionResult='';
-  zone=family==='gel'?'':(e.zone||'');movement=e.movement||'Non';who=e.player||'';
+  zone=family==='gel'?'':(e.zone||'');movement=e.movement||'Non';who=e.player||'';whoMany=actionType==='Défense'?[...(e.attributedPlayers||((e.player)?[e.player]:[]))]:[];opponentTeam=e.opponentTeam||'';
   $('#popupTitle').textContent='Modifier · '+actionType;
   $('#popupMeta').textContent=labelContext(context)+(e.videoPosition?' · vidéo '+e.videoPosition:'')+' · '+(e.period||'P1');
+  buildOpponentOptions();
   $('#restartLocationStep').classList.toggle('hidden',family!=='remise');
   $$('#restartLocationOptions button').forEach(b=>b.classList.toggle('choice',b.dataset.restart===restartLocation));
   buildOutcomeButtons();
@@ -942,24 +1128,47 @@ function editEvent(id){
   $$('#zoneOptions button').forEach(b=>b.classList.toggle('choice',(b.dataset.zone||'')===zone));
   $$('#moveOptions button').forEach(b=>b.classList.toggle('choice',(b.dataset.move||'')===movement));
   buildWho('#whoOptions');
+  $('#whoTitle').textContent=actionType==='Défense'?'Attribution — plusieurs joueurs possibles':'Attribution — facultatif';
   $$('#whoOptions button').forEach(b=>{
-    b.classList.toggle('choice',(b.dataset.who||'')===who);
-    b.onclick=()=>{who=b.dataset.who;$$('#whoOptions button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice')}
+    const name=b.dataset.who||'';
+    b.classList.toggle('choice',actionType==='Défense'?(name?whoMany.includes(name):whoMany.length===0):name===who);
+    b.onclick=()=>{
+      if(actionType==='Défense'){
+        if(!name){
+          whoMany=[];
+          $$('#whoOptions button').forEach(x=>x.classList.remove('choice'));
+          b.classList.add('choice');
+        }else{
+          whoMany=whoMany.includes(name)?whoMany.filter(x=>x!==name):[...whoMany,name];
+          $('#whoOptions button[data-who=""]').classList.toggle('choice',whoMany.length===0);
+          b.classList.toggle('choice',whoMany.includes(name));
+        }
+      }else{
+        who=name;
+        $$('#whoOptions button').forEach(x=>x.classList.remove('choice'));
+        b.classList.add('choice');
+      }
+    }
   });
   $('#popup').classList.remove('hidden');resetPopupScroll('#popup');
+}
+
+function eventAttributionLabel(e){
+  if(e.attributedPlayers?.length) return e.attributedPlayers.join(', ');
+  return e.player||'Collectif/non spécifié';
 }
 
 function render(){
   $('#count').textContent=state.events.length+' action'+(state.events.length>1?'s':'');
   const last=state.events.at(-1);
   $('#last').textContent=last
-    ? `${last.action}${last.faultType?' · '+last.faultType:''} · ${labelContext(last.context)}${last.zone?' · '+last.zone:''}${last.movement?' · déplacement '+last.movement.toLowerCase():''}${last.player?' · '+last.player:' · collectif/non spécifié'}`
+    ? `${last.action}${last.faultType?' · '+last.faultType:''} · ${labelContext(last.context)}${last.opponentTeam?' · '+last.opponentTeam:''}${last.zone?' · '+last.zone:''}${last.movement?' · déplacement '+last.movement.toLowerCase():''} · ${eventAttributionLabel(last)}`
     : 'Aucune';
   const t=$('#timeline');t.innerHTML='';
   [...state.events].reverse().forEach(e=>{
     const d=document.createElement('div');d.className='item';
     const detail=e.faultType?e.faultType:e.action,pos=e.videoPosition||'—';
-    d.innerHTML=`<div class="time">${pos}<br>${e.period}</div><div><strong>${detail}</strong><div class="small">${labelContext(e.context)}${e.zone?' · '+e.zone:''}${e.movement?' · déplacement '+e.movement.toLowerCase():''} · ${e.player||'Collectif/non spécifié'}</div></div>`;
+    d.innerHTML=`<div class="time">${pos}<br>${e.period}</div><div><strong>${detail}</strong><div class="small">${labelContext(e.context)}${e.opponentTeam?' · '+e.opponentTeam:''}${e.zone?' · '+e.zone:''}${e.movement?' · déplacement '+e.movement.toLowerCase():''} · ${eventAttributionLabel(e)}</div></div>`;
     d.onclick=()=>editEvent(e.id);
     const controls=document.createElement('div');controls.className='row';
     const edit=document.createElement('button');edit.className='ghost';edit.textContent='Modifier';edit.onclick=evt=>{evt.stopPropagation();editEvent(e.id)};
@@ -982,8 +1191,8 @@ function dl(name,content,type){
 }
 $('#json').onclick=()=>dl('kinball_cloud_match.json',JSON.stringify(state,null,2),'application/json');
 $('#csv').onclick=()=>{
-  const rows=[['match','team','videoPosition','period','context','family','restartLocation','action','faultType','zone','movement','player','activePlayers','createdAt']];
-  state.events.forEach(e=>rows.push([state.matchName,state.teamName,e.videoPosition||'',e.period,e.context,e.family||'',e.restartLocation||'',e.action,e.faultType||'',e.zone||'',e.movement||'',e.player||'',e.activePlayers.join(' | '),e.createdAt]));
+  const rows=[['match','team','opponentTeam','videoPosition','period','context','family','restartLocation','action','faultType','zone','movement','player','activePlayers','createdAt']];
+  state.events.forEach(e=>rows.push([state.matchName,state.teamName,e.opponentTeam||'',e.videoPosition||'',e.period,e.context,e.family||'',e.restartLocation||'',e.action,e.faultType||'',e.zone||'',e.movement||'',e.player||'',e.activePlayers.join(' | '),e.createdAt]));
   const csv=rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n');
   dl('kinball_cloud_match.csv',csv,'text/csv;charset=utf-8')
 };
