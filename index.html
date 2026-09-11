@@ -1,0 +1,994 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kinball Coach — V1.22 Cloud</title>
+<style>
+:root{
+ --bg:#0f1115;--panel:#171a21;--panel2:#20242d;--text:#f5f7fa;--muted:#aab1bc;
+ --accent:#3d7bfd;--good:#218a50;--bad:#bd4141;--warn:#d29a29;--line:#2e3440;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px system-ui,-apple-system,Segoe UI,sans-serif}
+.app{max-width:900px;margin:auto;padding:14px 14px 112px}
+h1,h2,p{margin:0}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+h1{font-size:22px}.sub{font-size:13px;color:var(--muted);margin-top:3px}
+.badge{background:var(--panel2);padding:8px 11px;border-radius:999px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:12px}
+.row{display:flex;gap:9px;flex-wrap:wrap}
+.field{flex:1 1 180px}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:5px}
+input,select,button{font:inherit}
+input,select{width:100%;padding:12px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:12px}
+button{border:0;border-radius:14px;padding:13px 11px;background:var(--panel2);color:var(--text);font-weight:750;cursor:pointer}
+button:active{transform:scale(.985)}
+.primary{background:var(--accent)} .good{background:var(--good)} .bad{background:var(--bad)}
+.warn{background:var(--warn);color:#121212}.ghost{background:transparent;border:1px solid var(--line)}
+.hidden{display:none!important}
+.players{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.players button{min-height:54px}
+.on{background:var(--accent)} .off{color:var(--muted)}
+.tabs{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.tab.active{background:var(--accent)}
+.actiongrid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+.actiongrid button{min-height:68px;font-size:16px}
+.popupBackdrop{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;justify-content:center;padding:12px;z-index:10}
+.sheet{width:min(900px,100%);background:#161a21;border:1px solid var(--line);border-radius:22px 22px 14px 14px;padding:14px;max-height:88vh;overflow:auto}
+.sheet h2{font-size:19px;margin-bottom:4px}
+.sheetTop{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;position:sticky;top:-14px;background:#161a21;padding:14px 0 8px;z-index:2}
+.closePopup{width:42px;height:42px;padding:0;border-radius:999px;font-size:22px;line-height:1;background:var(--panel2);border:1px solid var(--line)}
+.meta{font-size:13px;color:var(--muted);margin-bottom:12px}
+.step{margin-top:14px}
+.step h3{font-size:14px;color:var(--muted);margin:0 0 8px}
+.options,.faultgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.options button,.faultgrid button{min-height:51px}
+.choice{outline:none!important;background:var(--accent)!important;color:#fff!important}
+.entryAction.selected{background:var(--accent)!important;color:#fff!important}
+.full{grid-column:1/-1}
+.timeline{display:flex;flex-direction:column;gap:8px;max-height:350px;overflow:auto}
+.item{display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:9px;align-items:center;background:var(--panel2);padding:10px;border-radius:12px;cursor:pointer}
+.time{font-size:12px;color:var(--muted)}
+.small{font-size:12px;color:var(--muted)}
+.last{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.footer{position:fixed;bottom:0;left:0;right:0;padding:10px;background:rgba(15,17,21,.95);border-top:1px solid var(--line)}
+.footerin{max-width:900px;margin:auto;display:flex;gap:8px}.footerin button{flex:1}
+.note{font-size:12px;line-height:1.4;color:var(--muted)}
+.roster{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.check{display:flex;gap:8px;align-items:center;background:var(--panel2);padding:9px;border-radius:12px}.check input{width:auto}
+@media(min-width:650px){
+ .players,.roster{grid-template-columns:repeat(4,1fr)}
+ .tabs{grid-template-columns:repeat(5,1fr)}
+ .actiongrid{grid-template-columns:repeat(3,1fr)}
+ .faultgrid{grid-template-columns:repeat(3,1fr)}
+}
+
+.authStatus{font-size:13px;color:var(--muted);margin-top:9px;min-height:18px}
+.cloudOk{color:#7ddc9f}.cloudErr{color:#ff8d8d}
+.topActions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.statusDot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#777;margin-right:5px}
+.statusDot.online{background:#41c878}.statusDot.offline{background:#d29a29}
+.matchHistory{display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-bottom:12px}
+.matchHistory .field{min-width:220px}
+</style>
+</head>
+<body>
+<div class="app">
+ <div class="top">
+   <div><h1>Kinball Coach</h1><div class="sub">V1.22 Cloud — base centralisée</div></div>
+   <div class="topActions">
+    <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
+    <div class="badge" id="count">0 actions</div>
+    <button class="ghost hidden" id="newMatchTop">Nouveau match</button>
+    <button class="ghost hidden" id="logout">Déconnexion</button>
+   </div>
+ </div>
+
+
+ 
+ <section class="panel" id="authPanel">
+   <h2 style="font-size:20px;margin-bottom:6px">Bienvenue sur Kinball Coach</h2>
+   <p class="small" style="margin-bottom:16px">
+     Connectez-vous pour retrouver vos matchs enregistrés. Si vous utilisez Kinball Coach pour la première fois, créez simplement votre compte ci-dessous.
+   </p>
+
+   <div style="padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--panel2);margin-bottom:14px">
+    <h3 style="font-size:16px;margin-bottom:10px">Déjà un compte ?</h3>
+    <div class="row">
+     <div class="field"><label>Email</label><input id="authEmail" type="email" autocomplete="email" placeholder="vous@exemple.fr"></div>
+     <div class="field"><label>Mot de passe</label><input id="authPassword" type="password" autocomplete="current-password" placeholder="Votre mot de passe"></div>
+    </div>
+    <button class="primary" id="login" style="width:100%;margin-top:12px">Se connecter</button>
+   </div>
+
+   <div style="padding:14px;border:1px solid var(--line);border-radius:14px">
+    <h3 style="font-size:16px;margin-bottom:6px">Première utilisation ?</h3>
+    <p class="small" style="margin-bottom:12px">
+      Créez votre compte pour enregistrer vos matchs dans la base centrale et retrouver vos données sur tous vos appareils.
+    </p>
+    <button class="primary" id="signup" style="width:100%">Créer mon compte</button>
+   </div>
+
+   <div class="authStatus" id="authStatus"></div>
+ </section>
+
+ <section class="panel hidden" id="setup">
+   <h2 style="font-size:18px;margin-bottom:10px">Préparer le match</h2>
+   <div class="row" style="margin-bottom:12px">
+    <button class="primary" id="freshMatch">＋ Nouveau match</button>
+   </div>
+   <div class="matchHistory">
+    <div class="field">
+     <label>Reprendre un match enregistré</label>
+     <select id="recentMatches"><option value="">— Nouveau match —</option></select>
+    </div>
+    <button class="ghost" id="resumeMatch">Ouvrir</button>
+   </div>
+   <div class="row">
+    <div class="field"><label>Match</label><input id="matchName" value="Match test vidéo"></div>
+    <div class="field"><label>Équipe suivie</label><input id="teamName" value="Mon équipe"></div>
+    <div class="field"><label>Date</label><input id="matchDate" type="date"></div>
+   </div>
+   <div class="field" style="margin-top:10px">
+    <label>Effectif complet — séparé par des virgules</label>
+    <input id="rosterInput" value="3 Lucas, 5 Hugo, 7 Paul, 9 Martin, 12 Antoine, 14 Julien">
+   </div>
+   <button class="ghost" style="width:100%;margin-top:9px" id="loadRoster">Sélectionner les joueurs en jeu</button>
+   <div id="rosterWrap" class="hidden" style="margin-top:10px">
+    <div class="roster" id="rosterChecks"></div>
+   </div>
+   <div class="row" style="margin-top:10px">
+    <div class="field"><label>Période</label><select id="startPeriod"><option>P1</option><option>P2</option><option>P3</option><option>P4</option><option>P5</option><option>P6</option><option>P7</option><option>P8</option><option>P9</option><option>P10</option></select></div>
+   </div>
+   <button class="primary" style="width:100%;margin-top:11px" id="start">Commencer</button>
+ </section>
+
+ <div id="live" class="hidden">
+
+  <section class="panel">
+    <div class="row">
+      <div class="field">
+        <label>Position vidéo — facultatif</label>
+        <input id="videoPosition" placeholder="ex. 12:43">
+      </div>
+      <div class="field">
+        <label>Période</label>
+        <select id="period"><option>P1</option><option>P2</option><option>P3</option><option>P4</option><option>P5</option><option>P6</option><option>P7</option><option>P8</option><option>P9</option><option>P10</option></select>
+      </div>
+    </div>
+    <div class="note" style="margin-top:8px">Tu peux laisser la position vidéo vide et ne la renseigner que pour certaines actions utiles à retrouver.</div>
+  </section>
+
+  <section class="panel">
+   <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:9px">
+    <h2 style="font-size:18px">Joueurs en jeu</h2>
+    <button class="ghost" id="editPlayers">Modifier</button>
+   </div>
+   <div class="players" id="activePlayers"></div>
+  </section>
+
+  <section class="panel hidden" id="playerEditor">
+   <h2 style="font-size:18px;margin-bottom:9px">Joueurs en jeu</h2>
+   <div class="players" id="allPlayers"></div>
+   <button class="primary" style="width:100%;margin-top:9px" id="closeEditor">Terminé</button>
+  </section>
+
+  <section class="panel">
+   <h2 style="font-size:18px;margin-bottom:9px">Choisir l’action</h2>
+
+   <div class="small" style="margin-bottom:7px">Jeu au centre</div>
+   <div class="tabs" style="grid-template-columns:repeat(2,1fr);margin-bottom:12px">
+    <button class="entryAction" data-family="centre" data-actiontype="Attaque">ATTAQUE AU CENTRE</button>
+    <button class="entryAction" data-family="centre" data-actiontype="Défense">DÉFENSE AU CENTRE</button>
+   </div>
+
+   <div class="small" style="margin-bottom:7px">Remise en jeu</div>
+   <div class="tabs" style="grid-template-columns:repeat(2,1fr);margin-bottom:12px">
+    <button class="entryAction" data-family="remise" data-actiontype="Attaque">ATTAQUE SUR REMISE EN JEU</button>
+    <button class="entryAction" data-family="remise" data-actiontype="Défense">DÉFENSE SUR REMISE EN JEU</button>
+   </div>
+
+   <div class="small" style="margin-bottom:7px">Gel</div>
+   <div class="tabs" style="grid-template-columns:repeat(2,1fr);margin-bottom:12px">
+    <button class="entryAction" data-family="gel" data-actiontype="Attaque">ATTAQUE GEL</button>
+    <button class="entryAction" data-family="gel" data-actiontype="Défense">DÉFENSE GEL</button>
+   </div>
+
+  </section>
+
+  <section class="panel">
+   <div class="last">
+    <div><div class="small">Dernière action</div><strong id="last">Aucune</strong></div>
+    <div class="row">
+     <button class="ghost" id="editLast">Modifier</button>
+     <button class="ghost" id="undo">↶ Annuler</button>
+    </div>
+   </div>
+  </section>
+
+  <section class="panel">
+   <h2 style="font-size:18px;margin-bottom:9px">Chronologie</h2>
+   <div class="timeline" id="timeline"></div>
+  </section>
+ </div>
+</div>
+
+<div class="footer hidden" id="footer">
+ <div class="footerin"><button class="ghost" id="csv">Exporter CSV</button><button class="primary" id="json">Sauvegarder JSON</button></div>
+</div>
+
+<div class="popupBackdrop hidden" id="popup">
+ <div class="sheet">
+   <div class="sheetTop">
+    <div>
+     <h2 id="popupTitle">Action</h2>
+     <div class="meta" id="popupMeta"></div>
+    </div>
+    <button class="closePopup" id="closeMainPopup" aria-label="Fermer">×</button>
+   </div>
+
+   <div class="step hidden" id="restartLocationStep">
+    <h3>Position de la remise en jeu</h3>
+    <div class="options" id="restartLocationOptions">
+      <button data-restart="centre">CENTRE</button>
+      <button data-restart="ligne">LIGNE</button>
+      <button data-restart="coin">COIN</button>
+    </div>
+   </div>
+
+   <div class="step" id="resultStep">
+    <h3>Issue de l’action</h3>
+    <div class="options" id="resultOptions"></div>
+   </div>
+   <div class="step hidden" id="moveStep">
+    <h3>Déplacement — facultatif</h3>
+    <div class="options" id="moveOptions">
+      <button data-move="Non">SANS DÉPLACEMENT</button>
+      <button data-move="Oui">AVEC DÉPLACEMENT</button>
+    </div>
+   </div>
+   <div class="step hidden" id="zoneStep">
+    <h3>Zone — facultatif</h3>
+    <div class="options" id="zoneOptions">
+      <button data-zone="">NON PRÉCISÉE</button>
+      <button data-zone="RE">RE</button>
+      <button data-zone="EE">EE</button>
+    </div>
+   </div>
+
+   <div class="step hidden" id="whoStep">
+    <h3>Attribution — facultatif</h3>
+    <div class="options" id="whoOptions"></div>
+   </div>
+   <div class="row" style="margin-top:14px">
+    <button class="ghost" style="flex:1" id="cancelPopup">Annuler</button>
+    <button class="primary hidden" style="flex:2" id="savePopup">Enregistrer</button>
+   </div>
+ </div>
+</div>
+
+<div class="popupBackdrop hidden" id="faultPopup">
+ <div class="sheet">
+   <div class="sheetTop">
+    <div>
+     <h2>Faute</h2>
+     <div class="meta" id="faultMeta"></div>
+    </div>
+    <button class="closePopup" id="closeFaultPopup" aria-label="Fermer">×</button>
+   </div>
+   <div class="step">
+    <h3>Type de faute</h3>
+    <div class="faultgrid" id="faultTypes">
+      <button data-fault="Faute d'appellation">FAUTE D’APPELLATION</button>
+      <button data-fault="Manque un contact">MANQUE UN CONTACT</button>
+      <button data-fault="Pente descendante">PENTE DESCENDANTE</button>
+      <button data-fault="Extérieur">EXTÉRIEUR</button>
+      <button data-fault="Offensive illégale">OFFENSIVE ILLÉGALE</button>
+      <button data-fault="Déplacement illégal du ballon">DÉPLACEMENT ILLÉGAL DU BALLON</button>
+    </div>
+   </div>
+   <div class="step">
+    <h3>Attribution — facultatif</h3>
+    <div class="options" id="faultWhoOptions"></div>
+   </div>
+   <div class="row" style="margin-top:14px">
+    <button class="ghost" style="flex:1" id="cancelFault">Annuler</button>
+    <button class="primary" style="flex:2" id="saveFault">Enregistrer</button>
+   </div>
+ </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const KEY='kinball_coach_cloud_v120';
+const SUPABASE_URL='https://chrbzchthloxowlzdvpe.supabase.co';
+const SUPABASE_KEY='sb_publishable_4pQGJ5DSzMRBuHLrAUb30g_MGZVYvEY';
+if(!window.supabase){
+  document.body.innerHTML='<div style="padding:24px;font-family:sans-serif;color:white;background:#111;min-height:100vh"><h2>Erreur de chargement</h2><p>La bibliothèque Supabase ne s’est pas chargée. Recharge la page avec une connexion Internet active.</p></div>';
+  throw new Error('Supabase library failed to load');
+}
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+let state={
+  matchName:'',teamName:'',matchDate:'',players:[],activePlayers:[],events:[],
+  currentMatchId:null,currentTeamId:null,workspaceId:null,playerIds:{}
+};
+let context='jeu_centre', pending=null, zone='', movement='', who='', faultType='', faultWho='', editingId=null;
+let family='centre',actionType='Attaque',actionResult='',restartLocation='';
+let currentUser=null;
+
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const today=()=>new Date().toISOString().slice(0,10);
+const setCloud=(text,ok=true)=>{
+  $('#cloudStatus').textContent=text;
+  $('#cloudDot').classList.toggle('online',ok);
+  $('#cloudDot').classList.toggle('offline',!ok);
+};
+const authMessage=(text,error=false)=>{
+  $('#authStatus').textContent=text||'';
+  $('#authStatus').className='authStatus '+(error?'cloudErr':'cloudOk');
+};
+const handleError=(where,error)=>{
+  console.error(where,error);
+  setCloud('Erreur de synchronisation',false);
+  alert((error&&error.message)||String(error)||'Erreur de synchronisation');
+};
+
+function saveLocal(){
+  localStorage.setItem(KEY,JSON.stringify({
+    currentMatchId:state.currentMatchId,
+    workspaceId:state.workspaceId
+  }));
+}
+function loadLocal(){
+  try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){return {}}
+}
+function roster(){return $('#rosterInput').value.split(',').map(x=>x.trim()).filter(Boolean)}
+
+async function ensureWorkspace(){
+  const {data:members,error}=await db
+    .from('workspace_members')
+    .select('workspace_id, role')
+    .eq('user_id',currentUser.id)
+    .limit(1);
+  if(error) throw error;
+  if(members&&members.length){
+    state.workspaceId=members[0].workspace_id;
+    saveLocal();
+    return state.workspaceId;
+  }
+  const {data:w,error:we}=await db
+    .from('workspaces')
+    .insert({name:'Kinball Coach',created_by:currentUser.id})
+    .select('id')
+    .single();
+  if(we) throw we;
+  const {error:me}=await db
+    .from('workspace_members')
+    .insert({workspace_id:w.id,user_id:currentUser.id,role:'owner'});
+  if(me) throw me;
+  state.workspaceId=w.id;
+  saveLocal();
+  return w.id;
+}
+
+async function refreshRecentMatches(){
+  if(!state.workspaceId) return;
+  const {data,error}=await db
+    .from('matches')
+    .select('id,label,played_on,created_at,teams(name)')
+    .eq('workspace_id',state.workspaceId)
+    .order('created_at',{ascending:false})
+    .limit(40);
+  if(error) throw error;
+  const sel=$('#recentMatches');
+  sel.innerHTML='<option value="">— Nouveau match —</option>';
+  (data||[]).forEach(m=>{
+    const o=document.createElement('option');
+    o.value=m.id;
+    const team=m.teams?.name||'Équipe';
+    o.textContent=`${m.played_on||'Date ?'} · ${m.label} · ${team}`;
+    sel.append(o);
+  });
+}
+
+async function initAuthenticated(user){
+  currentUser=user;
+  $('#authPanel').classList.add('hidden');
+  $('#setup').classList.remove('hidden');
+  $('#logout').classList.remove('hidden');
+  $('#newMatchTop').classList.remove('hidden');
+  setCloud('Synchronisé',true);
+  await ensureWorkspace();
+  await refreshRecentMatches();
+}
+
+async function initAuth(){
+  $('#matchDate').value=today();
+  const {data:{session}}=await db.auth.getSession();
+  if(session?.user){
+    try{await initAuthenticated(session.user)}catch(e){handleError('initAuthenticated',e)}
+  }else{
+    $('#authPanel').classList.remove('hidden');
+    $('#setup').classList.add('hidden');
+    setCloud('Non connecté',false);
+  }
+  db.auth.onAuthStateChange(async (_event,session)=>{
+    if(session?.user && (!currentUser || currentUser.id!==session.user.id)){
+      try{await initAuthenticated(session.user)}catch(e){handleError('auth change',e)}
+    }
+  });
+}
+
+$('#login').onclick=async()=>{
+  authMessage('Connexion…');
+  const email=$('#authEmail').value.trim();
+  const password=$('#authPassword').value;
+  const {data,error}=await db.auth.signInWithPassword({email,password});
+  if(error){authMessage(error.message,true);return}
+  authMessage('');
+  try{await initAuthenticated(data.user)}catch(e){handleError('login init',e)}
+};
+$('#signup').onclick=async()=>{
+  authMessage('Création du compte…');
+  const email=$('#authEmail').value.trim();
+  const password=$('#authPassword').value;
+  const {data,error}=await db.auth.signUp({
+    email,password,
+    options:{emailRedirectTo:location.origin}
+  });
+  if(error){authMessage(error.message,true);return}
+  if(data.session){
+    authMessage('');
+    try{await initAuthenticated(data.user)}catch(e){handleError('signup init',e)}
+  }else{
+    authMessage('Compte créé. Confirme ton adresse e-mail puis reviens te connecter.');
+  }
+};
+$('#logout').onclick=async()=>{
+  await db.auth.signOut();
+  currentUser=null;
+  state={matchName:'',teamName:'',matchDate:'',players:[],activePlayers:[],events:[],currentMatchId:null,currentTeamId:null,workspaceId:null,playerIds:{}};
+  localStorage.removeItem(KEY);
+  $('#live').classList.add('hidden');
+  $('#footer').classList.add('hidden');
+  $('#setup').classList.add('hidden');
+  $('#authPanel').classList.remove('hidden');
+  $('#logout').classList.add('hidden');
+  $('#newMatchTop').classList.add('hidden');
+  setCloud('Non connecté',false);
+};
+
+function buildChecks(){
+  const r=roster(), box=$('#rosterChecks'); box.innerHTML='';
+  r.forEach((p,i)=>{
+    const l=document.createElement('label');l.className='check';
+    const c=document.createElement('input');c.type='checkbox';c.value=p;c.checked=i<4;
+    l.append(c,document.createTextNode(p));box.append(l)
+  });
+  $('#rosterWrap').classList.remove('hidden');
+}
+function renderPlayers(){
+  const b=$('#activePlayers');b.innerHTML='';
+  state.activePlayers.forEach(p=>{
+    const x=document.createElement('button');x.className='on';x.textContent=p;b.append(x)
+  });
+  const a=$('#allPlayers');a.innerHTML='';
+  state.players.forEach(p=>{
+    const active=state.activePlayers.includes(p),x=document.createElement('button');
+    x.className=active?'on':'off';x.textContent=(active?'✓ ':'')+p;
+    x.onclick=()=>{
+      state.activePlayers=active?state.activePlayers.filter(y=>y!==p):[...state.activePlayers,p];
+      renderPlayers();
+    };
+    a.append(x)
+  });
+}
+function buildWho(boxId){
+  const box=$(boxId);box.innerHTML='';
+  const collective=document.createElement('button');
+  collective.className='full';collective.dataset.who='';collective.textContent='COLLECTIF / NON SPÉCIFIÉ';
+  box.append(collective);
+  state.activePlayers.forEach(p=>{
+    const b=document.createElement('button');b.dataset.who=p;b.textContent=p;box.append(b)
+  });
+}
+
+async function ensureTeam(name){
+  const {data:found,error}=await db
+    .from('teams').select('id,name')
+    .eq('workspace_id',state.workspaceId).eq('name',name).limit(1);
+  if(error) throw error;
+  if(found&&found.length) return found[0].id;
+  const {data,error:ie}=await db
+    .from('teams').insert({workspace_id:state.workspaceId,name}).select('id').single();
+  if(ie) throw ie;
+  return data.id;
+}
+
+async function ensurePlayers(names){
+  const {data:existing,error}=await db
+    .from('players').select('id,display_name')
+    .eq('workspace_id',state.workspaceId);
+  if(error) throw error;
+  const map={};
+  (existing||[]).forEach(p=>map[p.display_name]=p.id);
+  for(const name of names){
+    if(map[name]) continue;
+    const {data,error:ie}=await db
+      .from('players')
+      .insert({workspace_id:state.workspaceId,display_name:name})
+      .select('id,display_name').single();
+    if(ie) throw ie;
+    map[name]=data.id;
+  }
+  return map;
+}
+
+
+function resetForNewMatch(){
+  state.matchName='';
+  state.teamName='';
+  state.matchDate='';
+  state.players=[];
+  state.activePlayers=[];
+  state.events=[];
+  state.currentMatchId=null;
+  state.currentTeamId=null;
+  state.playerIds={};
+
+  $('#matchName').value='Match';
+  $('#teamName').value='Mon équipe';
+  $('#matchDate').value=today();
+  $('#rosterInput').value='';
+  $('#rosterChecks').innerHTML='';
+  $('#rosterWrap').classList.add('hidden');
+  $('#recentMatches').value='';
+  $('#videoPosition').value='';
+  $('#period').value='P1';
+  $('#startPeriod').value='P1';
+
+  $('#activePlayers').innerHTML='';
+  $('#allPlayers').innerHTML='';
+  $('#timeline').innerHTML='';
+  $('#last').textContent='Aucune';
+  $('#count').textContent='0 actions';
+
+  $('#live').classList.add('hidden');
+  $('#footer').classList.add('hidden');
+  $('#setup').classList.remove('hidden');
+
+  localStorage.removeItem(KEY);
+  setCloud('Prêt pour un nouveau match',true);
+  window.scrollTo({top:0,behavior:'instant'});
+}
+
+async function start(){
+  try{
+    setCloud('Enregistrement…',true);
+    state.matchName=$('#matchName').value.trim()||'Match';
+    state.teamName=$('#teamName').value.trim()||'Mon équipe';
+    state.matchDate=$('#matchDate').value||today();
+    state.players=roster();
+    if(!state.players.length){alert('Renseigne au moins un joueur.');return}
+
+    const checked=$$('#rosterChecks input:checked');
+    state.activePlayers=checked.length?checked.map(c=>c.value):state.players.slice(0,4);
+
+    state.currentTeamId=await ensureTeam(state.teamName);
+    state.playerIds=await ensurePlayers(state.players);
+
+    const {data:m,error}=await db.from('matches').insert({
+      workspace_id:state.workspaceId,
+      team_id:state.currentTeamId,
+      label:state.matchName,
+      played_on:state.matchDate,
+      status:'draft'
+    }).select('id').single();
+    if(error) throw error;
+
+    state.currentMatchId=m.id;
+    state.events=[];
+    $('#timeline').innerHTML='';
+    $('#last').textContent='Aucune';
+    $('#count').textContent='0 actions';
+
+    const matchPlayers=state.players.map(p=>({
+      match_id:state.currentMatchId,
+      player_id:state.playerIds[p],
+      started_on_court:state.activePlayers.includes(p)
+    }));
+    const {error:mpe}=await db.from('match_players').insert(matchPlayers);
+    if(mpe) throw mpe;
+
+    $('#period').value=$('#startPeriod').value;
+    $('#setup').classList.add('hidden');
+    $('#live').classList.remove('hidden');
+    $('#footer').classList.remove('hidden');
+    saveLocal();renderPlayers();render();
+    await refreshRecentMatches();
+    setCloud('Synchronisé',true);
+  }catch(e){handleError('start',e)}
+}
+
+function labelContext(c){
+  if(c==='centre') return 'Jeu au centre';
+  if(c==='remise_centre') return 'Remise en jeu · Centre';
+  if(c==='remise_ligne') return 'Remise en jeu · Ligne';
+  if(c==='remise_coin') return 'Remise en jeu · Coin';
+  if(c==='gel') return 'Gel';
+  return c;
+}
+function currentVideoPosition(){
+  return ($('#videoPosition').value||'').trim() || null;
+}
+function dbActionType(e){
+  if(e.action==='Faute') return 'faute';
+  if(e.action?.startsWith('Attaque')) return 'attaque';
+  if(e.action?.startsWith('Défense')) return 'defense';
+  return 'faute';
+}
+function dbResult(e){
+  if(e.action==='Faute') return null;
+  const parts=(e.action||'').split(' · ');
+  return parts.slice(1).join(' · ')||null;
+}
+function playerIdFor(name){return name?state.playerIds[name]||null:null}
+function eventContext(fam,restart){
+  if(fam==='centre') return 'centre';
+  if(fam==='gel') return 'gel';
+  return 'remise_'+(restart||'centre');
+}
+
+async function insertLineup(eventId,activePlayers){
+  if(!activePlayers?.length) return;
+  const rows=activePlayers.map(name=>state.playerIds[name]).filter(Boolean).map(id=>({event_id:eventId,player_id:id}));
+  if(!rows.length) return;
+  const {error}=await db.from('match_event_lineup').insert(rows);
+  if(error) throw error;
+}
+
+async function persistEvent(base,isEdit=false){
+  const payload={
+    match_id:state.currentMatchId,
+    sequence_no:isEdit
+      ? (state.events.find(e=>e.id===editingId)?.sequenceNo||1)
+      : (Math.max(0,...state.events.map(e=>e.sequenceNo||0))+1),
+    period:base.period,
+    video_position:base.videoPosition,
+    family:base.family,
+    restart_location:base.family==='remise'?base.restartLocation:null,
+    action_type:dbActionType(base),
+    result:dbResult(base),
+    fault_type:base.faultType||null,
+    movement:base.movement==null?null:(base.movement==='Oui'),
+    zone:base.zone||null,
+    player_id:playerIdFor(base.player),
+    is_collective:!base.player
+  };
+
+  let eventId=editingId;
+  if(isEdit){
+    const {error}=await db.from('match_events').update(payload).eq('id',editingId);
+    if(error) throw error;
+    const {error:de}=await db.from('match_event_lineup').delete().eq('event_id',editingId);
+    if(de) throw de;
+  }else{
+    const {data,error}=await db.from('match_events').insert(payload).select('id,sequence_no,created_at').single();
+    if(error) throw error;
+    eventId=data.id;
+    base.createdAt=data.created_at;
+    base.sequenceNo=data.sequence_no;
+  }
+  await insertLineup(eventId,base.activePlayers);
+  return eventId;
+}
+
+async function loadMatch(matchId){
+  try{
+    setCloud('Chargement…',true);
+    const [{data:m,error:me},{data:players,error:pe},{data:events,error:ee}] = await Promise.all([
+      db.from('matches').select('id,label,played_on,team_id,teams(name)').eq('id',matchId).single(),
+      db.from('players').select('id,display_name').eq('workspace_id',state.workspaceId),
+      db.from('match_events').select('*').eq('match_id',matchId).order('sequence_no',{ascending:true})
+    ]);
+    if(me) throw me;if(pe) throw pe;if(ee) throw ee;
+
+    state.currentMatchId=m.id;
+    state.currentTeamId=m.team_id;
+    state.matchName=m.label;
+    state.teamName=m.teams?.name||'Mon équipe';
+    state.matchDate=m.played_on||'';
+    state.playerIds={};
+    const idToName={};
+    (players||[]).forEach(p=>{state.playerIds[p.display_name]=p.id;idToName[p.id]=p.display_name});
+
+    const {data:mp,error:mpe}=await db
+      .from('match_players').select('player_id,started_on_court')
+      .eq('match_id',matchId);
+    if(mpe) throw mpe;
+    state.players=(mp||[]).map(x=>idToName[x.player_id]).filter(Boolean);
+
+    const ids=(events||[]).map(e=>e.id);
+    let lineups=[];
+    if(ids.length){
+      const {data,error}=await db.from('match_event_lineup').select('event_id,player_id').in('event_id',ids);
+      if(error) throw error;
+      lineups=data||[];
+    }
+    const lineupMap={};
+    lineups.forEach(x=>{
+      (lineupMap[x.event_id]??=[]).push(idToName[x.player_id]).filter(Boolean)
+    });
+
+    state.events=(events||[]).map(e=>{
+      const at=e.action_type==='attaque'?'Attaque':e.action_type==='defense'?'Défense':'Faute';
+      return {
+        id:e.id,sequenceNo:e.sequence_no,
+        videoPosition:e.video_position,period:e.period||'P1',
+        context:eventContext(e.family,e.restart_location),
+        family:e.family,restartLocation:e.restart_location,
+        action:at==='Faute'?'Faute':`${at} · ${e.result||''}`,
+        faultType:e.fault_type,
+        zone:e.zone,
+        movement:e.movement==null?null:(e.movement?'Oui':'Non'),
+        player:e.player_id?idToName[e.player_id]||null:null,
+        activePlayers:lineupMap[e.id]||[],
+        createdAt:e.created_at
+      };
+    });
+    const last=state.events.at(-1);
+    state.activePlayers=(last?.activePlayers?.length?last.activePlayers:(mp||[]).filter(x=>x.started_on_court).map(x=>idToName[x.player_id]).filter(Boolean));
+
+    $('#matchName').value=state.matchName;
+    $('#teamName').value=state.teamName;
+    $('#matchDate').value=state.matchDate||today();
+    $('#rosterInput').value=state.players.join(', ');
+    $('#setup').classList.add('hidden');
+    $('#live').classList.remove('hidden');
+    $('#footer').classList.remove('hidden');
+    renderPlayers();render();saveLocal();
+    setCloud('Synchronisé',true);
+  }catch(e){handleError('loadMatch',e)}
+}
+
+function buildOutcomeButtons(){
+  const box=$('#resultOptions');box.innerHTML='';
+  const add=(label,value)=>{
+    const b=document.createElement('button');
+    b.textContent=label;b.dataset.result=value;b.onclick=()=>handleOutcome(value,b);box.appendChild(b)
+  };
+  if(actionType==='Attaque'){
+    add('POINT MARQUÉ','Point marqué');
+    add('BALLON DÉFENDU','Ballon défendu');
+    add('FAUTE D’ATTAQUE','Faute attaque');
+  }else{
+    add('BALLON DÉFENDU','Ballon défendu');
+    add('ÉCHAPPÉ','Échappé');
+    add('DÉFENSIVE ILLÉGALE','Défensive illégale');
+  }
+}
+function handleOutcome(value,button){
+  actionResult=value;
+  $$('#resultOptions button').forEach(x=>x.classList.remove('choice'));button.classList.add('choice');
+  if(actionType==='Attaque'&&value==='Faute attaque'){
+    $('#popup').classList.add('hidden');openFaultPopup();return
+  }
+  if(actionType==='Défense'&&value==='Défensive illégale'){
+    pending='Faute';faultType='Défensive illégale';zone='';movement='Non';
+    $('#zoneStep').classList.add('hidden');$('#moveStep').classList.add('hidden');$('#whoStep').classList.remove('hidden');
+    if(family!=='remise'||restartLocation) $('#savePopup').classList.remove('hidden');
+    return
+  }
+  pending=actionType+' · '+value;
+  $('#zoneStep').classList.remove('hidden');$('#moveStep').classList.remove('hidden');$('#whoStep').classList.remove('hidden');
+  if(family!=='remise'||restartLocation) $('#savePopup').classList.remove('hidden');
+}
+function resetPopupScroll(popupId){const sheet=$(popupId+' .sheet');if(sheet) sheet.scrollTop=0}
+function openActionPopup(selectedFamily,selectedActionType){
+  family=selectedFamily;actionType=selectedActionType;restartLocation='';
+  context=family==='centre'?'centre':(family==='gel'?'gel':'remise_centre');
+  pending=null;actionResult='';zone='';movement='Non';who='';editingId=null;
+  $('#popupTitle').textContent=actionType+(family==='centre'?' au centre':family==='gel'?' Gel':' sur remise en jeu');
+  $('#popupMeta').textContent=(currentVideoPosition()?'Vidéo '+currentVideoPosition()+' · ':'')+$('#period').value;
+  $$('#restartLocationOptions button').forEach(b=>b.classList.remove('choice'));
+  $$('#zoneOptions button').forEach(b=>b.classList.remove('choice'));
+  $('#zoneOptions button[data-zone=""]').classList.add('choice');
+  $$('#moveOptions button').forEach(b=>b.classList.remove('choice'));
+  $('#moveOptions button[data-move="Non"]').classList.add('choice');
+  $('#restartLocationStep').classList.toggle('hidden',family!=='remise');
+  buildOutcomeButtons();
+  $('#resultStep').classList.remove('hidden');$('#zoneStep').classList.toggle('hidden',family==='gel');$('#moveStep').classList.remove('hidden');$('#whoStep').classList.remove('hidden');
+  $('#savePopup').classList.add('hidden');
+  buildWho('#whoOptions');
+  $$('#whoOptions button').forEach(b=>b.classList.remove('choice'));
+  $('#whoOptions button[data-who=""]').classList.add('choice');
+  $$('#whoOptions button').forEach(b=>b.onclick=()=>{who=b.dataset.who;$$('#whoOptions button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice')});
+  $('#popup').classList.remove('hidden');resetPopupScroll('#popup');
+}
+$$('.entryAction').forEach(b=>b.onclick=()=>{
+  $$('.entryAction').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');
+  openActionPopup(b.dataset.family,b.dataset.actiontype);
+});
+$$('#restartLocationOptions button').forEach(b=>b.onclick=()=>{
+  restartLocation=b.dataset.restart;context='remise_'+restartLocation;
+  $$('#restartLocationOptions button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice');
+  if(pending) $('#savePopup').classList.remove('hidden');
+});
+function openFaultPopup(){
+  faultType='';faultWho='';
+  const vp=currentVideoPosition();
+  $('#faultMeta').textContent='Faute d’attaque · '+labelContext(context)+(vp?' · vidéo '+vp:'')+' · '+$('#period').value;
+  $$('#faultTypes button').forEach(b=>b.classList.remove('choice'));
+  buildWho('#faultWhoOptions');
+  $$('#faultWhoOptions button').forEach(b=>b.classList.remove('choice'));
+  $('#faultWhoOptions button[data-who=""]').classList.add('choice');
+  $$('#faultWhoOptions button').forEach(b=>b.onclick=()=>{faultWho=b.dataset.who;$$('#faultWhoOptions button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice')});
+  $('#faultPopup').classList.remove('hidden');resetPopupScroll('#faultPopup');
+}
+$$('#zoneOptions button').forEach(b=>b.onclick=()=>{zone=b.dataset.zone;$$('#zoneOptions button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice')});
+$$('#moveOptions button').forEach(b=>b.onclick=()=>{movement=b.dataset.move;$$('#moveOptions button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice')});
+$$('#faultTypes button').forEach(b=>b.onclick=()=>{faultType=b.dataset.fault;$$('#faultTypes button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice')});
+
+$('#savePopup').onclick=async()=>{
+  if(!pending)return;
+  try{
+    setCloud('Enregistrement…',true);
+    const isDefenseFault=actionType==='Défense'&&actionResult==='Défensive illégale';
+    const base={
+      videoPosition:currentVideoPosition(),period:$('#period').value,context,family,
+      restartLocation:restartLocation||null,action:isDefenseFault?'Faute':pending,
+      faultType:isDefenseFault?'Défensive illégale':null,
+      zone:(isDefenseFault||family==='gel')?null:(zone||null),movement:isDefenseFault?null:(movement||null),
+      player:who||null,activePlayers:[...state.activePlayers],createdAt:new Date().toISOString()
+    };
+    const isEdit=!!editingId;
+    const eventId=await persistEvent(base,isEdit);
+    if(isEdit){
+      const i=state.events.findIndex(e=>e.id===editingId);
+      if(i>=0) state.events[i]={...state.events[i],...base,id:eventId};
+    }else{
+      state.events.push({id:eventId,...base});
+    }
+    editingId=null;$('#popup').classList.add('hidden');$$('.entryAction').forEach(x=>x.classList.remove('selected'));render();setCloud('Synchronisé',true);
+  }catch(e){handleError('save event',e)}
+};
+$('#saveFault').onclick=async()=>{
+  if(!faultType){alert('Choisis un type de faute.');return}
+  try{
+    setCloud('Enregistrement…',true);
+    const base={
+      videoPosition:currentVideoPosition(),period:$('#period').value,context,family,
+      restartLocation:restartLocation||null,action:'Faute',zone:null,movement:null,
+      player:faultWho||null,faultType,activePlayers:[...state.activePlayers],createdAt:new Date().toISOString()
+    };
+    const isEdit=!!editingId;
+    const eventId=await persistEvent(base,isEdit);
+    if(isEdit){
+      const i=state.events.findIndex(e=>e.id===editingId);
+      if(i>=0) state.events[i]={...state.events[i],...base,id:eventId};
+    }else{
+      state.events.push({id:eventId,...base});
+    }
+    editingId=null;$('#faultPopup').classList.add('hidden');$$('.entryAction').forEach(x=>x.classList.remove('selected'));render();setCloud('Synchronisé',true);
+  }catch(e){handleError('save fault',e)}
+};
+
+const closePopup=id=>{editingId=null;$(id).classList.add('hidden');$$('.entryAction').forEach(x=>x.classList.remove('selected'))};
+$('#cancelPopup').onclick=()=>closePopup('#popup');
+$('#cancelFault').onclick=()=>closePopup('#faultPopup');
+$('#closeMainPopup').onclick=()=>closePopup('#popup');
+$('#closeFaultPopup').onclick=()=>closePopup('#faultPopup');
+$('#popup').onclick=e=>{if(e.target===$('#popup'))closePopup('#popup')};
+$('#faultPopup').onclick=e=>{if(e.target===$('#faultPopup'))closePopup('#faultPopup')};
+
+$('#freshMatch').onclick=resetForNewMatch;
+$('#newMatchTop').onclick=()=>{
+  if(state.events.length && !confirm('Commencer un nouveau match ? Le match actuel restera enregistré dans la base.')) return;
+  resetForNewMatch();
+};
+$('#loadRoster').onclick=buildChecks;
+$('#start').onclick=()=>{if($('#rosterWrap').classList.contains('hidden'))buildChecks();start()};
+$('#resumeMatch').onclick=()=>{const id=$('#recentMatches').value;if(id)loadMatch(id)};
+$('#editPlayers').onclick=()=>$('#playerEditor').classList.remove('hidden');
+$('#closeEditor').onclick=()=>$('#playerEditor').classList.add('hidden');
+$('#editLast').onclick=()=>{const last=state.events.at(-1);if(last)editEvent(last.id)};
+$('#undo').onclick=async()=>{
+  const last=state.events.at(-1);if(!last)return;
+  try{
+    const {error}=await db.from('match_events').delete().eq('id',last.id);
+    if(error)throw error;
+    state.events.pop();render();setCloud('Synchronisé',true);
+  }catch(e){handleError('undo',e)}
+};
+
+function editEvent(id){
+  const e=state.events.find(x=>x.id===id);if(!e)return;
+  editingId=id;context=e.context||'centre';
+  family=e.family||(context.startsWith('remise_')?'remise':'centre');
+  restartLocation=e.restartLocation||(context.startsWith('remise_')?context.replace('remise_',''):'');
+  $('#period').value=e.period||'P1';$('#videoPosition').value=e.videoPosition||'';
+  if(e.action==='Faute'){
+    faultType=e.faultType||'';faultWho=e.player||'';
+    if(faultType==='Défensive illégale'&&!$('#faultTypes button[data-fault="Défensive illégale"]')){
+      const b=document.createElement('button');b.dataset.fault='Défensive illégale';b.textContent='DÉFENSIVE ILLÉGALE';
+      $('#faultTypes').appendChild(b);
+      b.onclick=()=>{faultType=b.dataset.fault;$$('#faultTypes button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice')};
+    }
+    $('#faultMeta').textContent=labelContext(context)+(e.videoPosition?' · vidéo '+e.videoPosition:'')+' · '+(e.period||'P1');
+    $$('#faultTypes button').forEach(b=>b.classList.toggle('choice',b.dataset.fault===faultType));
+    buildWho('#faultWhoOptions');
+    $$('#faultWhoOptions button').forEach(b=>{
+      b.classList.toggle('choice',(b.dataset.who||'')===faultWho);
+      b.onclick=()=>{faultWho=b.dataset.who;$$('#faultWhoOptions button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice')}
+    });
+    $('#faultPopup').classList.remove('hidden');resetPopupScroll('#faultPopup');return
+  }
+  pending=e.action;actionType=e.action.startsWith('Attaque')?'Attaque':'Défense';
+  if(e.action.includes('Point marqué'))actionResult='Point marqué';
+  else if(e.action.includes('Ballon défendu'))actionResult='Ballon défendu';
+  else if(e.action.includes('Échappé'))actionResult='Échappé';
+  else actionResult='';
+  zone=family==='gel'?'':(e.zone||'');movement=e.movement||'Non';who=e.player||'';
+  $('#popupTitle').textContent='Modifier · '+actionType;
+  $('#popupMeta').textContent=labelContext(context)+(e.videoPosition?' · vidéo '+e.videoPosition:'')+' · '+(e.period||'P1');
+  $('#restartLocationStep').classList.toggle('hidden',family!=='remise');
+  $$('#restartLocationOptions button').forEach(b=>b.classList.toggle('choice',b.dataset.restart===restartLocation));
+  buildOutcomeButtons();
+  $$('#resultOptions button').forEach(b=>b.classList.toggle('choice',b.dataset.result===actionResult));
+  $('#resultStep').classList.remove('hidden');$('#moveStep').classList.remove('hidden');$('#zoneStep').classList.toggle('hidden',family==='gel');$('#whoStep').classList.remove('hidden');$('#savePopup').classList.remove('hidden');
+  $$('#zoneOptions button').forEach(b=>b.classList.toggle('choice',(b.dataset.zone||'')===zone));
+  $$('#moveOptions button').forEach(b=>b.classList.toggle('choice',(b.dataset.move||'')===movement));
+  buildWho('#whoOptions');
+  $$('#whoOptions button').forEach(b=>{
+    b.classList.toggle('choice',(b.dataset.who||'')===who);
+    b.onclick=()=>{who=b.dataset.who;$$('#whoOptions button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice')}
+  });
+  $('#popup').classList.remove('hidden');resetPopupScroll('#popup');
+}
+
+function render(){
+  $('#count').textContent=state.events.length+' action'+(state.events.length>1?'s':'');
+  const last=state.events.at(-1);
+  $('#last').textContent=last
+    ? `${last.action}${last.faultType?' · '+last.faultType:''} · ${labelContext(last.context)}${last.zone?' · '+last.zone:''}${last.movement?' · déplacement '+last.movement.toLowerCase():''}${last.player?' · '+last.player:' · collectif/non spécifié'}`
+    : 'Aucune';
+  const t=$('#timeline');t.innerHTML='';
+  [...state.events].reverse().forEach(e=>{
+    const d=document.createElement('div');d.className='item';
+    const detail=e.faultType?e.faultType:e.action,pos=e.videoPosition||'—';
+    d.innerHTML=`<div class="time">${pos}<br>${e.period}</div><div><strong>${detail}</strong><div class="small">${labelContext(e.context)}${e.zone?' · '+e.zone:''}${e.movement?' · déplacement '+e.movement.toLowerCase():''} · ${e.player||'Collectif/non spécifié'}</div></div>`;
+    d.onclick=()=>editEvent(e.id);
+    const controls=document.createElement('div');controls.className='row';
+    const edit=document.createElement('button');edit.className='ghost';edit.textContent='Modifier';edit.onclick=evt=>{evt.stopPropagation();editEvent(e.id)};
+    const del=document.createElement('button');del.className='ghost';del.textContent='Suppr.';
+    del.onclick=async evt=>{
+      evt.stopPropagation();
+      if(!confirm('Supprimer cette action ?'))return;
+      try{
+        const {error}=await db.from('match_events').delete().eq('id',e.id);
+        if(error)throw error;
+        state.events=state.events.filter(x=>x.id!==e.id);render();setCloud('Synchronisé',true);
+      }catch(err){handleError('delete event',err)}
+    };
+    controls.append(edit,del);d.append(controls);t.append(d)
+  });
+}
+function dl(name,content,type){
+  const blob=new Blob([content],{type}),a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)
+}
+$('#json').onclick=()=>dl('kinball_cloud_match.json',JSON.stringify(state,null,2),'application/json');
+$('#csv').onclick=()=>{
+  const rows=[['match','team','videoPosition','period','context','family','restartLocation','action','faultType','zone','movement','player','activePlayers','createdAt']];
+  state.events.forEach(e=>rows.push([state.matchName,state.teamName,e.videoPosition||'',e.period,e.context,e.family||'',e.restartLocation||'',e.action,e.faultType||'',e.zone||'',e.movement||'',e.player||'',e.activePlayers.join(' | '),e.createdAt]));
+  const csv=rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n');
+  dl('kinball_cloud_match.csv',csv,'text/csv;charset=utf-8')
+};
+
+render();
+initAuth().catch(e=>handleError('initAuth',e));
+</script>
+</body>
+</html>
