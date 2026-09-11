@@ -719,7 +719,8 @@ async function loadMatch(matchId){
     }
     const lineupMap={};
     lineups.forEach(x=>{
-      (lineupMap[x.event_id]??=[]).push(idToName[x.player_id]).filter(Boolean)
+      const playerName=idToName[x.player_id];
+      if(playerName) (lineupMap[x.event_id]??=[]).push(playerName);
     });
 
     state.events=(events||[]).map(e=>{
