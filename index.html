@@ -198,7 +198,7 @@ button:active{transform:scale(.985)}
    </div>
    <div class="trainingToolbar">
     <button class="primary" id="newTraining">＋ Nouvelle séance</button>
-    <button class="ghost" id="duplicateTrainingSession">Dupliquer une séance</button>
+    <button class="ghost" id="duplicateTrainingSession">Séances enregistrées</button>
     <button class="ghost" id="openExerciseLibrary">Bibliothèque d’exercices</button>
     <button class="ghost" id="openTrainingHistory">Historique joueur</button>
    </div>
@@ -247,7 +247,7 @@ button:active{transform:scale(.985)}
 
  <section class="panel hidden" id="trainingDuplicate">
    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
-    <div><h2 style="font-size:20px">Dupliquer une séance</h2><div class="small">Reprend les présents et les exercices, sans les performances</div></div>
+    <div><h2 style="font-size:20px">Séances enregistrées</h2><div class="small">Modifier une séance existante ou la dupliquer</div></div>
     <button class="ghost" id="trainingDuplicateBack">← Retour</button>
    </div>
    <div id="trainingDuplicateStatus" class="small" style="margin-bottom:10px"></div>
@@ -1503,7 +1503,7 @@ function eventAttributionLabel(e){
 }
 
 // ===== MODULE ENTRAÎNEMENT V2.0 PRÉLIMINAIRE =====
-let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null,recentSessions:[]};
+let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null,recentSessions:[],currentSessionId:null,resultDraft:{}};
 let groupState={groups:[],currentGroupId:null,currentPlayers:[],matchPlayers:[],profiles:{}};
 
 
@@ -1770,6 +1770,9 @@ function renderHistoryPlayers(){
 }
 async function startNewTraining(){
   trainingState.sessionExercises=[];
+  trainingState.currentSessionId=null;
+  trainingState.resultDraft={};
+  $('#saveTrainingSession').textContent='Enregistrer la séance';
   if(!groupState.groups.length)await fetchMyGroups();
   if(!groupState.groups.length){
     alert('Crée ou rejoins d’abord un groupe dans le volet Groupes.');
@@ -1835,13 +1838,34 @@ function addSessionExercise(ex,focus=null){
   renderTrainingExerciseCards();
 }
 function removeSessionExercise(key){trainingState.sessionExercises=trainingState.sessionExercises.filter(x=>x.localKey!==key);renderTrainingExerciseCards()}
+
+function trainingDraftKey(exKey,playerId){return `${exKey}__${playerId}`}
+function captureTrainingResultDraft(){
+  $$('.resultRow').forEach(row=>{
+    const exKey=row.dataset.exercise,playerId=row.dataset.player;
+    if(!exKey||!playerId)return;
+    const key=trainingDraftKey(exKey,playerId);
+    trainingState.resultDraft[key]={
+      successes:row.querySelector('.tr-success')?.value ?? '',
+      attempts:row.querySelector('.tr-attempts')?.value ?? '',
+      value:row.querySelector('.tr-value')?.value ?? '',
+      note:row.querySelector('.tr-note')?.value ?? ''
+    };
+  });
+}
+function getTrainingDraft(exKey,playerId){
+  return trainingState.resultDraft[trainingDraftKey(exKey,playerId)]||{successes:'',attempts:'',value:'',note:''};
+}
+
 function resultInputsHtml(ex,p){
   const key=`${ex.localKey}__${p.id}`;
-  if(ex.measurement_type==='success_attempts') return `<div class="miniGrid"><div><label>Réussites</label><input class="tr-success" data-key="${key}" type="number" min="0" inputmode="numeric"></div><div><label>Tentatives</label><input class="tr-attempts" data-key="${key}" type="number" min="0" inputmode="numeric"></div></div>`;
+  const d=getTrainingDraft(ex.localKey,p.id);
+  if(ex.measurement_type==='success_attempts') return `<div class="miniGrid"><div><label>Réussites</label><input class="tr-success" data-key="${key}" type="number" min="0" inputmode="numeric" value="${d.successes}"></div><div><label>Tentatives</label><input class="tr-attempts" data-key="${key}" type="number" min="0" inputmode="numeric" value="${d.attempts}"></div></div>`;
   let max=''; if(ex.measurement_type==='rating_5')max=' max="5"';if(ex.measurement_type==='rating_10')max=' max="10"';
-  return `<label>${measurementLabel(ex.measurement_type)}</label><input class="tr-value" data-key="${key}" type="number" step="any" inputmode="decimal"${max}>`;
+  return `<label>${measurementLabel(ex.measurement_type)}</label><input class="tr-value" data-key="${key}" type="number" step="any" inputmode="decimal"${max} value="${d.value}">`;
 }
 function renderTrainingExerciseCards(){
+  captureTrainingResultDraft();
   const box=$('#trainingExerciseCards');if(!box)return;box.innerHTML='';
   const present=trainingPresentPlayers();
   if(!trainingState.sessionExercises.length){box.innerHTML='<div class="small">Ajoute au moins un exercice à la séance.</div>';return}
@@ -1906,7 +1930,8 @@ function renderTrainingExerciseCards(){
     if(!present.length) rb.insertAdjacentHTML('beforeend','<div class="small">Sélectionne au moins un joueur présent.</div>');
     present.forEach(p=>{
       const row=document.createElement('div');row.className='resultRow';row.dataset.exercise=ex.localKey;row.dataset.player=p.id;
-      row.innerHTML=`<div class="name">${p.name}</div>${resultInputsHtml(ex,p)}<div style="margin-top:7px"><label>Note facultative</label><input class="tr-note" placeholder="Observation courte"></div>`;
+      const draft=getTrainingDraft(ex.localKey,p.id);
+      row.innerHTML=`<div class="name">${p.name}</div>${resultInputsHtml(ex,p)}<div style="margin-top:7px"><label>Note facultative</label><input class="tr-note" placeholder="Observation courte" value="${draft.note.replaceAll('"','&quot;')}"></div>`;
       rb.append(row);
     });
 
@@ -2137,7 +2162,7 @@ function renderDuplicateTrainingSessions(){
   box.innerHTML='';
   status.textContent=`${trainingState.recentSessions.length} séance${trainingState.recentSessions.length>1?'s':''} récente${trainingState.recentSessions.length>1?'s':''}`;
   if(!trainingState.recentSessions.length){
-    box.innerHTML='<div class="small">Aucune séance enregistrée à dupliquer.</div>';
+    box.innerHTML='<div class="small">Aucune séance enregistrée.</div>';
     return;
   }
 
@@ -2149,13 +2174,16 @@ function renderDuplicateTrainingSessions(){
         <strong>${sess.trained_on||''}${sess.theme?' · '+sess.theme:(sess.label?' · '+sess.label:'')}</strong>
         <div class="small" style="margin-top:4px">${sess.group?.name||sess.team?.name||'Groupe'}${sess.duration_minutes?' · '+sess.duration_minutes+' min':''}</div>
       </div>
-      <button class="ghost" data-duplicate-session="${sess.id}">Dupliquer</button>
+      <div class="row" style="gap:6px;flex:0 0 auto">
+        <button class="ghost" data-edit-session="${sess.id}">Modifier</button>
+        <button class="ghost" data-duplicate-session="${sess.id}">Dupliquer</button>
+      </div>
     </div>`;
+    d.querySelector('[data-edit-session]').onclick=()=>editTrainingSessionById(sess.id).catch(e=>handleError('edit training session',e));
     d.querySelector('[data-duplicate-session]').onclick=()=>duplicateTrainingSessionById(sess.id).catch(e=>handleError('duplicate training session',e));
     box.append(d);
   });
 }
-
 async function openTrainingDuplicate(){
   try{
     await fetchMyGroups();
@@ -2171,6 +2199,9 @@ async function openTrainingDuplicate(){
 async function duplicateTrainingSessionById(sessionId){
   const source=trainingState.recentSessions.find(s=>s.id===sessionId);
   if(!source) return;
+  trainingState.currentSessionId=null;
+  trainingState.resultDraft={};
+  $('#saveTrainingSession').textContent='Enregistrer la séance';
 
   const [{data:attendance,error:ae},{data:sessionExercises,error:xe}]=await Promise.all([
     db.from('training_attendance').select('player_id,present').eq('session_id',sessionId),
@@ -2203,6 +2234,57 @@ async function duplicateTrainingSessionById(sessionId){
   window.scrollTo({top:0,behavior:'instant'});
 }
 
+
+async function editTrainingSessionById(sessionId){
+  const source=trainingState.recentSessions.find(s=>s.id===sessionId);
+  if(!source)return;
+
+  const [{data:attendance,error:ae},{data:sessionExercises,error:xe},{data:results,error:re}]=await Promise.all([
+    db.from('training_attendance').select('player_id,present').eq('session_id',sessionId),
+    db.from('training_session_exercises')
+      .select('position,variant,target,focus,exercise:exercises!training_session_exercises_exercise_id_fkey(id,name,category,measurement_type,description,objective,attack_instruction,defense_instruction)')
+      .eq('session_id',sessionId).order('position'),
+    db.from('training_results')
+      .select('exercise_id,player_id,successes,attempts,numeric_value,note')
+      .eq('session_id',sessionId)
+  ]);
+  if(ae)throw ae;if(xe)throw xe;if(re)throw re;
+
+  trainingState.currentSessionId=sessionId;
+  trainingState.resultDraft={};
+  trainingState.sessionExercises=(sessionExercises||[])
+    .filter(x=>x.exercise)
+    .map(x=>({...x.exercise,localKey:crypto.randomUUID(),expanded:false,variant:x.variant||null,target:x.target||null,focus:x.focus||null}));
+
+  $('#trainingDate').value=source.trained_on||today();
+  $('#trainingGroup').value=source.group_id||'';
+  await fetchTrainingPlayers(source.group_id||null);
+  $('#trainingTheme').value=source.theme||source.label||'';
+  $('#trainingDuration').value=source.duration_minutes||'';
+  $('#trainingNotes').value=source.notes||'';
+  $('#trainingSaveStatus').textContent='';
+  $('#saveTrainingSession').textContent='Enregistrer les modifications';
+
+  const presentIds=new Set((attendance||[]).filter(a=>a.present).map(a=>a.player_id));
+  $$('#trainingAttendance input').forEach(c=>c.checked=presentIds.has(c.value));
+
+  const exById=new Map(trainingState.sessionExercises.map(ex=>[ex.id,ex]));
+  (results||[]).forEach(r=>{
+    const ex=exById.get(r.exercise_id);if(!ex)return;
+    trainingState.resultDraft[trainingDraftKey(ex.localKey,r.player_id)]={
+      successes:r.successes==null?'':String(r.successes),
+      attempts:r.attempts==null?'':String(r.attempts),
+      value:r.numeric_value==null?'':String(r.numeric_value),
+      note:r.note||''
+    };
+  });
+
+  renderTrainingExerciseCards();
+  hideMainModules();setMatchHeaderMode(false);
+  $('#trainingSession').classList.remove('hidden');
+  window.scrollTo({top:0,behavior:'instant'});
+}
+
 async function addTrainingPlayers(){
   const names=$('#trainingAddPlayers').value.split(',').map(x=>x.trim()).filter(Boolean);
   if(!names.length)return;
@@ -2215,7 +2297,8 @@ async function addTrainingPlayers(){
 function trainingStatus(text,error=false){const el=$('#trainingSaveStatus');el.textContent=text||'';el.className='authStatus '+(error?'cloudErr':'cloudOk')}
 async function saveTrainingSession(){
   try{
-    trainingStatus('Enregistrement…');
+    captureTrainingResultDraft();
+    trainingStatus(trainingState.currentSessionId?'Mise à jour…':'Enregistrement…');
     const groupId=$('#trainingGroup').value;
     const group=groupState.groups.find(g=>g.id===groupId);
     const date=$('#trainingDate').value||today();
@@ -2225,32 +2308,67 @@ async function saveTrainingSession(){
     if(!trainingState.sessionExercises.length){trainingStatus('Ajoute au moins un exercice.',true);return}
     const withoutFocus=trainingState.sessionExercises.find(ex=>isDualExercise(ex)&&!ex.focus);
     if(withoutFocus){trainingStatus(`Choisis le focus Attaque ou Défense pour « ${withoutFocus.name} ».`,true);return}
+
     const teamId=await ensureTeam(group.name);
     const duration=$('#trainingDuration').value?Number($('#trainingDuration').value):null;
-    const {data:session,error:se}=await db.from('training_sessions').insert({workspace_id:state.workspaceId,group_id:groupId,team_id:teamId,trained_on:date,label:$('#trainingTheme').value.trim()||'Entraînement',theme:$('#trainingTheme').value.trim()||null,duration_minutes:duration,notes:$('#trainingNotes').value.trim()||null}).select('id').single();
-    if(se)throw se;
-    const attendance=trainingState.players.map(p=>({session_id:session.id,player_id:p.id,present:present.some(x=>x.id===p.id)}));
+    const sessionPayload={
+      workspace_id:state.workspaceId,group_id:groupId,team_id:teamId,trained_on:date,
+      label:$('#trainingTheme').value.trim()||'Entraînement',
+      theme:$('#trainingTheme').value.trim()||null,
+      duration_minutes:duration,
+      notes:$('#trainingNotes').value.trim()||null
+    };
+
+    let sessionId=trainingState.currentSessionId;
+    if(sessionId){
+      const {error}=await db.from('training_sessions').update(sessionPayload).eq('id',sessionId);
+      if(error)throw error;
+      const deletes=await Promise.all([
+        db.from('training_results').delete().eq('session_id',sessionId),
+        db.from('training_attendance').delete().eq('session_id',sessionId),
+        db.from('training_session_exercises').delete().eq('session_id',sessionId)
+      ]);
+      for(const d of deletes) if(d.error) throw d.error;
+    }else{
+      const {data:session,error}=await db.from('training_sessions').insert(sessionPayload).select('id').single();
+      if(error)throw error;
+      sessionId=session.id;
+    }
+
+    const attendance=trainingState.players.map(p=>({session_id:sessionId,player_id:p.id,present:present.some(x=>x.id===p.id)}));
     if(attendance.length){const {error}=await db.from('training_attendance').insert(attendance);if(error)throw error}
-    const sessionExRows=trainingState.sessionExercises.map((ex,i)=>({session_id:session.id,exercise_id:ex.id,position:i+1,focus:isDualExercise(ex)?ex.focus:null}));
-    const {error:xe}=await db.from('training_session_exercises').insert(sessionExRows);if(xe)throw xe;
+
+    const sessionExRows=trainingState.sessionExercises.map((ex,i)=>({
+      session_id:sessionId,exercise_id:ex.id,position:i+1,focus:isDualExercise(ex)?ex.focus:null
+    }));
+    if(sessionExRows.length){const {error}=await db.from('training_session_exercises').insert(sessionExRows);if(error)throw error}
+
     const results=[];
     trainingState.sessionExercises.forEach(ex=>{
       present.forEach(p=>{
-        const row=$(`.resultRow[data-exercise="${ex.localKey}"][data-player="${p.id}"]`);if(!row)return;
-        const note=row.querySelector('.tr-note')?.value.trim()||null;
+        const d=getTrainingDraft(ex.localKey,p.id);
+        const note=(d.note||'').trim()||null;
         if(ex.measurement_type==='success_attempts'){
-          const sv=row.querySelector('.tr-success')?.value, av=row.querySelector('.tr-attempts')?.value;
-          if(sv===''&&av===''&&!note)return;
-          results.push({session_id:session.id,exercise_id:ex.id,player_id:p.id,successes:sv===''?null:Number(sv),attempts:av===''?null:Number(av),note});
+          if(d.successes===''&&d.attempts===''&&!note)return;
+          results.push({
+            session_id:sessionId,exercise_id:ex.id,player_id:p.id,
+            successes:d.successes===''?null:Number(d.successes),
+            attempts:d.attempts===''?null:Number(d.attempts),note
+          });
         }else{
-          const vv=row.querySelector('.tr-value')?.value;
-          if(vv===''&&!note)return;
-          results.push({session_id:session.id,exercise_id:ex.id,player_id:p.id,numeric_value:vv===''?null:Number(vv),note});
+          if(d.value===''&&!note)return;
+          results.push({
+            session_id:sessionId,exercise_id:ex.id,player_id:p.id,
+            numeric_value:d.value===''?null:Number(d.value),note
+          });
         }
       });
     });
-    if(results.length){const {error:re}=await db.from('training_results').insert(results);if(re)throw re}
-    trainingStatus('Séance enregistrée ✓');setCloud('Synchronisé',true);
+    if(results.length){const {error}=await db.from('training_results').insert(results);if(error)throw error}
+
+    trainingState.currentSessionId=sessionId;
+    trainingStatus('Séance mise à jour ✓');
+    setCloud('Synchronisé',true);
     setTimeout(()=>openTrainingModule(),650);
   }catch(e){trainingStatus(e.message||String(e),true);handleError('saveTrainingSession',e)}
 }
