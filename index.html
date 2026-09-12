@@ -395,6 +395,25 @@ button:active{transform:scale(.985)}
  <div class="footerin"><button class="ghost" id="csv">Exporter CSV</button><button class="primary" id="json">Sauvegarder JSON</button></div>
 </div>
 
+
+<div class="popupBackdrop hidden" id="profilePopup">
+ <div class="sheet">
+  <div class="sheetTop">
+   <div>
+    <h2>Mon profil</h2>
+    <div class="meta">Ce prénom est visible par les autres entraîneurs de tes groupes.</div>
+   </div>
+   <button class="closePopup" id="closeProfilePopup" aria-label="Fermer">×</button>
+  </div>
+  <div class="field"><label>Prénom</label><input id="profileFirstName" autocomplete="given-name" placeholder="ex. Tuong-Huy"></div>
+  <div class="authStatus" id="profileStatus"></div>
+  <div class="row" style="margin-top:14px">
+   <button class="ghost" style="flex:1" id="cancelProfile">Annuler</button>
+   <button class="primary" style="flex:2" id="saveProfile">Enregistrer</button>
+  </div>
+ </div>
+</div>
+
 <div class="popupBackdrop hidden" id="signupPopup">
  <div class="sheet" style="max-width:560px">
    <div class="sheetTop">
@@ -710,6 +729,7 @@ async function initAuthenticated(user){
   $('#newMatchTop').classList.add('hidden');
   setCloud('Synchronisé',true);
   await ensureWorkspace();
+  await ensureMyProfile();
   await fetchMyGroups();
   await refreshRecentMatches();
 }
@@ -1447,8 +1467,56 @@ function eventAttributionLabel(e){
 
 // ===== MODULE ENTRAÎNEMENT V2.0 PRÉLIMINAIRE =====
 let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null,recentSessions:[]};
-let groupState={groups:[],currentGroupId:null,currentPlayers:[],matchPlayers:[]};
+let groupState={groups:[],currentGroupId:null,currentPlayers:[],matchPlayers:[],profiles:{}};
 
+
+
+async function fetchProfiles(userIds){
+  const ids=[...new Set((userIds||[]).filter(Boolean))];
+  if(!ids.length)return {};
+  const {data,error}=await db.from('user_profiles').select('user_id,first_name').in('user_id',ids);
+  if(error)throw error;
+  const map={};
+  (data||[]).forEach(p=>map[p.user_id]=p.first_name);
+  Object.assign(groupState.profiles,map);
+  return map;
+}
+async function getMyProfile(){
+  if(!currentUser)return null;
+  const {data,error}=await db.from('user_profiles').select('first_name').eq('user_id',currentUser.id).maybeSingle();
+  if(error)throw error;
+  return data||null;
+}
+function openProfilePopup(){
+  const current=groupState.profiles[currentUser?.id]||'';
+  $('#profileFirstName').value=current;
+  $('#profileStatus').textContent='';
+  $('#profilePopup').classList.remove('hidden');
+  resetPopupScroll('#profilePopup');
+}
+function closeProfilePopup(){
+  $('#profilePopup').classList.add('hidden');
+}
+async function saveMyProfile(){
+  const firstName=$('#profileFirstName').value.trim();
+  const status=$('#profileStatus');
+  if(!firstName){status.textContent='Renseigne ton prénom.';status.className='authStatus cloudErr';return}
+  status.textContent='Enregistrement…';status.className='authStatus';
+  const {error}=await db.rpc('set_my_first_name',{p_first_name:firstName});
+  if(error)throw error;
+  groupState.profiles[currentUser.id]=firstName;
+  status.textContent='Profil enregistré ✓';status.className='authStatus cloudOk';
+  setTimeout(closeProfilePopup,300);
+}
+async function ensureMyProfile(){
+  if(!currentUser)return;
+  const p=await getMyProfile();
+  if(p?.first_name){
+    groupState.profiles[currentUser.id]=p.first_name;
+    return;
+  }
+  openProfilePopup();
+}
 
 async function fetchMyGroups(){
   const {data,error}=await db.from('coaching_group_coaches')
@@ -1511,10 +1579,12 @@ async function openGroupDetail(groupId){
     renderGroupPlayers();
     const {data:coaches,error}=await db.from('coaching_group_coaches').select('user_id,role,joined_at').eq('group_id',groupId).order('joined_at');
     if(error)throw error;
+    await fetchProfiles((coaches||[]).map(c=>c.user_id));
     const cb=$('#groupCoachesList');cb.innerHTML='';
     (coaches||[]).forEach((c,i)=>{
       const d=document.createElement('div');d.className='historyItem';
-      d.textContent=`${c.role==='owner'?'Créateur':'Entraîneur'} ${i+1}${c.user_id===currentUser.id?' · toi':''}`;
+      const name=groupState.profiles[c.user_id]||`Entraîneur ${i+1}`;
+      d.innerHTML=`<strong>${name}</strong><div class="small">${c.role==='owner'?'Créateur du groupe':'Entraîneur'}${c.user_id===currentUser.id?' · toi':''}</div>`;
       cb.append(d);
     });
     hideMainModules();$('#groupDetail').classList.remove('hidden');window.scrollTo({top:0,behavior:'instant'});
@@ -1615,6 +1685,7 @@ async function fetchTrainingExercises(){
   const {data,error}=await db.from('exercises').select('id,name,category,measurement_type,description,objective,attack_instruction,defense_instruction,created_by').eq('active',true).order('name');
   if(error) throw error;
   trainingState.exercises=data||[];
+  await fetchProfiles(trainingState.exercises.map(ex=>ex.created_by));
   const sel=$('#trainingExerciseSelect');
   sel.innerHTML='<option value="">— Choisir —</option>';
   trainingState.exercises.forEach(ex=>{
@@ -1835,7 +1906,7 @@ function renderExerciseLibrary(){
         ${ex.description?`<div class="small" style="margin-top:4px">${ex.description}</div>`:''}
         ${isDualExercise(ex)&&ex.attack_instruction?`<div class="small" style="margin-top:4px">Attaque : ${ex.attack_instruction}</div>`:''}
         ${isDualExercise(ex)&&ex.defense_instruction?`<div class="small" style="margin-top:4px">Défense : ${ex.defense_instruction}</div>`:''}
-        <div class="small" style="margin-top:6px">${mine?'Créé par toi':'Exercice partagé'}</div>
+        <div class="small" style="margin-top:6px">Créé par ${mine?'toi':(groupState.profiles[ex.created_by]||'un entraîneur')}</div>
       </div>
       <span class="small">${mine?'Modifier':'Dupliquer'}</span>
     </div>`;
