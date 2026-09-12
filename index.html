@@ -1337,8 +1337,20 @@ function startNewTraining(){
 function measurementLabel(t){
   return ({success_attempts:'Réussites / tentatives',count:'Nombre',time_seconds:'Temps (s)',distance:'Distance',score:'Score',rating_5:'Note / 5',rating_10:'Note / 10'})[t]||t;
 }
+
+document.addEventListener('click',(ev)=>{
+  const box=$('#trainingExerciseCards');
+  if(!box || box.classList.contains('hidden')) return;
+  if(ev.target.closest('[data-exercise-card]')) return;
+  const open=trainingState.sessionExercises.some(ex=>ex.expanded);
+  if(open){
+    trainingState.sessionExercises.forEach(ex=>ex.expanded=false);
+    renderTrainingExerciseCards();
+  }
+});
+
 function addSessionExercise(ex){
-  trainingState.sessionExercises.push({...ex,localKey:crypto.randomUUID()});
+  trainingState.sessionExercises.push({...ex,localKey:crypto.randomUUID(),expanded:false});
   renderTrainingExerciseCards();
 }
 function removeSessionExercise(key){trainingState.sessionExercises=trainingState.sessionExercises.filter(x=>x.localKey!==key);renderTrainingExerciseCards()}
@@ -1353,16 +1365,52 @@ function renderTrainingExerciseCards(){
   const present=trainingPresentPlayers();
   if(!trainingState.sessionExercises.length){box.innerHTML='<div class="small">Ajoute au moins un exercice à la séance.</div>';return}
   trainingState.sessionExercises.forEach((ex,idx)=>{
-    const card=document.createElement('div');card.className='trainingCard';
-    card.innerHTML=`<div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3>${idx+1}. ${ex.name}</h3><div class="small">${ex.category||'Sans catégorie'} · ${measurementLabel(ex.measurement_type)}${ex.objective?' · '+ex.objective:''}</div></div><button class="ghost" data-remove="${ex.localKey}">Retirer</button></div><div class="trainingResults"></div>`;
-    card.querySelector('[data-remove]').onclick=()=>removeSessionExercise(ex.localKey);
+    if(typeof ex.expanded!=='boolean') ex.expanded=false;
+    const card=document.createElement('div');
+    card.className='trainingCard';
+    card.dataset.exerciseCard=ex.localKey;
+    card.innerHTML=`
+      <div class="row trainingExerciseHeader" style="justify-content:space-between;align-items:flex-start;gap:8px;cursor:pointer">
+        <div style="min-width:0;flex:1">
+          <h3>${idx+1}. ${ex.name}</h3>
+          <div class="small">${ex.category||'Sans catégorie'} · ${measurementLabel(ex.measurement_type)}${ex.objective?' · '+ex.objective:''}</div>
+          <div class="small" style="margin-top:5px">${present.length} joueur${present.length>1?'s':''} présent${present.length>1?'s':''}</div>
+        </div>
+        <div class="row" style="gap:6px;flex:0 0 auto">
+          <button class="ghost${ex.expanded?'':' hidden'}" data-close="${ex.localKey}" aria-label="Fermer l’exercice">×</button>
+          <button class="ghost" data-remove="${ex.localKey}">Retirer</button>
+        </div>
+      </div>
+      <div class="trainingResults${ex.expanded?'':' hidden'}"></div>`;
     const rb=card.querySelector('.trainingResults');
+    const closeBtn=card.querySelector('[data-close]');
+    const removeBtn=card.querySelector('[data-remove]');
+    const header=card.querySelector('.trainingExerciseHeader');
+
+    header.onclick=(ev)=>{
+      if(ev.target.closest('[data-close]')||ev.target.closest('[data-remove]')) return;
+      trainingState.sessionExercises.forEach(other=>other.expanded=(other.localKey===ex.localKey));
+      renderTrainingExerciseCards();
+    };
+
+    closeBtn.onclick=(ev)=>{
+      ev.stopPropagation();
+      ex.expanded=false;
+      renderTrainingExerciseCards();
+    };
+
+    removeBtn.onclick=(ev)=>{
+      ev.stopPropagation();
+      removeSessionExercise(ex.localKey);
+    };
+
     if(!present.length) rb.innerHTML='<div class="small">Sélectionne au moins un joueur présent.</div>';
     present.forEach(p=>{
       const row=document.createElement('div');row.className='resultRow';row.dataset.exercise=ex.localKey;row.dataset.player=p.id;
       row.innerHTML=`<div class="name">${p.name}</div>${resultInputsHtml(ex,p)}<div style="margin-top:7px"><label>Note facultative</label><input class="tr-note" placeholder="Observation courte"></div>`;
       rb.append(row);
     });
+
     box.append(card);
   });
 }
