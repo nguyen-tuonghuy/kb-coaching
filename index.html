@@ -129,9 +129,64 @@ button:active{transform:scale(.985)}
    <h2 style="font-size:20px;margin-bottom:6px">Que veux-tu faire ?</h2>
    <p class="small" style="margin-bottom:14px">Choisis le module à utiliser.</p>
    <div class="moduleGrid">
-    <button class="moduleCard primary" id="openMatchModule"><strong>🏐 Match</strong><span>Prise de notes vidéo et chronologie des actions</span></button>
-    <button class="moduleCard" id="openTrainingModule"><strong>🎯 Entraînement</strong><span>Présences, exercices, résultats et progression des joueurs</span></button>
+    <button class="moduleCard primary" id="openMatchModule"><strong>🏐 Matchs</strong><span>Prise de notes et statistiques partagées du groupe</span></button>
+    <button class="moduleCard" id="openTrainingModule"><strong>🎯 Entraînements</strong><span>Séances, exercices, résultats et progression des joueurs</span></button>
+    <button class="moduleCard" id="openGroupsModule"><strong>👥 Groupes</strong><span>Effectifs et entraîneurs partageant les mêmes données</span></button>
    </div>
+ </section>
+
+
+ <section class="panel hidden" id="groupsHome">
+   <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div><h2 style="font-size:20px">Groupes</h2><div class="small">Effectifs et entraîneurs associés</div></div>
+    <button class="ghost" id="groupsBackHome">← Accueil</button>
+   </div>
+
+   <div class="trainingToolbar" style="margin-bottom:14px">
+    <button class="primary" id="showCreateGroup">＋ Créer un groupe</button>
+    <button class="ghost" id="showJoinGroup">Rejoindre un groupe</button>
+   </div>
+
+   <div id="createGroupBox" class="historyItem hidden" style="margin-bottom:12px">
+    <div class="field"><label>Nom du groupe</label><input id="newGroupName" placeholder="ex. Seniors compétition"></div>
+    <div class="field" style="margin-top:8px"><label>Club — facultatif</label><input id="newGroupClub" placeholder="ex. Kin-Ball Rennes"></div>
+    <button class="primary" id="createGroupBtn" style="width:100%;margin-top:10px">Créer le groupe</button>
+    <div class="authStatus" id="createGroupStatus"></div>
+   </div>
+
+   <div id="joinGroupBox" class="historyItem hidden" style="margin-bottom:12px">
+    <div class="field"><label>Code d’invitation</label><input id="joinGroupCode" placeholder="ex. A1B2C3D4" autocapitalize="characters"></div>
+    <button class="primary" id="joinGroupBtn" style="width:100%;margin-top:10px">Rejoindre comme entraîneur</button>
+    <div class="authStatus" id="joinGroupStatus"></div>
+   </div>
+
+   <h3 style="font-size:16px;margin:14px 0 8px">Mes groupes</h3>
+   <div id="groupsList"></div>
+ </section>
+
+ <section class="panel hidden" id="groupDetail">
+   <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div><h2 style="font-size:20px" id="groupDetailName">Groupe</h2><div class="small" id="groupDetailClub"></div></div>
+    <button class="ghost" id="groupDetailBack">← Groupes</button>
+   </div>
+
+   <div class="historyItem" style="margin-bottom:14px">
+    <div class="small">Code à transmettre aux autres entraîneurs</div>
+    <div class="row" style="justify-content:space-between;align-items:center;margin-top:5px">
+     <strong id="groupInviteCode" style="font-size:20px;letter-spacing:2px">—</strong>
+     <span class="small">Ils rejoignent ensuite ce groupe depuis leur compte.</span>
+    </div>
+   </div>
+
+   <h3 style="font-size:16px;margin:0 0 8px">Effectif du groupe</h3>
+   <div class="row" style="margin-bottom:10px">
+    <div class="field"><input id="groupAddPlayers" placeholder="Noms séparés par des virgules"></div>
+    <button class="primary" id="groupAddPlayersBtn">Ajouter</button>
+   </div>
+   <div id="groupPlayersList"></div>
+
+   <h3 style="font-size:16px;margin:18px 0 8px">Entraîneurs</h3>
+   <div id="groupCoachesList"></div>
  </section>
 
  <section class="panel hidden" id="trainingHome">
@@ -155,7 +210,7 @@ button:active{transform:scale(.985)}
    </div>
    <div class="row">
     <div class="field"><label>Date</label><input id="trainingDate" type="date"></div>
-    <div class="field"><label>Équipe / groupe</label><input id="trainingTeam" placeholder="ex. Équipe masculine"></div>
+    <div class="field"><label>Groupe</label><select id="trainingGroup"><option value="">— Choisir un groupe —</option></select></div>
     <div class="field"><label>Thème</label><input id="trainingTheme" placeholder="ex. Défense et transition"></div>
     <div class="field"><label>Durée prévue (min)</label><input id="trainingDuration" type="number" min="1" inputmode="numeric" placeholder="90"></div>
    </div>
@@ -163,8 +218,7 @@ button:active{transform:scale(.985)}
 
    <div style="margin-top:18px">
     <h3 style="font-size:16px;margin:0 0 7px">Joueurs présents</h3>
-    <div class="small" style="margin-bottom:8px">Les joueurs connus dans ton espace apparaissent ici. Tu peux aussi en ajouter.</div>
-    <div class="row" style="margin-bottom:9px"><div class="field"><input id="trainingAddPlayers" placeholder="Nouveaux joueurs, séparés par des virgules"></div><button class="ghost" id="trainingAddPlayersBtn">Ajouter</button></div>
+    <div class="small" style="margin-bottom:8px">L’effectif vient du groupe sélectionné. Les modifications se font dans le volet Groupes.</div>
     <div class="roster" id="trainingAttendance"></div>
    </div>
 
@@ -225,7 +279,10 @@ button:active{transform:scale(.985)}
     <div><h2 style="font-size:20px">Historique joueur</h2><div class="small">Séances et résultats enregistrés</div></div>
     <button class="ghost" id="historyBack">← Retour</button>
    </div>
-   <div class="field"><label>Joueur</label><select id="historyPlayer"><option value="">— Choisir un joueur —</option></select></div>
+   <div class="row">
+    <div class="field"><label>Groupe</label><select id="historyGroup"><option value="">— Choisir un groupe —</option></select></div>
+    <div class="field"><label>Joueur</label><select id="historyPlayer"><option value="">— Choisir un joueur —</option></select></div>
+   </div>
    <div id="historySummary" class="small" style="margin:10px 0"></div>
    <div id="historyResults"></div>
  </section>
@@ -242,6 +299,10 @@ button:active{transform:scale(.985)}
     </div>
     <button class="ghost" id="resumeMatch">Ouvrir</button>
    </div>
+   <div class="field" style="margin-bottom:10px">
+    <label>Groupe suivi</label>
+    <select id="matchGroup"><option value="">— Choisir un groupe —</option></select>
+   </div>
    <div class="row">
     <div class="field"><label>Match</label><input id="matchName" value="Match test vidéo"></div>
     <div class="field"><label>Équipe suivie</label><input id="teamName" value="Mon équipe"></div>
@@ -249,18 +310,15 @@ button:active{transform:scale(.985)}
     <div class="field"><label>Équipe adverse 2</label><input id="opponentTeam2" placeholder="Équipe 3"></div>
     <div class="field"><label>Date</label><input id="matchDate" type="date"></div>
    </div>
-   <div class="field" style="margin-top:10px">
-    <label>Effectif complet — séparé par des virgules</label>
-    <input id="rosterInput" value="" placeholder="ex. Philippe, Adrien, Lenny, Thibault">
-   </div>
-   <button class="ghost" style="width:100%;margin-top:9px" id="loadRoster">Sélectionner les joueurs en jeu</button>
-   <div id="rosterWrap" class="hidden" style="margin-top:10px">
+   <div id="rosterWrap" class="hidden" style="margin-top:12px">
+    <div class="small" style="margin-bottom:7px">Sélectionne exactement 4 joueurs parmi l’effectif du groupe.</div>
     <div class="roster" id="rosterChecks"></div>
    </div>
+   <div id="matchGroupHint" class="small" style="margin-top:9px">Choisis d’abord un groupe. L’effectif se gère dans le volet Groupes.</div>
    <div class="row" style="margin-top:10px">
     <div class="field"><label>Période</label><select id="startPeriod"><option>P1</option><option>P2</option><option>P3</option><option>P4</option><option>P5</option><option>P6</option><option>P7</option><option>P8</option><option>P9</option><option>P10</option></select></div>
    </div>
-   <button class="primary" style="width:100%;margin-top:11px" id="start" disabled title="Renseignez au moins 4 joueurs puis sélectionnez exactement 4 joueurs pour commencer la période.">Commencer</button>
+   <button class="primary" style="width:100%;margin-top:11px" id="start" disabled title="Choisissez un groupe puis sélectionnez exactement 4 joueurs pour commencer la période.">Commencer</button>
  </section>
 
  <div id="live" class="hidden">
@@ -621,42 +679,45 @@ async function ensureWorkspace(){
 }
 
 async function refreshRecentMatches(){
-  if(!state.workspaceId) return;
-  const {data,error}=await db
-    .from('matches')
-    .select('id,label,played_on,created_at,followed_team:teams!matches_team_id_fkey(name)')
-    .eq('workspace_id',state.workspaceId)
-    .order('created_at',{ascending:false})
-    .limit(40);
-  if(error) throw error;
+  if(!currentUser)return;
+  if(!groupState.groups.length) await fetchMyGroups();
   const sel=$('#recentMatches');
   sel.innerHTML='<option value="">— Nouveau match —</option>';
+  const ids=groupState.groups.map(g=>g.id);
+  if(!ids.length)return;
+  const {data,error}=await db.from('matches')
+    .select('id,label,played_on,created_at,group_id,group:coaching_groups!matches_group_id_fkey(name),followed_team:teams!matches_team_id_fkey(name)')
+    .in('group_id',ids)
+    .order('created_at',{ascending:false}).limit(40);
+  if(error)throw error;
   (data||[]).forEach(m=>{
-    const o=document.createElement('option');
-    o.value=m.id;
-    const team=m.followed_team?.name||'Équipe';
-    o.textContent=`${m.played_on||'Date ?'} · ${m.label} · ${team}`;
+    const o=document.createElement('option');o.value=m.id;
+    o.textContent=`${m.played_on||'Date ?'} · ${m.label} · ${m.group?.name||m.followed_team?.name||'Groupe'}`;
     sel.append(o);
   });
 }
-
 async function initAuthenticated(user){
   currentUser=user;
   $('#authPanel').classList.add('hidden');
   $('#setup').classList.add('hidden');
   $('#appHome').classList.remove('hidden');
   $('#trainingHome').classList.add('hidden');
+  $('#groupsHome').classList.add('hidden');
+  $('#groupDetail').classList.add('hidden');
   $('#trainingSession').classList.add('hidden');
   $('#trainingHistory').classList.add('hidden');
   $('#logout').classList.remove('hidden');
   $('#newMatchTop').classList.add('hidden');
   setCloud('Synchronisé',true);
   await ensureWorkspace();
+  await fetchMyGroups();
   await refreshRecentMatches();
 }
 
 async function initAuth(){
   $('#matchDate').value=today();
+  $('#matchGroup').value=groupState.groups[0]?.id||'';
+  if($('#matchGroup').value) loadMatchGroupPlayers($('#matchGroup').value).catch(e=>handleError('match group',e));
   if($('#trainingDate')) $('#trainingDate').value=today();
   const {data:{session}}=await db.auth.getSession();
   if(session?.user){
@@ -741,9 +802,10 @@ $('#logout').onclick=async()=>{
 
 function updateStartButton(){
   const count=$$('#rosterChecks input:checked').length;
+  const hasGroup=!!$('#matchGroup').value;
   const btn=$('#start');
-  btn.disabled=count!==4;
-  btn.title=count===4?'':'Sélectionnez exactement 4 joueurs pour commencer la période.';
+  btn.disabled=!hasGroup||count!==4;
+  btn.title=hasGroup&&count===4?'':'Choisis un groupe puis sélectionne exactement 4 joueurs.';
 }
 function buildChecks(){
   const r=roster(), box=$('#rosterChecks'); box.innerHTML='';
@@ -839,8 +901,6 @@ function resetForNewMatch(){
   $('#opponentTeam2').value='';
   $('#matchDate').value=today();
   if($('#trainingDate')) $('#trainingDate').value=today();
-  $('#rosterInput').value='';
-  $('#rosterChecks').innerHTML='';
   $('#rosterWrap').classList.add('hidden');
   $('#recentMatches').value='';
   $('#videoPosition').value='';
@@ -876,8 +936,11 @@ async function start(){
     if(state.opponentTeams.some(x=>!x)){alert('Renseigne le nom des 3 équipes du match.');return}
     if(new Set([state.teamName,...state.opponentTeams].map(x=>x.toLowerCase())).size!==3){alert('Les 3 équipes doivent avoir des noms différents.');return}
     state.matchDate=$('#matchDate').value||today();
-    state.players=roster();
-    if(state.players.length<4){alert('Renseigne au moins 4 joueurs distincts dans l’effectif.');return}
+    const groupId=$('#matchGroup').value;
+    if(!groupId){alert('Choisis le groupe suivi.');return}
+    if(groupState.matchPlayers.length<4){alert('Le groupe doit contenir au moins 4 joueurs.');return}
+    state.players=groupState.matchPlayers.map(p=>p.display_name);
+    state.playerIds=Object.fromEntries(groupState.matchPlayers.map(p=>[p.display_name,p.id]));
 
     const checked=$$('#rosterChecks input:checked');
     if(checked.length!==4){
@@ -885,7 +948,7 @@ async function start(){
       updateStartButton();
       return;
     }
-    state.activePlayers=checked.map(c=>c.value);
+    state.activePlayers=checked.map(c=>c.dataset.name);
 
     state.currentTeamId=await ensureTeam(state.teamName);
     const opp1Id=await ensureTeam(state.opponentTeams[0]);
@@ -894,10 +957,10 @@ async function start(){
       [state.opponentTeams[0]]:opp1Id,
       [state.opponentTeams[1]]:opp2Id
     };
-    state.playerIds=await ensurePlayers(state.players);
 
     const {data:m,error}=await db.from('matches').insert({
       workspace_id:state.workspaceId,
+      group_id:groupId,
       team_id:state.currentTeamId,
       opponent_team_1_id:state.opponentTeamIds[state.opponentTeams[0]],
       opponent_team_2_id:state.opponentTeamIds[state.opponentTeams[1]],
@@ -1020,8 +1083,8 @@ async function loadMatch(matchId){
   try{
     setCloud('Chargement…',true);
     const [{data:m,error:me},{data:players,error:pe},{data:events,error:ee}] = await Promise.all([
-      db.from('matches').select('id,label,played_on,team_id,opponent_team_1_id,opponent_team_2_id,followed_team:teams!matches_team_id_fkey(name)').eq('id',matchId).single(),
-      db.from('players').select('id,display_name').eq('workspace_id',state.workspaceId),
+      db.from('matches').select('id,label,played_on,group_id,team_id,opponent_team_1_id,opponent_team_2_id,followed_team:teams!matches_team_id_fkey(name)').eq('id',matchId).single(),
+      Promise.resolve({data:[],error:null}),
       db.from('match_events').select('*').eq('match_id',matchId).order('sequence_no',{ascending:true})
     ]);
     if(me) throw me;if(pe) throw pe;if(ee) throw ee;
@@ -1043,12 +1106,16 @@ async function loadMatch(matchId){
     state.matchDate=m.played_on||'';
     state.playerIds={};
     const idToName={};
-    (players||[]).forEach(p=>{state.playerIds[p.display_name]=p.id;idToName[p.id]=p.display_name});
 
-    const {data:mp,error:mpe}=await db
-      .from('match_players').select('player_id,started_on_court')
-      .eq('match_id',matchId);
+    const {data:mp,error:mpe}=await db.from('match_players').select('player_id,started_on_court').eq('match_id',matchId);
     if(mpe) throw mpe;
+    const playerIds=[...new Set((mp||[]).map(x=>x.player_id).filter(Boolean))];
+    let playerRows=[];
+    if(playerIds.length){
+      const {data,error}=await db.from('players').select('id,display_name').in('id',playerIds);
+      if(error)throw error;playerRows=data||[];
+    }
+    playerRows.forEach(p=>{state.playerIds[p.display_name]=p.id;idToName[p.id]=p.display_name});
     state.players=(mp||[]).map(x=>idToName[x.player_id]).filter(Boolean);
 
     const ids=(events||[]).map(e=>e.id);
@@ -1102,7 +1169,7 @@ async function loadMatch(matchId){
     $('#opponentTeam1').value=state.opponentTeams[0]||'';
     $('#opponentTeam2').value=state.opponentTeams[1]||'';
     $('#matchDate').value=state.matchDate||today();
-    $('#rosterInput').value=state.players.join(', ');
+    if(m.group_id){$('#matchGroup').value=m.group_id;await loadMatchGroupPlayers(m.group_id);}
     $('#setup').classList.add('hidden');
     $('#live').classList.remove('hidden');
     $('#footer').classList.remove('hidden');
@@ -1286,7 +1353,6 @@ $('#newMatchTop').onclick=()=>{
   if(state.events.length && !confirm('Commencer un nouveau match ? Le match actuel restera enregistré dans la base.')) return;
   resetForNewMatch();
 };
-$('#loadRoster').onclick=buildChecks;
 $('#start').onclick=()=>{
   if($('#rosterWrap').classList.contains('hidden')) buildChecks();
   const checked=$$('#rosterChecks input:checked');
@@ -1381,9 +1447,143 @@ function eventAttributionLabel(e){
 
 // ===== MODULE ENTRAÎNEMENT V2.0 PRÉLIMINAIRE =====
 let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null,recentSessions:[]};
+let groupState={groups:[],currentGroupId:null,currentPlayers:[],matchPlayers:[]};
+
+
+async function fetchMyGroups(){
+  const {data,error}=await db.from('coaching_group_coaches')
+    .select('role,group:coaching_groups!coaching_group_coaches_group_id_fkey(id,name,club,invite_code)')
+    .eq('user_id',currentUser.id)
+    .order('joined_at',{ascending:true});
+  if(error)throw error;
+  groupState.groups=(data||[]).filter(x=>x.group).map(x=>({...x.group,role:x.role}));
+  populateGroupSelectors();
+  return groupState.groups;
+}
+function populateGroupSelectors(){
+  ['matchGroup','trainingGroup','historyGroup'].forEach(id=>{
+    const sel=$('#'+id);if(!sel)return;
+    const current=sel.value;
+    sel.innerHTML='<option value="">— Choisir un groupe —</option>';
+    groupState.groups.forEach(g=>{
+      const o=document.createElement('option');o.value=g.id;o.textContent=g.club?`${g.name} · ${g.club}`:g.name;sel.append(o);
+    });
+    if([...sel.options].some(o=>o.value===current))sel.value=current;
+  });
+}
+async function fetchGroupPlayers(groupId){
+  if(!groupId)return[];
+  const {data,error}=await db.from('coaching_group_players')
+    .select('player_id,active,player:players!coaching_group_players_player_id_fkey(id,display_name)')
+    .eq('group_id',groupId).eq('active',true);
+  if(error)throw error;
+  return (data||[]).filter(x=>x.player).map(x=>x.player).sort((a,b)=>a.display_name.localeCompare(b.display_name,'fr'));
+}
+async function openGroupsModule(){
+  try{
+    await fetchMyGroups();
+    hideMainModules();$('#groupsHome').classList.remove('hidden');
+    renderGroupsList();
+    window.scrollTo({top:0,behavior:'instant'});
+  }catch(e){handleError('openGroupsModule',e)}
+}
+function renderGroupsList(){
+  const box=$('#groupsList');if(!box)return;box.innerHTML='';
+  if(!groupState.groups.length){
+    box.innerHTML='<div class="small">Tu n’es encore entraîneur d’aucun groupe. Crée-en un ou rejoins-en un avec son code.</div>';return;
+  }
+  groupState.groups.forEach(g=>{
+    const d=document.createElement('button');d.className='historyItem';d.style='width:100%;text-align:left;margin-bottom:8px';
+    d.innerHTML=`<strong>${g.name}</strong><div class="small">${g.club||'Club non renseigné'} · ${g.role==='owner'?'Créateur':'Entraîneur'}</div>`;
+    d.onclick=()=>openGroupDetail(g.id);
+    box.append(d);
+  });
+}
+async function openGroupDetail(groupId){
+  try{
+    await fetchMyGroups();
+    const g=groupState.groups.find(x=>x.id===groupId);if(!g)return;
+    groupState.currentGroupId=groupId;
+    groupState.currentPlayers=await fetchGroupPlayers(groupId);
+    $('#groupDetailName').textContent=g.name;
+    $('#groupDetailClub').textContent=g.club||'';
+    $('#groupInviteCode').textContent=g.invite_code||'—';
+    renderGroupPlayers();
+    const {data:coaches,error}=await db.from('coaching_group_coaches').select('user_id,role,joined_at').eq('group_id',groupId).order('joined_at');
+    if(error)throw error;
+    const cb=$('#groupCoachesList');cb.innerHTML='';
+    (coaches||[]).forEach((c,i)=>{
+      const d=document.createElement('div');d.className='historyItem';
+      d.textContent=`${c.role==='owner'?'Créateur':'Entraîneur'} ${i+1}${c.user_id===currentUser.id?' · toi':''}`;
+      cb.append(d);
+    });
+    hideMainModules();$('#groupDetail').classList.remove('hidden');window.scrollTo({top:0,behavior:'instant'});
+  }catch(e){handleError('openGroupDetail',e)}
+}
+function renderGroupPlayers(){
+  const box=$('#groupPlayersList');if(!box)return;box.innerHTML='';
+  if(!groupState.currentPlayers.length){box.innerHTML='<div class="small">Aucun joueur dans ce groupe.</div>';return}
+  groupState.currentPlayers.forEach(p=>{
+    const d=document.createElement('div');d.className='historyItem';d.textContent=p.display_name;box.append(d);
+  });
+}
+async function addPlayersToCurrentGroup(){
+  const names=$('#groupAddPlayers').value.split(',').map(x=>x.trim()).filter(Boolean);
+  if(!names.length||!groupState.currentGroupId)return;
+  const existing=new Set(groupState.currentPlayers.map(p=>p.display_name.toLowerCase()));
+  for(const name of names){
+    if(existing.has(name.toLowerCase()))continue;
+    const {data:p,error:pe}=await db.from('players').insert({workspace_id:state.workspaceId,display_name:name}).select('id,display_name').single();
+    if(pe)throw pe;
+    const {error:ge}=await db.from('coaching_group_players').insert({group_id:groupState.currentGroupId,player_id:p.id});
+    if(ge)throw ge;
+    existing.add(name.toLowerCase());
+  }
+  $('#groupAddPlayers').value='';
+  await openGroupDetail(groupState.currentGroupId);
+}
+async function createGroup(){
+  const status=$('#createGroupStatus'),name=$('#newGroupName').value.trim(),club=$('#newGroupClub').value.trim();
+  if(!name){status.textContent='Renseigne le nom du groupe.';status.className='authStatus cloudErr';return}
+  status.textContent='Création…';status.className='authStatus';
+  const {data,error}=await db.rpc('create_coaching_group',{p_name:name,p_club:club||null});
+  if(error)throw error;
+  status.textContent='Groupe créé ✓';status.className='authStatus cloudOk';
+  $('#newGroupName').value='';$('#newGroupClub').value='';
+  await fetchMyGroups();renderGroupsList();
+  if(data)await openGroupDetail(data);
+}
+async function joinGroup(){
+  const status=$('#joinGroupStatus'),code=$('#joinGroupCode').value.trim();
+  if(!code){status.textContent='Renseigne le code d’invitation.';status.className='authStatus cloudErr';return}
+  status.textContent='Connexion au groupe…';status.className='authStatus';
+  const {data,error}=await db.rpc('join_coaching_group',{p_invite_code:code});
+  if(error)throw error;
+  status.textContent='Groupe rejoint ✓';status.className='authStatus cloudOk';
+  $('#joinGroupCode').value='';
+  await fetchMyGroups();renderGroupsList();
+  if(data)await openGroupDetail(data);
+}
+async function loadMatchGroupPlayers(groupId){
+  groupState.matchPlayers=await fetchGroupPlayers(groupId);
+  const box=$('#rosterChecks');box.innerHTML='';
+  groupState.matchPlayers.forEach((p,i)=>{
+    const l=document.createElement('label');l.className='check';
+    const c=document.createElement('input');c.type='checkbox';c.value=p.id;c.dataset.name=p.display_name;c.checked=i<4;
+    c.onchange=updateStartButton;
+    l.append(c,document.createTextNode(p.display_name));box.append(l);
+  });
+  $('#rosterWrap').classList.toggle('hidden',groupState.matchPlayers.length<1);
+  $('#matchGroupHint').textContent=groupState.matchPlayers.length>=4?'Effectif chargé depuis le groupe.':`Ce groupe ne contient que ${groupState.matchPlayers.length} joueur(s). Ajoute au moins 4 joueurs dans Groupes.`;
+  updateStartButton();
+}
+async function loadTrainingGroupPlayers(groupId){
+  trainingState.players=await fetchGroupPlayers(groupId);
+  renderTrainingAttendance();renderHistoryPlayers();
+}
 
 function hideMainModules(){
-  ['appHome','setup','live','trainingHome','trainingSession','trainingDuplicate','exerciseLibrary','trainingHistory'].forEach(id=>$('#'+id)?.classList.add('hidden'));
+  ['appHome','setup','live','groupsHome','groupDetail','trainingHome','trainingSession','trainingDuplicate','exerciseLibrary','trainingHistory'].forEach(id=>$('#'+id)?.classList.add('hidden'));
   $('#footer').classList.add('hidden');
   $('#newMatchTop').classList.add('hidden');
 }
@@ -1394,18 +1594,22 @@ function showAppHome(){
   window.scrollTo({top:0,behavior:'instant'});
 }
 async function openMatchModule(){
+  await fetchMyGroups();
   hideMainModules();
   $('#setup').classList.remove('hidden');
   $('#newMatchTop').classList.remove('hidden');
   await refreshRecentMatches();
+  if(!groupState.groups.length){
+    $('#matchGroupHint').textContent='Crée ou rejoins d’abord un groupe dans le volet Groupes.';
+  }
+  if(!$('#matchGroup').value && groupState.groups.length) $('#matchGroup').value=groupState.groups[0].id;
+  if($('#matchGroup').value) await loadMatchGroupPlayers($('#matchGroup').value);
   window.scrollTo({top:0,behavior:'instant'});
 }
-async function fetchTrainingPlayers(){
-  const {data,error}=await db.from('players').select('id,display_name').eq('workspace_id',state.workspaceId).order('display_name');
-  if(error) throw error;
-  trainingState.players=data||[];
-  renderTrainingAttendance();
-  renderHistoryPlayers();
+async function fetchTrainingPlayers(groupId=null){
+  const gid=groupId||$('#trainingGroup')?.value||$('#historyGroup')?.value||groupState.groups[0]?.id||null;
+  trainingState.players=gid?await fetchGroupPlayers(gid):[];
+  renderTrainingAttendance();renderHistoryPlayers();
 }
 async function fetchTrainingExercises(){
   const {data,error}=await db.from('exercises').select('id,name,category,measurement_type,description,objective,attack_instruction,defense_instruction,created_by').eq('active',true).order('name');
@@ -1420,9 +1624,9 @@ async function fetchTrainingExercises(){
 }
 async function openTrainingModule(){
   try{
-    hideMainModules();
-    $('#trainingHome').classList.remove('hidden');
-    await Promise.all([fetchTrainingPlayers(),fetchTrainingExercises()]);
+    await fetchMyGroups();
+    hideMainModules();$('#trainingHome').classList.remove('hidden');
+    await fetchTrainingExercises();
     window.scrollTo({top:0,behavior:'instant'});
   }catch(e){handleError('openTrainingModule',e)}
 }
@@ -1446,18 +1650,22 @@ function renderHistoryPlayers(){
   trainingState.players.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.display_name;sel.append(o)});
   if([...sel.options].some(o=>o.value===current)) sel.value=current;
 }
-function startNewTraining(){
+async function startNewTraining(){
   trainingState.sessionExercises=[];
+  if(!groupState.groups.length)await fetchMyGroups();
+  if(!groupState.groups.length){
+    alert('Crée ou rejoins d’abord un groupe dans le volet Groupes.');
+    return;
+  }
   $('#trainingDate').value=today();
   $('#trainingTheme').value='';$('#trainingDuration').value='';$('#trainingNotes').value='';
-  $('#trainingAddPlayers').value='';
   $('#trainingSaveStatus').textContent='';
-  const suggested=$('#teamName')?.value?.trim(); if(suggested && suggested!=='Mon équipe') $('#trainingTeam').value=suggested;
+  $('#trainingGroup').value=groupState.groups[0]?.id||'';
+  await fetchTrainingPlayers($('#trainingGroup').value||null);
   $$('#trainingAttendance input').forEach(c=>c.checked=true);
   renderTrainingExerciseCards();
   hideMainModules();$('#trainingSession').classList.remove('hidden');window.scrollTo({top:0,behavior:'instant'});
 }
-
 function isDualExercise(ex){return ex?.category==='Attaque / Défense'}
 function focusLabel(f){return f==='attaque'?'Attaque':f==='defense'?'Défense':''}
 function focusInstruction(ex){
@@ -1792,9 +2000,11 @@ async function createExerciseFromPopup(){
 
 
 async function fetchRecentTrainingSessions(){
+  const ids=groupState.groups.map(g=>g.id);
+  if(!ids.length){trainingState.recentSessions=[];return}
   const {data,error}=await db.from('training_sessions')
-    .select('id,trained_on,label,theme,duration_minutes,notes,team:teams!training_sessions_team_id_fkey(name)')
-    .eq('workspace_id',state.workspaceId)
+    .select('id,trained_on,label,theme,duration_minutes,notes,group_id,group:coaching_groups!training_sessions_group_id_fkey(name),team:teams!training_sessions_team_id_fkey(name)')
+    .in('group_id',ids)
     .order('trained_on',{ascending:false})
     .limit(30);
   if(error) throw error;
@@ -1818,7 +2028,7 @@ function renderDuplicateTrainingSessions(){
     d.innerHTML=`<div class="row" style="justify-content:space-between;align-items:flex-start;gap:8px">
       <div style="min-width:0;flex:1">
         <strong>${sess.trained_on||''}${sess.theme?' · '+sess.theme:(sess.label?' · '+sess.label:'')}</strong>
-        <div class="small" style="margin-top:4px">${sess.team?.name||'Équipe'}${sess.duration_minutes?' · '+sess.duration_minutes+' min':''}</div>
+        <div class="small" style="margin-top:4px">${sess.group?.name||sess.team?.name||'Groupe'}${sess.duration_minutes?' · '+sess.duration_minutes+' min':''}</div>
       </div>
       <button class="ghost" data-duplicate-session="${sess.id}">Dupliquer</button>
     </div>`;
@@ -1829,7 +2039,8 @@ function renderDuplicateTrainingSessions(){
 
 async function openTrainingDuplicate(){
   try{
-    await Promise.all([fetchTrainingPlayers(),fetchTrainingExercises(),fetchRecentTrainingSessions()]);
+    await fetchMyGroups();
+    await Promise.all([fetchTrainingExercises(),fetchRecentTrainingSessions()]);
     renderDuplicateTrainingSessions();
     hideMainModules();
     $('#trainingDuplicate').classList.remove('hidden');
@@ -1856,11 +2067,11 @@ async function duplicateTrainingSessionById(sessionId){
     .map(x=>({...x.exercise,localKey:crypto.randomUUID(),expanded:false,variant:x.variant||null,target:x.target||null,focus:x.focus||null}));
 
   $('#trainingDate').value=today();
-  $('#trainingTeam').value=source.team?.name||'';
+  $('#trainingGroup').value=source.group_id||'';
+  await fetchTrainingPlayers(source.group_id||null);
   $('#trainingTheme').value=source.theme||source.label||'';
   $('#trainingDuration').value=source.duration_minutes||'';
   $('#trainingNotes').value=source.notes||'';
-  $('#trainingAddPlayers').value='';
   $('#trainingSaveStatus').textContent='';
 
   const presentIds=new Set((attendance||[]).filter(a=>a.present).map(a=>a.player_id));
@@ -1876,7 +2087,6 @@ async function addTrainingPlayers(){
   const names=$('#trainingAddPlayers').value.split(',').map(x=>x.trim()).filter(Boolean);
   if(!names.length)return;
   await ensurePlayers(names);
-  $('#trainingAddPlayers').value='';
   await fetchTrainingPlayers();
   const wanted=new Set(names.map(x=>x.toLowerCase()));
   $$('#trainingAttendance input').forEach(c=>{if(wanted.has(c.dataset.name.toLowerCase()))c.checked=true});
@@ -1886,17 +2096,18 @@ function trainingStatus(text,error=false){const el=$('#trainingSaveStatus');el.t
 async function saveTrainingSession(){
   try{
     trainingStatus('Enregistrement…');
-    const teamName=$('#trainingTeam').value.trim();
+    const groupId=$('#trainingGroup').value;
+    const group=groupState.groups.find(g=>g.id===groupId);
     const date=$('#trainingDate').value||today();
     const present=trainingPresentPlayers();
-    if(!teamName){trainingStatus('Renseigne le nom de l’équipe ou du groupe.',true);return}
+    if(!groupId||!group){trainingStatus('Choisis un groupe.',true);return}
     if(!present.length){trainingStatus('Sélectionne au moins un joueur présent.',true);return}
     if(!trainingState.sessionExercises.length){trainingStatus('Ajoute au moins un exercice.',true);return}
     const withoutFocus=trainingState.sessionExercises.find(ex=>isDualExercise(ex)&&!ex.focus);
     if(withoutFocus){trainingStatus(`Choisis le focus Attaque ou Défense pour « ${withoutFocus.name} ».`,true);return}
-    const teamId=await ensureTeam(teamName);
+    const teamId=await ensureTeam(group.name);
     const duration=$('#trainingDuration').value?Number($('#trainingDuration').value):null;
-    const {data:session,error:se}=await db.from('training_sessions').insert({workspace_id:state.workspaceId,team_id:teamId,trained_on:date,label:$('#trainingTheme').value.trim()||'Entraînement',theme:$('#trainingTheme').value.trim()||null,duration_minutes:duration,notes:$('#trainingNotes').value.trim()||null}).select('id').single();
+    const {data:session,error:se}=await db.from('training_sessions').insert({workspace_id:state.workspaceId,group_id:groupId,team_id:teamId,trained_on:date,label:$('#trainingTheme').value.trim()||'Entraînement',theme:$('#trainingTheme').value.trim()||null,duration_minutes:duration,notes:$('#trainingNotes').value.trim()||null}).select('id').single();
     if(se)throw se;
     const attendance=trainingState.players.map(p=>({session_id:session.id,player_id:p.id,present:present.some(x=>x.id===p.id)}));
     if(attendance.length){const {error}=await db.from('training_attendance').insert(attendance);if(error)throw error}
@@ -1942,12 +2153,24 @@ async function loadPlayerHistory(playerId){
 
 $('#openMatchModule').onclick=()=>openMatchModule().catch(e=>handleError('openMatchModule',e));
 $('#openTrainingModule').onclick=()=>openTrainingModule();
+$('#openGroupsModule').onclick=()=>openGroupsModule();
 $('#trainingBackHome').onclick=showAppHome;
-$('#newTraining').onclick=startNewTraining;
+
+$('#groupsBackHome').onclick=showAppHome;
+$('#groupDetailBack').onclick=()=>openGroupsModule();
+$('#showCreateGroup').onclick=()=>{$('#createGroupBox').classList.toggle('hidden');$('#joinGroupBox').classList.add('hidden')};
+$('#showJoinGroup').onclick=()=>{$('#joinGroupBox').classList.toggle('hidden');$('#createGroupBox').classList.add('hidden')};
+$('#createGroupBtn').onclick=()=>createGroup().catch(e=>{const st=$('#createGroupStatus');st.textContent=e.message||String(e);st.className='authStatus cloudErr'});
+$('#joinGroupBtn').onclick=()=>joinGroup().catch(e=>{const st=$('#joinGroupStatus');st.textContent=e.message||String(e);st.className='authStatus cloudErr'});
+$('#groupAddPlayersBtn').onclick=()=>addPlayersToCurrentGroup().catch(e=>handleError('add group players',e));
+$('#matchGroup').onchange=()=>loadMatchGroupPlayers($('#matchGroup').value).catch(e=>handleError('match group',e));
+$('#trainingGroup').onchange=()=>fetchTrainingPlayers($('#trainingGroup').value).then(()=>renderTrainingExerciseCards()).catch(e=>handleError('training group',e));
+$('#historyGroup').onchange=()=>fetchTrainingPlayers($('#historyGroup').value).catch(e=>handleError('history group',e));
+
+$('#newTraining').onclick=()=>startNewTraining().catch(e=>handleError('new training',e));
 $('#duplicateTrainingSession').onclick=()=>openTrainingDuplicate();
 $('#trainingDuplicateBack').onclick=()=>openTrainingModule();
 $('#cancelTraining').onclick=()=>openTrainingModule();
-$('#trainingAddPlayersBtn').onclick=()=>addTrainingPlayers().catch(e=>handleError('addTrainingPlayers',e));
 $('#trainingExerciseSelect').onchange=updateExistingExerciseFocusUI;
 $('#addExistingExercise').onclick=()=>{
   const id=$('#trainingExerciseSelect').value;if(!id)return;
