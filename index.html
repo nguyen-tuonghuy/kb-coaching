@@ -92,6 +92,7 @@ button:active{transform:scale(.985)}
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge" id="count">0 actions</div>
     <button class="ghost hidden" id="newMatchTop">Nouveau match</button>
+    <button class="ghost hidden" id="profileBtn">Profil</button>
     <button class="ghost hidden" id="logout">Déconnexion</button>
    </div>
  </div>
@@ -424,6 +425,10 @@ button:active{transform:scale(.985)}
     <button class="closePopup" id="closeSignupPopup" aria-label="Fermer">×</button>
    </div>
    <div class="field" style="margin-bottom:12px">
+    <label>Prénom</label>
+    <input id="signupFirstName" autocomplete="given-name" placeholder="ex. Tuong-Huy">
+   </div>
+   <div class="field" style="margin-bottom:12px">
     <label>Email</label>
     <input id="signupEmail" type="email" autocomplete="email" placeholder="vous@exemple.fr">
    </div>
@@ -725,6 +730,7 @@ async function initAuthenticated(user){
   $('#groupDetail').classList.add('hidden');
   $('#trainingSession').classList.add('hidden');
   $('#trainingHistory').classList.add('hidden');
+  $('#profileBtn').classList.remove('hidden');
   $('#logout').classList.remove('hidden');
   $('#newMatchTop').classList.add('hidden');
   setCloud('Synchronisé',true);
@@ -769,6 +775,7 @@ const signupMessage=(text,error=false)=>{
   el.className='authStatus '+(error?'cloudErr':'');
 };
 function openSignupPopup(){
+  $('#signupFirstName').value='';
   $('#signupEmail').value='';
   $('#signupPassword').value='';
   signupMessage('');
@@ -785,23 +792,42 @@ $('#cancelSignup').onclick=closeSignupPopup;
 $('#closeSignupPopup').onclick=closeSignupPopup;
 $('#signupPopup').onclick=e=>{if(e.target===$('#signupPopup'))closeSignupPopup()};
 $('#confirmSignup').onclick=async()=>{
+  const firstName=$('#signupFirstName').value.trim();
   const email=$('#signupEmail').value.trim();
   const password=$('#signupPassword').value;
+  if(!firstName){signupMessage('Saisis ton prénom.',true);return}
   if(!email){signupMessage('Saisis une adresse e-mail.',true);return}
   if(!password){signupMessage('Choisis un mot de passe.',true);return}
   signupMessage('Création du compte…');
   const {data,error}=await db.auth.signUp({
     email,password,
-    options:{emailRedirectTo:location.origin}
+    options:{emailRedirectTo:location.origin,data:{first_name:firstName}}
   });
   if(error){signupMessage(error.message,true);return}
   if(data.session){
+    const {error:profileError}=await db.rpc('set_my_first_name',{p_first_name:firstName});
+    if(profileError){signupMessage(profileError.message,true);return}
+    groupState.profiles[data.user.id]=firstName;
     closeSignupPopup();
     try{await initAuthenticated(data.user)}catch(e){handleError('signup init',e)}
   }else{
     signupMessage('Compte créé. Confirme ton adresse e-mail puis reviens te connecter.');
   }
 };
+$('#profileBtn').onclick=openProfilePopup;
+$('#closeProfilePopup').onclick=(ev)=>{ev.preventDefault();ev.stopPropagation();closeProfilePopup();};
+$('#cancelProfile').onclick=(ev)=>{ev.preventDefault();ev.stopPropagation();closeProfilePopup();};
+$('#profilePopup').onclick=(ev)=>{if(ev.target===$('#profilePopup'))closeProfilePopup();};
+$('#saveProfile').onclick=(ev)=>{
+  ev.preventDefault();
+  ev.stopPropagation();
+  saveMyProfile().catch(e=>{
+    const st=$('#profileStatus');
+    st.textContent=e.message||String(e);
+    st.className='authStatus cloudErr';
+  });
+};
+
 $('#logout').onclick=async()=>{
   await db.auth.signOut();
   currentUser=null;
@@ -815,6 +841,7 @@ $('#logout').onclick=async()=>{
   $('#trainingSession').classList.add('hidden');
   $('#trainingHistory').classList.add('hidden');
   $('#authPanel').classList.remove('hidden');
+  $('#profileBtn').classList.add('hidden');
   $('#logout').classList.add('hidden');
   $('#newMatchTop').classList.add('hidden');
   setCloud('Non connecté',false);
@@ -1495,7 +1522,8 @@ function openProfilePopup(){
   resetPopupScroll('#profilePopup');
 }
 function closeProfilePopup(){
-  $('#profilePopup').classList.add('hidden');
+  const popup=$('#profilePopup');
+  if(popup) popup.classList.add('hidden');
 }
 async function saveMyProfile(){
   const firstName=$('#profileFirstName').value.trim();
@@ -1506,7 +1534,7 @@ async function saveMyProfile(){
   if(error)throw error;
   groupState.profiles[currentUser.id]=firstName;
   status.textContent='Profil enregistré ✓';status.className='authStatus cloudOk';
-  setTimeout(closeProfilePopup,300);
+  closeProfilePopup();
 }
 async function ensureMyProfile(){
   if(!currentUser)return;
