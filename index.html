@@ -335,6 +335,44 @@ button:active{transform:scale(.985)}
 </div>
 
 
+
+<div class="popupBackdrop hidden" id="exerciseEditPopup">
+ <div class="sheet">
+   <div class="sheetTop">
+    <div>
+     <h2>Modifier l’exercice</h2>
+     <div class="meta">Les séances et résultats déjà enregistrés resteront liés à cet exercice.</div>
+    </div>
+    <button class="closePopup" id="closeExerciseEditPopup" aria-label="Fermer">×</button>
+   </div>
+
+   <div class="field"><label>Nom</label><input id="exerciseEditName"></div>
+   <div class="row" style="margin-top:9px">
+    <div class="field"><label>Catégorie</label>
+     <select id="exerciseEditCategory">
+      <option>Attaque</option><option>Défense</option><option>Passe</option><option>Déplacement</option>
+      <option>Remise en jeu</option><option>Physique</option><option>Collectif</option><option>Autre</option>
+     </select>
+    </div>
+    <div class="field"><label>Mesure</label>
+     <select id="exerciseEditMeasure">
+      <option value="success_attempts">Réussites / tentatives</option><option value="count">Nombre</option>
+      <option value="time_seconds">Temps (s)</option><option value="distance">Distance</option>
+      <option value="score">Score</option><option value="rating_5">Note / 5</option><option value="rating_10">Note / 10</option>
+     </select>
+    </div>
+   </div>
+   <div class="field" style="margin-top:9px"><label>Description</label><input id="exerciseEditDescription"></div>
+   <div class="field" style="margin-top:9px"><label>Objectif</label><input id="exerciseEditObjective"></div>
+
+   <div class="authStatus" id="exerciseEditStatus"></div>
+   <div class="row" style="margin-top:14px">
+    <button class="ghost" style="flex:1" id="cancelExerciseEdit">Annuler</button>
+    <button class="primary" style="flex:2" id="confirmExerciseEdit">Enregistrer les modifications</button>
+   </div>
+ </div>
+</div>
+
 <div class="popupBackdrop hidden" id="exerciseCreatePopup">
  <div class="sheet">
    <div class="sheetTop">
@@ -1301,7 +1339,7 @@ function eventAttributionLabel(e){
 }
 
 // ===== MODULE ENTRAÎNEMENT V2.0 PRÉLIMINAIRE =====
-let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library'};
+let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null};
 
 function hideMainModules(){
   ['appHome','setup','live','trainingHome','trainingSession','exerciseLibrary','trainingHistory'].forEach(id=>$('#'+id)?.classList.add('hidden'));
@@ -1472,12 +1510,68 @@ function renderExerciseLibrary(){
   trainingState.exercises.forEach(ex=>{
     const d=document.createElement('div');
     d.className='historyItem';
-    d.innerHTML=`<strong>${ex.name}</strong>
-      <div class="small" style="margin-top:4px">${ex.category||'Sans catégorie'} · ${measurementLabel(ex.measurement_type)}</div>
-      ${ex.objective?`<div style="margin-top:6px">${ex.objective}</div>`:''}
-      ${ex.description?`<div class="small" style="margin-top:4px">${ex.description}</div>`:''}`;
+    d.style.cursor='pointer';
+    d.setAttribute('role','button');
+    d.setAttribute('tabindex','0');
+    d.innerHTML=`<div class="row" style="justify-content:space-between;align-items:flex-start;gap:8px">
+      <div style="min-width:0;flex:1">
+        <strong>${ex.name}</strong>
+        <div class="small" style="margin-top:4px">${ex.category||'Sans catégorie'} · ${measurementLabel(ex.measurement_type)}</div>
+        ${ex.objective?`<div style="margin-top:6px">${ex.objective}</div>`:''}
+        ${ex.description?`<div class="small" style="margin-top:4px">${ex.description}</div>`:''}
+      </div>
+      <span class="small">Modifier</span>
+    </div>`;
+    const open=()=>openExerciseEditPopup(ex.id);
+    d.onclick=open;
+    d.onkeydown=(ev)=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();open();}};
     box.append(d);
   });
+}
+
+
+function openExerciseEditPopup(exerciseId){
+  const ex=trainingState.exercises.find(x=>x.id===exerciseId);
+  if(!ex)return;
+  trainingState.editingExerciseId=exerciseId;
+  $('#exerciseEditName').value=ex.name||'';
+  $('#exerciseEditCategory').value=ex.category||'Autre';
+  $('#exerciseEditMeasure').value=ex.measurement_type||'success_attempts';
+  $('#exerciseEditDescription').value=ex.description||'';
+  $('#exerciseEditObjective').value=ex.objective||'';
+  $('#exerciseEditStatus').textContent='';
+  $('#exerciseEditPopup').classList.remove('hidden');
+  resetPopupScroll('#exerciseEditPopup');
+}
+function closeExerciseEditPopup(){
+  trainingState.editingExerciseId=null;
+  $('#exerciseEditPopup').classList.add('hidden');
+}
+async function saveExerciseEdits(){
+  const id=trainingState.editingExerciseId;
+  if(!id)return;
+  const status=$('#exerciseEditStatus');
+  const name=$('#exerciseEditName').value.trim();
+  if(!name){status.textContent='Renseigne le nom de l’exercice.';status.className='authStatus cloudErr';return}
+  status.textContent='Enregistrement…';status.className='authStatus';
+  const payload={
+    name,
+    category:$('#exerciseEditCategory').value,
+    measurement_type:$('#exerciseEditMeasure').value,
+    description:$('#exerciseEditDescription').value.trim()||null,
+    objective:$('#exerciseEditObjective').value.trim()||null
+  };
+  const {error}=await db.from('exercises').update(payload).eq('id',id);
+  if(error)throw error;
+
+  // Keep exercises already inserted in the current unsaved session synchronized.
+  trainingState.sessionExercises.forEach(ex=>{
+    if(ex.id===id) Object.assign(ex,payload);
+  });
+
+  await fetchTrainingExercises();
+  renderTrainingExerciseCards();
+  closeExerciseEditPopup();
 }
 
 async function openExerciseLibrary(){
@@ -1608,6 +1702,13 @@ $('#createExerciseOnTheFly').onclick=()=>openExerciseCreatePopup('session');
 $('#openExerciseLibrary').onclick=()=>openExerciseLibrary();
 $('#exerciseLibraryBack').onclick=()=>openTrainingModule();
 $('#libraryCreateExercise').onclick=()=>openExerciseCreatePopup('library');
+$('#closeExerciseEditPopup').onclick=closeExerciseEditPopup;
+$('#cancelExerciseEdit').onclick=closeExerciseEditPopup;
+$('#exerciseEditPopup').onclick=(ev)=>{if(ev.target.id==='exerciseEditPopup')closeExerciseEditPopup()};
+$('#confirmExerciseEdit').onclick=()=>saveExerciseEdits().catch(e=>{
+  const st=$('#exerciseEditStatus');st.textContent=e.message||String(e);st.className='authStatus cloudErr';
+  handleError('editExercise',e);
+});
 $('#closeExerciseCreatePopup').onclick=closeExerciseCreatePopup;
 $('#cancelExerciseCreate').onclick=closeExerciseCreatePopup;
 $('#exerciseCreatePopup').onclick=(ev)=>{if(ev.target.id==='exerciseCreatePopup')closeExerciseCreatePopup()};
