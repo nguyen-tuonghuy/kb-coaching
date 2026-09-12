@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Kinball Coach — V2.0 Préliminaire</title>
+<title>Kinball Coach — V2.1 Préliminaire</title>
 <style>
 :root{
  --bg:#0f1115;--panel:#171a21;--panel2:#20242d;--text:#f5f7fa;--muted:#aab1bc;
@@ -90,9 +90,9 @@ button:active{transform:scale(.985)}
    <div><h1>Kinball Coach</h1><div class="sub">V2.1 Préliminaire — Match + Entraînement + Groupes</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
-    <div class="badge" id="count">0 actions</div>
+    <div class="badge hidden" id="count">0 actions</div>
     <button class="ghost hidden" id="newMatchTop">Nouveau match</button>
-    <button class="ghost hidden" id="homeBtn">Accueil</button>
+    <button class="ghost hidden" id="homeBtn" aria-label="Accueil" title="Accueil" style="min-width:48px;padding-left:12px;padding-right:12px;font-size:22px">🏠</button>
     <button class="ghost hidden" id="profileBtn">Profil</button>
     <button class="ghost hidden" id="logout">Déconnexion</button>
    </div>
@@ -290,7 +290,10 @@ button:active{transform:scale(.985)}
  </section>
 
  <section class="panel hidden" id="setup">
-   <h2 style="font-size:18px;margin-bottom:10px">Préparer le match</h2>
+   <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+    <h2 style="font-size:18px">Préparer le match</h2>
+    <button class="ghost" id="matchBackHome">← Accueil</button>
+   </div>
    <div class="row" style="margin-bottom:12px">
     <button class="primary" id="freshMatch">＋ Nouveau match</button>
    </div>
@@ -326,6 +329,9 @@ button:active{transform:scale(.985)}
  <div id="live" class="hidden">
 
   <section class="panel">
+    <div class="row" style="justify-content:flex-end;margin-bottom:8px">
+      <button class="ghost" id="liveBackHome">← Accueil</button>
+    </div>
     <div class="row">
       <div class="field">
         <label>Position vidéo — facultatif</label>
@@ -1687,7 +1693,7 @@ async function loadTrainingGroupPlayers(groupId){
 
 
 function setMatchHeaderMode(isMatch){
-  $('#actionCount')?.classList.toggle('hidden',!isMatch);
+  $('#count')?.classList.toggle('hidden',!isMatch);
 }
 
 function hideMainModules(){
@@ -2268,6 +2274,8 @@ async function loadPlayerHistory(playerId){
 $('#openMatchModule').onclick=()=>openMatchModule().catch(e=>handleError('openMatchModule',e));
 $('#openTrainingModule').onclick=()=>openTrainingModule();
 $('#openGroupsModule').onclick=()=>openGroupsModule();
+$('#matchBackHome').onclick=showAppHome;
+$('#liveBackHome').onclick=showAppHome;
 $('#trainingBackHome').onclick=showAppHome;
 
 $('#groupsBackHome').onclick=showAppHome;
