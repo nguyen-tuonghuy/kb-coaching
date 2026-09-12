@@ -1408,7 +1408,7 @@ async function fetchTrainingPlayers(){
   renderHistoryPlayers();
 }
 async function fetchTrainingExercises(){
-  const {data,error}=await db.from('exercises').select('id,name,category,measurement_type,description,objective,attack_instruction,defense_instruction').eq('workspace_id',state.workspaceId).eq('active',true).order('name');
+  const {data,error}=await db.from('exercises').select('id,name,category,measurement_type,description,objective,attack_instruction,defense_instruction,created_by').eq('active',true).order('name');
   if(error) throw error;
   trainingState.exercises=data||[];
   const sel=$('#trainingExerciseSelect');
@@ -1613,6 +1613,7 @@ function renderExerciseLibrary(){
   }
 
   filtered.forEach(ex=>{
+    const mine=!!currentUser && ex.created_by===currentUser.id;
     const d=document.createElement('div');
     d.className='historyItem';
     d.style.cursor='pointer';
@@ -1626,16 +1627,38 @@ function renderExerciseLibrary(){
         ${ex.description?`<div class="small" style="margin-top:4px">${ex.description}</div>`:''}
         ${isDualExercise(ex)&&ex.attack_instruction?`<div class="small" style="margin-top:4px">Attaque : ${ex.attack_instruction}</div>`:''}
         ${isDualExercise(ex)&&ex.defense_instruction?`<div class="small" style="margin-top:4px">Défense : ${ex.defense_instruction}</div>`:''}
+        <div class="small" style="margin-top:6px">${mine?'Créé par toi':'Exercice partagé'}</div>
       </div>
-      <span class="small">Modifier</span>
+      <span class="small">${mine?'Modifier':'Dupliquer'}</span>
     </div>`;
-    const open=()=>openExerciseEditPopup(ex.id);
+    const open=()=>mine?openExerciseEditPopup(ex.id):duplicateSharedExercise(ex.id);
     d.onclick=open;
     d.onkeydown=(ev)=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();open();}};
     box.append(d);
   });
 }
 
+
+
+function duplicateSharedExercise(exerciseId){
+  const ex=trainingState.exercises.find(x=>x.id===exerciseId);
+  if(!ex)return;
+  trainingState.exerciseCreateTarget='library';
+  $('#exerciseCreateName').value=(ex.name||'')+' - copie';
+  $('#exerciseCreateCategory').value=ex.category||'Autre';
+  $('#exerciseCreateMeasure').value=ex.measurement_type||'success_attempts';
+  $('#exerciseCreateDescription').value=ex.description||'';
+  $('#exerciseCreateObjective').value=ex.objective||'';
+  $('#exerciseCreateAttackInstruction').value=ex.attack_instruction||'';
+  $('#exerciseCreateDefenseInstruction').value=ex.defense_instruction||'';
+  $('#exerciseCreateSessionFocus').value='';
+  $('#exerciseCreateStatus').textContent='';
+  $('#exerciseCreateMeta').textContent='Exercice partagé : crée ta propre copie pour le modifier.';
+  $('#confirmExerciseCreate').textContent='Créer ma copie';
+  updateCreateDualUI();
+  $('#exerciseCreatePopup').classList.remove('hidden');
+  resetPopupScroll('#exerciseCreatePopup');
+}
 
 function openExerciseEditPopup(exerciseId){
   const ex=trainingState.exercises.find(x=>x.id===exerciseId);
@@ -1749,7 +1772,6 @@ async function createExerciseFromPopup(){
     return;
   }
   const payload={
-    workspace_id:state.workspaceId,
     name,
     category:$('#exerciseCreateCategory').value,
     measurement_type:$('#exerciseCreateMeasure').value,
@@ -1759,7 +1781,7 @@ async function createExerciseFromPopup(){
     defense_instruction:dual?($('#exerciseCreateDefenseInstruction').value.trim()||null):null,
     active:true
   };
-  const {data,error}=await db.from('exercises').insert(payload).select('id,name,category,measurement_type,description,objective,attack_instruction,defense_instruction').single();
+  const {data,error}=await db.from('exercises').insert(payload).select('id,name,category,measurement_type,description,objective,attack_instruction,defense_instruction,created_by').single();
   if(error) throw error;
   const target=trainingState.exerciseCreateTarget;
   await fetchTrainingExercises();
