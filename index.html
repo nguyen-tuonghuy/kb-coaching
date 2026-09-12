@@ -87,11 +87,12 @@ button:active{transform:scale(.985)}
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V2.0 Préliminaire — Match + Entraînement</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V2.1 Préliminaire — Match + Entraînement + Groupes</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge" id="count">0 actions</div>
     <button class="ghost hidden" id="newMatchTop">Nouveau match</button>
+    <button class="ghost hidden" id="homeBtn">Accueil</button>
     <button class="ghost hidden" id="profileBtn">Profil</button>
     <button class="ghost hidden" id="logout">Déconnexion</button>
    </div>
@@ -730,6 +731,7 @@ async function initAuthenticated(user){
   $('#groupDetail').classList.add('hidden');
   $('#trainingSession').classList.add('hidden');
   $('#trainingHistory').classList.add('hidden');
+  $('#homeBtn').classList.remove('hidden');
   $('#profileBtn').classList.remove('hidden');
   $('#logout').classList.remove('hidden');
   $('#newMatchTop').classList.add('hidden');
@@ -814,6 +816,7 @@ $('#confirmSignup').onclick=async()=>{
     signupMessage('Compte créé. Confirme ton adresse e-mail puis reviens te connecter.');
   }
 };
+$('#homeBtn').onclick=showAppHome;
 $('#profileBtn').onclick=openProfilePopup;
 $('#closeProfilePopup').onclick=(ev)=>{ev.preventDefault();ev.stopPropagation();closeProfilePopup();};
 $('#cancelProfile').onclick=(ev)=>{ev.preventDefault();ev.stopPropagation();closeProfilePopup();};
@@ -841,6 +844,7 @@ $('#logout').onclick=async()=>{
   $('#trainingSession').classList.add('hidden');
   $('#trainingHistory').classList.add('hidden');
   $('#authPanel').classList.remove('hidden');
+  $('#homeBtn').classList.add('hidden');
   $('#profileBtn').classList.add('hidden');
   $('#logout').classList.add('hidden');
   $('#newMatchTop').classList.add('hidden');
@@ -1578,7 +1582,8 @@ async function fetchGroupPlayers(groupId){
 async function openGroupsModule(){
   try{
     await fetchMyGroups();
-    hideMainModules();$('#groupsHome').classList.remove('hidden');
+    hideMainModules();
+    setMatchHeaderMode(false);$('#groupsHome').classList.remove('hidden');
     renderGroupsList();
     window.scrollTo({top:0,behavior:'instant'});
   }catch(e){handleError('openGroupsModule',e)}
@@ -1615,7 +1620,7 @@ async function openGroupDetail(groupId){
       d.innerHTML=`<strong>${name}</strong><div class="small">${c.role==='owner'?'Créateur du groupe':'Entraîneur'}${c.user_id===currentUser.id?' · toi':''}</div>`;
       cb.append(d);
     });
-    hideMainModules();$('#groupDetail').classList.remove('hidden');window.scrollTo({top:0,behavior:'instant'});
+    hideMainModules();setMatchHeaderMode(false);$('#groupDetail').classList.remove('hidden');window.scrollTo({top:0,behavior:'instant'});
   }catch(e){handleError('openGroupDetail',e)}
 }
 function renderGroupPlayers(){
@@ -1680,6 +1685,11 @@ async function loadTrainingGroupPlayers(groupId){
   renderTrainingAttendance();renderHistoryPlayers();
 }
 
+
+function setMatchHeaderMode(isMatch){
+  $('#actionCount')?.classList.toggle('hidden',!isMatch);
+}
+
 function hideMainModules(){
   ['appHome','setup','live','groupsHome','groupDetail','trainingHome','trainingSession','trainingDuplicate','exerciseLibrary','trainingHistory'].forEach(id=>$('#'+id)?.classList.add('hidden'));
   $('#footer').classList.add('hidden');
@@ -1687,6 +1697,7 @@ function hideMainModules(){
 }
 function showAppHome(){
   hideMainModules();
+  setMatchHeaderMode(false);
   $('#appHome').classList.remove('hidden');
   setCloud('Synchronisé',true);
   window.scrollTo({top:0,behavior:'instant'});
@@ -1694,6 +1705,7 @@ function showAppHome(){
 async function openMatchModule(){
   await fetchMyGroups();
   hideMainModules();
+  setMatchHeaderMode(true);
   $('#setup').classList.remove('hidden');
   $('#newMatchTop').classList.remove('hidden');
   await refreshRecentMatches();
@@ -1724,7 +1736,8 @@ async function fetchTrainingExercises(){
 async function openTrainingModule(){
   try{
     await fetchMyGroups();
-    hideMainModules();$('#trainingHome').classList.remove('hidden');
+    hideMainModules();
+    setMatchHeaderMode(false);$('#trainingHome').classList.remove('hidden');
     await fetchTrainingExercises();
     window.scrollTo({top:0,behavior:'instant'});
   }catch(e){handleError('openTrainingModule',e)}
@@ -1763,7 +1776,7 @@ async function startNewTraining(){
   await fetchTrainingPlayers($('#trainingGroup').value||null);
   $$('#trainingAttendance input').forEach(c=>c.checked=true);
   renderTrainingExerciseCards();
-  hideMainModules();$('#trainingSession').classList.remove('hidden');window.scrollTo({top:0,behavior:'instant'});
+  hideMainModules();setMatchHeaderMode(false);$('#trainingSession').classList.remove('hidden');window.scrollTo({top:0,behavior:'instant'});
 }
 function isDualExercise(ex){return ex?.category==='Attaque / Défense'}
 function focusLabel(f){return f==='attaque'?'Attaque':f==='defense'?'Défense':''}
@@ -2038,6 +2051,7 @@ async function openExerciseLibrary(){
     $('#exerciseLibraryCategory').value='';
     renderExerciseLibrary();
     hideMainModules();
+    setMatchHeaderMode(false);
     $('#exerciseLibrary').classList.remove('hidden');
     window.scrollTo({top:0,behavior:'instant'});
   }catch(e){handleError('exerciseLibrary',e)}
@@ -2142,6 +2156,7 @@ async function openTrainingDuplicate(){
     await Promise.all([fetchTrainingExercises(),fetchRecentTrainingSessions()]);
     renderDuplicateTrainingSessions();
     hideMainModules();
+    setMatchHeaderMode(false);
     $('#trainingDuplicate').classList.remove('hidden');
     window.scrollTo({top:0,behavior:'instant'});
   }catch(e){handleError('training duplicate',e)}
