@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Kinball Coach — V2.1 Préliminaire</title>
+<title>Kinball Coach — V2.2 Préliminaire</title>
 <style>
 :root{
  --bg:#0f1115;--panel:#171a21;--panel2:#20242d;--text:#f5f7fa;--muted:#aab1bc;
@@ -82,12 +82,30 @@ button:active{transform:scale(.985)}
 .trainingToolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}.trainingToolbar button{flex:1;min-width:140px}
 .historyItem{background:var(--panel2);border-radius:12px;padding:10px;margin-bottom:8px}
 @media(max-width:520px){.moduleGrid{grid-template-columns:1fr}.miniGrid{grid-template-columns:1fr}}
+
+.statsTabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+.statsTab.active{background:var(--accent)}
+.statsMetrics{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin:10px 0 14px}
+.statsMetric{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:12px}
+.statsMetric .value{font-size:24px;font-weight:800;margin-top:3px}
+.statsBarRow{margin-bottom:10px}
+.statsBarTop{display:flex;justify-content:space-between;gap:8px;font-size:13px;margin-bottom:4px}
+.statsBarTrack{height:8px;background:#11151b;border-radius:999px;overflow:hidden}
+.statsBarFill{height:100%;background:var(--accent);border-radius:999px}
+.leaderRow{display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:8px;background:var(--panel2);border-radius:12px;padding:10px;margin-bottom:7px}
+.leaderRank{font-weight:800;font-size:17px;text-align:center}
+.statsChart{background:var(--panel2);border-radius:14px;padding:10px;margin-top:10px}
+.statsChart svg{width:100%;height:120px;display:block}
+.statsChart polyline{fill:none;stroke:var(--accent);stroke-width:3;stroke-linejoin:round;stroke-linecap:round}
+.statsChart circle{fill:var(--accent)}
+.statsEmpty{padding:14px;background:var(--panel2);border-radius:12px;color:var(--muted);font-size:13px}
+@media(max-width:520px){.statsMetrics{grid-template-columns:1fr}.statsTabs{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V2.1 Préliminaire — Match + Entraînement + Groupes</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V2.2 Préliminaire — Match + Entraînement + Groupes + Statistiques</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -134,6 +152,7 @@ button:active{transform:scale(.985)}
     <button class="moduleCard primary" id="openMatchModule"><strong>🏐 Matchs</strong><span>Prise de notes et statistiques partagées du groupe</span></button>
     <button class="moduleCard" id="openTrainingModule"><strong>🎯 Entraînements</strong><span>Séances, exercices, résultats et progression des joueurs</span></button>
     <button class="moduleCard" id="openGroupsModule"><strong>👥 Groupes</strong><span>Effectifs et entraîneurs partageant les mêmes données</span></button>
+    <button class="moduleCard" id="openStatsModule"><strong>📊 Statistiques</strong><span>Dashboard d’entraînement : groupe, joueurs, exercices et classements</span></button>
    </div>
  </section>
 
@@ -287,6 +306,67 @@ button:active{transform:scale(.985)}
    </div>
    <div id="historySummary" class="small" style="margin:10px 0"></div>
    <div id="historyResults"></div>
+ </section>
+
+
+ <section class="panel hidden" id="statsHome">
+   <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div><h2 style="font-size:20px">Statistiques d’entraînement</h2><div class="small">Dashboard du groupe, des joueurs et des exercices</div></div>
+    <button class="ghost" id="statsBackHome">← Accueil</button>
+   </div>
+
+   <div class="field">
+    <label>Groupe</label>
+    <select id="statsGroup"><option value="">— Choisir un groupe —</option></select>
+   </div>
+
+   <div class="statsTabs">
+    <button class="statsTab active" data-stats-tab="group">Groupe</button>
+    <button class="statsTab" data-stats-tab="player">Joueur</button>
+    <button class="statsTab" data-stats-tab="exercise">Exercice</button>
+   </div>
+
+   <div id="statsStatus" class="small" style="margin-bottom:10px"></div>
+
+   <div id="statsGroupView">
+    <div class="statsMetrics" id="statsGroupMetrics"></div>
+    <h3 style="font-size:16px;margin:12px 0 8px">Exercices les plus utilisés</h3>
+    <div id="statsTopExercises"></div>
+    <h3 style="font-size:16px;margin:16px 0 8px">Répartition par catégorie</h3>
+    <div id="statsCategoryDistribution"></div>
+   </div>
+
+   <div id="statsPlayerView" class="hidden">
+    <div class="row">
+     <div class="field"><label>Joueur</label><select id="statsPlayer"><option value="">— Choisir —</option></select></div>
+     <div class="field"><label>Exercice</label><select id="statsPlayerExercise"><option value="">— Choisir —</option></select></div>
+    </div>
+    <div class="statsMetrics" id="statsPlayerMetrics"></div>
+    <div id="statsPlayerExerciseSummary"></div>
+    <div id="statsPlayerEvolution"></div>
+   </div>
+
+   <div id="statsExerciseView" class="hidden">
+    <div class="row">
+     <div class="field"><label>Exercice</label><select id="statsExercise"><option value="">— Choisir —</option></select></div>
+     <div class="field hidden" id="statsExerciseFocusWrap">
+      <label>Focus</label>
+      <select id="statsExerciseFocus"><option value="attaque">Attaque</option><option value="defense">Défense</option></select>
+     </div>
+    </div>
+    <div class="statsMetrics" id="statsExerciseMetrics"></div>
+    <div id="statsExerciseEvolution"></div>
+
+    <div class="row" style="justify-content:space-between;align-items:center;margin:18px 0 8px">
+     <h3 style="font-size:16px">Leaderboard</h3>
+     <div class="row" style="gap:6px">
+      <button class="ghost statsLeaderboardMode active" data-leader-mode="recent">Récent</button>
+      <button class="ghost statsLeaderboardMode" data-leader-mode="global">Global</button>
+     </div>
+    </div>
+    <div class="small" id="statsLeaderboardHint" style="margin-bottom:8px"></div>
+    <div id="statsLeaderboard"></div>
+   </div>
  </section>
 
  <section class="panel hidden" id="setup">
@@ -1505,6 +1585,7 @@ function eventAttributionLabel(e){
 // ===== MODULE ENTRAÎNEMENT V2.0 PRÉLIMINAIRE =====
 let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null,recentSessions:[],currentSessionId:null,resultDraft:{}};
 let groupState={groups:[],currentGroupId:null,currentPlayers:[],matchPlayers:[],profiles:{}};
+let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',leaderMode:'recent'};
 
 
 
@@ -1567,7 +1648,7 @@ async function fetchMyGroups(){
   return groupState.groups;
 }
 function populateGroupSelectors(){
-  ['matchGroup','trainingGroup','historyGroup'].forEach(id=>{
+  ['matchGroup','trainingGroup','historyGroup','statsGroup'].forEach(id=>{
     const sel=$('#'+id);if(!sel)return;
     const current=sel.value;
     sel.innerHTML='<option value="">— Choisir un groupe —</option>';
@@ -1697,7 +1778,7 @@ function setMatchHeaderMode(isMatch){
 }
 
 function hideMainModules(){
-  ['appHome','setup','live','groupsHome','groupDetail','trainingHome','trainingSession','trainingDuplicate','exerciseLibrary','trainingHistory'].forEach(id=>$('#'+id)?.classList.add('hidden'));
+  ['appHome','setup','live','groupsHome','groupDetail','trainingHome','trainingSession','trainingDuplicate','exerciseLibrary','trainingHistory','statsHome'].forEach(id=>$('#'+id)?.classList.add('hidden'));
   $('#footer').classList.add('hidden');
   $('#newMatchTop').classList.add('hidden');
 }
@@ -2372,6 +2453,274 @@ async function saveTrainingSession(){
     setTimeout(()=>openTrainingModule(),650);
   }catch(e){trainingStatus(e.message||String(e),true);handleError('saveTrainingSession',e)}
 }
+
+function statsEscape(v){
+  return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function statsMetric(label,value,sub=''){
+  return `<div class="statsMetric"><div class="small">${statsEscape(label)}</div><div class="value">${statsEscape(value)}</div>${sub?`<div class="small">${statsEscape(sub)}</div>`:''}</div>`;
+}
+function statsValueNumber(r,type){
+  if(type==='success_attempts') return r.attempts>0&&r.successes!=null ? 100*r.successes/r.attempts : null;
+  return r.numeric_value==null?null:Number(r.numeric_value);
+}
+function statsFormatAggregate(rows,type){
+  if(!rows.length)return '—';
+  if(type==='success_attempts'){
+    const success=rows.reduce((a,r)=>a+(Number(r.successes)||0),0);
+    const attempts=rows.reduce((a,r)=>a+(Number(r.attempts)||0),0);
+    return attempts>0?`${Math.round(100*success/attempts)} % · ${success}/${attempts}`:'—';
+  }
+  const vals=rows.map(r=>Number(r.numeric_value)).filter(Number.isFinite);
+  if(!vals.length)return '—';
+  const avg=vals.reduce((a,b)=>a+b,0)/vals.length;
+  const suffix=type==='time_seconds'?' s':type==='rating_5'?' /5':type==='rating_10'?' /10':'';
+  return `${Math.round(avg*10)/10}${suffix}`;
+}
+function statsFormatSingle(r,type){
+  if(!r)return '—';
+  if(type==='success_attempts'){
+    if(r.attempts>0&&r.successes!=null)return `${r.successes}/${r.attempts} · ${Math.round(100*r.successes/r.attempts)} %`;
+    return '—';
+  }
+  if(r.numeric_value==null)return '—';
+  const suffix=type==='time_seconds'?' s':type==='rating_5'?' /5':type==='rating_10'?' /10':'';
+  return `${Number(r.numeric_value)}${suffix}`;
+}
+function statsBestRow(rows,type){
+  const valid=rows.filter(r=>statsValueNumber(r,type)!=null);
+  if(!valid.length)return null;
+  return valid.reduce((best,r)=>{
+    if(!best)return r;
+    const v=statsValueNumber(r,type),b=statsValueNumber(best,type);
+    return type==='time_seconds' ? (v<b?r:best) : (v>b?r:best);
+  },null);
+}
+function statsSparkline(values,labels=[]){
+  const vals=values.map(Number).filter(Number.isFinite);
+  if(vals.length<2)return '';
+  const w=600,h=120,p=10,min=Math.min(...vals),max=Math.max(...vals),span=(max-min)||1;
+  const pts=vals.map((v,i)=>{
+    const x=p+(w-2*p)*(i/(vals.length-1));
+    const y=h-p-(h-2*p)*((v-min)/span);
+    return [x,y];
+  });
+  const poly=pts.map(p=>p.join(',')).join(' ');
+  const circles=pts.map((p,i)=>`<circle cx="${p[0]}" cy="${p[1]}" r="4"><title>${statsEscape(labels[i]||'')} · ${Math.round(vals[i]*10)/10}</title></circle>`).join('');
+  return `<div class="statsChart"><svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Évolution des résultats"><polyline points="${poly}"></polyline>${circles}</svg></div>`;
+}
+function statsBarList(items){
+  if(!items.length)return '<div class="statsEmpty">Aucune donnée.</div>';
+  const max=Math.max(...items.map(x=>x.value),1);
+  return items.map(x=>`<div class="statsBarRow"><div class="statsBarTop"><span>${statsEscape(x.label)}</span><strong>${statsEscape(x.display??x.value)}</strong></div><div class="statsBarTrack"><div class="statsBarFill" style="width:${Math.max(3,100*x.value/max)}%"></div></div></div>`).join('');
+}
+function statsSessionExerciseFocus(sessionId,exerciseId){
+  return statsState.sessionExercises.find(x=>x.session_id===sessionId&&x.exercise_id===exerciseId)?.focus||null;
+}
+function statsFilteredExerciseResults(exerciseId,focus=null){
+  return statsState.results.filter(r=>{
+    if(r.exercise_id!==exerciseId)return false;
+    if(!focus)return true;
+    return statsSessionExerciseFocus(r.session_id,exerciseId)===focus;
+  });
+}
+async function loadStatsData(groupId){
+  statsState.groupId=groupId;
+  statsState.sessions=[];statsState.attendance=[];statsState.sessionExercises=[];statsState.results=[];statsState.players=[];statsState.exerciseMap={};statsState.sessionMap={};
+  if(!groupId){renderStatsAll();return}
+  $('#statsStatus').textContent='Chargement…';
+  const {data:sessions,error:se}=await db.from('training_sessions')
+    .select('id,trained_on,label,theme')
+    .eq('group_id',groupId).order('trained_on',{ascending:true});
+  if(se)throw se;
+  statsState.sessions=sessions||[];
+  statsState.sessions.forEach(x=>statsState.sessionMap[x.id]=x);
+  statsState.players=await fetchGroupPlayers(groupId);
+  const ids=statsState.sessions.map(x=>x.id);
+  if(ids.length){
+    const [{data:att,error:ae},{data:sx,error:xe},{data:res,error:re}]=await Promise.all([
+      db.from('training_attendance').select('session_id,player_id,present').in('session_id',ids),
+      db.from('training_session_exercises')
+        .select('session_id,exercise_id,focus,position,exercise:exercises!training_session_exercises_exercise_id_fkey(id,name,category,measurement_type)')
+        .in('session_id',ids),
+      db.from('training_results')
+        .select('id,session_id,exercise_id,player_id,successes,attempts,numeric_value,note,created_at')
+        .in('session_id',ids)
+    ]);
+    if(ae)throw ae;if(xe)throw xe;if(re)throw re;
+    statsState.attendance=att||[];
+    statsState.sessionExercises=sx||[];
+    statsState.results=res||[];
+    statsState.sessionExercises.forEach(x=>{if(x.exercise)statsState.exerciseMap[x.exercise.id]=x.exercise});
+  }
+  $('#statsStatus').textContent=`${statsState.sessions.length} séance${statsState.sessions.length>1?'s':''} analysée${statsState.sessions.length>1?'s':''}`;
+  populateStatsSelectors();
+  renderStatsAll();
+}
+function populateStatsSelectors(){
+  const playerSel=$('#statsPlayer'),playerCurrent=playerSel.value;
+  playerSel.innerHTML='<option value="">— Choisir —</option>';
+  statsState.players.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.display_name;playerSel.append(o)});
+  if([...playerSel.options].some(o=>o.value===playerCurrent))playerSel.value=playerCurrent;
+
+  const exs=Object.values(statsState.exerciseMap).sort((a,b)=>a.name.localeCompare(b.name,'fr'));
+  const exSel=$('#statsExercise'),exCurrent=exSel.value;
+  exSel.innerHTML='<option value="">— Choisir —</option>';
+  exs.forEach(ex=>{const o=document.createElement('option');o.value=ex.id;o.textContent=ex.name;exSel.append(o)});
+  if([...exSel.options].some(o=>o.value===exCurrent))exSel.value=exCurrent;
+  populateStatsPlayerExercises();
+}
+function populateStatsPlayerExercises(){
+  const pid=$('#statsPlayer').value,sel=$('#statsPlayerExercise'),cur=sel.value;
+  sel.innerHTML='<option value="">— Choisir —</option>';
+  const ids=[...new Set(statsState.results.filter(r=>r.player_id===pid).map(r=>r.exercise_id))];
+  ids.map(id=>statsState.exerciseMap[id]).filter(Boolean).sort((a,b)=>a.name.localeCompare(b.name,'fr')).forEach(ex=>{
+    const o=document.createElement('option');o.value=ex.id;o.textContent=ex.name;sel.append(o);
+  });
+  if([...sel.options].some(o=>o.value===cur))sel.value=cur;
+}
+function switchStatsTab(tab){
+  statsState.tab=tab;
+  $$('.statsTab').forEach(b=>b.classList.toggle('active',b.dataset.statsTab===tab));
+  $('#statsGroupView').classList.toggle('hidden',tab!=='group');
+  $('#statsPlayerView').classList.toggle('hidden',tab!=='player');
+  $('#statsExerciseView').classList.toggle('hidden',tab!=='exercise');
+  if(tab==='player')renderStatsPlayer();
+  if(tab==='exercise')renderStatsExercise();
+}
+function renderStatsAll(){
+  renderStatsGroup();
+  renderStatsPlayer();
+  renderStatsExercise();
+}
+function renderStatsGroup(){
+  const m=$('#statsGroupMetrics'),top=$('#statsTopExercises'),cat=$('#statsCategoryDistribution');
+  if(!statsState.groupId){m.innerHTML='';top.innerHTML='<div class="statsEmpty">Choisis un groupe.</div>';cat.innerHTML='';return}
+  const recorded=statsState.attendance.length;
+  const present=statsState.attendance.filter(a=>a.present).length;
+  const rate=recorded?Math.round(100*present/recorded):0;
+  const evaluated=new Set(statsState.results.map(r=>r.player_id)).size;
+  m.innerHTML=statsMetric('Présence moyenne',recorded?rate+' %':'—')+statsMetric('Joueurs évalués',evaluated||'—');
+
+  const usage={};
+  statsState.sessionExercises.forEach(x=>{
+    if(!x.exercise)return;
+    if(!usage[x.exercise_id])usage[x.exercise_id]={label:x.exercise.name,value:0};
+    usage[x.exercise_id].value++;
+  });
+  const tops=Object.values(usage).sort((a,b)=>b.value-a.value).slice(0,5).map(x=>({...x,display:`${x.value} séance${x.value>1?'s':''}`}));
+  top.innerHTML=statsBarList(tops);
+
+  const cats={};
+  statsState.sessionExercises.forEach(x=>{
+    const c=x.exercise?.category||'Autre';cats[c]=(cats[c]||0)+1;
+  });
+  const catRows=Object.entries(cats).map(([label,value])=>({label,value,display:String(value)})).sort((a,b)=>b.value-a.value);
+  cat.innerHTML=statsBarList(catRows);
+}
+function renderStatsPlayer(){
+  const pid=$('#statsPlayer').value;
+  const m=$('#statsPlayerMetrics'),sum=$('#statsPlayerExerciseSummary'),evo=$('#statsPlayerEvolution');
+  m.innerHTML='';sum.innerHTML='';evo.innerHTML='';
+  if(!pid){m.innerHTML='<div class="statsEmpty" style="grid-column:1/-1">Choisis un joueur.</div>';return}
+  const att=statsState.attendance.filter(a=>a.player_id===pid);
+  const present=att.filter(a=>a.present);
+  const rate=att.length?Math.round(100*present.length/att.length):0;
+  const dates=present.map(a=>statsState.sessionMap[a.session_id]?.trained_on).filter(Boolean).sort();
+  m.innerHTML=statsMetric('Présence',att.length?rate+' %':'—')+
+    statsMetric('Séances suivies',present.length)+
+    statsMetric('Dernier entraînement',dates.length?dates.at(-1):'—');
+
+  const exId=$('#statsPlayerExercise').value;
+  if(!exId){sum.innerHTML='<div class="statsEmpty">Choisis un exercice pour voir l’évolution.</div>';return}
+  const ex=statsState.exerciseMap[exId];if(!ex)return;
+  const rows=statsState.results.filter(r=>r.player_id===pid&&r.exercise_id===exId)
+    .sort((a,b)=>(statsState.sessionMap[a.session_id]?.trained_on||'').localeCompare(statsState.sessionMap[b.session_id]?.trained_on||''));
+  if(!rows.length){sum.innerHTML='<div class="statsEmpty">Aucun résultat sur cet exercice.</div>';return}
+  const last=rows.at(-1),best=statsBestRow(rows,ex.measurement_type),recent=rows.slice(-3);
+  sum.innerHTML=`<div class="statsMetrics">${statsMetric('Dernier',statsFormatSingle(last,ex.measurement_type))}${statsMetric('Moyenne récente',statsFormatAggregate(recent,ex.measurement_type),'3 derniers résultats')}${statsMetric('Meilleur',statsFormatSingle(best,ex.measurement_type))}</div>`;
+  const values=rows.map(r=>statsValueNumber(r,ex.measurement_type)).filter(v=>v!=null);
+  const labels=rows.filter(r=>statsValueNumber(r,ex.measurement_type)!=null).map(r=>statsState.sessionMap[r.session_id]?.trained_on||'');
+  evo.innerHTML=values.length>1?`<h3 style="font-size:16px;margin:12px 0 6px">Évolution</h3>${statsSparkline(values,labels)}`:'';
+}
+function renderStatsExercise(){
+  const exId=$('#statsExercise').value;
+  const metrics=$('#statsExerciseMetrics'),evo=$('#statsExerciseEvolution'),leader=$('#statsLeaderboard'),hint=$('#statsLeaderboardHint');
+  metrics.innerHTML='';evo.innerHTML='';leader.innerHTML='';hint.textContent='';
+  const ex=statsState.exerciseMap[exId];
+  const dual=ex?.category==='Attaque / Défense';
+  $('#statsExerciseFocusWrap').classList.toggle('hidden',!dual);
+  if(!ex){metrics.innerHTML='<div class="statsEmpty" style="grid-column:1/-1">Choisis un exercice.</div>';return}
+  const focus=dual?$('#statsExerciseFocus').value:null;
+  const sx=statsState.sessionExercises.filter(x=>x.exercise_id===exId&&(!focus||x.focus===focus));
+  const sessionIds=new Set(sx.map(x=>x.session_id));
+  const rows=statsState.results.filter(r=>r.exercise_id===exId&&sessionIds.has(r.session_id));
+  const evaluated=new Set(rows.map(r=>r.player_id)).size;
+  const best=statsBestRow(rows,ex.measurement_type);
+  metrics.innerHTML=statsMetric('Utilisé',`${sessionIds.size} séance${sessionIds.size>1?'s':''}`)+
+    statsMetric('Joueurs évalués',evaluated||'—')+
+    statsMetric('Moyenne groupe',statsFormatAggregate(rows,ex.measurement_type))+
+    statsMetric('Meilleur résultat',statsFormatSingle(best,ex.measurement_type));
+
+  const bySession=[...sessionIds].map(sid=>{
+    const rr=rows.filter(r=>r.session_id===sid);
+    let val=null;
+    if(ex.measurement_type==='success_attempts'){
+      const s=rr.reduce((a,r)=>a+(Number(r.successes)||0),0),a=rr.reduce((a,r)=>a+(Number(r.attempts)||0),0);
+      if(a>0)val=100*s/a;
+    }else{
+      const vals=rr.map(r=>Number(r.numeric_value)).filter(Number.isFinite);
+      if(vals.length)val=vals.reduce((a,b)=>a+b,0)/vals.length;
+    }
+    return {date:statsState.sessionMap[sid]?.trained_on||'',val};
+  }).filter(x=>x.val!=null).sort((a,b)=>a.date.localeCompare(b.date));
+  if(bySession.length>1)evo.innerHTML=`<h3 style="font-size:16px;margin:12px 0 6px">Évolution du groupe</h3>${statsSparkline(bySession.map(x=>x.val),bySession.map(x=>x.date))}`;
+
+  renderStatsLeaderboard(rows,ex);
+}
+function renderStatsLeaderboard(rows,ex){
+  const leader=$('#statsLeaderboard'),hint=$('#statsLeaderboardHint');
+  const playerMap=Object.fromEntries(statsState.players.map(p=>[p.id,p.display_name]));
+  const grouped={};
+  rows.forEach(r=>(grouped[r.player_id]??=[]).push(r));
+  let entries=[];
+  Object.entries(grouped).forEach(([pid,all])=>{
+    all.sort((a,b)=>(statsState.sessionMap[b.session_id]?.trained_on||'').localeCompare(statsState.sessionMap[a.session_id]?.trained_on||''));
+    const used=statsState.leaderMode==='recent'?all.slice(0,3):all;
+    if(ex.measurement_type==='success_attempts'){
+      const successes=used.reduce((a,r)=>a+(Number(r.successes)||0),0);
+      const attempts=used.reduce((a,r)=>a+(Number(r.attempts)||0),0);
+      if(attempts<5)return;
+      entries.push({pid,name:playerMap[pid]||'Joueur',score:100*successes/attempts,display:`${Math.round(100*successes/attempts)} % · ${successes}/${attempts}`,volume:attempts});
+    }else{
+      const vals=used.map(r=>Number(r.numeric_value)).filter(Number.isFinite);
+      if(!vals.length)return;
+      const avg=vals.reduce((a,b)=>a+b,0)/vals.length;
+      const suffix=ex.measurement_type==='time_seconds'?' s':ex.measurement_type==='rating_5'?' /5':ex.measurement_type==='rating_10'?' /10':'';
+      entries.push({pid,name:playerMap[pid]||'Joueur',score:avg,display:`${Math.round(avg*10)/10}${suffix}`,volume:vals.length});
+    }
+  });
+  entries.sort((a,b)=>ex.measurement_type==='time_seconds'?a.score-b.score:b.score-a.score);
+  hint.textContent=ex.measurement_type==='success_attempts'
+    ? `${statsState.leaderMode==='recent'?'3 derniers résultats':'Toutes les données'} · minimum 5 tentatives`
+    : `${statsState.leaderMode==='recent'?'Moyenne des 3 derniers résultats':'Moyenne globale'}${ex.measurement_type==='time_seconds'?' · temps le plus bas en tête':''}`;
+  if(!entries.length){leader.innerHTML='<div class="statsEmpty">Pas encore assez de données pour établir un classement.</div>';return}
+  leader.innerHTML=entries.slice(0,10).map((x,i)=>`<div class="leaderRow"><div class="leaderRank">${i+1}</div><div><strong>${statsEscape(x.name)}</strong><div class="small">${x.volume} ${ex.measurement_type==='success_attempts'?'tentative'+(x.volume>1?'s':''):'résultat'+(x.volume>1?'s':'')}</div></div><strong>${statsEscape(x.display)}</strong></div>`).join('');
+}
+async function openStatsModule(){
+  try{
+    await fetchMyGroups();
+    hideMainModules();setMatchHeaderMode(false);
+    $('#statsHome').classList.remove('hidden');
+    $('#statsGroup').value=groupState.groups[0]?.id||'';
+    statsState.tab='group';statsState.leaderMode='recent';
+    $$('.statsLeaderboardMode').forEach(b=>b.classList.toggle('active',b.dataset.leaderMode==='recent'));
+    switchStatsTab('group');
+    await loadStatsData($('#statsGroup').value);
+    window.scrollTo({top:0,behavior:'instant'});
+  }catch(e){handleError('stats',e);$('#statsStatus').textContent=e.message||String(e)}
+}
+
 async function loadPlayerHistory(playerId){
   const out=$('#historyResults'),summary=$('#historySummary');out.innerHTML='';summary.textContent='Chargement…';
   if(!playerId){summary.textContent='';return}
@@ -2449,6 +2798,21 @@ $('#saveTrainingSession').onclick=saveTrainingSession;
 $('#openTrainingHistory').onclick=async()=>{try{await fetchTrainingPlayers();hideMainModules();$('#trainingHistory').classList.remove('hidden');$('#historyPlayer').value='';$('#historySummary').textContent='';$('#historyResults').innerHTML=''}catch(e){handleError('history',e)}};
 $('#historyBack').onclick=()=>openTrainingModule();
 $('#historyPlayer').onchange=()=>loadPlayerHistory($('#historyPlayer').value).catch(e=>handleError('history player',e));
+
+
+$('#openStatsModule').onclick=()=>openStatsModule();
+$('#statsBackHome').onclick=showAppHome;
+$('#statsGroup').onchange=()=>loadStatsData($('#statsGroup').value).catch(e=>{handleError('stats group',e);$('#statsStatus').textContent=e.message||String(e)});
+$$('.statsTab').forEach(b=>b.onclick=()=>switchStatsTab(b.dataset.statsTab));
+$('#statsPlayer').onchange=()=>{populateStatsPlayerExercises();renderStatsPlayer()};
+$('#statsPlayerExercise').onchange=renderStatsPlayer;
+$('#statsExercise').onchange=renderStatsExercise;
+$('#statsExerciseFocus').onchange=renderStatsExercise;
+$$('.statsLeaderboardMode').forEach(b=>b.onclick=()=>{
+  statsState.leaderMode=b.dataset.leaderMode;
+  $$('.statsLeaderboardMode').forEach(x=>x.classList.toggle('active',x===b));
+  renderStatsExercise();
+});
 
 function render(){
   $('#count').textContent=state.events.length+' action'+(state.events.length>1?'s':'');
