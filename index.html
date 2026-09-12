@@ -367,6 +367,7 @@ button:active{transform:scale(.985)}
 
    <div class="authStatus" id="exerciseEditStatus"></div>
    <div class="row" style="margin-top:14px">
+    <button class="ghost" style="flex:1" id="duplicateExercise">Dupliquer</button>
     <button class="ghost" style="flex:1" id="cancelExerciseEdit">Annuler</button>
     <button class="primary" style="flex:2" id="confirmExerciseEdit">Enregistrer les modifications</button>
    </div>
@@ -1574,6 +1575,32 @@ async function saveExerciseEdits(){
   closeExerciseEditPopup();
 }
 
+
+function duplicateCurrentExercise(){
+  const id=trainingState.editingExerciseId;
+  const ex=trainingState.exercises.find(x=>x.id===id);
+  if(!ex)return;
+
+  closeExerciseEditPopup();
+
+  trainingState.exerciseCreateTarget='library';
+  $('#exerciseCreateName').value=(ex.name||'')+' - copie';
+  $('#exerciseCreateCategory').value=ex.category||'Autre';
+  $('#exerciseCreateMeasure').value=ex.measurement_type||'success_attempts';
+  $('#exerciseCreateDescription').value=ex.description||'';
+  $('#exerciseCreateObjective').value=ex.objective||'';
+  $('#exerciseCreateStatus').textContent='';
+  $('#exerciseCreateMeta').textContent='Copie préremplie : modifie seulement ce qui change puis enregistre.';
+  $('#confirmExerciseCreate').textContent='Créer la copie';
+  $('#exerciseCreatePopup').classList.remove('hidden');
+  resetPopupScroll('#exerciseCreatePopup');
+  setTimeout(()=>{
+    const input=$('#exerciseCreateName');
+    input?.focus();
+    input?.setSelectionRange?.(0,input.value.length);
+  },50);
+}
+
 async function openExerciseLibrary(){
   try{
     await fetchTrainingExercises();
@@ -1702,6 +1729,7 @@ $('#createExerciseOnTheFly').onclick=()=>openExerciseCreatePopup('session');
 $('#openExerciseLibrary').onclick=()=>openExerciseLibrary();
 $('#exerciseLibraryBack').onclick=()=>openTrainingModule();
 $('#libraryCreateExercise').onclick=()=>openExerciseCreatePopup('library');
+$('#duplicateExercise').onclick=duplicateCurrentExercise;
 $('#closeExerciseEditPopup').onclick=closeExerciseEditPopup;
 $('#cancelExerciseEdit').onclick=closeExerciseEditPopup;
 $('#exerciseEditPopup').onclick=(ev)=>{if(ev.target.id==='exerciseEditPopup')closeExerciseEditPopup()};
