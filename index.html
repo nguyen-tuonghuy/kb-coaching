@@ -141,6 +141,7 @@ button:active{transform:scale(.985)}
    </div>
    <div class="trainingToolbar">
     <button class="primary" id="newTraining">＋ Nouvelle séance</button>
+    <button class="ghost" id="openExerciseLibrary">Bibliothèque d’exercices</button>
     <button class="ghost" id="openTrainingHistory">Historique joueur</button>
    </div>
    <div class="small">Les séances et résultats sont enregistrés dans la même base Supabase que les matchs.</div>
@@ -172,19 +173,23 @@ button:active{transform:scale(.985)}
      <div class="field"><label>Exercice existant</label><select id="trainingExerciseSelect"><option value="">— Choisir —</option></select></div>
      <button class="ghost" id="addExistingExercise">Ajouter à la séance</button>
     </div>
-    <div style="margin:12px 0 8px" class="small">ou créer un nouvel exercice</div>
-    <div class="row">
-     <div class="field"><label>Nom</label><input id="newExerciseName" placeholder="ex. Frappes sur ligne, 10 ballons"></div>
-     <div class="field"><label>Catégorie</label><select id="newExerciseCategory"><option>Attaque</option><option>Défense</option><option>Passe</option><option>Déplacement</option><option>Remise en jeu</option><option>Physique</option><option>Collectif</option><option>Autre</option></select></div>
-     <div class="field"><label>Mesure</label><select id="newExerciseMeasure"><option value="success_attempts">Réussites / tentatives</option><option value="count">Nombre</option><option value="time_seconds">Temps (s)</option><option value="distance">Distance</option><option value="score">Score</option><option value="rating_5">Note / 5</option><option value="rating_10">Note / 10</option></select></div>
-    </div>
-    <div class="row" style="margin-top:8px"><div class="field"><label>Description</label><input id="newExerciseDescription" placeholder="Consigne courte"></div><div class="field"><label>Objectif</label><input id="newExerciseObjective" placeholder="Ce qu'on cherche à travailler"></div></div>
-    <button class="ghost" id="createTrainingExercise" style="width:100%;margin-top:9px">Créer et ajouter l’exercice</button>
+    <div style="margin:12px 0 8px" class="small">Exercice absent de la bibliothèque ?</div>
+    <button class="ghost" id="createExerciseOnTheFly" style="width:100%">＋ Créer un nouvel exercice</button>
    </div>
 
    <div id="trainingExerciseCards" class="trainingList" style="margin-top:16px"></div>
    <button class="primary" id="saveTrainingSession" style="width:100%;margin-top:16px">Enregistrer la séance</button>
    <div class="authStatus" id="trainingSaveStatus"></div>
+ </section>
+
+
+ <section class="panel hidden" id="exerciseLibrary">
+   <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div><h2 style="font-size:20px">Bibliothèque d’exercices</h2><div class="small">Exercices réutilisables dans toutes les séances</div></div>
+    <button class="ghost" id="exerciseLibraryBack">← Retour</button>
+   </div>
+   <button class="primary" id="libraryCreateExercise" style="width:100%;margin-bottom:14px">＋ Créer un exercice</button>
+   <div id="exerciseLibraryList"></div>
  </section>
 
  <section class="panel hidden" id="trainingHistory">
@@ -325,6 +330,44 @@ button:active{transform:scale(.985)}
    <div class="row" style="margin-top:14px">
     <button class="ghost" style="flex:1" id="cancelSignup">Annuler</button>
     <button class="primary" style="flex:2" id="confirmSignup">Créer mon compte</button>
+   </div>
+ </div>
+</div>
+
+
+<div class="popupBackdrop hidden" id="exerciseCreatePopup">
+ <div class="sheet">
+   <div class="sheetTop">
+    <div>
+     <h2>Créer un exercice</h2>
+     <div class="meta" id="exerciseCreateMeta">L’exercice sera enregistré dans la bibliothèque.</div>
+    </div>
+    <button class="closePopup" id="closeExerciseCreatePopup" aria-label="Fermer">×</button>
+   </div>
+
+   <div class="field"><label>Nom</label><input id="exerciseCreateName" placeholder="ex. Frappes sur ligne, 10 ballons"></div>
+   <div class="row" style="margin-top:9px">
+    <div class="field"><label>Catégorie</label>
+     <select id="exerciseCreateCategory">
+      <option>Attaque</option><option>Défense</option><option>Passe</option><option>Déplacement</option>
+      <option>Remise en jeu</option><option>Physique</option><option>Collectif</option><option>Autre</option>
+     </select>
+    </div>
+    <div class="field"><label>Mesure</label>
+     <select id="exerciseCreateMeasure">
+      <option value="success_attempts">Réussites / tentatives</option><option value="count">Nombre</option>
+      <option value="time_seconds">Temps (s)</option><option value="distance">Distance</option>
+      <option value="score">Score</option><option value="rating_5">Note / 5</option><option value="rating_10">Note / 10</option>
+     </select>
+    </div>
+   </div>
+   <div class="field" style="margin-top:9px"><label>Description</label><input id="exerciseCreateDescription" placeholder="Consigne courte"></div>
+   <div class="field" style="margin-top:9px"><label>Objectif</label><input id="exerciseCreateObjective" placeholder="Ce qu’on cherche à travailler"></div>
+
+   <div class="authStatus" id="exerciseCreateStatus"></div>
+   <div class="row" style="margin-top:14px">
+    <button class="ghost" style="flex:1" id="cancelExerciseCreate">Annuler</button>
+    <button class="primary" style="flex:2" id="confirmExerciseCreate">Créer l’exercice</button>
    </div>
  </div>
 </div>
@@ -1258,10 +1301,10 @@ function eventAttributionLabel(e){
 }
 
 // ===== MODULE ENTRAÎNEMENT V2.0 PRÉLIMINAIRE =====
-let trainingState={players:[],exercises:[],sessionExercises:[]};
+let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library'};
 
 function hideMainModules(){
-  ['appHome','setup','live','trainingHome','trainingSession','trainingHistory'].forEach(id=>$('#'+id)?.classList.add('hidden'));
+  ['appHome','setup','live','trainingHome','trainingSession','exerciseLibrary','trainingHistory'].forEach(id=>$('#'+id)?.classList.add('hidden'));
   $('#footer').classList.add('hidden');
   $('#newMatchTop').classList.add('hidden');
 }
@@ -1294,6 +1337,7 @@ async function fetchTrainingExercises(){
   trainingState.exercises.forEach(ex=>{
     const o=document.createElement('option');o.value=ex.id;o.textContent=`${ex.name}${ex.category?' · '+ex.category:''}`;sel.append(o);
   });
+  renderExerciseLibrary();
 }
 async function openTrainingModule(){
   try{
@@ -1338,15 +1382,21 @@ function measurementLabel(t){
   return ({success_attempts:'Réussites / tentatives',count:'Nombre',time_seconds:'Temps (s)',distance:'Distance',score:'Score',rating_5:'Note / 5',rating_10:'Note / 10'})[t]||t;
 }
 
+function collapseAllTrainingExercises(exceptKey=null){
+  trainingState.sessionExercises.forEach(ex=>{
+    const keep=exceptKey && ex.localKey===exceptKey;
+    ex.expanded=!!keep;
+    const card=document.querySelector(`[data-exercise-card="${ex.localKey}"]`);
+    if(!card)return;
+    card.querySelector('.trainingResults')?.classList.toggle('hidden',!keep);
+    card.querySelector('[data-close]')?.classList.toggle('hidden',!keep);
+  });
+}
 document.addEventListener('click',(ev)=>{
   const box=$('#trainingExerciseCards');
-  if(!box || box.classList.contains('hidden')) return;
+  if(!box || !$('#trainingSession') || $('#trainingSession').classList.contains('hidden')) return;
   if(ev.target.closest('[data-exercise-card]')) return;
-  const open=trainingState.sessionExercises.some(ex=>ex.expanded);
-  if(open){
-    trainingState.sessionExercises.forEach(ex=>ex.expanded=false);
-    renderTrainingExerciseCards();
-  }
+  collapseAllTrainingExercises();
 });
 
 function addSessionExercise(ex){
@@ -1389,14 +1439,12 @@ function renderTrainingExerciseCards(){
 
     header.onclick=(ev)=>{
       if(ev.target.closest('[data-close]')||ev.target.closest('[data-remove]')) return;
-      trainingState.sessionExercises.forEach(other=>other.expanded=(other.localKey===ex.localKey));
-      renderTrainingExerciseCards();
+      collapseAllTrainingExercises(ex.localKey);
     };
 
     closeBtn.onclick=(ev)=>{
       ev.stopPropagation();
-      ex.expanded=false;
-      renderTrainingExerciseCards();
+      collapseAllTrainingExercises();
     };
 
     removeBtn.onclick=(ev)=>{
@@ -1414,16 +1462,75 @@ function renderTrainingExerciseCards(){
     box.append(card);
   });
 }
-async function createExerciseFromForm(){
-  const name=$('#newExerciseName').value.trim();
-  if(!name){alert('Renseigne le nom de l’exercice.');return}
-  const payload={workspace_id:state.workspaceId,name,category:$('#newExerciseCategory').value,measurement_type:$('#newExerciseMeasure').value,description:$('#newExerciseDescription').value.trim()||null,objective:$('#newExerciseObjective').value.trim()||null,active:true};
+function renderExerciseLibrary(){
+  const box=$('#exerciseLibraryList');if(!box)return;
+  box.innerHTML='';
+  if(!trainingState.exercises.length){
+    box.innerHTML='<div class="small">Aucun exercice dans la bibliothèque pour le moment.</div>';
+    return;
+  }
+  trainingState.exercises.forEach(ex=>{
+    const d=document.createElement('div');
+    d.className='historyItem';
+    d.innerHTML=`<strong>${ex.name}</strong>
+      <div class="small" style="margin-top:4px">${ex.category||'Sans catégorie'} · ${measurementLabel(ex.measurement_type)}</div>
+      ${ex.objective?`<div style="margin-top:6px">${ex.objective}</div>`:''}
+      ${ex.description?`<div class="small" style="margin-top:4px">${ex.description}</div>`:''}`;
+    box.append(d);
+  });
+}
+
+async function openExerciseLibrary(){
+  try{
+    await fetchTrainingExercises();
+    hideMainModules();
+    $('#exerciseLibrary').classList.remove('hidden');
+    window.scrollTo({top:0,behavior:'instant'});
+  }catch(e){handleError('exerciseLibrary',e)}
+}
+
+function openExerciseCreatePopup(target='library'){
+  trainingState.exerciseCreateTarget=target;
+  $('#exerciseCreateName').value='';
+  $('#exerciseCreateCategory').value='Attaque';
+  $('#exerciseCreateMeasure').value='success_attempts';
+  $('#exerciseCreateDescription').value='';
+  $('#exerciseCreateObjective').value='';
+  $('#exerciseCreateStatus').textContent='';
+  $('#exerciseCreateMeta').textContent=target==='session'
+    ? 'L’exercice sera enregistré dans la bibliothèque et ajouté à cette séance.'
+    : 'L’exercice sera enregistré dans la bibliothèque.';
+  $('#confirmExerciseCreate').textContent=target==='session'?'Créer et ajouter':'Créer l’exercice';
+  $('#exerciseCreatePopup').classList.remove('hidden');
+  resetPopupScroll('#exerciseCreatePopup');
+  setTimeout(()=>$('#exerciseCreateName')?.focus(),50);
+}
+function closeExerciseCreatePopup(){
+  $('#exerciseCreatePopup').classList.add('hidden');
+}
+async function createExerciseFromPopup(){
+  const status=$('#exerciseCreateStatus');
+  const name=$('#exerciseCreateName').value.trim();
+  if(!name){status.textContent='Renseigne le nom de l’exercice.';status.className='authStatus cloudErr';return}
+  status.textContent='Enregistrement…';status.className='authStatus';
+  const payload={
+    workspace_id:state.workspaceId,
+    name,
+    category:$('#exerciseCreateCategory').value,
+    measurement_type:$('#exerciseCreateMeasure').value,
+    description:$('#exerciseCreateDescription').value.trim()||null,
+    objective:$('#exerciseCreateObjective').value.trim()||null,
+    active:true
+  };
   const {data,error}=await db.from('exercises').insert(payload).select('id,name,category,measurement_type,description,objective').single();
   if(error) throw error;
-  trainingState.exercises.push(data);addSessionExercise(data);
-  ['newExerciseName','newExerciseDescription','newExerciseObjective'].forEach(id=>$('#'+id).value='');
+  const target=trainingState.exerciseCreateTarget;
   await fetchTrainingExercises();
+  if(target==='session') addSessionExercise(data);
+  closeExerciseCreatePopup();
+  if(target==='library') renderExerciseLibrary();
 }
+
 async function addTrainingPlayers(){
   const names=$('#trainingAddPlayers').value.split(',').map(x=>x.trim()).filter(Boolean);
   if(!names.length)return;
@@ -1497,7 +1604,17 @@ $('#newTraining').onclick=startNewTraining;
 $('#cancelTraining').onclick=()=>openTrainingModule();
 $('#trainingAddPlayersBtn').onclick=()=>addTrainingPlayers().catch(e=>handleError('addTrainingPlayers',e));
 $('#addExistingExercise').onclick=()=>{const id=$('#trainingExerciseSelect').value;if(!id)return;const ex=trainingState.exercises.find(x=>x.id===id);if(ex)addSessionExercise(ex)};
-$('#createTrainingExercise').onclick=()=>createExerciseFromForm().catch(e=>handleError('createExercise',e));
+$('#createExerciseOnTheFly').onclick=()=>openExerciseCreatePopup('session');
+$('#openExerciseLibrary').onclick=()=>openExerciseLibrary();
+$('#exerciseLibraryBack').onclick=()=>openTrainingModule();
+$('#libraryCreateExercise').onclick=()=>openExerciseCreatePopup('library');
+$('#closeExerciseCreatePopup').onclick=closeExerciseCreatePopup;
+$('#cancelExerciseCreate').onclick=closeExerciseCreatePopup;
+$('#exerciseCreatePopup').onclick=(ev)=>{if(ev.target.id==='exerciseCreatePopup')closeExerciseCreatePopup()};
+$('#confirmExerciseCreate').onclick=()=>createExerciseFromPopup().catch(e=>{
+  const st=$('#exerciseCreateStatus');st.textContent=e.message||String(e);st.className='authStatus cloudErr';
+  handleError('createExercise',e);
+});
 $('#saveTrainingSession').onclick=saveTrainingSession;
 $('#openTrainingHistory').onclick=async()=>{try{await fetchTrainingPlayers();hideMainModules();$('#trainingHistory').classList.remove('hidden');$('#historyPlayer').value='';$('#historySummary').textContent='';$('#historyResults').innerHTML=''}catch(e){handleError('history',e)}};
 $('#historyBack').onclick=()=>openTrainingModule();
