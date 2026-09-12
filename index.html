@@ -141,6 +141,7 @@ button:active{transform:scale(.985)}
    </div>
    <div class="trainingToolbar">
     <button class="primary" id="newTraining">＋ Nouvelle séance</button>
+    <button class="ghost" id="duplicateTrainingSession">Dupliquer une séance</button>
     <button class="ghost" id="openExerciseLibrary">Bibliothèque d’exercices</button>
     <button class="ghost" id="openTrainingHistory">Historique joueur</button>
    </div>
@@ -171,6 +172,10 @@ button:active{transform:scale(.985)}
     <h3 style="font-size:16px;margin:0 0 7px">Exercices</h3>
     <div class="row">
      <div class="field"><label>Exercice existant</label><select id="trainingExerciseSelect"><option value="">— Choisir —</option></select></div>
+     <div class="field hidden" id="trainingExerciseFocusWrap">
+      <label>Focus</label>
+      <select id="trainingExerciseFocus"><option value="">— Choisir —</option><option value="attaque">Attaque</option><option value="defense">Défense</option></select>
+     </div>
      <button class="ghost" id="addExistingExercise">Ajouter à la séance</button>
     </div>
     <div style="margin:12px 0 8px" class="small">Exercice absent de la bibliothèque ?</div>
@@ -183,12 +188,35 @@ button:active{transform:scale(.985)}
  </section>
 
 
+
+ <section class="panel hidden" id="trainingDuplicate">
+   <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div><h2 style="font-size:20px">Dupliquer une séance</h2><div class="small">Reprend les présents et les exercices, sans les performances</div></div>
+    <button class="ghost" id="trainingDuplicateBack">← Retour</button>
+   </div>
+   <div id="trainingDuplicateStatus" class="small" style="margin-bottom:10px"></div>
+   <div id="trainingDuplicateList"></div>
+ </section>
+
  <section class="panel hidden" id="exerciseLibrary">
    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
     <div><h2 style="font-size:20px">Bibliothèque d’exercices</h2><div class="small">Exercices réutilisables dans toutes les séances</div></div>
     <button class="ghost" id="exerciseLibraryBack">← Retour</button>
    </div>
    <button class="primary" id="libraryCreateExercise" style="width:100%;margin-bottom:14px">＋ Créer un exercice</button>
+   <div class="field" style="margin-bottom:9px">
+    <label>Rechercher</label>
+    <input id="exerciseLibrarySearch" placeholder="Nom, objectif, description…">
+   </div>
+   <div class="field" style="margin-bottom:12px">
+    <label>Catégorie</label>
+    <select id="exerciseLibraryCategory">
+     <option value="">Toutes les catégories</option>
+     <option>Attaque</option><option>Défense</option><option>Attaque / Défense</option><option>Passe</option><option>Déplacement</option>
+     <option>Remise en jeu</option><option>Physique</option><option>Collectif</option><option>Autre</option>
+    </select>
+   </div>
+   <div id="exerciseLibraryCount" class="small" style="margin-bottom:8px"></div>
    <div id="exerciseLibraryList"></div>
  </section>
 
@@ -350,7 +378,7 @@ button:active{transform:scale(.985)}
    <div class="row" style="margin-top:9px">
     <div class="field"><label>Catégorie</label>
      <select id="exerciseEditCategory">
-      <option>Attaque</option><option>Défense</option><option>Passe</option><option>Déplacement</option>
+      <option>Attaque</option><option>Défense</option><option>Attaque / Défense</option><option>Passe</option><option>Déplacement</option>
       <option>Remise en jeu</option><option>Physique</option><option>Collectif</option><option>Autre</option>
      </select>
     </div>
@@ -362,8 +390,12 @@ button:active{transform:scale(.985)}
      </select>
     </div>
    </div>
-   <div class="field" style="margin-top:9px"><label>Description</label><input id="exerciseEditDescription"></div>
+   <div class="field" style="margin-top:9px"><label>Description générale</label><input id="exerciseEditDescription"></div>
    <div class="field" style="margin-top:9px"><label>Objectif</label><input id="exerciseEditObjective"></div>
+   <div id="exerciseEditDualFields" class="hidden" style="margin-top:9px">
+    <div class="field"><label>Consigne focus Attaque</label><input id="exerciseEditAttackInstruction"></div>
+    <div class="field" style="margin-top:9px"><label>Consigne focus Défense</label><input id="exerciseEditDefenseInstruction"></div>
+   </div>
 
    <div class="authStatus" id="exerciseEditStatus"></div>
    <div class="row" style="margin-top:14px">
@@ -388,7 +420,7 @@ button:active{transform:scale(.985)}
    <div class="row" style="margin-top:9px">
     <div class="field"><label>Catégorie</label>
      <select id="exerciseCreateCategory">
-      <option>Attaque</option><option>Défense</option><option>Passe</option><option>Déplacement</option>
+      <option>Attaque</option><option>Défense</option><option>Attaque / Défense</option><option>Passe</option><option>Déplacement</option>
       <option>Remise en jeu</option><option>Physique</option><option>Collectif</option><option>Autre</option>
      </select>
     </div>
@@ -400,8 +432,16 @@ button:active{transform:scale(.985)}
      </select>
     </div>
    </div>
-   <div class="field" style="margin-top:9px"><label>Description</label><input id="exerciseCreateDescription" placeholder="Consigne courte"></div>
+   <div class="field" style="margin-top:9px"><label>Description générale</label><input id="exerciseCreateDescription" placeholder="Organisation générale de l’exercice"></div>
    <div class="field" style="margin-top:9px"><label>Objectif</label><input id="exerciseCreateObjective" placeholder="Ce qu’on cherche à travailler"></div>
+   <div id="exerciseCreateDualFields" class="hidden" style="margin-top:9px">
+    <div class="field"><label>Consigne focus Attaque</label><input id="exerciseCreateAttackInstruction" placeholder="ex. 10 frappes consécutives, les défenseurs tournent"></div>
+    <div class="field" style="margin-top:9px"><label>Consigne focus Défense</label><input id="exerciseCreateDefenseInstruction" placeholder="ex. 10 défenses consécutives, les attaquants tournent"></div>
+   </div>
+   <div id="exerciseCreateSessionFocusWrap" class="field hidden" style="margin-top:9px">
+    <label>Focus pour cette séance</label>
+    <select id="exerciseCreateSessionFocus"><option value="">— Choisir —</option><option value="attaque">Attaque</option><option value="defense">Défense</option></select>
+   </div>
 
    <div class="authStatus" id="exerciseCreateStatus"></div>
    <div class="row" style="margin-top:14px">
@@ -1340,10 +1380,10 @@ function eventAttributionLabel(e){
 }
 
 // ===== MODULE ENTRAÎNEMENT V2.0 PRÉLIMINAIRE =====
-let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null};
+let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null,recentSessions:[]};
 
 function hideMainModules(){
-  ['appHome','setup','live','trainingHome','trainingSession','exerciseLibrary','trainingHistory'].forEach(id=>$('#'+id)?.classList.add('hidden'));
+  ['appHome','setup','live','trainingHome','trainingSession','trainingDuplicate','exerciseLibrary','trainingHistory'].forEach(id=>$('#'+id)?.classList.add('hidden'));
   $('#footer').classList.add('hidden');
   $('#newMatchTop').classList.add('hidden');
 }
@@ -1368,7 +1408,7 @@ async function fetchTrainingPlayers(){
   renderHistoryPlayers();
 }
 async function fetchTrainingExercises(){
-  const {data,error}=await db.from('exercises').select('id,name,category,measurement_type,description,objective').eq('workspace_id',state.workspaceId).eq('active',true).order('name');
+  const {data,error}=await db.from('exercises').select('id,name,category,measurement_type,description,objective,attack_instruction,defense_instruction').eq('workspace_id',state.workspaceId).eq('active',true).order('name');
   if(error) throw error;
   trainingState.exercises=data||[];
   const sel=$('#trainingExerciseSelect');
@@ -1417,6 +1457,32 @@ function startNewTraining(){
   renderTrainingExerciseCards();
   hideMainModules();$('#trainingSession').classList.remove('hidden');window.scrollTo({top:0,behavior:'instant'});
 }
+
+function isDualExercise(ex){return ex?.category==='Attaque / Défense'}
+function focusLabel(f){return f==='attaque'?'Attaque':f==='defense'?'Défense':''}
+function focusInstruction(ex){
+  if(ex.focus==='attaque') return ex.attack_instruction||'';
+  if(ex.focus==='defense') return ex.defense_instruction||'';
+  return '';
+}
+function updateExistingExerciseFocusUI(){
+  const ex=trainingState.exercises.find(x=>x.id===$('#trainingExerciseSelect').value);
+  const dual=isDualExercise(ex);
+  $('#trainingExerciseFocusWrap').classList.toggle('hidden',!dual);
+  if(!dual) $('#trainingExerciseFocus').value='';
+}
+function updateCreateDualUI(){
+  const dual=$('#exerciseCreateCategory').value==='Attaque / Défense';
+  $('#exerciseCreateDualFields').classList.toggle('hidden',!dual);
+  const needSessionFocus=dual && trainingState.exerciseCreateTarget==='session';
+  $('#exerciseCreateSessionFocusWrap').classList.toggle('hidden',!needSessionFocus);
+  if(!needSessionFocus) $('#exerciseCreateSessionFocus').value='';
+}
+function updateEditDualUI(){
+  const dual=$('#exerciseEditCategory').value==='Attaque / Défense';
+  $('#exerciseEditDualFields').classList.toggle('hidden',!dual);
+}
+
 function measurementLabel(t){
   return ({success_attempts:'Réussites / tentatives',count:'Nombre',time_seconds:'Temps (s)',distance:'Distance',score:'Score',rating_5:'Note / 5',rating_10:'Note / 10'})[t]||t;
 }
@@ -1438,8 +1504,8 @@ document.addEventListener('click',(ev)=>{
   collapseAllTrainingExercises();
 });
 
-function addSessionExercise(ex){
-  trainingState.sessionExercises.push({...ex,localKey:crypto.randomUUID(),expanded:false});
+function addSessionExercise(ex,focus=null){
+  trainingState.sessionExercises.push({...ex,focus:isDualExercise(ex)?focus:null,localKey:crypto.randomUUID(),expanded:false});
   renderTrainingExerciseCards();
 }
 function removeSessionExercise(key){trainingState.sessionExercises=trainingState.sessionExercises.filter(x=>x.localKey!==key);renderTrainingExerciseCards()}
@@ -1463,6 +1529,7 @@ function renderTrainingExerciseCards(){
         <div style="min-width:0;flex:1">
           <h3>${idx+1}. ${ex.name}</h3>
           <div class="small">${ex.category||'Sans catégorie'} · ${measurementLabel(ex.measurement_type)}${ex.objective?' · '+ex.objective:''}</div>
+          ${isDualExercise(ex)?`<div class="small" style="margin-top:5px"><strong>Focus : ${focusLabel(ex.focus)||'à choisir'}</strong>${focusInstruction(ex)?' · '+focusInstruction(ex):''}</div>`:''}
           <div class="small" style="margin-top:5px">${present.length} joueur${present.length>1?'s':''} présent${present.length>1?'s':''}</div>
         </div>
         <div class="row" style="gap:6px;flex:0 0 auto">
@@ -1470,11 +1537,30 @@ function renderTrainingExerciseCards(){
           <button class="ghost" data-remove="${ex.localKey}">Retirer</button>
         </div>
       </div>
-      <div class="trainingResults${ex.expanded?'':' hidden'}"></div>`;
+      <div class="trainingResults${ex.expanded?'':' hidden'}">
+        ${isDualExercise(ex)?`<div class="field" style="margin-bottom:10px">
+          <label>Focus de l’exercice dans cette séance</label>
+          <select class="sessionExerciseFocus">
+            <option value="">— Choisir —</option>
+            <option value="attaque"${ex.focus==='attaque'?' selected':''}>Attaque</option>
+            <option value="defense"${ex.focus==='defense'?' selected':''}>Défense</option>
+          </select>
+        </div>`:''}
+      </div>`;
     const rb=card.querySelector('.trainingResults');
     const closeBtn=card.querySelector('[data-close]');
     const removeBtn=card.querySelector('[data-remove]');
     const header=card.querySelector('.trainingExerciseHeader');
+    const focusSelect=card.querySelector('.sessionExerciseFocus');
+    if(focusSelect){
+      focusSelect.onclick=ev=>ev.stopPropagation();
+      focusSelect.onchange=ev=>{
+        ev.stopPropagation();
+        ex.focus=focusSelect.value||null;
+        const summary=card.querySelector('.trainingExerciseHeader .small:nth-of-type(2)');
+        renderTrainingExerciseCards();
+      };
+    }
 
     header.onclick=(ev)=>{
       if(ev.target.closest('[data-close]')||ev.target.closest('[data-remove]')) return;
@@ -1491,7 +1577,7 @@ function renderTrainingExerciseCards(){
       removeSessionExercise(ex.localKey);
     };
 
-    if(!present.length) rb.innerHTML='<div class="small">Sélectionne au moins un joueur présent.</div>';
+    if(!present.length) rb.insertAdjacentHTML('beforeend','<div class="small">Sélectionne au moins un joueur présent.</div>');
     present.forEach(p=>{
       const row=document.createElement('div');row.className='resultRow';row.dataset.exercise=ex.localKey;row.dataset.player=p.id;
       row.innerHTML=`<div class="name">${p.name}</div>${resultInputsHtml(ex,p)}<div style="margin-top:7px"><label>Note facultative</label><input class="tr-note" placeholder="Observation courte"></div>`;
@@ -1503,12 +1589,30 @@ function renderTrainingExerciseCards(){
 }
 function renderExerciseLibrary(){
   const box=$('#exerciseLibraryList');if(!box)return;
+  const q=($('#exerciseLibrarySearch')?.value||'').trim().toLowerCase();
+  const category=$('#exerciseLibraryCategory')?.value||'';
+  const filtered=trainingState.exercises.filter(ex=>{
+    const hay=[ex.name,ex.category,ex.description,ex.objective]
+      .filter(Boolean).join(' ').toLowerCase();
+    if(q && !hay.includes(q)) return false;
+    if(category && ex.category!==category) return false;
+    return true;
+  });
+
+  const count=$('#exerciseLibraryCount');
+  if(count) count.textContent=`${filtered.length} exercice${filtered.length>1?'s':''} affiché${filtered.length>1?'s':''} sur ${trainingState.exercises.length}`;
+
   box.innerHTML='';
   if(!trainingState.exercises.length){
     box.innerHTML='<div class="small">Aucun exercice dans la bibliothèque pour le moment.</div>';
     return;
   }
-  trainingState.exercises.forEach(ex=>{
+  if(!filtered.length){
+    box.innerHTML='<div class="small">Aucun exercice ne correspond à ces critères.</div>';
+    return;
+  }
+
+  filtered.forEach(ex=>{
     const d=document.createElement('div');
     d.className='historyItem';
     d.style.cursor='pointer';
@@ -1520,6 +1624,8 @@ function renderExerciseLibrary(){
         <div class="small" style="margin-top:4px">${ex.category||'Sans catégorie'} · ${measurementLabel(ex.measurement_type)}</div>
         ${ex.objective?`<div style="margin-top:6px">${ex.objective}</div>`:''}
         ${ex.description?`<div class="small" style="margin-top:4px">${ex.description}</div>`:''}
+        ${isDualExercise(ex)&&ex.attack_instruction?`<div class="small" style="margin-top:4px">Attaque : ${ex.attack_instruction}</div>`:''}
+        ${isDualExercise(ex)&&ex.defense_instruction?`<div class="small" style="margin-top:4px">Défense : ${ex.defense_instruction}</div>`:''}
       </div>
       <span class="small">Modifier</span>
     </div>`;
@@ -1540,7 +1646,10 @@ function openExerciseEditPopup(exerciseId){
   $('#exerciseEditMeasure').value=ex.measurement_type||'success_attempts';
   $('#exerciseEditDescription').value=ex.description||'';
   $('#exerciseEditObjective').value=ex.objective||'';
+  $('#exerciseEditAttackInstruction').value=ex.attack_instruction||'';
+  $('#exerciseEditDefenseInstruction').value=ex.defense_instruction||'';
   $('#exerciseEditStatus').textContent='';
+  updateEditDualUI();
   $('#exerciseEditPopup').classList.remove('hidden');
   resetPopupScroll('#exerciseEditPopup');
 }
@@ -1554,56 +1663,50 @@ async function saveExerciseEdits(){
   const status=$('#exerciseEditStatus');
   const name=$('#exerciseEditName').value.trim();
   if(!name){status.textContent='Renseigne le nom de l’exercice.';status.className='authStatus cloudErr';return}
+  const dual=$('#exerciseEditCategory').value==='Attaque / Défense';
   status.textContent='Enregistrement…';status.className='authStatus';
   const payload={
     name,
     category:$('#exerciseEditCategory').value,
     measurement_type:$('#exerciseEditMeasure').value,
     description:$('#exerciseEditDescription').value.trim()||null,
-    objective:$('#exerciseEditObjective').value.trim()||null
+    objective:$('#exerciseEditObjective').value.trim()||null,
+    attack_instruction:dual?($('#exerciseEditAttackInstruction').value.trim()||null):null,
+    defense_instruction:dual?($('#exerciseEditDefenseInstruction').value.trim()||null):null
   };
   const {error}=await db.from('exercises').update(payload).eq('id',id);
   if(error)throw error;
-
-  // Keep exercises already inserted in the current unsaved session synchronized.
-  trainingState.sessionExercises.forEach(ex=>{
-    if(ex.id===id) Object.assign(ex,payload);
-  });
-
+  trainingState.sessionExercises.forEach(ex=>{if(ex.id===id)Object.assign(ex,payload)});
   await fetchTrainingExercises();
   renderTrainingExerciseCards();
   closeExerciseEditPopup();
 }
-
-
 function duplicateCurrentExercise(){
-  const id=trainingState.editingExerciseId;
-  const ex=trainingState.exercises.find(x=>x.id===id);
+  const ex=trainingState.exercises.find(x=>x.id===trainingState.editingExerciseId);
   if(!ex)return;
-
   closeExerciseEditPopup();
-
   trainingState.exerciseCreateTarget='library';
   $('#exerciseCreateName').value=(ex.name||'')+' - copie';
   $('#exerciseCreateCategory').value=ex.category||'Autre';
   $('#exerciseCreateMeasure').value=ex.measurement_type||'success_attempts';
   $('#exerciseCreateDescription').value=ex.description||'';
   $('#exerciseCreateObjective').value=ex.objective||'';
+  $('#exerciseCreateAttackInstruction').value=ex.attack_instruction||'';
+  $('#exerciseCreateDefenseInstruction').value=ex.defense_instruction||'';
   $('#exerciseCreateStatus').textContent='';
   $('#exerciseCreateMeta').textContent='Copie préremplie : modifie seulement ce qui change puis enregistre.';
   $('#confirmExerciseCreate').textContent='Créer la copie';
+  updateCreateDualUI();
   $('#exerciseCreatePopup').classList.remove('hidden');
   resetPopupScroll('#exerciseCreatePopup');
-  setTimeout(()=>{
-    const input=$('#exerciseCreateName');
-    input?.focus();
-    input?.setSelectionRange?.(0,input.value.length);
-  },50);
 }
 
 async function openExerciseLibrary(){
   try{
     await fetchTrainingExercises();
+    $('#exerciseLibrarySearch').value='';
+    $('#exerciseLibraryCategory').value='';
+    renderExerciseLibrary();
     hideMainModules();
     $('#exerciseLibrary').classList.remove('hidden');
     window.scrollTo({top:0,behavior:'instant'});
@@ -1617,11 +1720,15 @@ function openExerciseCreatePopup(target='library'){
   $('#exerciseCreateMeasure').value='success_attempts';
   $('#exerciseCreateDescription').value='';
   $('#exerciseCreateObjective').value='';
+  $('#exerciseCreateAttackInstruction').value='';
+  $('#exerciseCreateDefenseInstruction').value='';
+  $('#exerciseCreateSessionFocus').value='';
   $('#exerciseCreateStatus').textContent='';
   $('#exerciseCreateMeta').textContent=target==='session'
     ? 'L’exercice sera enregistré dans la bibliothèque et ajouté à cette séance.'
     : 'L’exercice sera enregistré dans la bibliothèque.';
   $('#confirmExerciseCreate').textContent=target==='session'?'Créer et ajouter':'Créer l’exercice';
+  updateCreateDualUI();
   $('#exerciseCreatePopup').classList.remove('hidden');
   resetPopupScroll('#exerciseCreatePopup');
   setTimeout(()=>$('#exerciseCreateName')?.focus(),50);
@@ -1634,6 +1741,13 @@ async function createExerciseFromPopup(){
   const name=$('#exerciseCreateName').value.trim();
   if(!name){status.textContent='Renseigne le nom de l’exercice.';status.className='authStatus cloudErr';return}
   status.textContent='Enregistrement…';status.className='authStatus';
+  const dual=$('#exerciseCreateCategory').value==='Attaque / Défense';
+  const sessionFocus=dual && trainingState.exerciseCreateTarget==='session' ? $('#exerciseCreateSessionFocus').value : null;
+  if(dual && trainingState.exerciseCreateTarget==='session' && !sessionFocus){
+    status.textContent='Choisis le focus Attaque ou Défense pour cette séance.';
+    status.className='authStatus cloudErr';
+    return;
+  }
   const payload={
     workspace_id:state.workspaceId,
     name,
@@ -1641,15 +1755,99 @@ async function createExerciseFromPopup(){
     measurement_type:$('#exerciseCreateMeasure').value,
     description:$('#exerciseCreateDescription').value.trim()||null,
     objective:$('#exerciseCreateObjective').value.trim()||null,
+    attack_instruction:dual?($('#exerciseCreateAttackInstruction').value.trim()||null):null,
+    defense_instruction:dual?($('#exerciseCreateDefenseInstruction').value.trim()||null):null,
     active:true
   };
-  const {data,error}=await db.from('exercises').insert(payload).select('id,name,category,measurement_type,description,objective').single();
+  const {data,error}=await db.from('exercises').insert(payload).select('id,name,category,measurement_type,description,objective,attack_instruction,defense_instruction').single();
   if(error) throw error;
   const target=trainingState.exerciseCreateTarget;
   await fetchTrainingExercises();
-  if(target==='session') addSessionExercise(data);
+  if(target==='session') addSessionExercise(data,sessionFocus);
   closeExerciseCreatePopup();
   if(target==='library') renderExerciseLibrary();
+}
+
+
+async function fetchRecentTrainingSessions(){
+  const {data,error}=await db.from('training_sessions')
+    .select('id,trained_on,label,theme,duration_minutes,notes,team:teams!training_sessions_team_id_fkey(name)')
+    .eq('workspace_id',state.workspaceId)
+    .order('trained_on',{ascending:false})
+    .limit(30);
+  if(error) throw error;
+  trainingState.recentSessions=data||[];
+}
+
+function renderDuplicateTrainingSessions(){
+  const box=$('#trainingDuplicateList');
+  const status=$('#trainingDuplicateStatus');
+  if(!box)return;
+  box.innerHTML='';
+  status.textContent=`${trainingState.recentSessions.length} séance${trainingState.recentSessions.length>1?'s':''} récente${trainingState.recentSessions.length>1?'s':''}`;
+  if(!trainingState.recentSessions.length){
+    box.innerHTML='<div class="small">Aucune séance enregistrée à dupliquer.</div>';
+    return;
+  }
+
+  trainingState.recentSessions.forEach(sess=>{
+    const d=document.createElement('div');
+    d.className='historyItem';
+    d.innerHTML=`<div class="row" style="justify-content:space-between;align-items:flex-start;gap:8px">
+      <div style="min-width:0;flex:1">
+        <strong>${sess.trained_on||''}${sess.theme?' · '+sess.theme:(sess.label?' · '+sess.label:'')}</strong>
+        <div class="small" style="margin-top:4px">${sess.team?.name||'Équipe'}${sess.duration_minutes?' · '+sess.duration_minutes+' min':''}</div>
+      </div>
+      <button class="ghost" data-duplicate-session="${sess.id}">Dupliquer</button>
+    </div>`;
+    d.querySelector('[data-duplicate-session]').onclick=()=>duplicateTrainingSessionById(sess.id).catch(e=>handleError('duplicate training session',e));
+    box.append(d);
+  });
+}
+
+async function openTrainingDuplicate(){
+  try{
+    await Promise.all([fetchTrainingPlayers(),fetchTrainingExercises(),fetchRecentTrainingSessions()]);
+    renderDuplicateTrainingSessions();
+    hideMainModules();
+    $('#trainingDuplicate').classList.remove('hidden');
+    window.scrollTo({top:0,behavior:'instant'});
+  }catch(e){handleError('training duplicate',e)}
+}
+
+async function duplicateTrainingSessionById(sessionId){
+  const source=trainingState.recentSessions.find(s=>s.id===sessionId);
+  if(!source) return;
+
+  const [{data:attendance,error:ae},{data:sessionExercises,error:xe}]=await Promise.all([
+    db.from('training_attendance').select('player_id,present').eq('session_id',sessionId),
+    db.from('training_session_exercises')
+      .select('position,variant,target,focus,exercise:exercises!training_session_exercises_exercise_id_fkey(id,name,category,measurement_type,description,objective,attack_instruction,defense_instruction)')
+      .eq('session_id',sessionId)
+      .order('position')
+  ]);
+  if(ae) throw ae;
+  if(xe) throw xe;
+
+  trainingState.sessionExercises=(sessionExercises||[])
+    .filter(x=>x.exercise)
+    .map(x=>({...x.exercise,localKey:crypto.randomUUID(),expanded:false,variant:x.variant||null,target:x.target||null,focus:x.focus||null}));
+
+  $('#trainingDate').value=today();
+  $('#trainingTeam').value=source.team?.name||'';
+  $('#trainingTheme').value=source.theme||source.label||'';
+  $('#trainingDuration').value=source.duration_minutes||'';
+  $('#trainingNotes').value=source.notes||'';
+  $('#trainingAddPlayers').value='';
+  $('#trainingSaveStatus').textContent='';
+
+  const presentIds=new Set((attendance||[]).filter(a=>a.present).map(a=>a.player_id));
+  $$('#trainingAttendance input').forEach(c=>c.checked=presentIds.has(c.value));
+  renderTrainingExerciseCards();
+
+  hideMainModules();
+  $('#trainingSession').classList.remove('hidden');
+  window.scrollTo({top:0,behavior:'instant'});
 }
 
 async function addTrainingPlayers(){
@@ -1672,13 +1870,15 @@ async function saveTrainingSession(){
     if(!teamName){trainingStatus('Renseigne le nom de l’équipe ou du groupe.',true);return}
     if(!present.length){trainingStatus('Sélectionne au moins un joueur présent.',true);return}
     if(!trainingState.sessionExercises.length){trainingStatus('Ajoute au moins un exercice.',true);return}
+    const withoutFocus=trainingState.sessionExercises.find(ex=>isDualExercise(ex)&&!ex.focus);
+    if(withoutFocus){trainingStatus(`Choisis le focus Attaque ou Défense pour « ${withoutFocus.name} ».`,true);return}
     const teamId=await ensureTeam(teamName);
     const duration=$('#trainingDuration').value?Number($('#trainingDuration').value):null;
     const {data:session,error:se}=await db.from('training_sessions').insert({workspace_id:state.workspaceId,team_id:teamId,trained_on:date,label:$('#trainingTheme').value.trim()||'Entraînement',theme:$('#trainingTheme').value.trim()||null,duration_minutes:duration,notes:$('#trainingNotes').value.trim()||null}).select('id').single();
     if(se)throw se;
     const attendance=trainingState.players.map(p=>({session_id:session.id,player_id:p.id,present:present.some(x=>x.id===p.id)}));
     if(attendance.length){const {error}=await db.from('training_attendance').insert(attendance);if(error)throw error}
-    const sessionExRows=trainingState.sessionExercises.map((ex,i)=>({session_id:session.id,exercise_id:ex.id,position:i+1}));
+    const sessionExRows=trainingState.sessionExercises.map((ex,i)=>({session_id:session.id,exercise_id:ex.id,position:i+1,focus:isDualExercise(ex)?ex.focus:null}));
     const {error:xe}=await db.from('training_session_exercises').insert(sessionExRows);if(xe)throw xe;
     const results=[];
     trainingState.sessionExercises.forEach(ex=>{
@@ -1722,13 +1922,29 @@ $('#openMatchModule').onclick=()=>openMatchModule().catch(e=>handleError('openMa
 $('#openTrainingModule').onclick=()=>openTrainingModule();
 $('#trainingBackHome').onclick=showAppHome;
 $('#newTraining').onclick=startNewTraining;
+$('#duplicateTrainingSession').onclick=()=>openTrainingDuplicate();
+$('#trainingDuplicateBack').onclick=()=>openTrainingModule();
 $('#cancelTraining').onclick=()=>openTrainingModule();
 $('#trainingAddPlayersBtn').onclick=()=>addTrainingPlayers().catch(e=>handleError('addTrainingPlayers',e));
-$('#addExistingExercise').onclick=()=>{const id=$('#trainingExerciseSelect').value;if(!id)return;const ex=trainingState.exercises.find(x=>x.id===id);if(ex)addSessionExercise(ex)};
+$('#trainingExerciseSelect').onchange=updateExistingExerciseFocusUI;
+$('#addExistingExercise').onclick=()=>{
+  const id=$('#trainingExerciseSelect').value;if(!id)return;
+  const ex=trainingState.exercises.find(x=>x.id===id);if(!ex)return;
+  const focus=isDualExercise(ex)?$('#trainingExerciseFocus').value:null;
+  if(isDualExercise(ex)&&!focus){alert('Choisis le focus Attaque ou Défense.');return}
+  addSessionExercise(ex,focus);
+  $('#trainingExerciseSelect').value='';
+  $('#trainingExerciseFocus').value='';
+  updateExistingExerciseFocusUI();
+};
 $('#createExerciseOnTheFly').onclick=()=>openExerciseCreatePopup('session');
+$('#exerciseCreateCategory').onchange=updateCreateDualUI;
+$('#exerciseEditCategory').onchange=updateEditDualUI;
 $('#openExerciseLibrary').onclick=()=>openExerciseLibrary();
 $('#exerciseLibraryBack').onclick=()=>openTrainingModule();
 $('#libraryCreateExercise').onclick=()=>openExerciseCreatePopup('library');
+$('#exerciseLibrarySearch').oninput=renderExerciseLibrary;
+$('#exerciseLibraryCategory').onchange=renderExerciseLibrary;
 $('#duplicateExercise').onclick=duplicateCurrentExercise;
 $('#closeExerciseEditPopup').onclick=closeExerciseEditPopup;
 $('#cancelExerciseEdit').onclick=closeExerciseEditPopup;
