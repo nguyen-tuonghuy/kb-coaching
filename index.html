@@ -100,6 +100,21 @@ button:active{transform:scale(.985)}
 .statsChart circle{fill:var(--accent)}
 .statsEmpty{padding:14px;background:var(--panel2);border-radius:12px;color:var(--muted);font-size:13px}
 @media(max-width:520px){.statsMetrics{grid-template-columns:1fr}.statsTabs{grid-template-columns:1fr}}
+
+.exerciseLibraryCard{background:var(--panel2);border-radius:12px;padding:10px 11px;margin-bottom:7px}
+.exerciseLibraryMain{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.exerciseLibraryInfo{min-width:0;flex:1}
+.exerciseLibraryTitle{font-weight:800;line-height:1.2}
+.exerciseLibraryMeta{font-size:12px;color:var(--muted);margin-top:3px}
+.exerciseLibraryObjective{font-size:12px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.exerciseLibraryActions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.exerciseLibraryActions button{padding:7px 9px;border-radius:10px;font-size:12px}
+.exerciseArchivedTag{display:inline-block;margin-left:6px;padding:2px 6px;border:1px solid var(--line);border-radius:999px;font-size:10px;color:var(--muted);vertical-align:1px}
+@media(max-width:560px){
+ .exerciseLibraryMain{display:block}
+ .exerciseLibraryActions{margin-top:8px;justify-content:flex-start}
+}
+
 </style>
 </head>
 <body>
@@ -639,25 +654,6 @@ button:active{transform:scale(.985)}
    </div>
  </div>
 </div>
-
-
-<div class="popupBackdrop hidden" id="exerciseLifecycleConfirmPopup">
- <div class="sheet" style="max-width:560px">
-  <div class="sheetTop">
-   <div>
-    <h2 id="exerciseLifecycleConfirmTitle">Confirmer</h2>
-    <div class="meta" id="exerciseLifecycleConfirmMeta"></div>
-   </div>
-   <button class="closePopup" id="closeExerciseLifecycleConfirm" aria-label="Fermer">×</button>
-  </div>
-  <div id="exerciseLifecycleConfirmText" style="line-height:1.5"></div>
-  <div class="row" style="margin-top:18px">
-   <button class="ghost" style="flex:1" id="cancelExerciseLifecycleConfirm">Annuler</button>
-   <button class="bad" style="flex:2" id="confirmExerciseLifecycleAction">Supprimer définitivement</button>
-  </div>
- </div>
-</div>
-
 
 <div class="popupBackdrop hidden" id="popup">
  <div class="sheet">
@@ -2281,7 +2277,7 @@ function renderExerciseLibrary(){
   const filtered=trainingState.exercises.filter(ex=>{
     if(filter==='active'&&!ex.active)return false;
     if(filter==='archived'&&ex.active)return false;
-    const hay=[ex.name,categoryLabel(ex),ex.description,ex.objective]
+    const hay=[ex.name,categoryLabel(ex),ex.description,ex.objective,ex.attack_instruction,ex.defense_instruction]
       .filter(Boolean).join(' ').toLowerCase();
     if(q && !hay.includes(q)) return false;
     if(category && ex.category_id!==category) return false;
@@ -2302,31 +2298,38 @@ function renderExerciseLibrary(){
   }
 
   filtered.forEach(ex=>{
-    const mine=!!currentUser && ex.created_by===currentUser.id;
     const d=document.createElement('div');
-    d.className='historyItem';
-    d.style.cursor='pointer';
-    d.setAttribute('role','button');
-    d.setAttribute('tabindex','0');
-    d.innerHTML=`<div class="row" style="justify-content:space-between;align-items:flex-start;gap:8px">
-      <div style="min-width:0;flex:1">
-        <strong>${ex.name}</strong>${ex.active?'':' <span class="small">Archivé</span>'}
-        <div class="small" style="margin-top:4px">${statsEscape(categoryLabel(ex))} · ${measurementLabel(ex.measurement_type)}</div>
-        ${ex.objective?`<div style="margin-top:6px">${ex.objective}</div>`:''}
-        ${ex.description?`<div class="small" style="margin-top:4px">${ex.description}</div>`:''}
-        ${isDualExercise(ex)&&ex.attack_instruction?`<div class="small" style="margin-top:4px">Attaque : ${ex.attack_instruction}</div>`:''}
-        ${isDualExercise(ex)&&ex.defense_instruction?`<div class="small" style="margin-top:4px">Défense : ${ex.defense_instruction}</div>`:''}
-        <div class="small" style="margin-top:6px">Créé par ${mine?'toi':(groupState.profiles[ex.created_by]||'un entraîneur')}${ex.created_at?' le '+formatAuditDate(ex.created_at):''}${ex.updated_at&&ex.updated_at!==ex.created_at?' · Modifié par '+auditName(ex.updated_by)+(ex.updated_at?' le '+formatAuditDate(ex.updated_at):''):''}</div>
+    d.className='exerciseLibraryCard';
+    d.innerHTML=`<div class="exerciseLibraryMain">
+      <div class="exerciseLibraryInfo">
+        <div class="exerciseLibraryTitle">${statsEscape(ex.name)}${ex.active?'':'<span class="exerciseArchivedTag">Archivé</span>'}</div>
+        <div class="exerciseLibraryMeta">${statsEscape(categoryLabel(ex))} · ${statsEscape(measurementLabel(ex.measurement_type))}</div>
+        ${ex.objective?`<div class="exerciseLibraryObjective" title="${statsEscape(ex.objective)}">${statsEscape(ex.objective)}</div>`:''}
       </div>
-      <span class="small">Modifier</span>
+      <div class="exerciseLibraryActions">
+        <button class="ghost" data-ex-edit="${ex.id}">Modifier</button>
+        <button class="ghost" data-ex-duplicate="${ex.id}">Dupliquer</button>
+        <button class="ghost" data-ex-lifecycle="${ex.id}">${ex.active?'Supprimer / Archiver':'Réactiver'}</button>
+      </div>
     </div>`;
-    const open=()=>openExerciseEditPopup(ex.id).catch(e=>handleError('editExercise',e));
-    d.onclick=open;
-    d.onkeydown=(ev)=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();open();}};
+
+    d.querySelector('[data-ex-edit]').onclick=ev=>{
+      ev.stopPropagation();
+      openExerciseEditPopup(ex.id).catch(e=>handleError('editExercise',e));
+    };
+    d.querySelector('[data-ex-duplicate]').onclick=ev=>{
+      ev.stopPropagation();
+      duplicateSharedExercise(ex.id).catch(e=>handleError('duplicateExercise',e));
+    };
+    d.querySelector('[data-ex-lifecycle]').onclick=ev=>{
+      ev.stopPropagation();
+      changeExerciseLifecycleFromLibrary(ex.id).catch(e=>handleError('exerciseLifecycle',e));
+    };
+
+    d.onclick=()=>openExerciseEditPopup(ex.id).catch(e=>handleError('editExercise',e));
     box.append(d);
   });
 }
-
 
 
 async function duplicateSharedExercise(exerciseId){
@@ -2363,25 +2366,34 @@ async function fetchExerciseUsage(exerciseId){
   if(!data)throw new Error('Impossible de vérifier l’utilisation de cet exercice.');
   return data;
 }
+async function changeExerciseLifecycleFromLibrary(exerciseId){
+  const ex=trainingState.exercises.find(x=>x.id===exerciseId);
+  if(!ex)return;
 
-let exerciseLifecycleConfirmResolve=null;
-function closeExerciseLifecycleConfirm(result=false){
-  $('#exerciseLifecycleConfirmPopup').classList.add('hidden');
-  const resolve=exerciseLifecycleConfirmResolve;
-  exerciseLifecycleConfirmResolve=null;
-  if(resolve)resolve(result);
-}
-function askExerciseLifecycleConfirmation({title,meta='',text,confirmLabel,danger=true}){
-  if(exerciseLifecycleConfirmResolve)closeExerciseLifecycleConfirm(false);
-  $('#exerciseLifecycleConfirmTitle').textContent=title;
-  $('#exerciseLifecycleConfirmMeta').textContent=meta;
-  $('#exerciseLifecycleConfirmText').textContent=text;
-  const btn=$('#confirmExerciseLifecycleAction');
-  btn.textContent=confirmLabel;
-  btn.className=danger?'bad':'warn';
-  $('#exerciseLifecycleConfirmPopup').classList.remove('hidden');
-  resetPopupScroll('#exerciseLifecycleConfirmPopup');
-  return new Promise(resolve=>{exerciseLifecycleConfirmResolve=resolve});
+  if(!ex.active){
+    if(!confirm(`Réactiver « ${ex.name} » ?`))return;
+    const {error}=await db.from('exercises').update({active:true}).eq('id',exerciseId).select('id').single();
+    if(error)throw error;
+  }else{
+    const usage=await fetchExerciseUsage(exerciseId);
+    if(!usage.used){
+      if(!confirm(`Supprimer définitivement « ${ex.name} » ?\n\nCet exercice n’a jamais été utilisé dans une séance.`))return;
+      const {error}=await db.from('exercises').delete().eq('id',exerciseId).select('id').single();
+      if(error){
+        if(error.code==='23503')throw new Error('Cet exercice vient d’être utilisé. Recharge la bibliothèque pour l’archiver.');
+        throw error;
+      }
+      trainingState.sessionExercises=trainingState.sessionExercises.filter(x=>x.id!==exerciseId);
+    }else{
+      if(!confirm(`Archiver « ${ex.name} » ?\n\nIl ne sera plus proposé pour les nouvelles séances, mais restera visible dans l’historique et les statistiques.`))return;
+      const {error}=await db.from('exercises').update({active:false}).eq('id',exerciseId).select('id').single();
+      if(error)throw error;
+      trainingState.sessionExercises.forEach(x=>{if(x.id===exerciseId)x.active=false});
+    }
+  }
+
+  await fetchTrainingExercises();
+  renderTrainingExerciseCards();
 }
 
 async function changeExerciseLifecycle(reactivate=false){
@@ -2395,14 +2407,7 @@ async function changeExerciseLifecycle(reactivate=false){
     // Refresh before deletion: usage may have changed since opening the popup.
     const usage=await fetchExerciseUsage(id);
     if(!reactivate&&!usage.used){
-      const confirmed=await askExerciseLifecycleConfirmation({
-        title:'Supprimer cet exercice ?',
-        meta:ex.name,
-        text:'Cet exercice n’a jamais été utilisé dans une séance et ne possède aucun résultat. La suppression est définitive et ne pourra pas être annulée.',
-        confirmLabel:'Supprimer définitivement',
-        danger:true
-      });
-      if(!confirmed)return;
+      if(!confirm(`Supprimer définitivement « ${ex.name} » ? Cet exercice n’a aucune utilisation enregistrée.`))return;
       const {error}=await db.from('exercises').delete().eq('id',id).select('id').single();
       if(error){
         if(error.code==='23503')throw new Error('Cet exercice vient d’être utilisé. Rouvre sa fiche pour l’archiver.');
@@ -2411,14 +2416,7 @@ async function changeExerciseLifecycle(reactivate=false){
       trainingState.sessionExercises=trainingState.sessionExercises.filter(x=>x.id!==id);
     }else{
       if(!reactivate && ex.active){
-        const confirmed=await askExerciseLifecycleConfirmation({
-          title:'Archiver cet exercice ?',
-          meta:ex.name,
-          text:'Il ne sera plus proposé pour les nouvelles séances, mais restera visible dans les anciennes séances, les historiques et les statistiques. Tu pourras le réactiver plus tard.',
-          confirmLabel:'Archiver',
-          danger:false
-        });
-        if(!confirmed)return;
+        if(!confirm(`Archiver « ${ex.name} » ?\n\nIl ne sera plus proposé pour les nouvelles séances, mais restera visible dans les anciennes séances et les statistiques.`))return;
       }
       const {error}=await db.from('exercises').update({active:reactivate}).eq('id',id).select('id').single();
       if(error)throw error;
@@ -2451,7 +2449,6 @@ async function openExerciseEditPopup(exerciseId){
 
   const usage=await fetchExerciseUsage(exerciseId);
   $('#exerciseLifecycleAction').textContent=usage.used?'Archiver':'Supprimer';
-  $('#exerciseLifecycleAction').className=usage.used?'warn':'bad';
   $('#exerciseLifecycleAction').classList.toggle('hidden',!ex.active&&usage.used);
   $('#reactivateExercise').classList.toggle('hidden',!!ex.active);
   trainingState.editingExerciseMeasureLocked=usage.has_results;
@@ -3133,10 +3130,6 @@ $('#libraryCreateExercise').onclick=()=>openExerciseCreatePopup('library').catch
 $('#exerciseLibrarySearch').oninput=renderExerciseLibrary;
 $('#exerciseLibraryCategory').onchange=renderExerciseLibrary;
 $('#exerciseLibraryActive').onchange=renderExerciseLibrary;
-$('#closeExerciseLifecycleConfirm').onclick=()=>closeExerciseLifecycleConfirm(false);
-$('#cancelExerciseLifecycleConfirm').onclick=()=>closeExerciseLifecycleConfirm(false);
-$('#confirmExerciseLifecycleAction').onclick=()=>closeExerciseLifecycleConfirm(true);
-$('#exerciseLifecycleConfirmPopup').onclick=e=>{if(e.target===$('#exerciseLifecycleConfirmPopup'))closeExerciseLifecycleConfirm(false)};
 $('#exerciseLifecycleAction').onclick=()=>changeExerciseLifecycle();
 $('#reactivateExercise').onclick=()=>changeExerciseLifecycle(true);
 $('#duplicateExercise').onclick=()=>duplicateCurrentExercise().catch(e=>handleError('duplicateExercise',e));
