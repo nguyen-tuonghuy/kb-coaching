@@ -640,6 +640,25 @@ button:active{transform:scale(.985)}
  </div>
 </div>
 
+
+<div class="popupBackdrop hidden" id="exerciseLifecycleConfirmPopup">
+ <div class="sheet" style="max-width:560px">
+  <div class="sheetTop">
+   <div>
+    <h2 id="exerciseLifecycleConfirmTitle">Confirmer</h2>
+    <div class="meta" id="exerciseLifecycleConfirmMeta"></div>
+   </div>
+   <button class="closePopup" id="closeExerciseLifecycleConfirm" aria-label="Fermer">×</button>
+  </div>
+  <div id="exerciseLifecycleConfirmText" style="line-height:1.5"></div>
+  <div class="row" style="margin-top:18px">
+   <button class="ghost" style="flex:1" id="cancelExerciseLifecycleConfirm">Annuler</button>
+   <button class="bad" style="flex:2" id="confirmExerciseLifecycleAction">Supprimer définitivement</button>
+  </div>
+ </div>
+</div>
+
+
 <div class="popupBackdrop hidden" id="popup">
  <div class="sheet">
    <div class="sheetTop">
@@ -2344,6 +2363,27 @@ async function fetchExerciseUsage(exerciseId){
   if(!data)throw new Error('Impossible de vérifier l’utilisation de cet exercice.');
   return data;
 }
+
+let exerciseLifecycleConfirmResolve=null;
+function closeExerciseLifecycleConfirm(result=false){
+  $('#exerciseLifecycleConfirmPopup').classList.add('hidden');
+  const resolve=exerciseLifecycleConfirmResolve;
+  exerciseLifecycleConfirmResolve=null;
+  if(resolve)resolve(result);
+}
+function askExerciseLifecycleConfirmation({title,meta='',text,confirmLabel,danger=true}){
+  if(exerciseLifecycleConfirmResolve)closeExerciseLifecycleConfirm(false);
+  $('#exerciseLifecycleConfirmTitle').textContent=title;
+  $('#exerciseLifecycleConfirmMeta').textContent=meta;
+  $('#exerciseLifecycleConfirmText').textContent=text;
+  const btn=$('#confirmExerciseLifecycleAction');
+  btn.textContent=confirmLabel;
+  btn.className=danger?'bad':'warn';
+  $('#exerciseLifecycleConfirmPopup').classList.remove('hidden');
+  resetPopupScroll('#exerciseLifecycleConfirmPopup');
+  return new Promise(resolve=>{exerciseLifecycleConfirmResolve=resolve});
+}
+
 async function changeExerciseLifecycle(reactivate=false){
   const id=trainingState.editingExerciseId;
   const ex=trainingState.exercises.find(x=>x.id===id);
@@ -2355,7 +2395,14 @@ async function changeExerciseLifecycle(reactivate=false){
     // Refresh before deletion: usage may have changed since opening the popup.
     const usage=await fetchExerciseUsage(id);
     if(!reactivate&&!usage.used){
-      if(!confirm(`Supprimer définitivement « ${ex.name} » ? Cet exercice n’a aucune utilisation enregistrée.`))return;
+      const confirmed=await askExerciseLifecycleConfirmation({
+        title:'Supprimer cet exercice ?',
+        meta:ex.name,
+        text:'Cet exercice n’a jamais été utilisé dans une séance et ne possède aucun résultat. La suppression est définitive et ne pourra pas être annulée.',
+        confirmLabel:'Supprimer définitivement',
+        danger:true
+      });
+      if(!confirmed)return;
       const {error}=await db.from('exercises').delete().eq('id',id).select('id').single();
       if(error){
         if(error.code==='23503')throw new Error('Cet exercice vient d’être utilisé. Rouvre sa fiche pour l’archiver.');
@@ -2364,7 +2411,14 @@ async function changeExerciseLifecycle(reactivate=false){
       trainingState.sessionExercises=trainingState.sessionExercises.filter(x=>x.id!==id);
     }else{
       if(!reactivate && ex.active){
-        if(!confirm(`Archiver « ${ex.name} » ?\n\nIl ne sera plus proposé pour les nouvelles séances, mais restera visible dans les anciennes séances et les statistiques.`))return;
+        const confirmed=await askExerciseLifecycleConfirmation({
+          title:'Archiver cet exercice ?',
+          meta:ex.name,
+          text:'Il ne sera plus proposé pour les nouvelles séances, mais restera visible dans les anciennes séances, les historiques et les statistiques. Tu pourras le réactiver plus tard.',
+          confirmLabel:'Archiver',
+          danger:false
+        });
+        if(!confirmed)return;
       }
       const {error}=await db.from('exercises').update({active:reactivate}).eq('id',id).select('id').single();
       if(error)throw error;
@@ -2397,6 +2451,7 @@ async function openExerciseEditPopup(exerciseId){
 
   const usage=await fetchExerciseUsage(exerciseId);
   $('#exerciseLifecycleAction').textContent=usage.used?'Archiver':'Supprimer';
+  $('#exerciseLifecycleAction').className=usage.used?'warn':'bad';
   $('#exerciseLifecycleAction').classList.toggle('hidden',!ex.active&&usage.used);
   $('#reactivateExercise').classList.toggle('hidden',!!ex.active);
   trainingState.editingExerciseMeasureLocked=usage.has_results;
@@ -3078,6 +3133,10 @@ $('#libraryCreateExercise').onclick=()=>openExerciseCreatePopup('library').catch
 $('#exerciseLibrarySearch').oninput=renderExerciseLibrary;
 $('#exerciseLibraryCategory').onchange=renderExerciseLibrary;
 $('#exerciseLibraryActive').onchange=renderExerciseLibrary;
+$('#closeExerciseLifecycleConfirm').onclick=()=>closeExerciseLifecycleConfirm(false);
+$('#cancelExerciseLifecycleConfirm').onclick=()=>closeExerciseLifecycleConfirm(false);
+$('#confirmExerciseLifecycleAction').onclick=()=>closeExerciseLifecycleConfirm(true);
+$('#exerciseLifecycleConfirmPopup').onclick=e=>{if(e.target===$('#exerciseLifecycleConfirmPopup'))closeExerciseLifecycleConfirm(false)};
 $('#exerciseLifecycleAction').onclick=()=>changeExerciseLifecycle();
 $('#reactivateExercise').onclick=()=>changeExerciseLifecycle(true);
 $('#duplicateExercise').onclick=()=>duplicateCurrentExercise().catch(e=>handleError('duplicateExercise',e));
