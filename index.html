@@ -388,6 +388,7 @@ button:active{transform:scale(.985)}
     </div>
     <button class="ghost" id="resumeMatch">Ouvrir</button>
    </div>
+   <div id="matchAuditMeta" class="small hidden" style="margin:-4px 0 10px"></div>
    <div class="field" style="margin-bottom:10px">
     <label>Groupe suivi</label>
     <select id="matchGroup"><option value="">— Choisir un groupe —</option></select>
@@ -561,6 +562,7 @@ button:active{transform:scale(.985)}
       <option value="time_seconds">Temps (s)</option><option value="distance">Distance</option>
       <option value="score">Score</option><option value="rating_5">Note / 5</option><option value="rating_10">Note / 10</option>
      </select>
+     <div class="small hidden" id="exerciseEditMeasureLock" style="margin-top:5px">Type de mesure verrouillé car cet exercice possède déjà des résultats.</div>
     </div>
    </div>
    <div class="field" style="margin-top:9px"><label>Description générale</label><input id="exerciseEditDescription"></div>
@@ -801,16 +803,37 @@ async function refreshRecentMatches(){
   const ids=groupState.groups.map(g=>g.id);
   if(!ids.length)return;
   const {data,error}=await db.from('matches')
-    .select('id,label,played_on,created_at,group_id,group:coaching_groups!matches_group_id_fkey(name),followed_team:teams!matches_team_id_fkey(name)')
+    .select('id,label,played_on,created_at,updated_at,created_by,updated_by,group_id,group:coaching_groups!matches_group_id_fkey(name),followed_team:teams!matches_team_id_fkey(name)')
     .in('group_id',ids)
     .order('created_at',{ascending:false}).limit(40);
   if(error)throw error;
+  await fetchProfiles((data||[]).flatMap(m=>[m.created_by,m.updated_by]));
   (data||[]).forEach(m=>{
     const o=document.createElement('option');o.value=m.id;
     o.textContent=`${m.played_on||'Date ?'} · ${m.label} · ${m.group?.name||m.followed_team?.name||'Groupe'}`;
+    o.dataset.createdBy=m.created_by||'';
+    o.dataset.updatedBy=m.updated_by||'';
+    o.dataset.createdAt=m.created_at||'';
+    o.dataset.updatedAt=m.updated_at||'';
     sel.append(o);
   });
 }
+
+function updateMatchAuditMeta(){
+  const sel=$('#recentMatches'),meta=$('#matchAuditMeta');
+  if(!sel||!meta)return;
+  const o=sel.selectedOptions?.[0];
+  if(!o || !o.value){meta.classList.add('hidden');meta.textContent='';return}
+  const cName=auditName(o.dataset.createdBy),uName=auditName(o.dataset.updatedBy);
+  const cDate=formatAuditDate(o.dataset.createdAt),uDate=formatAuditDate(o.dataset.updatedAt);
+  let txt=`Créé par ${cName}${cDate?' le '+cDate:''}`;
+  if(o.dataset.updatedAt && o.dataset.updatedAt!==o.dataset.createdAt){
+    txt+=` · Dernière modification par ${uName}${uDate?' le '+uDate:''}`;
+  }
+  meta.textContent=txt;
+  meta.classList.remove('hidden');
+}
+
 async function initAuthenticated(user){
   currentUser=user;
   $('#authPanel').classList.add('hidden');
@@ -1504,6 +1527,7 @@ $('#start').onclick=()=>{
   }
   start();
 };
+$('#recentMatches').onchange=updateMatchAuditMeta;
 $('#resumeMatch').onclick=()=>{const id=$('#recentMatches').value;if(id)loadMatch(id)};
 $('#editPlayers').onclick=()=>$('#playerEditor').classList.remove('hidden');
 $('#closeEditor').onclick=()=>$('#playerEditor').classList.add('hidden');
@@ -1587,7 +1611,7 @@ function eventAttributionLabel(e){
 }
 
 // ===== MODULE ENTRAÎNEMENT V2.0 PRÉLIMINAIRE =====
-let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null,recentSessions:[],currentSessionId:null,resultDraft:{}};
+let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{}};
 let groupState={groups:[],currentGroupId:null,currentPlayers:[],matchPlayers:[],profiles:{}};
 let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',leaderMode:'recent'};
 
@@ -1639,6 +1663,56 @@ async function ensureMyProfile(){
     return;
   }
   openProfilePopup();
+}
+
+
+function formatAuditDate(v){
+  if(!v)return '';
+  const d=new Date(v);
+  if(Number.isNaN(d.getTime()))return '';
+  return d.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+function auditName(userId){
+  if(!userId)return 'inconnu';
+  if(currentUser && userId===currentUser.id)return 'toi';
+  return groupState.profiles[userId]||'un entraîneur';
+}
+function normalizePlayerName(name){
+  return (name||'')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g,' ')
+    .trim()
+    .replace(/\s+/g,' ');
+}
+function levenshtein(a,b){
+  a=normalizePlayerName(a);b=normalizePlayerName(b);
+  if(a===b)return 0;
+  const dp=Array.from({length:b.length+1},(_,i)=>i);
+  for(let i=1;i<=a.length;i++){
+    let prev=dp[0];dp[0]=i;
+    for(let j=1;j<=b.length;j++){
+      const tmp=dp[j];
+      dp[j]=Math.min(dp[j]+1,dp[j-1]+1,prev+(a[i-1]===b[j-1]?0:1));
+      prev=tmp;
+    }
+  }
+  return dp[b.length];
+}
+function nearDuplicatePlayer(name,players){
+  const n=normalizePlayerName(name);
+  if(!n)return null;
+  const exact=(players||[]).find(p=>normalizePlayerName(p.display_name)===n);
+  if(exact)return {type:'exact',player:exact};
+  if(n.length<4)return null;
+  let best=null;
+  for(const p of players||[]){
+    const pn=normalizePlayerName(p.display_name);
+    const d=levenshtein(n,pn);
+    const threshold=Math.max(n.length,pn.length)>=8?2:1;
+    if(d<=threshold && (!best || d<best.distance))best={type:'near',player:p,distance:d};
+  }
+  return best;
 }
 
 async function fetchMyGroups(){
@@ -1724,15 +1798,32 @@ function renderGroupPlayers(){
 async function addPlayersToCurrentGroup(){
   const names=$('#groupAddPlayers').value.split(',').map(x=>x.trim()).filter(Boolean);
   if(!names.length||!groupState.currentGroupId)return;
-  const existing=new Set(groupState.currentPlayers.map(p=>p.display_name.toLowerCase()));
+
+  const accepted=[];
   for(const name of names){
-    if(existing.has(name.toLowerCase()))continue;
-    const {data:p,error:pe}=await db.from('players').insert({workspace_id:state.workspaceId,display_name:name}).select('id,display_name').single();
+    const duplicate=nearDuplicatePlayer(name,[...groupState.currentPlayers,...accepted.map(display_name=>({display_name}))]);
+    if(duplicate?.type==='exact'){
+      alert(`« ${name} » existe déjà dans ce groupe sous le nom « ${duplicate.player.display_name} ». Il ne sera pas ajouté.`);
+      continue;
+    }
+    if(duplicate?.type==='near'){
+      const ok=confirm(`Le joueur « ${name} » ressemble beaucoup à « ${duplicate.player.display_name} » déjà présent dans le groupe.\n\nCréer quand même un nouveau joueur ?`);
+      if(!ok)continue;
+    }
+
+    const {data:p,error:pe}=await db.from('players')
+      .insert({workspace_id:state.workspaceId,display_name:name})
+      .select('id,display_name').single();
     if(pe)throw pe;
-    const {error:ge}=await db.from('coaching_group_players').insert({group_id:groupState.currentGroupId,player_id:p.id});
+
+    const {error:ge}=await db.from('coaching_group_players')
+      .insert({group_id:groupState.currentGroupId,player_id:p.id});
     if(ge)throw ge;
-    existing.add(name.toLowerCase());
+
+    accepted.push(name);
+    groupState.currentPlayers.push(p);
   }
+
   $('#groupAddPlayers').value='';
   await openGroupDetail(groupState.currentGroupId);
 }
@@ -1813,10 +1904,10 @@ async function fetchTrainingPlayers(groupId=null){
   renderTrainingAttendance();renderHistoryPlayers();
 }
 async function fetchTrainingExercises(){
-  const {data,error}=await db.from('exercises').select('id,name,category,measurement_type,description,objective,attack_instruction,defense_instruction,created_by').eq('active',true).order('name');
+  const {data,error}=await db.from('exercises').select('id,name,category,measurement_type,description,objective,attack_instruction,defense_instruction,created_by,created_at,updated_by,updated_at').eq('active',true).order('name');
   if(error) throw error;
   trainingState.exercises=data||[];
-  await fetchProfiles(trainingState.exercises.map(ex=>ex.created_by));
+  await fetchProfiles(trainingState.exercises.flatMap(ex=>[ex.created_by,ex.updated_by]));
   const sel=$('#trainingExerciseSelect');
   sel.innerHTML='<option value="">— Choisir —</option>';
   trainingState.exercises.forEach(ex=>{
@@ -2063,11 +2154,11 @@ function renderExerciseLibrary(){
         ${ex.description?`<div class="small" style="margin-top:4px">${ex.description}</div>`:''}
         ${isDualExercise(ex)&&ex.attack_instruction?`<div class="small" style="margin-top:4px">Attaque : ${ex.attack_instruction}</div>`:''}
         ${isDualExercise(ex)&&ex.defense_instruction?`<div class="small" style="margin-top:4px">Défense : ${ex.defense_instruction}</div>`:''}
-        <div class="small" style="margin-top:6px">Créé par ${mine?'toi':(groupState.profiles[ex.created_by]||'un entraîneur')}</div>
+        <div class="small" style="margin-top:6px">Créé par ${mine?'toi':(groupState.profiles[ex.created_by]||'un entraîneur')}${ex.created_at?' le '+formatAuditDate(ex.created_at):''}${ex.updated_at&&ex.updated_at!==ex.created_at?' · Modifié par '+auditName(ex.updated_by)+(ex.updated_at?' le '+formatAuditDate(ex.updated_at):''):''}</div>
       </div>
-      <span class="small">${mine?'Modifier':'Dupliquer'}</span>
+      <span class="small">Modifier</span>
     </div>`;
-    const open=()=>mine?openExerciseEditPopup(ex.id):duplicateSharedExercise(ex.id);
+    const open=()=>openExerciseEditPopup(ex.id).catch(e=>handleError('editExercise',e));
     d.onclick=open;
     d.onkeydown=(ev)=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();open();}};
     box.append(d);
@@ -2096,10 +2187,12 @@ function duplicateSharedExercise(exerciseId){
   resetPopupScroll('#exerciseCreatePopup');
 }
 
-function openExerciseEditPopup(exerciseId){
+async function openExerciseEditPopup(exerciseId){
   const ex=trainingState.exercises.find(x=>x.id===exerciseId);
   if(!ex)return;
   trainingState.editingExerciseId=exerciseId;
+  trainingState.editingExerciseMeasureLocked=false;
+
   $('#exerciseEditName').value=ex.name||'';
   $('#exerciseEditCategory').value=ex.category||'Autre';
   $('#exerciseEditMeasure').value=ex.measurement_type||'success_attempts';
@@ -2108,12 +2201,25 @@ function openExerciseEditPopup(exerciseId){
   $('#exerciseEditAttackInstruction').value=ex.attack_instruction||'';
   $('#exerciseEditDefenseInstruction').value=ex.defense_instruction||'';
   $('#exerciseEditStatus').textContent='';
+
+  const {count,error}=await db.from('training_results')
+    .select('id',{count:'exact',head:true})
+    .eq('exercise_id',exerciseId);
+  if(error)throw error;
+
+  trainingState.editingExerciseMeasureLocked=(count||0)>0;
+  $('#exerciseEditMeasure').disabled=trainingState.editingExerciseMeasureLocked;
+  $('#exerciseEditMeasureLock').classList.toggle('hidden',!trainingState.editingExerciseMeasureLocked);
+
   updateEditDualUI();
   $('#exerciseEditPopup').classList.remove('hidden');
   resetPopupScroll('#exerciseEditPopup');
 }
 function closeExerciseEditPopup(){
   trainingState.editingExerciseId=null;
+  trainingState.editingExerciseMeasureLocked=false;
+  $('#exerciseEditMeasure').disabled=false;
+  $('#exerciseEditMeasureLock').classList.add('hidden');
   $('#exerciseEditPopup').classList.add('hidden');
 }
 async function saveExerciseEdits(){
@@ -2124,10 +2230,11 @@ async function saveExerciseEdits(){
   if(!name){status.textContent='Renseigne le nom de l’exercice.';status.className='authStatus cloudErr';return}
   const dual=$('#exerciseEditCategory').value==='Attaque / Défense';
   status.textContent='Enregistrement…';status.className='authStatus';
+  const current=trainingState.exercises.find(x=>x.id===id);
   const payload={
     name,
     category:$('#exerciseEditCategory').value,
-    measurement_type:$('#exerciseEditMeasure').value,
+    measurement_type:trainingState.editingExerciseMeasureLocked?(current?.measurement_type||'success_attempts'):$('#exerciseEditMeasure').value,
     description:$('#exerciseEditDescription').value.trim()||null,
     objective:$('#exerciseEditObjective').value.trim()||null,
     attack_instruction:dual?($('#exerciseEditAttackInstruction').value.trim()||null):null,
@@ -2232,12 +2339,13 @@ async function fetchRecentTrainingSessions(){
   const ids=groupState.groups.map(g=>g.id);
   if(!ids.length){trainingState.recentSessions=[];return}
   const {data,error}=await db.from('training_sessions')
-    .select('id,trained_on,label,theme,duration_minutes,notes,group_id,group:coaching_groups!training_sessions_group_id_fkey(name),team:teams!training_sessions_team_id_fkey(name)')
+    .select('id,trained_on,label,theme,duration_minutes,notes,created_at,updated_at,created_by,updated_by,group_id,group:coaching_groups!training_sessions_group_id_fkey(name),team:teams!training_sessions_team_id_fkey(name)')
     .in('group_id',ids)
     .order('trained_on',{ascending:false})
     .limit(30);
   if(error) throw error;
   trainingState.recentSessions=data||[];
+  await fetchProfiles(trainingState.recentSessions.flatMap(x=>[x.created_by,x.updated_by]));
 }
 
 function renderDuplicateTrainingSessions(){
@@ -2258,6 +2366,7 @@ function renderDuplicateTrainingSessions(){
       <div style="min-width:0;flex:1">
         <strong>${sess.trained_on||''}${sess.theme?' · '+sess.theme:(sess.label?' · '+sess.label:'')}</strong>
         <div class="small" style="margin-top:4px">${sess.group?.name||sess.team?.name||'Groupe'}${sess.duration_minutes?' · '+sess.duration_minutes+' min':''}</div>
+        <div class="small" style="margin-top:4px">Créé par ${auditName(sess.created_by)}${sess.created_at?' le '+formatAuditDate(sess.created_at):''}${sess.updated_at&&sess.updated_at!==sess.created_at?' · Modifié par '+auditName(sess.updated_by)+(sess.updated_at?' le '+formatAuditDate(sess.updated_at):''):''}</div>
       </div>
       <div class="row" style="gap:6px;flex:0 0 auto">
         <button class="ghost" data-edit-session="${sess.id}">Modifier</button>
