@@ -2167,24 +2167,29 @@ function renderExerciseLibrary(){
 
 
 
-function duplicateSharedExercise(exerciseId){
+async function duplicateSharedExercise(exerciseId){
   const ex=trainingState.exercises.find(x=>x.id===exerciseId);
   if(!ex)return;
-  trainingState.exerciseCreateTarget='library';
-  $('#exerciseCreateName').value=(ex.name||'')+' - copie';
-  $('#exerciseCreateCategory').value=ex.category||'Autre';
-  $('#exerciseCreateMeasure').value=ex.measurement_type||'success_attempts';
-  $('#exerciseCreateDescription').value=ex.description||'';
-  $('#exerciseCreateObjective').value=ex.objective||'';
-  $('#exerciseCreateAttackInstruction').value=ex.attack_instruction||'';
-  $('#exerciseCreateDefenseInstruction').value=ex.defense_instruction||'';
-  $('#exerciseCreateSessionFocus').value='';
-  $('#exerciseCreateStatus').textContent='';
-  $('#exerciseCreateMeta').textContent='Exercice partagé : crée ta propre copie pour le modifier.';
-  $('#confirmExerciseCreate').textContent='Créer ma copie';
-  updateCreateDualUI();
-  $('#exerciseCreatePopup').classList.remove('hidden');
-  resetPopupScroll('#exerciseCreatePopup');
+
+  const {data:created,error}=await db.from('exercises').insert({
+    name:(ex.name||'')+' - copie',
+    category:ex.category||'Autre',
+    measurement_type:ex.measurement_type||'success_attempts',
+    description:ex.description||null,
+    objective:ex.objective||null,
+    attack_instruction:ex.attack_instruction||null,
+    defense_instruction:ex.defense_instruction||null,
+    active:true,
+    created_by:currentUser?.id||null
+  }).select('id,name,category,measurement_type,description,objective,attack_instruction,defense_instruction,created_by,created_at,updated_by,updated_at').single();
+
+  if(error)throw error;
+
+  trainingState.exercises.push(created);
+  await fetchProfiles([created.created_by,created.updated_by]);
+  renderExerciseLibrary();
+
+  await openExerciseEditPopup(created.id);
 }
 
 async function openExerciseEditPopup(exerciseId){
@@ -2247,24 +2252,11 @@ async function saveExerciseEdits(){
   renderTrainingExerciseCards();
   closeExerciseEditPopup();
 }
-function duplicateCurrentExercise(){
-  const ex=trainingState.exercises.find(x=>x.id===trainingState.editingExerciseId);
-  if(!ex)return;
+async function duplicateCurrentExercise(){
+  const id=trainingState.editingExerciseId;
+  if(!id)return;
   closeExerciseEditPopup();
-  trainingState.exerciseCreateTarget='library';
-  $('#exerciseCreateName').value=(ex.name||'')+' - copie';
-  $('#exerciseCreateCategory').value=ex.category||'Autre';
-  $('#exerciseCreateMeasure').value=ex.measurement_type||'success_attempts';
-  $('#exerciseCreateDescription').value=ex.description||'';
-  $('#exerciseCreateObjective').value=ex.objective||'';
-  $('#exerciseCreateAttackInstruction').value=ex.attack_instruction||'';
-  $('#exerciseCreateDefenseInstruction').value=ex.defense_instruction||'';
-  $('#exerciseCreateStatus').textContent='';
-  $('#exerciseCreateMeta').textContent='Copie préremplie : modifie seulement ce qui change puis enregistre.';
-  $('#confirmExerciseCreate').textContent='Créer la copie';
-  updateCreateDualUI();
-  $('#exerciseCreatePopup').classList.remove('hidden');
-  resetPopupScroll('#exerciseCreatePopup');
+  await duplicateSharedExercise(id);
 }
 
 async function openExerciseLibrary(){
@@ -2892,7 +2884,7 @@ $('#exerciseLibraryBack').onclick=()=>openTrainingModule();
 $('#libraryCreateExercise').onclick=()=>openExerciseCreatePopup('library');
 $('#exerciseLibrarySearch').oninput=renderExerciseLibrary;
 $('#exerciseLibraryCategory').onchange=renderExerciseLibrary;
-$('#duplicateExercise').onclick=duplicateCurrentExercise;
+$('#duplicateExercise').onclick=()=>duplicateCurrentExercise().catch(e=>handleError('duplicateExercise',e));
 $('#closeExerciseEditPopup').onclick=closeExerciseEditPopup;
 $('#cancelExerciseEdit').onclick=closeExerciseEditPopup;
 $('#exerciseEditPopup').onclick=(ev)=>{if(ev.target.id==='exerciseEditPopup')closeExerciseEditPopup()};
