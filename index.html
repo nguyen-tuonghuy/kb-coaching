@@ -156,10 +156,26 @@ button:active{transform:scale(.985)}
     <button class="moduleCard primary" id="openMatchModule"><strong>🏐 Matchs</strong><span>Prise de notes et statistiques partagées du groupe</span></button>
     <button class="moduleCard" id="openTrainingModule"><strong>🎯 Entraînements</strong><span>Séances, exercices, résultats et progression des joueurs</span></button>
     <button class="moduleCard" id="openGroupsModule"><strong>👥 Groupes</strong><span>Effectifs et entraîneurs partageant les mêmes données</span></button>
+    <button class="moduleCard" id="openSettingsModule"><strong>⚙️ Paramètres</strong><span>Catégories d’exercices partagées entre entraîneurs</span></button>
     <button class="moduleCard" id="openStatsModule"><strong>📊 Statistiques</strong><span>Dashboard d’entraînement : groupe, joueurs, exercices et classements</span></button>
    </div>
  </section>
 
+
+ <section class="panel hidden" id="settingsHome">
+   <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:14px">
+    <h2 style="font-size:20px">⚙️ Paramètres</h2>
+    <button class="ghost" id="settingsBackHome">← Accueil</button>
+   </div>
+   <h3 style="font-size:17px;margin:0 0 8px">Catégories d’exercices</h3>
+   <p class="small" style="margin-bottom:14px">Ces catégories sont partagées entre tous les entraîneurs. Une catégorie archivée reste visible sur les anciens exercices et dans les statistiques.</p>
+   <form id="categoryCreateForm" class="row" style="align-items:end;margin-bottom:14px">
+    <div class="field"><label for="categoryName">Nouvelle catégorie</label><input id="categoryName" maxlength="100" required placeholder="Nom de la catégorie" autocomplete="off"></div>
+    <button class="primary" type="submit">＋ Ajouter une catégorie</button>
+   </form>
+   <div class="authStatus" id="categoryStatus" role="status" aria-live="polite"></div>
+   <div id="categoryList" class="trainingList"></div>
+ </section>
 
  <section class="panel hidden" id="groupsHome">
    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -289,11 +305,7 @@ button:active{transform:scale(.985)}
    </div>
    <div class="field" style="margin-bottom:12px">
     <label>Catégorie</label>
-    <select id="exerciseLibraryCategory">
-     <option value="">Toutes les catégories</option>
-     <option>Attaque</option><option>Défense</option><option>Attaque / Défense</option><option>Passe</option><option>Déplacement</option>
-     <option>Remise en jeu</option><option>Physique</option><option>Collectif</option><option>Autre</option>
-    </select>
+    <select id="exerciseLibraryCategory"></select>
    </div>
    <div id="exerciseLibraryCount" class="small" style="margin-bottom:8px"></div>
    <div id="exerciseLibraryList"></div>
@@ -551,10 +563,7 @@ button:active{transform:scale(.985)}
    <div class="field"><label>Nom</label><input id="exerciseEditName"></div>
    <div class="row" style="margin-top:9px">
     <div class="field"><label>Catégorie</label>
-     <select id="exerciseEditCategory">
-      <option>Attaque</option><option>Défense</option><option>Attaque / Défense</option><option>Passe</option><option>Déplacement</option>
-      <option>Remise en jeu</option><option>Physique</option><option>Collectif</option><option>Autre</option>
-     </select>
+     <select id="exerciseEditCategory"></select>
     </div>
     <div class="field"><label>Mesure</label>
      <select id="exerciseEditMeasure">
@@ -594,10 +603,7 @@ button:active{transform:scale(.985)}
    <div class="field"><label>Nom</label><input id="exerciseCreateName" placeholder="ex. Frappes sur ligne, 10 ballons"></div>
    <div class="row" style="margin-top:9px">
     <div class="field"><label>Catégorie</label>
-     <select id="exerciseCreateCategory">
-      <option>Attaque</option><option>Défense</option><option>Attaque / Défense</option><option>Passe</option><option>Déplacement</option>
-      <option>Remise en jeu</option><option>Physique</option><option>Collectif</option><option>Autre</option>
-     </select>
+     <select id="exerciseCreateCategory"></select>
     </div>
     <div class="field"><label>Mesure</label>
      <select id="exerciseCreateMeasure">
@@ -946,6 +952,8 @@ $('#saveProfile').onclick=(ev)=>{
 
 $('#logout').onclick=async()=>{
   await db.auth.signOut();
+  hideMainModules();
+  categoryState.categories=[];
   currentUser=null;
   state={matchName:'',teamName:'',opponentTeams:[],opponentTeamIds:{},matchDate:'',players:[],activePlayers:[],events:[],currentMatchId:null,currentTeamId:null,workspaceId:null,playerIds:{}};
   localStorage.removeItem(KEY);
@@ -1611,6 +1619,129 @@ function eventAttributionLabel(e){
 }
 
 // ===== MODULE ENTRAÎNEMENT V2.0 PRÉLIMINAIRE =====
+const categoryState={categories:[],busy:false};
+function normalizeCategoryName(name){
+  return String(name||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+    .replaceAll('œ','oe').replaceAll('æ','ae').replace(/\s+/g,' ').trim();
+}
+function categoryById(id){return categoryState.categories.find(c=>c.id===id)}
+function fallbackCategory(){return categoryState.categories.find(c=>c.slug==='autre'&&c.is_native&&c.active)}
+function exerciseCategory(ex){return categoryById(ex?.category_id)}
+function categoryLabel(ex){
+  const category=exerciseCategory(ex);
+  return category?category.name+(category.active?'':' · archivée'):(ex?.category||fallbackCategory()?.name||'Sans catégorie');
+}
+function requireCategory(id,existingId=null){
+  const category=categoryById(id);
+  if(!category)throw new Error('Choisis une catégorie.');
+  if(!category.active&&id!==existingId)throw new Error('Cette catégorie est archivée. Choisis une catégorie active.');
+  return category;
+}
+function populateCategorySelect(select,{selected=select.value,all=false,includeArchivedId=null}={}){
+  select.replaceChildren();
+  if(all){const option=document.createElement('option');option.value='';option.textContent='Toutes les catégories';select.append(option)}
+  categoryState.categories.filter(c=>all||c.active||c.id===includeArchivedId).forEach(c=>{
+    const option=document.createElement('option');option.value=c.id;
+    option.textContent=c.name+(c.active?'':' · archivée');select.append(option);
+  });
+  if([...select.options].some(o=>o.value===selected))select.value=selected;
+  else select.value=all?'':(fallbackCategory()?.id||'');
+}
+async function fetchExerciseCategories(){
+  // Include archived rows: their identifiers remain meaningful in historical data.
+  const {data,error}=await db.from('exercise_categories')
+    .select('id,name,slug,active,is_native,is_dual_focus,created_by,created_at,updated_by,updated_at')
+    .order('is_native',{ascending:false}).order('name');
+  if(error)throw error;
+  categoryState.categories=data||[];
+  populateCategorySelect($('#exerciseLibraryCategory'),{all:true});
+}
+function categoryMessage(message,error=false){
+  const status=$('#categoryStatus');status.textContent=message;
+  status.className='authStatus '+(error?'cloudErr':'cloudOk');
+}
+function validateCategoryName(name,exceptId=null){
+  const cleaned=name.replace(/\s+/g,' ').trim();
+  if(!cleaned||cleaned.length>100)throw new Error('Le nom doit contenir entre 1 et 100 caractères.');
+  const duplicate=categoryState.categories.find(c=>c.id!==exceptId&&normalizeCategoryName(c.name)===normalizeCategoryName(cleaned));
+  if(duplicate)throw new Error(duplicate.active?'Une catégorie porte déjà ce nom.':'Cette catégorie existe déjà : réactive-la dans la liste.');
+  return cleaned;
+}
+async function runCategoryAction(action){
+  if(categoryState.busy)return;
+  categoryState.busy=true;categoryMessage('Enregistrement…');
+  $$('#settingsHome button, #settingsHome input').forEach(el=>el.disabled=true);
+  try{
+    await action();
+    await fetchExerciseCategories();
+    renderCategorySettings();
+    categoryMessage('Catégories enregistrées ✓');
+  }catch(e){
+    categoryMessage(e.code==='23505'?'Ce nom existe déjà, y compris parmi les catégories archivées.':(e.message||String(e)),true);
+  }finally{
+    categoryState.busy=false;
+    $$('#settingsHome button, #settingsHome input').forEach(el=>el.disabled=false);
+  }
+}
+async function updateCustomCategory(id,changes){
+  const category=categoryById(id);
+  if(!category||category.is_native)throw new Error('Cette catégorie est fixe.');
+  const {error}=await db.from('exercise_categories').update(changes).eq('id',id).eq('is_native',false).select('id').single();
+  if(error)throw error;
+}
+function renderCategorySettings(){
+  const list=$('#categoryList');list.replaceChildren();
+  categoryState.categories.forEach(category=>{
+    const card=document.createElement('div');card.className='trainingCard';
+    const row=document.createElement('div');row.className='row';row.style.alignItems='center';
+    const info=document.createElement('div');info.style.cssText='flex:1 1 160px;min-width:0;overflow-wrap:anywhere';
+    const name=document.createElement('strong');name.textContent=category.name;
+    const status=document.createElement('div');status.className='small';
+    status.textContent=category.is_native?'Fixe':category.active?'Active':'Archivée';
+    info.append(name,status);row.append(info);card.append(row);
+    if(!category.is_native){
+      const actions=document.createElement('div');actions.className='row';
+      const rename=document.createElement('button');rename.className='ghost';rename.textContent='Renommer';
+      rename.setAttribute('aria-label','Renommer '+category.name);
+      const toggle=document.createElement('button');toggle.className='ghost';toggle.textContent=category.active?'Archiver':'Réactiver';
+      toggle.setAttribute('aria-label',toggle.textContent+' '+category.name);
+      toggle.onclick=()=>runCategoryAction(()=>updateCustomCategory(category.id,{active:!category.active}));
+      rename.onclick=()=>{
+        if(card.querySelector('form'))return;
+        const form=document.createElement('form');form.className='row';form.style.marginTop='10px';
+        const field=document.createElement('div');field.className='field';
+        const input=document.createElement('input');input.value=category.name;input.maxLength=100;input.required=true;
+        input.setAttribute('aria-label','Nouveau nom pour '+category.name);field.append(input);
+        const save=document.createElement('button');save.type='submit';save.className='primary';save.textContent='Enregistrer';
+        const cancel=document.createElement('button');cancel.type='button';cancel.className='ghost';cancel.textContent='Annuler';
+        cancel.onclick=()=>form.remove();
+        form.onsubmit=event=>{event.preventDefault();runCategoryAction(()=>updateCustomCategory(category.id,{name:validateCategoryName(input.value,category.id)}))};
+        form.append(field,save,cancel);card.append(form);input.focus();input.select();
+      };
+      actions.append(rename,toggle);row.append(actions);
+    }
+    list.append(card);
+  });
+}
+async function openSettingsModule(){
+  hideMainModules();setMatchHeaderMode(false);$('#settingsHome').classList.remove('hidden');
+  $('#categoryList').replaceChildren();categoryMessage('Chargement…');
+  try{await fetchExerciseCategories();renderCategorySettings();categoryMessage('')}
+  catch(e){categoryMessage(e.message||String(e),true)}
+  window.scrollTo({top:0,behavior:'instant'});
+}
+$('#openSettingsModule').onclick=openSettingsModule;
+$('#settingsBackHome').onclick=showAppHome;
+$('#categoryCreateForm').onsubmit=event=>{
+  event.preventDefault();
+  runCategoryAction(async()=>{
+    const name=validateCategoryName($('#categoryName').value);
+    const {error}=await db.from('exercise_categories').insert({name}).select('id').single();
+    if(error)throw error;
+    $('#categoryName').value='';
+  });
+};
+
 let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{}};
 let groupState={groups:[],currentGroupId:null,currentPlayers:[],matchPlayers:[],profiles:{}};
 let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',leaderMode:'recent'};
@@ -1873,7 +2004,7 @@ function setMatchHeaderMode(isMatch){
 }
 
 function hideMainModules(){
-  ['appHome','setup','live','groupsHome','groupDetail','trainingHome','trainingSession','trainingDuplicate','exerciseLibrary','trainingHistory','statsHome'].forEach(id=>$('#'+id)?.classList.add('hidden'));
+  ['settingsHome','appHome','setup','live','groupsHome','groupDetail','trainingHome','trainingSession','trainingDuplicate','exerciseLibrary','trainingHistory','statsHome'].forEach(id=>$('#'+id)?.classList.add('hidden'));
   $('#footer').classList.add('hidden');
   $('#newMatchTop').classList.add('hidden');
 }
@@ -1904,14 +2035,15 @@ async function fetchTrainingPlayers(groupId=null){
   renderTrainingAttendance();renderHistoryPlayers();
 }
 async function fetchTrainingExercises(){
-  const {data,error}=await db.from('exercises').select('id,name,category,measurement_type,description,objective,attack_instruction,defense_instruction,created_by,created_at,updated_by,updated_at').eq('active',true).order('name');
+  await fetchExerciseCategories();
+  const {data,error}=await db.from('exercises').select('id,name,category,category_id,copied_from_exercise_id,measurement_type,description,objective,attack_instruction,defense_instruction,created_by,created_at,updated_by,updated_at').eq('active',true).order('name');
   if(error) throw error;
   trainingState.exercises=data||[];
   await fetchProfiles(trainingState.exercises.flatMap(ex=>[ex.created_by,ex.updated_by]));
   const sel=$('#trainingExerciseSelect');
   sel.innerHTML='<option value="">— Choisir —</option>';
   trainingState.exercises.forEach(ex=>{
-    const o=document.createElement('option');o.value=ex.id;o.textContent=`${ex.name}${ex.category?' · '+ex.category:''}`;sel.append(o);
+    const o=document.createElement('option');o.value=ex.id;o.textContent=`${ex.name}${' · '+categoryLabel(ex)}`;sel.append(o);
   });
   renderExerciseLibrary();
 }
@@ -1963,7 +2095,7 @@ async function startNewTraining(){
   renderTrainingExerciseCards();
   hideMainModules();setMatchHeaderMode(false);$('#trainingSession').classList.remove('hidden');window.scrollTo({top:0,behavior:'instant'});
 }
-function isDualExercise(ex){return ex?.category==='Attaque / Défense'}
+function isDualExercise(ex){return !!exerciseCategory(ex)?.is_dual_focus}
 function focusLabel(f){return f==='attaque'?'Attaque':f==='defense'?'Défense':''}
 function focusInstruction(ex){
   if(ex.focus==='attaque') return ex.attack_instruction||'';
@@ -1977,14 +2109,14 @@ function updateExistingExerciseFocusUI(){
   if(!dual) $('#trainingExerciseFocus').value='';
 }
 function updateCreateDualUI(){
-  const dual=$('#exerciseCreateCategory').value==='Attaque / Défense';
+  const dual=!!categoryById($('#exerciseCreateCategory').value)?.is_dual_focus;
   $('#exerciseCreateDualFields').classList.toggle('hidden',!dual);
   const needSessionFocus=dual && trainingState.exerciseCreateTarget==='session';
   $('#exerciseCreateSessionFocusWrap').classList.toggle('hidden',!needSessionFocus);
   if(!needSessionFocus) $('#exerciseCreateSessionFocus').value='';
 }
 function updateEditDualUI(){
-  const dual=$('#exerciseEditCategory').value==='Attaque / Défense';
+  const dual=!!categoryById($('#exerciseEditCategory').value)?.is_dual_focus;
   $('#exerciseEditDualFields').classList.toggle('hidden',!dual);
 }
 
@@ -2054,7 +2186,7 @@ function renderTrainingExerciseCards(){
       <div class="row trainingExerciseHeader" style="justify-content:space-between;align-items:flex-start;gap:8px;cursor:pointer">
         <div style="min-width:0;flex:1">
           <h3>${idx+1}. ${ex.name}</h3>
-          <div class="small">${ex.category||'Sans catégorie'} · ${measurementLabel(ex.measurement_type)}${ex.objective?' · '+ex.objective:''}</div>
+          <div class="small">${statsEscape(categoryLabel(ex))} · ${measurementLabel(ex.measurement_type)}${ex.objective?' · '+ex.objective:''}</div>
           ${isDualExercise(ex)?`<div class="small" style="margin-top:5px"><strong>Focus : ${focusLabel(ex.focus)||'à choisir'}</strong>${focusInstruction(ex)?' · '+focusInstruction(ex):''}</div>`:''}
           <div class="small" style="margin-top:5px">${present.length} joueur${present.length>1?'s':''} présent${present.length>1?'s':''}</div>
         </div>
@@ -2119,10 +2251,10 @@ function renderExerciseLibrary(){
   const q=($('#exerciseLibrarySearch')?.value||'').trim().toLowerCase();
   const category=$('#exerciseLibraryCategory')?.value||'';
   const filtered=trainingState.exercises.filter(ex=>{
-    const hay=[ex.name,ex.category,ex.description,ex.objective]
+    const hay=[ex.name,categoryLabel(ex),ex.description,ex.objective]
       .filter(Boolean).join(' ').toLowerCase();
     if(q && !hay.includes(q)) return false;
-    if(category && ex.category!==category) return false;
+    if(category && ex.category_id!==category) return false;
     return true;
   });
 
@@ -2149,7 +2281,7 @@ function renderExerciseLibrary(){
     d.innerHTML=`<div class="row" style="justify-content:space-between;align-items:flex-start;gap:8px">
       <div style="min-width:0;flex:1">
         <strong>${ex.name}</strong>
-        <div class="small" style="margin-top:4px">${ex.category||'Sans catégorie'} · ${measurementLabel(ex.measurement_type)}</div>
+        <div class="small" style="margin-top:4px">${statsEscape(categoryLabel(ex))} · ${measurementLabel(ex.measurement_type)}</div>
         ${ex.objective?`<div style="margin-top:6px">${ex.objective}</div>`:''}
         ${ex.description?`<div class="small" style="margin-top:4px">${ex.description}</div>`:''}
         ${isDualExercise(ex)&&ex.attack_instruction?`<div class="small" style="margin-top:4px">Attaque : ${ex.attack_instruction}</div>`:''}
@@ -2171,9 +2303,13 @@ async function duplicateSharedExercise(exerciseId){
   const ex=trainingState.exercises.find(x=>x.id===exerciseId);
   if(!ex)return;
 
+  await fetchExerciseCategories();
+  const sourceCategory=exerciseCategory(ex);
+  if(!sourceCategory)throw new Error('La catégorie de l’exercice source est introuvable.');
   const {data:created,error}=await db.from('exercises').insert({
     name:(ex.name||'')+' - copie',
-    category:ex.category||'Autre',
+    category_id:sourceCategory.id,
+    copied_from_exercise_id:ex.id,
     measurement_type:ex.measurement_type||'success_attempts',
     description:ex.description||null,
     objective:ex.objective||null,
@@ -2181,15 +2317,14 @@ async function duplicateSharedExercise(exerciseId){
     defense_instruction:ex.defense_instruction||null,
     active:true,
     created_by:currentUser?.id||null
-  }).select('id,name,category,measurement_type,description,objective,attack_instruction,defense_instruction,created_by,created_at,updated_by,updated_at').single();
+  }).select('id,name,category,category_id,copied_from_exercise_id,measurement_type,description,objective,attack_instruction,defense_instruction,created_by,created_at,updated_by,updated_at').single();
 
   if(error)throw error;
 
-  trainingState.exercises.push(created);
-  await fetchProfiles([created.created_by,created.updated_by]);
-  renderExerciseLibrary();
+  await fetchTrainingExercises();
 
   await openExerciseEditPopup(created.id);
+
 }
 
 async function openExerciseEditPopup(exerciseId){
@@ -2199,13 +2334,16 @@ async function openExerciseEditPopup(exerciseId){
   trainingState.editingExerciseMeasureLocked=false;
 
   $('#exerciseEditName').value=ex.name||'';
-  $('#exerciseEditCategory').value=ex.category||'Autre';
+  await fetchExerciseCategories();
+  populateCategorySelect($('#exerciseEditCategory'),{selected:ex.category_id,includeArchivedId:ex.category_id});
   $('#exerciseEditMeasure').value=ex.measurement_type||'success_attempts';
   $('#exerciseEditDescription').value=ex.description||'';
   $('#exerciseEditObjective').value=ex.objective||'';
   $('#exerciseEditAttackInstruction').value=ex.attack_instruction||'';
   $('#exerciseEditDefenseInstruction').value=ex.defense_instruction||'';
-  $('#exerciseEditStatus').textContent='';
+  const archivedCopy=!!ex.copied_from_exercise_id&&!exerciseCategory(ex)?.active;
+  $('#exerciseEditStatus').textContent=archivedCopy?'Cette copie conserve une catégorie archivée. Choisis une catégorie active avant d’enregistrer des modifications. Tu peux fermer sans modifier la copie.':'';
+  $('#exerciseEditStatus').className='authStatus '+(archivedCopy?'cloudErr':'');
 
   const {count,error}=await db.from('training_results')
     .select('id',{count:'exact',head:true})
@@ -2233,19 +2371,19 @@ async function saveExerciseEdits(){
   const status=$('#exerciseEditStatus');
   const name=$('#exerciseEditName').value.trim();
   if(!name){status.textContent='Renseigne le nom de l’exercice.';status.className='authStatus cloudErr';return}
-  const dual=$('#exerciseEditCategory').value==='Attaque / Défense';
+  const dual=!!categoryById($('#exerciseEditCategory').value)?.is_dual_focus;
   status.textContent='Enregistrement…';status.className='authStatus';
   const current=trainingState.exercises.find(x=>x.id===id);
   const payload={
     name,
-    category:$('#exerciseEditCategory').value,
+    category_id:requireCategory($('#exerciseEditCategory').value,current?.copied_from_exercise_id?null:current?.category_id).id,
     measurement_type:trainingState.editingExerciseMeasureLocked?(current?.measurement_type||'success_attempts'):$('#exerciseEditMeasure').value,
     description:$('#exerciseEditDescription').value.trim()||null,
     objective:$('#exerciseEditObjective').value.trim()||null,
     attack_instruction:dual?($('#exerciseEditAttackInstruction').value.trim()||null):null,
     defense_instruction:dual?($('#exerciseEditDefenseInstruction').value.trim()||null):null
   };
-  const {error}=await db.from('exercises').update(payload).eq('id',id);
+  const {error}=await db.from('exercises').update(payload).eq('id',id).select('id').single();
   if(error)throw error;
   trainingState.sessionExercises.forEach(ex=>{if(ex.id===id)Object.assign(ex,payload)});
   await fetchTrainingExercises();
@@ -2272,10 +2410,11 @@ async function openExerciseLibrary(){
   }catch(e){handleError('exerciseLibrary',e)}
 }
 
-function openExerciseCreatePopup(target='library'){
+async function openExerciseCreatePopup(target='library'){
+  await fetchExerciseCategories();
   trainingState.exerciseCreateTarget=target;
   $('#exerciseCreateName').value='';
-  $('#exerciseCreateCategory').value='Attaque';
+  populateCategorySelect($('#exerciseCreateCategory'),{selected:categoryState.categories.find(c=>c.slug==='attaque')?.id||fallbackCategory()?.id});
   $('#exerciseCreateMeasure').value='success_attempts';
   $('#exerciseCreateDescription').value='';
   $('#exerciseCreateObjective').value='';
@@ -2300,7 +2439,7 @@ async function createExerciseFromPopup(){
   const name=$('#exerciseCreateName').value.trim();
   if(!name){status.textContent='Renseigne le nom de l’exercice.';status.className='authStatus cloudErr';return}
   status.textContent='Enregistrement…';status.className='authStatus';
-  const dual=$('#exerciseCreateCategory').value==='Attaque / Défense';
+  const dual=!!categoryById($('#exerciseCreateCategory').value)?.is_dual_focus;
   const sessionFocus=dual && trainingState.exerciseCreateTarget==='session' ? $('#exerciseCreateSessionFocus').value : null;
   if(dual && trainingState.exerciseCreateTarget==='session' && !sessionFocus){
     status.textContent='Choisis le focus Attaque ou Défense pour cette séance.';
@@ -2309,7 +2448,7 @@ async function createExerciseFromPopup(){
   }
   const payload={
     name,
-    category:$('#exerciseCreateCategory').value,
+    category_id:requireCategory($('#exerciseCreateCategory').value).id,
     measurement_type:$('#exerciseCreateMeasure').value,
     description:$('#exerciseCreateDescription').value.trim()||null,
     objective:$('#exerciseCreateObjective').value.trim()||null,
@@ -2317,7 +2456,7 @@ async function createExerciseFromPopup(){
     defense_instruction:dual?($('#exerciseCreateDefenseInstruction').value.trim()||null):null,
     active:true
   };
-  const {data,error}=await db.from('exercises').insert(payload).select('id,name,category,measurement_type,description,objective,attack_instruction,defense_instruction,created_by').single();
+  const {data,error}=await db.from('exercises').insert(payload).select('id,name,category,category_id,copied_from_exercise_id,measurement_type,description,objective,attack_instruction,defense_instruction,created_by').single();
   if(error) throw error;
   const target=trainingState.exerciseCreateTarget;
   await fetchTrainingExercises();
@@ -2392,7 +2531,7 @@ async function duplicateTrainingSessionById(sessionId){
   const [{data:attendance,error:ae},{data:sessionExercises,error:xe}]=await Promise.all([
     db.from('training_attendance').select('player_id,present').eq('session_id',sessionId),
     db.from('training_session_exercises')
-      .select('position,variant,target,focus,exercise:exercises!training_session_exercises_exercise_id_fkey(id,name,category,measurement_type,description,objective,attack_instruction,defense_instruction)')
+      .select('position,variant,target,focus,exercise:exercises!training_session_exercises_exercise_id_fkey(id,name,category,category_id,copied_from_exercise_id,measurement_type,description,objective,attack_instruction,defense_instruction)')
       .eq('session_id',sessionId)
       .order('position')
   ]);
@@ -2428,7 +2567,7 @@ async function editTrainingSessionById(sessionId){
   const [{data:attendance,error:ae},{data:sessionExercises,error:xe},{data:results,error:re}]=await Promise.all([
     db.from('training_attendance').select('player_id,present').eq('session_id',sessionId),
     db.from('training_session_exercises')
-      .select('position,variant,target,focus,exercise:exercises!training_session_exercises_exercise_id_fkey(id,name,category,measurement_type,description,objective,attack_instruction,defense_instruction)')
+      .select('position,variant,target,focus,exercise:exercises!training_session_exercises_exercise_id_fkey(id,name,category,category_id,copied_from_exercise_id,measurement_type,description,objective,attack_instruction,defense_instruction)')
       .eq('session_id',sessionId).order('position'),
     db.from('training_results')
       .select('exercise_id,player_id,successes,attempts,numeric_value,note')
@@ -2630,6 +2769,7 @@ function statsFilteredExerciseResults(exerciseId,focus=null){
   });
 }
 async function loadStatsData(groupId){
+  await fetchExerciseCategories();
   statsState.groupId=groupId;
   statsState.sessions=[];statsState.attendance=[];statsState.sessionExercises=[];statsState.results=[];statsState.players=[];statsState.exerciseMap={};statsState.sessionMap={};
   if(!groupId){renderStatsAll();return}
@@ -2646,7 +2786,7 @@ async function loadStatsData(groupId){
     const [{data:att,error:ae},{data:sx,error:xe},{data:res,error:re}]=await Promise.all([
       db.from('training_attendance').select('session_id,player_id,present').in('session_id',ids),
       db.from('training_session_exercises')
-        .select('session_id,exercise_id,focus,position,exercise:exercises!training_session_exercises_exercise_id_fkey(id,name,category,measurement_type)')
+        .select('session_id,exercise_id,focus,position,exercise:exercises!training_session_exercises_exercise_id_fkey(id,name,category,category_id,copied_from_exercise_id,measurement_type)')
         .in('session_id',ids),
       db.from('training_results')
         .select('id,session_id,exercise_id,player_id,successes,attempts,numeric_value,note,created_at')
@@ -2718,9 +2858,11 @@ function renderStatsGroup(){
 
   const cats={};
   statsState.sessionExercises.forEach(x=>{
-    const c=x.exercise?.category||'Autre';cats[c]=(cats[c]||0)+1;
+    const id=x.exercise?.category_id||fallbackCategory()?.id||'unknown';
+    if(!cats[id])cats[id]={label:categoryLabel(x.exercise),value:0};
+    cats[id].value++;
   });
-  const catRows=Object.entries(cats).map(([label,value])=>({label,value,display:String(value)})).sort((a,b)=>b.value-a.value);
+  const catRows=Object.values(cats).map(({label,value})=>({label,value,display:String(value)})).sort((a,b)=>b.value-a.value);
   cat.innerHTML=statsBarList(catRows);
 }
 function renderStatsPlayer(){
@@ -2753,7 +2895,7 @@ function renderStatsExercise(){
   const metrics=$('#statsExerciseMetrics'),evo=$('#statsExerciseEvolution'),leader=$('#statsLeaderboard'),hint=$('#statsLeaderboardHint');
   metrics.innerHTML='';evo.innerHTML='';leader.innerHTML='';hint.textContent='';
   const ex=statsState.exerciseMap[exId];
-  const dual=ex?.category==='Attaque / Défense';
+  const dual=isDualExercise(ex);
   $('#statsExerciseFocusWrap').classList.toggle('hidden',!dual);
   if(!ex){metrics.innerHTML='<div class="statsEmpty" style="grid-column:1/-1">Choisis un exercice.</div>';return}
   const focus=dual?$('#statsExerciseFocus').value:null;
@@ -2827,9 +2969,10 @@ async function openStatsModule(){
 }
 
 async function loadPlayerHistory(playerId){
+  await fetchExerciseCategories();
   const out=$('#historyResults'),summary=$('#historySummary');out.innerHTML='';summary.textContent='Chargement…';
   if(!playerId){summary.textContent='';return}
-  const {data,error}=await db.from('training_results').select('id,successes,attempts,numeric_value,note,created_at,session:training_sessions!training_results_session_id_fkey(trained_on,label,theme),exercise:exercises!training_results_exercise_id_fkey(name,measurement_type,category)').eq('player_id',playerId).order('created_at',{ascending:false}).limit(100);
+  const {data,error}=await db.from('training_results').select('id,successes,attempts,numeric_value,note,created_at,session:training_sessions!training_results_session_id_fkey(trained_on,label,theme),exercise:exercises!training_results_exercise_id_fkey(name,measurement_type,category,category_id)').eq('player_id',playerId).order('created_at',{ascending:false}).limit(100);
   if(error)throw error;
   const rows=data||[];summary.textContent=`${rows.length} résultat${rows.length>1?'s':''} enregistré${rows.length>1?'s':''}`;
   if(!rows.length){out.innerHTML='<div class="small">Aucun résultat d’entraînement pour ce joueur.</div>';return}
@@ -2876,12 +3019,12 @@ $('#addExistingExercise').onclick=()=>{
   $('#trainingExerciseFocus').value='';
   updateExistingExerciseFocusUI();
 };
-$('#createExerciseOnTheFly').onclick=()=>openExerciseCreatePopup('session');
+$('#createExerciseOnTheFly').onclick=()=>openExerciseCreatePopup('session').catch(e=>handleError('create exercise',e));
 $('#exerciseCreateCategory').onchange=updateCreateDualUI;
 $('#exerciseEditCategory').onchange=updateEditDualUI;
 $('#openExerciseLibrary').onclick=()=>openExerciseLibrary();
 $('#exerciseLibraryBack').onclick=()=>openTrainingModule();
-$('#libraryCreateExercise').onclick=()=>openExerciseCreatePopup('library');
+$('#libraryCreateExercise').onclick=()=>openExerciseCreatePopup('library').catch(e=>handleError('create exercise',e));
 $('#exerciseLibrarySearch').oninput=renderExerciseLibrary;
 $('#exerciseLibraryCategory').onchange=renderExerciseLibrary;
 $('#duplicateExercise').onclick=()=>duplicateCurrentExercise().catch(e=>handleError('duplicateExercise',e));
