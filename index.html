@@ -307,6 +307,10 @@ button:active{transform:scale(.985)}
     <label>Catégorie</label>
     <select id="exerciseLibraryCategory"></select>
    </div>
+   <div class="field" style="margin-bottom:12px">
+    <label for="exerciseLibraryActive">État des exercices</label>
+    <select id="exerciseLibraryActive"><option value="active">Actifs</option><option value="archived">Archivés</option><option value="all">Tous</option></select>
+   </div>
    <div id="exerciseLibraryCount" class="small" style="margin-bottom:8px"></div>
    <div id="exerciseLibraryList"></div>
  </section>
@@ -582,6 +586,10 @@ button:active{transform:scale(.985)}
    </div>
 
    <div class="authStatus" id="exerciseEditStatus"></div>
+   <div class="row" style="margin-top:10px">
+    <button class="ghost" id="exerciseLifecycleAction">Archiver</button>
+    <button class="ghost hidden" id="reactivateExercise">Réactiver</button>
+   </div>
    <div class="row" style="margin-top:14px">
     <button class="ghost" style="flex:1" id="duplicateExercise">Dupliquer</button>
     <button class="ghost" style="flex:1" id="cancelExerciseEdit">Annuler</button>
@@ -2036,13 +2044,13 @@ async function fetchTrainingPlayers(groupId=null){
 }
 async function fetchTrainingExercises(){
   await fetchExerciseCategories();
-  const {data,error}=await db.from('exercises').select('id,name,category,category_id,copied_from_exercise_id,measurement_type,description,objective,attack_instruction,defense_instruction,created_by,created_at,updated_by,updated_at').eq('active',true).order('name');
+  const {data,error}=await db.from('exercises').select('id,name,category,category_id,copied_from_exercise_id,measurement_type,description,objective,attack_instruction,defense_instruction,created_by,created_at,updated_by,updated_at,active').order('name');
   if(error) throw error;
   trainingState.exercises=data||[];
   await fetchProfiles(trainingState.exercises.flatMap(ex=>[ex.created_by,ex.updated_by]));
   const sel=$('#trainingExerciseSelect');
   sel.innerHTML='<option value="">— Choisir —</option>';
-  trainingState.exercises.forEach(ex=>{
+  trainingState.exercises.filter(ex=>ex.active).forEach(ex=>{
     const o=document.createElement('option');o.value=ex.id;o.textContent=`${ex.name}${' · '+categoryLabel(ex)}`;sel.append(o);
   });
   renderExerciseLibrary();
@@ -2250,7 +2258,10 @@ function renderExerciseLibrary(){
   const box=$('#exerciseLibraryList');if(!box)return;
   const q=($('#exerciseLibrarySearch')?.value||'').trim().toLowerCase();
   const category=$('#exerciseLibraryCategory')?.value||'';
+  const filter=$('#exerciseLibraryActive').value;
   const filtered=trainingState.exercises.filter(ex=>{
+    if(filter==='active'&&!ex.active)return false;
+    if(filter==='archived'&&ex.active)return false;
     const hay=[ex.name,categoryLabel(ex),ex.description,ex.objective]
       .filter(Boolean).join(' ').toLowerCase();
     if(q && !hay.includes(q)) return false;
@@ -2280,7 +2291,7 @@ function renderExerciseLibrary(){
     d.setAttribute('tabindex','0');
     d.innerHTML=`<div class="row" style="justify-content:space-between;align-items:flex-start;gap:8px">
       <div style="min-width:0;flex:1">
-        <strong>${ex.name}</strong>
+        <strong>${ex.name}</strong>${ex.active?'':' <span class="small">Archivé</span>'}
         <div class="small" style="margin-top:4px">${statsEscape(categoryLabel(ex))} · ${measurementLabel(ex.measurement_type)}</div>
         ${ex.objective?`<div style="margin-top:6px">${ex.objective}</div>`:''}
         ${ex.description?`<div class="small" style="margin-top:4px">${ex.description}</div>`:''}
@@ -2327,6 +2338,45 @@ async function duplicateSharedExercise(exerciseId){
 
 }
 
+async function fetchExerciseUsage(exerciseId){
+  const {data,error}=await db.rpc('get_exercise_usage',{p_exercise_id:exerciseId});
+  if(error)throw error;
+  if(!data)throw new Error('Impossible de vérifier l’utilisation de cet exercice.');
+  return data;
+}
+async function changeExerciseLifecycle(reactivate=false){
+  const id=trainingState.editingExerciseId;
+  const ex=trainingState.exercises.find(x=>x.id===id);
+  if(!ex)return;
+  const status=$('#exerciseEditStatus');
+  const controls=$$('#exerciseEditPopup button');
+  controls.forEach(b=>b.disabled=true);
+  try{
+    // Refresh before deletion: usage may have changed since opening the popup.
+    const usage=await fetchExerciseUsage(id);
+    if(!reactivate&&!usage.used){
+      if(!confirm(`Supprimer définitivement « ${ex.name} » ? Cet exercice n’a aucune utilisation enregistrée.`))return;
+      const {error}=await db.from('exercises').delete().eq('id',id).select('id').single();
+      if(error){
+        if(error.code==='23503')throw new Error('Cet exercice vient d’être utilisé. Rouvre sa fiche pour l’archiver.');
+        throw error;
+      }
+      trainingState.sessionExercises=trainingState.sessionExercises.filter(x=>x.id!==id);
+    }else{
+      if(!reactivate && ex.active){
+        if(!confirm(`Archiver « ${ex.name} » ?\n\nIl ne sera plus proposé pour les nouvelles séances, mais restera visible dans les anciennes séances et les statistiques.`))return;
+      }
+      const {error}=await db.from('exercises').update({active:reactivate}).eq('id',id).select('id').single();
+      if(error)throw error;
+      trainingState.sessionExercises.forEach(x=>{if(x.id===id)x.active=reactivate});
+    }
+    await fetchTrainingExercises();
+    renderTrainingExerciseCards();
+    closeExerciseEditPopup();
+  }catch(e){status.textContent=e.message||String(e);status.className='authStatus cloudErr'}
+  finally{controls.forEach(b=>b.disabled=false)}
+}
+
 async function openExerciseEditPopup(exerciseId){
   const ex=trainingState.exercises.find(x=>x.id===exerciseId);
   if(!ex)return;
@@ -2345,12 +2395,11 @@ async function openExerciseEditPopup(exerciseId){
   $('#exerciseEditStatus').textContent=archivedCopy?'Cette copie conserve une catégorie archivée. Choisis une catégorie active avant d’enregistrer des modifications. Tu peux fermer sans modifier la copie.':'';
   $('#exerciseEditStatus').className='authStatus '+(archivedCopy?'cloudErr':'');
 
-  const {count,error}=await db.from('training_results')
-    .select('id',{count:'exact',head:true})
-    .eq('exercise_id',exerciseId);
-  if(error)throw error;
-
-  trainingState.editingExerciseMeasureLocked=(count||0)>0;
+  const usage=await fetchExerciseUsage(exerciseId);
+  $('#exerciseLifecycleAction').textContent=usage.used?'Archiver':'Supprimer';
+  $('#exerciseLifecycleAction').classList.toggle('hidden',!ex.active&&usage.used);
+  $('#reactivateExercise').classList.toggle('hidden',!!ex.active);
+  trainingState.editingExerciseMeasureLocked=usage.has_results;
   $('#exerciseEditMeasure').disabled=trainingState.editingExerciseMeasureLocked;
   $('#exerciseEditMeasureLock').classList.toggle('hidden',!trainingState.editingExerciseMeasureLocked);
 
@@ -2402,6 +2451,7 @@ async function openExerciseLibrary(){
     await fetchTrainingExercises();
     $('#exerciseLibrarySearch').value='';
     $('#exerciseLibraryCategory').value='';
+    $('#exerciseLibraryActive').value='active';
     renderExerciseLibrary();
     hideMainModules();
     setMatchHeaderMode(false);
@@ -3011,7 +3061,7 @@ $('#cancelTraining').onclick=()=>openTrainingModule();
 $('#trainingExerciseSelect').onchange=updateExistingExerciseFocusUI;
 $('#addExistingExercise').onclick=()=>{
   const id=$('#trainingExerciseSelect').value;if(!id)return;
-  const ex=trainingState.exercises.find(x=>x.id===id);if(!ex)return;
+  const ex=trainingState.exercises.find(x=>x.id===id);if(!ex||!ex.active)return;
   const focus=isDualExercise(ex)?$('#trainingExerciseFocus').value:null;
   if(isDualExercise(ex)&&!focus){alert('Choisis le focus Attaque ou Défense.');return}
   addSessionExercise(ex,focus);
@@ -3027,6 +3077,9 @@ $('#exerciseLibraryBack').onclick=()=>openTrainingModule();
 $('#libraryCreateExercise').onclick=()=>openExerciseCreatePopup('library').catch(e=>handleError('create exercise',e));
 $('#exerciseLibrarySearch').oninput=renderExerciseLibrary;
 $('#exerciseLibraryCategory').onchange=renderExerciseLibrary;
+$('#exerciseLibraryActive').onchange=renderExerciseLibrary;
+$('#exerciseLifecycleAction').onclick=()=>changeExerciseLifecycle();
+$('#reactivateExercise').onclick=()=>changeExerciseLifecycle(true);
 $('#duplicateExercise').onclick=()=>duplicateCurrentExercise().catch(e=>handleError('duplicateExercise',e));
 $('#closeExerciseEditPopup').onclick=closeExerciseEditPopup;
 $('#cancelExerciseEdit').onclick=closeExerciseEditPopup;
