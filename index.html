@@ -441,12 +441,16 @@ button:active{transform:scale(.985)}
   }
 }
 
+
+#popup.centerDefenseCompact.centerAttackMode .centerDefenseRoleEditor{display:none}
+#popup.centerDefenseCompact.centerAttackMode .centerDefenseMap .roleText{font-weight:800}
+
 </style>
 </head>
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V2.4 Préliminaire — Schéma central épuré</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V2.5 Préliminaire — Diagramme Attaque au centre</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -1098,8 +1102,7 @@ button:active{transform:scale(.985)}
 
    <div class="centerDefenseArena">
    <div class="step hidden" id="centerDefenseMapStep">
-    <h3>Zone de responsabilité</h3>
-    <div class="small centerDefenseGestureHint">Zone : <strong>1 tap = défendu</strong> · <strong>2 taps / appui long = échappé</strong> · Ballon : <strong>1 tap = défensive illégale</strong>.</div>
+    <div class="small centerDefenseGestureHint"><span id="centerGestureHintText"></span></div>
 
     <div class="centerDefenseRoleEditor">
       <div class="centerDefenseRoleEditorGrid">
@@ -1595,6 +1598,12 @@ function renderDefenseRoleSetup(){
 function isCenterDefense(){
   return family==='centre'&&actionType==='Défense';
 }
+function isCenterAttack(){
+  return family==='centre'&&actionType==='Attaque';
+}
+function isCenterDiagram(){
+  return family==='centre'&&(actionType==='Attaque'||actionType==='Défense');
+}
 function populateDefenseRoleSelects(prefix){
   const players=validDefensePlayers();
   const map=defenseRoleMap();
@@ -1619,6 +1628,19 @@ function populateDefenseRoleSelects(prefix){
   });
 }
 function refreshCenterDefenseMapLabels(){
+  const editor=$('.centerDefenseRoleEditor');
+  const hint=$('#centerGestureHintText');
+  if(hint)hint.innerHTML=isCenterAttack()
+    ? 'Zone : <strong>1 tap = ballon défendu</strong> · <strong>2 taps / appui long = point marqué</strong> · Ballon : <strong>1 tap = faute offensive</strong>.'
+    : 'Zone : <strong>1 tap = défendu</strong> · <strong>2 taps / appui long = échappé</strong> · Ballon : <strong>1 tap = défensive illégale</strong>.';
+  if(isCenterAttack()){
+    if(editor)editor.classList.add('hidden');
+    const labels={R:'R',A1:'A',P:'P',A2:'A'};
+    const ids={R:'#centerMapRoleR',A1:'#centerMapRoleA1',P:'#centerMapRoleP',A2:'#centerMapRoleA2'};
+    Object.entries(ids).forEach(([role,sel])=>{const el=$(sel);if(el)el.textContent=labels[role]});
+    return;
+  }
+  if(editor)editor.classList.remove('hidden');
   const map=defenseRoleMap();
   const ids={R:'#centerMapRoleR',A1:'#centerMapRoleA1',P:'#centerMapRoleP',A2:'#centerMapRoleA2'};
   DEFENSE_ROLES.forEach(role=>{
@@ -1676,6 +1698,30 @@ function selectCenterDefenseSector(el){
   $$('#centerDefenseMap .sector').forEach(x=>x.classList.toggle('selected',x===el));
   renderCenterDefenseResponsibility();
 }
+function selectCenterAttackSector(el){
+  zone=el.dataset.zone||'';
+  $$('#centerDefenseMap .sector').forEach(x=>x.classList.toggle('selected',x===el));
+}
+function applyCenterAttackGesture(el,result){
+  selectCenterAttackSector(el);
+  actionResult=result;
+  pending=`Attaque · ${result}`;
+  faultType='';
+  movement=movement||'Non';
+  $$('#resultOptions button').forEach(b=>b.classList.toggle('choice',b.dataset.result===result));
+  $('#moveStep').classList.remove('hidden');
+  $('#whoStep').classList.remove('hidden');
+  configureWhoUI();
+  updatePopupSaveVisibility();
+}
+function applyCenterDiagramGesture(el,longGesture=false){
+  if(isCenterAttack()){
+    applyCenterAttackGesture(el,longGesture?'Point marqué':'Ballon défendu');
+  }else if(isCenterDefense()){
+    applyCenterDefenseGesture(el,longGesture?'Échappé':'Ballon défendu');
+  }
+}
+
 function applyCenterDefenseGesture(el,result){
   selectCenterDefenseSector(el);
   actionResult=result;
@@ -1714,6 +1760,10 @@ function applyCenterDefenseIllegal(){
 function syncCenterDefenseSectorFromEvent(){
   $$('#centerDefenseMap .sector').forEach(x=>x.classList.remove('selected'));
   if(!zone)return;
+  if(isCenterAttack()){
+    $$('#centerDefenseMap .sector').find(el=>el.dataset.zone===zone)?.classList.add('selected');
+    return;
+  }
   const map=defenseRoleMap();
   const selected=new Set(whoMany);
   let candidate=$$('#centerDefenseMap .sector').find(el=>{
@@ -1730,7 +1780,7 @@ function configureWhoUI(){
     renderCenterDefenseResponsibility();
   }else{
     buildWho('#whoOptions');
-    $('#whoTitle').textContent=actionType==='Défense'?'Attribution — plusieurs joueurs possibles':'Attribution — facultatif';
+    $('#whoTitle').textContent=isCenterAttack()?'Attaquant':(actionType==='Défense'?'Attribution — plusieurs joueurs possibles':'Attribution — facultatif');
     $$('#whoOptions button').forEach(b=>{
       const name=b.dataset.who||'';
       b.classList.toggle('choice',actionType==='Défense'?(name?whoMany.includes(name):whoMany.length===0):name===who);
@@ -1755,7 +1805,7 @@ function configureWhoUI(){
   }
 }
 function configureZoneUI(show=true){
-  const center=isCenterDefense();
+  const center=isCenterDiagram();
   $('#centerDefenseMapStep').classList.toggle('hidden',!show||!center);
   $('#zoneStep').classList.toggle('hidden',!show||center||family==='gel');
   if(center&&show){
@@ -2177,6 +2227,14 @@ function buildOutcomeButtons(){
     add('POINT MARQUÉ','Point marqué');
     add('BALLON DÉFENDU','Ballon défendu');
     add('FAUTE D’ATTAQUE','Faute attaque');
+    if(isCenterAttack()){
+      const point=$('#resultOptions button[data-result="Point marqué"]');
+      const defended=$('#resultOptions button[data-result="Ballon défendu"]');
+      const fault=$('#resultOptions button[data-result="Faute attaque"]');
+      if(point)point.innerHTML='POINT<br>MARQUÉ';
+      if(defended)defended.innerHTML='BALLON<br>DÉFENDU';
+      if(fault)fault.innerHTML='FAUTE<br>D’ATTAQUE';
+    }
   }else{
     add('BALLON DÉFENDU','Ballon défendu');
     add('ÉCHAPPÉ','Échappé');
@@ -2248,7 +2306,8 @@ function updatePopupSaveVisibility(){
 }
 function openActionPopup(selectedFamily,selectedActionType){
   family=selectedFamily;actionType=selectedActionType;restartLocation='';
-  $('#popup').classList.toggle('centerDefenseCompact',family==='centre'&&actionType==='Défense');
+  $('#popup').classList.toggle('centerDefenseCompact',family==='centre');
+  $('#popup').classList.toggle('centerAttackMode',family==='centre'&&actionType==='Attaque');
   context=family==='centre'?'centre':(family==='gel'?'gel':'remise_centre');
   pending=null;actionResult='';zone='';movement='Non';who='';whoMany=[];opponentTeam='';editingId=null;
   $('#popupTitle').textContent=actionType+(family==='centre'?' au centre':family==='gel'?' Gel':' sur remise en jeu');
@@ -2295,14 +2354,14 @@ $$('#centerDefenseMap .sector').forEach(el=>{
   centerDefenseGestureState.set(el,st);
 
   el.addEventListener('pointerdown',ev=>{
-    if(!isCenterDefense())return;
+    if(!isCenterDiagram())return;
     st.longTriggered=false;
     clearTimeout(st.longTimer);
     st.longTimer=setTimeout(()=>{
       st.longTriggered=true;
       st.suppressClickUntil=Date.now()+700;
       clearTimeout(st.simpleTimer);
-      applyCenterDefenseGesture(el,'Échappé');
+      applyCenterDiagramGesture(el,true);
       if(navigator.vibrate)navigator.vibrate(35);
     },480);
   });
@@ -2313,7 +2372,7 @@ $$('#centerDefenseMap .sector').forEach(el=>{
   el.addEventListener('pointerleave',cancelLong);
 
   el.addEventListener('click',ev=>{
-    if(!isCenterDefense())return;
+    if(!isCenterDiagram())return;
     ev.preventDefault();
     if(st.longTriggered||Date.now()<st.suppressClickUntil){
       st.longTriggered=false;
@@ -2322,31 +2381,40 @@ $$('#centerDefenseMap .sector').forEach(el=>{
     if(ev.detail>=2){
       clearTimeout(st.simpleTimer);
       st.simpleTimer=null;
-      applyCenterDefenseGesture(el,'Échappé');
+      applyCenterDiagramGesture(el,true);
       return;
     }
     clearTimeout(st.simpleTimer);
     st.simpleTimer=setTimeout(()=>{
       st.simpleTimer=null;
-      applyCenterDefenseGesture(el,'Ballon défendu');
+      applyCenterDiagramGesture(el,false);
     },260);
   });
 
   el.addEventListener('dblclick',ev=>{
-    if(!isCenterDefense())return;
+    if(!isCenterDiagram())return;
     ev.preventDefault();
     clearTimeout(st.simpleTimer);
     st.simpleTimer=null;
-    applyCenterDefenseGesture(el,'Échappé');
+    applyCenterDiagramGesture(el,true);
   });
 });
 
 const centerBall=$('#centerDefenseMap .ball');
 if(centerBall){
   centerBall.addEventListener('pointerup',ev=>{
-    if(!isCenterDefense())return;
+    if(!isCenterDiagram())return;
     ev.preventDefault();
-    applyCenterDefenseIllegal();
+    if(isCenterDefense()){
+      applyCenterDefenseIllegal();
+    }else if(isCenterAttack()){
+      actionResult='Faute attaque';
+      pending='Faute';
+      zone='';
+      $$('#centerDefenseMap .sector').forEach(x=>x.classList.remove('selected'));
+      $('#popup').classList.add('hidden');
+      openFaultPopup();
+    }
     if(navigator.vibrate)navigator.vibrate(35);
   });
 }
