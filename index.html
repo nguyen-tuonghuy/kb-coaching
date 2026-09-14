@@ -150,12 +150,29 @@ button:active{transform:scale(.985)}
   .centerDefenseMap .roleText{font-size:16px}
 }
 
+
+.matchLibraryToolbar{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;margin-bottom:12px}
+.matchLibraryCard{background:var(--panel2);border:1px solid var(--line);border-radius:13px;padding:11px;margin-bottom:8px}
+.matchLibraryMain{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.matchLibraryInfo{min-width:0;flex:1}
+.matchLibraryTitle{font-weight:800;line-height:1.25}
+.matchLibraryMeta{font-size:12px;color:var(--muted);margin-top:4px}
+.matchLibraryActions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.matchLibraryActions button{padding:7px 9px;font-size:12px}
+.matchTypeArchived{font-size:10px;border:1px solid var(--line);border-radius:999px;padding:2px 6px;margin-left:5px;color:var(--muted)}
+.matchReadTimeline .item{margin-bottom:7px}
+@media(max-width:650px){
+  .matchLibraryToolbar{grid-template-columns:1fr}
+  .matchLibraryMain{display:block}
+  .matchLibraryActions{margin-top:9px;justify-content:flex-start}
+}
+
 </style>
 </head>
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V2.2 Préliminaire — Défense R / A1 / P / A2</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V2.3 Préliminaire — Bibliothèque des matchs + types dynamiques</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -206,7 +223,7 @@ button:active{transform:scale(.985)}
     <button class="moduleCard primary" id="openMatchModule"><strong>🏐 Matchs</strong><span>Prise de notes et statistiques partagées du groupe</span></button>
     <button class="moduleCard" id="openTrainingModule"><strong>🎯 Entraînements</strong><span>Séances, exercices, résultats et progression des joueurs</span></button>
     <button class="moduleCard" id="openGroupsModule"><strong>👥 Groupes</strong><span>Effectifs et entraîneurs partageant les mêmes données</span></button>
-    <button class="moduleCard" id="openSettingsModule"><strong>⚙️ Paramètres</strong><span>Catégories d’exercices partagées entre entraîneurs</span></button>
+    <button class="moduleCard" id="openSettingsModule"><strong>⚙️ Paramètres</strong><span>Catégories d’exercices et types de match</span></button>
     <button class="moduleCard" id="openStatsModule"><strong>📊 Statistiques</strong><span>Dashboard d’entraînement : groupe, joueurs, exercices et classements</span></button>
    </div>
  </section>
@@ -225,6 +242,17 @@ button:active{transform:scale(.985)}
    </form>
    <div class="authStatus" id="categoryStatus" role="status" aria-live="polite"></div>
    <div id="categoryList" class="trainingList"></div>
+
+   <hr style="border:0;border-top:1px solid var(--line);margin:22px 0">
+
+   <h3 style="font-size:17px;margin:0 0 8px">Types de match</h3>
+   <p class="small" style="margin-bottom:14px">Le type sert à classer les matchs dans la bibliothèque. « Entraînement » est fixe ; les compétitions peuvent être créées avec leur nom exact, par exemple « CDE 2026 ».</p>
+   <form id="matchTypeCreateForm" class="row" style="align-items:end;margin-bottom:14px">
+    <div class="field"><label for="matchTypeName">Nouveau type</label><input id="matchTypeName" maxlength="100" required placeholder="ex. CDE 2026" autocomplete="off"></div>
+    <button class="primary" type="submit">＋ Ajouter un type</button>
+   </form>
+   <div class="authStatus" id="matchTypeStatus" role="status" aria-live="polite"></div>
+   <div id="matchTypeList" class="trainingList"></div>
  </section>
 
  <section class="panel hidden" id="groupsHome">
@@ -439,6 +467,41 @@ button:active{transform:scale(.985)}
    </div>
  </section>
 
+
+ <section class="panel hidden" id="matchLibrary">
+   <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div><h2 style="font-size:20px">Bibliothèque des matchs</h2><div class="small">Consulter, reprendre ou supprimer les prises de notes enregistrées.</div></div>
+    <button class="ghost" id="matchLibraryBack">← Matchs</button>
+   </div>
+   <div class="matchLibraryToolbar">
+    <input id="matchLibrarySearch" placeholder="Rechercher un match…">
+    <select id="matchLibraryGroup"><option value="">Tous les groupes</option></select>
+    <select id="matchLibraryType"><option value="">Tous les types</option></select>
+   </div>
+   <div class="small" id="matchLibraryCount" style="margin-bottom:8px"></div>
+   <div id="matchLibraryList"></div>
+ </section>
+
+ <section class="panel hidden" id="matchReadOnly">
+   <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div>
+      <h2 style="font-size:20px" id="matchReadTitle">Match</h2>
+      <div class="small" id="matchReadMeta"></div>
+    </div>
+    <button class="ghost" id="matchReadBack">← Bibliothèque</button>
+   </div>
+   <div class="row" style="margin-bottom:12px">
+    <button class="primary" id="matchReadResume">Reprendre la prise de notes</button>
+    <button class="ghost" id="matchReadDelete">Supprimer</button>
+   </div>
+   <div class="historyItem" style="margin-bottom:12px">
+     <div class="small">Joueurs du match</div>
+     <div id="matchReadPlayers" style="margin-top:5px"></div>
+   </div>
+   <h3 style="font-size:17px;margin-bottom:8px">Retranscription</h3>
+   <div class="matchReadTimeline" id="matchReadTimeline"></div>
+ </section>
+
  <section class="panel hidden" id="setup">
    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
     <h2 style="font-size:18px">Préparer le match</h2>
@@ -446,6 +509,7 @@ button:active{transform:scale(.985)}
    </div>
    <div class="row" style="margin-bottom:12px">
     <button class="primary" id="freshMatch">＋ Nouveau match</button>
+    <button class="ghost" id="openMatchLibrary">Bibliothèque des matchs</button>
    </div>
    <div class="matchHistory">
     <div class="field">
@@ -453,6 +517,7 @@ button:active{transform:scale(.985)}
      <select id="recentMatches"><option value="">— Nouveau match —</option></select>
     </div>
     <button class="ghost" id="resumeMatch">Ouvrir</button>
+    <button class="ghost" id="deleteSavedMatch" disabled>Supprimer</button>
    </div>
    <div id="matchAuditMeta" class="small hidden" style="margin:-4px 0 10px"></div>
    <div class="field" style="margin-bottom:10px">
@@ -461,6 +526,7 @@ button:active{transform:scale(.985)}
    </div>
    <div class="row">
     <div class="field"><label>Match</label><input id="matchName" value="Match test vidéo"></div>
+    <div class="field"><label>Type de match</label><select id="matchType"><option value="">— Aucun type —</option></select></div>
     <div class="field"><label>Équipe suivie</label><input id="teamName" value="Mon équipe"></div>
     <div class="field"><label>Équipe adverse 1</label><input id="opponentTeam1" placeholder="Équipe 2"></div>
     <div class="field"><label>Équipe adverse 2</label><input id="opponentTeam2" placeholder="Équipe 3"></div>
@@ -842,7 +908,7 @@ if(!window.supabase){
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
 let state={
-  matchName:'',teamName:'',opponentTeams:[],opponentTeamIds:{},matchDate:'',players:[],activePlayers:[],events:[],
+  matchName:'',matchTypeId:null,teamName:'',opponentTeams:[],opponentTeamIds:{},matchDate:'',players:[],activePlayers:[],events:[],
   currentMatchId:null,currentTeamId:null,workspaceId:null,playerIds:{},defenseRolesByPeriod:{}
 };
 let context='jeu_centre', pending=null, zone='', movement='', who='', whoMany=[], faultType='', faultWho='', editingId=null, opponentTeam='';
@@ -922,26 +988,28 @@ async function refreshRecentMatches(){
   const ids=groupState.groups.map(g=>g.id);
   if(!ids.length)return;
   const {data,error}=await db.from('matches')
-    .select('id,label,played_on,created_at,updated_at,created_by,updated_by,group_id,group:coaching_groups!matches_group_id_fkey(name),followed_team:teams!matches_team_id_fkey(name)')
+    .select('id,label,played_on,created_at,updated_at,created_by,updated_by,group_id,match_type_id,match_type:match_types!matches_match_type_id_fkey(name),group:coaching_groups!matches_group_id_fkey(name),followed_team:teams!matches_team_id_fkey(name)')
     .in('group_id',ids)
     .order('created_at',{ascending:false}).limit(40);
   if(error)throw error;
   await fetchProfiles((data||[]).flatMap(m=>[m.created_by,m.updated_by]));
   (data||[]).forEach(m=>{
     const o=document.createElement('option');o.value=m.id;
-    o.textContent=`${m.played_on?formatDateShort(m.played_on):'Date ?'} · ${m.label} · ${m.group?.name||m.followed_team?.name||'Groupe'}`;
+    o.textContent=`${m.played_on?formatDateShort(m.played_on):'Date ?'} · ${m.label}${m.match_type?.name?' · '+m.match_type.name:''} · ${m.group?.name||m.followed_team?.name||'Groupe'}`;
     o.dataset.createdBy=m.created_by||'';
     o.dataset.updatedBy=m.updated_by||'';
     o.dataset.createdAt=m.created_at||'';
     o.dataset.updatedAt=m.updated_at||'';
     sel.append(o);
   });
+  updateMatchAuditMeta();
 }
 
 function updateMatchAuditMeta(){
-  const sel=$('#recentMatches'),meta=$('#matchAuditMeta');
+  const sel=$('#recentMatches'),meta=$('#matchAuditMeta'),del=$('#deleteSavedMatch');
   if(!sel||!meta)return;
   const o=sel.selectedOptions?.[0];
+  if(del)del.disabled=!o?.value;
   if(!o || !o.value){meta.classList.add('hidden');meta.textContent='';return}
   const cName=auditName(o.dataset.createdBy),uName=auditName(o.dataset.updatedBy);
   const cDate=formatAuditDate(o.dataset.createdAt),uDate=formatAuditDate(o.dataset.updatedAt);
@@ -1068,7 +1136,7 @@ $('#logout').onclick=async()=>{
   hideMainModules();
   categoryState.categories=[];
   currentUser=null;
-  state={matchName:'',teamName:'',opponentTeams:[],opponentTeamIds:{},matchDate:'',players:[],activePlayers:[],events:[],currentMatchId:null,currentTeamId:null,workspaceId:null,playerIds:{},defenseRolesByPeriod:{}};
+  state={matchName:'',matchTypeId:null,teamName:'',opponentTeams:[],opponentTeamIds:{},matchDate:'',players:[],activePlayers:[],events:[],currentMatchId:null,currentTeamId:null,workspaceId:null,playerIds:{},defenseRolesByPeriod:{}};
   localStorage.removeItem(KEY);
   $('#live').classList.add('hidden');
   $('#footer').classList.add('hidden');
@@ -1381,6 +1449,7 @@ async function ensurePlayers(names){
 
 function resetForNewMatch(){
   state.matchName='';
+  state.matchTypeId=null;
   state.teamName='';
   state.opponentTeams=[];
   state.opponentTeamIds={};
@@ -1394,6 +1463,7 @@ function resetForNewMatch(){
   state.defenseRolesByPeriod={};
 
   $('#matchName').value='Match';
+  if($('#matchType'))$('#matchType').value='';
   $('#teamName').value='Mon équipe';
   $('#opponentTeam1').value='';
   $('#opponentTeam2').value='';
@@ -1429,6 +1499,7 @@ async function start(){
   try{
     setCloud('Enregistrement…',true);
     state.matchName=$('#matchName').value.trim()||'Match';
+    state.matchTypeId=$('#matchType').value||null;
     state.teamName=$('#teamName').value.trim()||'Mon équipe';
     state.opponentTeams=[$('#opponentTeam1').value.trim(),$('#opponentTeam2').value.trim()];
     if(state.opponentTeams.some(x=>!x)){alert('Renseigne le nom des 3 équipes du match.');return}
@@ -1462,6 +1533,7 @@ async function start(){
       team_id:state.currentTeamId,
       opponent_team_1_id:state.opponentTeamIds[state.opponentTeams[0]],
       opponent_team_2_id:state.opponentTeamIds[state.opponentTeams[1]],
+      match_type_id:state.matchTypeId,
       label:state.matchName,
       played_on:state.matchDate,
       status:'draft'
@@ -1582,7 +1654,7 @@ async function loadMatch(matchId){
   try{
     setCloud('Chargement…',true);
     const [{data:m,error:me},{data:players,error:pe},{data:events,error:ee}] = await Promise.all([
-      db.from('matches').select('id,label,played_on,group_id,team_id,opponent_team_1_id,opponent_team_2_id,followed_team:teams!matches_team_id_fkey(name)').eq('id',matchId).single(),
+      db.from('matches').select('id,label,played_on,group_id,team_id,match_type_id,opponent_team_1_id,opponent_team_2_id,followed_team:teams!matches_team_id_fkey(name)').eq('id',matchId).single(),
       Promise.resolve({data:[],error:null}),
       db.from('match_events').select('*').eq('match_id',matchId).order('sequence_no',{ascending:true})
     ]);
@@ -1593,6 +1665,7 @@ async function loadMatch(matchId){
     state.defenseRolesByPeriod=(localMatch.currentMatchId===matchId&&localMatch.defenseRolesByPeriod)?localMatch.defenseRolesByPeriod:{};
     state.currentTeamId=m.team_id;
     state.matchName=m.label;
+    state.matchTypeId=m.match_type_id||null;
     state.teamName=m.followed_team?.name||'Mon équipe';
     const opponentIds=[m.opponent_team_1_id,m.opponent_team_2_id].filter(Boolean);
     let opponentRows=[];
@@ -1666,6 +1739,8 @@ async function loadMatch(matchId){
     state.activePlayers=(last?.activePlayers?.length?last.activePlayers:(mp||[]).filter(x=>x.started_on_court).map(x=>idToName[x.player_id]).filter(Boolean));
 
     $('#matchName').value=state.matchName;
+    await fetchMatchTypes();
+    populateMatchTypeSelect($('#matchType'),{selected:state.matchTypeId,includeArchivedId:state.matchTypeId});
     $('#teamName').value=state.teamName;
     $('#opponentTeam1').value=state.opponentTeams[0]||'';
     $('#opponentTeam2').value=state.opponentTeams[1]||'';
@@ -1677,6 +1752,53 @@ async function loadMatch(matchId){
     renderPlayers();render();saveLocal();
     setCloud('Synchronisé',true);
   }catch(e){handleError('loadMatch',e)}
+}
+
+
+async function deleteSavedMatch(matchId){
+  const sel=$('#recentMatches');
+  const option=[...sel.options].find(o=>o.value===matchId);
+  if(!option)return;
+
+  const label=option.textContent||'ce match';
+  const ok=confirm(`Supprimer définitivement ${label} ?\n\nToutes les prises de notes et compositions liées à ce match seront supprimées. Cette action est irréversible.`);
+  if(!ok)return;
+
+  const btn=$('#deleteSavedMatch');
+  if(btn)btn.disabled=true;
+  setCloud('Suppression…',true);
+
+  try{
+    const {data,error}=await db.from('matches').delete().eq('id',matchId).select('id').single();
+    if(error)throw error;
+    if(!data?.id)throw new Error('Le match n’a pas pu être supprimé.');
+
+    if(state.currentMatchId===matchId){
+      state.currentMatchId=null;
+      state.events=[];
+      state.defenseRolesByPeriod={};
+      const local=loadLocal();
+      if(local.currentMatchId===matchId){
+        localStorage.setItem(KEY,JSON.stringify({
+          currentMatchId:null,
+          workspaceId:state.workspaceId,
+          defenseRolesByPeriod:{}
+        }));
+      }
+    }
+
+    await refreshRecentMatches();
+    matchLibraryState.matches=matchLibraryState.matches.filter(m=>m.id!==matchId);
+    if($('#matchLibrary')&&!$('#matchLibrary').classList.contains('hidden'))renderMatchLibrary();
+    sel.value='';
+    updateMatchAuditMeta();
+    setCloud('Synchronisé',true);
+  }catch(e){
+    setCloud('Erreur',false);
+    handleError('delete match',e);
+  }finally{
+    if(btn)btn.disabled=!sel.value;
+  }
 }
 
 function buildOutcomeButtons(){
@@ -1853,6 +1975,7 @@ $('#start').onclick=()=>{
 };
 $('#recentMatches').onchange=updateMatchAuditMeta;
 $('#resumeMatch').onclick=()=>{const id=$('#recentMatches').value;if(id)loadMatch(id)};
+$('#deleteSavedMatch').onclick=()=>{const id=$('#recentMatches').value;if(id)deleteSavedMatch(id)};
 $('#editPlayers').onclick=()=>$('#playerEditor').classList.remove('hidden');
 $('#closeEditor').onclick=()=>$('#playerEditor').classList.add('hidden');
 $('#editLast').onclick=()=>{const last=state.events.at(-1);if(last)editEvent(last.id)};
@@ -1912,6 +2035,118 @@ function eventAttributionLabel(e){
   if(e.attributedPlayers?.length) return e.attributedPlayers.join(', ');
   return e.player||'Collectif/non spécifié';
 }
+
+
+// ===== TYPES DE MATCH =====
+const matchTypeState={types:[],busy:false};
+function matchTypeById(id){return matchTypeState.types.find(t=>t.id===id)}
+function normalizeMatchTypeName(name){
+  return String(name||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+}
+function populateMatchTypeSelect(select,{selected=select?.value||'',all=false,includeArchivedId=null}={}){
+  if(!select)return;
+  select.innerHTML='';
+  const first=document.createElement('option');
+  first.value='';first.textContent=all?'Tous les types':'— Aucun type —';
+  select.append(first);
+  matchTypeState.types.filter(t=>all||t.active||t.id===includeArchivedId).forEach(t=>{
+    const o=document.createElement('option');o.value=t.id;
+    o.textContent=t.name+(t.active?'':' · archivé');
+    select.append(o);
+  });
+  if([...select.options].some(o=>o.value===selected))select.value=selected;
+}
+async function fetchMatchTypes(){
+  const {data,error}=await db.from('match_types')
+    .select('id,name,slug,active,is_native,created_by,created_at,updated_by,updated_at')
+    .order('is_native',{ascending:false}).order('name');
+  if(error)throw error;
+  matchTypeState.types=data||[];
+  populateMatchTypeSelect($('#matchType'));
+  populateMatchTypeSelect($('#matchLibraryType'),{all:true});
+}
+function matchTypeMessage(message,error=false){
+  const st=$('#matchTypeStatus');if(!st)return;
+  st.textContent=message;st.className='authStatus '+(error?'cloudErr':'cloudOk');
+}
+function validateMatchTypeName(name,exceptId=null){
+  const cleaned=String(name||'').replace(/\s+/g,' ').trim();
+  if(!cleaned||cleaned.length>100)throw new Error('Le nom doit contenir entre 1 et 100 caractères.');
+  const dup=matchTypeState.types.find(t=>t.id!==exceptId&&normalizeMatchTypeName(t.name)===normalizeMatchTypeName(cleaned));
+  if(dup)throw new Error(dup.active?'Un type porte déjà ce nom.':'Ce type existe déjà : réactive-le dans la liste.');
+  return cleaned;
+}
+async function updateCustomMatchType(id,changes){
+  const t=matchTypeById(id);
+  if(!t||t.is_native)throw new Error('Ce type est fixe.');
+  const {error}=await db.from('match_types').update(changes).eq('id',id).eq('is_native',false).select('id').single();
+  if(error)throw error;
+}
+async function fetchMatchTypeUsage(id){
+  const {data,error}=await db.rpc('get_match_type_usage',{p_match_type_id:id});
+  if(error)throw error;
+  return data||{match_count:0,used:false};
+}
+async function deleteCustomMatchType(id){
+  const t=matchTypeById(id);
+  if(!t||t.is_native)throw new Error('Ce type est fixe.');
+  const usage=await fetchMatchTypeUsage(id);
+  if(Number(usage.match_count||0)>0){
+    throw new Error(`Ce type est utilisé par ${usage.match_count} match${Number(usage.match_count)>1?'s':''}. Archive-le plutôt.`);
+  }
+  if(!confirm(`Supprimer définitivement le type « ${t.name} » ?`))return false;
+  const {error}=await db.from('match_types').delete().eq('id',id).eq('is_native',false).select('id').single();
+  if(error)throw error;
+  return true;
+}
+async function runMatchTypeAction(action){
+  if(matchTypeState.busy)return;
+  matchTypeState.busy=true;matchTypeMessage('Enregistrement…');
+  try{
+    await action();
+    await fetchMatchTypes();
+    renderMatchTypeSettings();
+    matchTypeMessage('Types de match enregistrés ✓');
+  }catch(e){
+    if(e.message==='__cancel__')matchTypeMessage('');
+    else matchTypeMessage(e.code==='23505'?'Ce nom existe déjà.':(e.message||String(e)),true);
+  }finally{matchTypeState.busy=false}
+}
+function renderMatchTypeSettings(){
+  const list=$('#matchTypeList');if(!list)return;
+  list.replaceChildren();
+  matchTypeState.types.forEach(t=>{
+    const card=document.createElement('div');card.className='trainingCard';
+    const row=document.createElement('div');row.className='row';row.style.alignItems='center';
+    const info=document.createElement('div');info.style.cssText='flex:1 1 160px;min-width:0';
+    const name=document.createElement('strong');name.textContent=t.name;
+    const status=document.createElement('div');status.className='small';
+    status.textContent=t.is_native?'Fixe':t.active?'Actif':'Archivé';
+    info.append(name,status);row.append(info);card.append(row);
+    if(!t.is_native){
+      const actions=document.createElement('div');actions.className='row';
+      const rename=document.createElement('button');rename.className='ghost';rename.textContent='Renommer';
+      const toggle=document.createElement('button');toggle.className='ghost';toggle.textContent=t.active?'Archiver':'Réactiver';
+      const remove=document.createElement('button');remove.className='ghost';remove.textContent='Supprimer';
+      toggle.onclick=()=>runMatchTypeAction(()=>updateCustomMatchType(t.id,{active:!t.active}));
+      remove.onclick=()=>runMatchTypeAction(async()=>{const ok=await deleteCustomMatchType(t.id);if(ok===false)throw new Error('__cancel__')});
+      rename.onclick=()=>{
+        if(card.querySelector('form'))return;
+        const form=document.createElement('form');form.className='row';form.style.marginTop='9px';
+        const field=document.createElement('div');field.className='field';
+        const input=document.createElement('input');input.value=t.name;input.maxLength=100;input.required=true;
+        const save=document.createElement('button');save.className='primary';save.type='submit';save.textContent='Enregistrer';
+        const cancel=document.createElement('button');cancel.className='ghost';cancel.type='button';cancel.textContent='Annuler';
+        cancel.onclick=()=>form.remove();
+        form.onsubmit=ev=>{ev.preventDefault();runMatchTypeAction(()=>updateCustomMatchType(t.id,{name:validateMatchTypeName(input.value,t.id)}))};
+        field.append(input);form.append(field,save,cancel);card.append(form);input.focus();input.select();
+      };
+      actions.append(rename,toggle,remove);row.append(actions);
+    }
+    list.append(card);
+  });
+}
+
 
 // ===== MODULE ENTRAÎNEMENT V2.0 PRÉLIMINAIRE =====
 const categoryState={categories:[],busy:false};
@@ -2068,9 +2303,11 @@ function renderCategorySettings(){
 }
 async function openSettingsModule(){
   hideMainModules();setMatchHeaderMode(false);$('#settingsHome').classList.remove('hidden');
-  $('#categoryList').replaceChildren();categoryMessage('Chargement…');
-  try{await fetchExerciseCategories();renderCategorySettings();categoryMessage('')}
-  catch(e){categoryMessage(e.message||String(e),true)}
+  $('#categoryList').replaceChildren();$('#matchTypeList').replaceChildren();categoryMessage('Chargement…');matchTypeMessage('Chargement…');
+  try{
+    await Promise.all([fetchExerciseCategories(),fetchMatchTypes()]);
+    renderCategorySettings();renderMatchTypeSettings();categoryMessage('');matchTypeMessage('');
+  }catch(e){categoryMessage(e.message||String(e),true);matchTypeMessage(e.message||String(e),true)}
   window.scrollTo({top:0,behavior:'instant'});
 }
 $('#openSettingsModule').onclick=openSettingsModule;
@@ -2082,6 +2319,15 @@ $('#categoryCreateForm').onsubmit=event=>{
     const {error}=await db.from('exercise_categories').insert({name}).select('id').single();
     if(error)throw error;
     $('#categoryName').value='';
+  });
+};
+$('#matchTypeCreateForm').onsubmit=event=>{
+  event.preventDefault();
+  runMatchTypeAction(async()=>{
+    const name=validateMatchTypeName($('#matchTypeName').value);
+    const {error}=await db.from('match_types').insert({name,created_by:currentUser?.id||null}).select('id').single();
+    if(error)throw error;
+    $('#matchTypeName').value='';
   });
 };
 
@@ -2380,7 +2626,7 @@ function setMatchHeaderMode(isMatch){
 }
 
 function hideMainModules(){
-  ['settingsHome','appHome','setup','live','groupsHome','groupDetail','trainingHome','trainingSession','trainingDuplicate','exerciseLibrary','trainingHistory','statsHome'].forEach(id=>$('#'+id)?.classList.add('hidden'));
+  ['settingsHome','appHome','setup','live','matchLibrary','matchReadOnly','groupsHome','groupDetail','trainingHome','trainingSession','trainingDuplicate','exerciseLibrary','trainingHistory','statsHome'].forEach(id=>$('#'+id)?.classList.add('hidden'));
   $('#footer').classList.add('hidden');
   $('#newMatchTop').classList.add('hidden');
 }
@@ -2391,8 +2637,134 @@ function showAppHome(){
   setCloud('Synchronisé',true);
   window.scrollTo({top:0,behavior:'instant'});
 }
-async function openMatchModule(){
+
+let matchLibraryState={matches:[],currentReadId:null};
+
+async function fetchMatchLibrary(){
+  if(!groupState.groups.length)await fetchMyGroups();
+  await fetchMatchTypes();
+  const groupIds=groupState.groups.map(g=>g.id);
+  if(!groupIds.length){matchLibraryState.matches=[];return}
+  const {data,error}=await db.from('matches')
+    .select('id,label,played_on,status,group_id,match_type_id,created_at,updated_at,created_by,updated_by,match_type:match_types!matches_match_type_id_fkey(name,active),group:coaching_groups!matches_group_id_fkey(name),followed_team:teams!matches_team_id_fkey(name),opponent1:teams!matches_opponent_team_1_id_fkey(name),opponent2:teams!matches_opponent_team_2_id_fkey(name),match_events(count)')
+    .in('group_id',groupIds)
+    .order('played_on',{ascending:false})
+    .order('created_at',{ascending:false});
+  if(error)throw error;
+  matchLibraryState.matches=data||[];
+  await fetchProfiles(matchLibraryState.matches.flatMap(m=>[m.created_by,m.updated_by]));
+}
+function populateMatchLibraryFilters(){
+  const gs=$('#matchLibraryGroup');if(gs){
+    const current=gs.value;gs.innerHTML='<option value="">Tous les groupes</option>';
+    groupState.groups.forEach(g=>{const o=document.createElement('option');o.value=g.id;o.textContent=g.name;gs.append(o)});
+    if([...gs.options].some(o=>o.value===current))gs.value=current;
+  }
+  populateMatchTypeSelect($('#matchLibraryType'),{all:true,selected:$('#matchLibraryType')?.value||''});
+}
+function matchActionCount(m){
+  const x=Array.isArray(m.match_events)?m.match_events[0]?.count:0;
+  return Number(x||0);
+}
+function renderMatchLibrary(){
+  const list=$('#matchLibraryList');if(!list)return;
+  const q=($('#matchLibrarySearch')?.value||'').trim().toLowerCase();
+  const gid=$('#matchLibraryGroup')?.value||'';
+  const tid=$('#matchLibraryType')?.value||'';
+  const rows=matchLibraryState.matches.filter(m=>{
+    if(gid&&m.group_id!==gid)return false;
+    if(tid&&m.match_type_id!==tid)return false;
+    const hay=[m.label,m.group?.name,m.followed_team?.name,m.opponent1?.name,m.opponent2?.name,m.match_type?.name].filter(Boolean).join(' ').toLowerCase();
+    return !q||hay.includes(q);
+  });
+  $('#matchLibraryCount').textContent=`${rows.length} match${rows.length>1?'s':''} affiché${rows.length>1?'s':''} sur ${matchLibraryState.matches.length}`;
+  list.innerHTML='';
+  if(!rows.length){list.innerHTML='<div class="small">Aucun match ne correspond à ces critères.</div>';return}
+  rows.forEach(m=>{
+    const card=document.createElement('div');card.className='matchLibraryCard';
+    const opponents=[m.opponent1?.name,m.opponent2?.name].filter(Boolean).join(' / ');
+    const type=m.match_type?.name||'Sans type';
+    const n=matchActionCount(m);
+    card.innerHTML=`<div class="matchLibraryMain">
+      <div class="matchLibraryInfo">
+        <div class="matchLibraryTitle">${statsEscape(formatDateShort(m.played_on)||'Date ?')} · ${statsEscape(m.label)}</div>
+        <div class="matchLibraryMeta">${statsEscape(type)}${m.match_type&&!m.match_type.active?'<span class="matchTypeArchived">archivé</span>':''} · ${statsEscape(m.group?.name||m.followed_team?.name||'Groupe')}${opponents?' · vs '+statsEscape(opponents):''} · ${n} action${n>1?'s':''}</div>
+      </div>
+      <div class="matchLibraryActions">
+        <button class="ghost" data-consult="${m.id}">Consulter</button>
+        <button class="ghost" data-resume="${m.id}">Reprendre</button>
+        <button class="ghost" data-delete="${m.id}">Supprimer</button>
+      </div>
+    </div>`;
+    card.querySelector('[data-consult]').onclick=()=>openMatchReadOnly(m.id).catch(e=>handleError('consult match',e));
+    card.querySelector('[data-resume]').onclick=()=>loadMatch(m.id);
+    card.querySelector('[data-delete]').onclick=async()=>{await deleteSavedMatch(m.id);await openMatchLibrary()};
+    list.append(card);
+  });
+}
+async function openMatchLibrary(){
+  hideMainModules();setMatchHeaderMode(false);
+  $('#matchLibrary').classList.remove('hidden');
+  $('#matchLibraryList').innerHTML='<div class="small">Chargement…</div>';
   await fetchMyGroups();
+  await fetchMatchLibrary();
+  populateMatchLibraryFilters();
+  renderMatchLibrary();
+  window.scrollTo({top:0,behavior:'instant'});
+}
+async function openMatchReadOnly(matchId){
+  const {data:m,error:me}=await db.from('matches')
+    .select('id,label,played_on,group_id,match_type_id,team_id,created_at,updated_at,created_by,updated_by,match_type:match_types!matches_match_type_id_fkey(name),group:coaching_groups!matches_group_id_fkey(name),followed_team:teams!matches_team_id_fkey(name),opponent1:teams!matches_opponent_team_1_id_fkey(name),opponent2:teams!matches_opponent_team_2_id_fkey(name)')
+    .eq('id',matchId).single();
+  if(me)throw me;
+  const [{data:events,error:ee},{data:mp,error:pe}]=await Promise.all([
+    db.from('match_events').select('*').eq('match_id',matchId).order('sequence_no',{ascending:true}),
+    db.from('match_players').select('player_id,players!match_players_player_id_fkey(display_name)').eq('match_id',matchId)
+  ]);
+  if(ee)throw ee;if(pe)throw pe;
+  const ids=(events||[]).map(e=>e.id);
+  let attributions=[],lineups=[];
+  if(ids.length){
+    const [a,l]=await Promise.all([
+      db.from('match_event_attributions').select('event_id,player_id,players!match_event_attributions_player_id_fkey(display_name)').in('event_id',ids),
+      db.from('match_event_lineup').select('event_id,player_id,players!match_event_lineup_player_id_fkey(display_name)').in('event_id',ids)
+    ]);
+    if(a.error)throw a.error;if(l.error)throw l.error;
+    attributions=a.data||[];lineups=l.data||[];
+  }
+  const attMap={},lineMap={};
+  attributions.forEach(x=>{const n=x.players?.display_name;if(n)(attMap[x.event_id]??=[]).push(n)});
+  lineups.forEach(x=>{const n=x.players?.display_name;if(n)(lineMap[x.event_id]??=[]).push(n)});
+  const teamIds=[m.team_id,m.opponent1?.id,m.opponent2?.id].filter(Boolean);
+  const opponents={};
+  const playerIds=[...new Set((events||[]).map(e=>e.player_id).filter(Boolean))];
+  let playerMap={};
+  if(playerIds.length){
+    const {data,error}=await db.from('players').select('id,display_name').in('id',playerIds);
+    if(error)throw error;playerMap=Object.fromEntries((data||[]).map(p=>[p.id,p.display_name]));
+  }
+  $('#matchReadTitle').textContent=m.label;
+  const opp=[m.opponent1?.name,m.opponent2?.name].filter(Boolean).join(' / ');
+  $('#matchReadMeta').textContent=`${formatDateShort(m.played_on)} · ${m.match_type?.name||'Sans type'} · ${m.group?.name||m.followed_team?.name||'Groupe'}${opp?' · vs '+opp:''}`;
+  $('#matchReadPlayers').textContent=(mp||[]).map(x=>x.players?.display_name).filter(Boolean).join(' · ')||'—';
+  const box=$('#matchReadTimeline');box.innerHTML='';
+  if(!(events||[]).length)box.innerHTML='<div class="small">Aucune prise de note.</div>';
+  (events||[]).forEach(e=>{
+    const action=e.action_type==='attaque'?'Attaque':e.action_type==='defense'?'Défense':'Faute';
+    const result=action==='Faute'?(e.fault_type||'Faute'):`${action} · ${e.result||''}`;
+    const attr=(attMap[e.id]||[]).join(', ')||(e.player_id?playerMap[e.player_id]:'')||'Collectif/non spécifié';
+    const d=document.createElement('div');d.className='item';
+    d.innerHTML=`<div class="time">${e.video_position||''}<br>${e.period||''}</div><div><strong>${statsEscape(result)}</strong><div class="small">${statsEscape(eventContext(e.family,e.restart_location))}${e.zone?' · '+statsEscape(({E1:'A1',E2:'P',E3:'A2'}[e.zone]||e.zone)):''}${e.movement!=null?' · déplacement '+(e.movement?'oui':'non'):''} · ${statsEscape(attr)}</div></div>`;
+    box.append(d);
+  });
+  matchLibraryState.currentReadId=matchId;
+  hideMainModules();setMatchHeaderMode(false);$('#matchReadOnly').classList.remove('hidden');
+  window.scrollTo({top:0,behavior:'instant'});
+}
+
+
+async function openMatchModule(){
+  await Promise.all([fetchMyGroups(),fetchMatchTypes()]);
   hideMainModules();
   setMatchHeaderMode(true);
   $('#setup').classList.remove('hidden');
@@ -2401,6 +2773,7 @@ async function openMatchModule(){
   if(!groupState.groups.length){
     $('#matchGroupHint').textContent='Crée ou rejoins d’abord un groupe dans le volet Groupes.';
   }
+  populateMatchTypeSelect($('#matchType'),{selected:state.matchTypeId||''});
   if(!$('#matchGroup').value && groupState.groups.length) $('#matchGroup').value=groupState.groups[0].id;
   if($('#matchGroup').value) await loadMatchGroupPlayers($('#matchGroup').value);
   window.scrollTo({top:0,behavior:'instant'});
@@ -3446,6 +3819,14 @@ $('#openTrainingModule').onclick=()=>openTrainingModule();
 $('#openGroupsModule').onclick=()=>openGroupsModule();
 $('#matchBackHome').onclick=showAppHome;
 $('#liveBackHome').onclick=showAppHome;
+$('#openMatchLibrary').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
+$('#matchLibraryBack').onclick=()=>openMatchModule().catch(e=>handleError('openMatchModule',e));
+$('#matchReadBack').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
+$('#matchReadResume').onclick=()=>{const id=matchLibraryState.currentReadId;if(id)loadMatch(id)};
+$('#matchReadDelete').onclick=async()=>{const id=matchLibraryState.currentReadId;if(id){await deleteSavedMatch(id);await openMatchLibrary()}};
+$('#matchLibrarySearch').oninput=renderMatchLibrary;
+$('#matchLibraryGroup').onchange=renderMatchLibrary;
+$('#matchLibraryType').onchange=renderMatchLibrary;
 $('#trainingBackHome').onclick=showAppHome;
 
 $('#groupsBackHome').onclick=showAppHome;
