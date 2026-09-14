@@ -167,12 +167,151 @@ button:active{transform:scale(.985)}
   .matchLibraryActions{margin-top:9px;justify-content:flex-start}
 }
 
+
+/* Saisie compacte : Défense au centre
+   Le schéma et Enregistrer restent grands ; le reste sert surtout à corriger. */
+#popup.centerDefenseCompact{
+  padding:3px;
+  align-items:center;
+}
+#popup.centerDefenseCompact .sheet{
+  width:min(900px,100%);
+  max-height:calc(100dvh - 6px);
+  padding:6px 8px;
+  border-radius:14px;
+  overflow:auto;
+}
+#popup.centerDefenseCompact .sheetTop{
+  position:static;
+  padding:0 0 2px;
+  min-height:0;
+}
+#popup.centerDefenseCompact .sheetTop h2{font-size:15px;margin:0}
+#popup.centerDefenseCompact .sheetTop .meta{margin:0;font-size:10px}
+#popup.centerDefenseCompact .closePopup{
+  width:28px;height:28px;padding:0;font-size:17px;
+}
+#popup.centerDefenseCompact .step{margin-top:4px}
+#popup.centerDefenseCompact .step h3{
+  font-size:10px;
+  margin:0 0 2px;
+}
+#popup.centerDefenseCompact .options{gap:3px}
+#popup.centerDefenseCompact .options button{
+  min-height:27px;
+  padding:3px 5px;
+  font-size:9.5px;
+  line-height:1.05;
+  border-radius:7px;
+}
+#popup.centerDefenseCompact #opponentOptions,
+#popup.centerDefenseCompact #moveOptions{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+}
+#popup.centerDefenseCompact #resultOptions{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+}
+#popup.centerDefenseCompact #whoOptions{
+  grid-template-columns:repeat(5,minmax(0,1fr));
+}
+#popup.centerDefenseCompact #whoOptions .full{grid-column:auto}
+#popup.centerDefenseCompact .centerDefenseGestureHint{
+  margin:0 0 3px!important;
+  font-size:9px;
+  line-height:1.1;
+}
+#popup.centerDefenseCompact .centerDefenseRoleEditor{margin-bottom:3px}
+#popup.centerDefenseCompact .centerDefenseRoleEditorGrid{
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:3px;
+}
+#popup.centerDefenseCompact .centerDefenseRoleEditorGrid label{
+  font-size:8px;
+  margin-bottom:1px;
+}
+#popup.centerDefenseCompact .centerDefenseRoleEditorGrid select{
+  padding:2px 3px;
+  min-height:25px;
+  font-size:9.5px;
+}
+#popup.centerDefenseCompact .centerDefenseMapWrap{
+  padding:2px;
+  border-radius:9px;
+}
+#popup.centerDefenseCompact .centerDefenseMap{
+  max-height:min(36dvh,300px);
+}
+#popup.centerDefenseCompact #clearCenterDefenseZone{
+  min-height:24px;
+  padding:2px 5px;
+  font-size:9px;
+}
+#popup.centerDefenseCompact #centerDefenseMapStep > .row{
+  margin-top:2px!important;
+}
+#popup.centerDefenseCompact .popupActionBar{
+  position:sticky;
+  bottom:-6px;
+  z-index:3;
+  margin:5px -1px -4px!important;
+  padding:5px 1px 1px;
+  background:#161a21;
+  gap:4px;
+}
+#popup.centerDefenseCompact #cancelPopup{
+  flex:.55!important;
+  min-height:34px;
+  padding:4px 6px;
+  font-size:10px;
+}
+#popup.centerDefenseCompact #savePopup{
+  flex:2.45!important;
+  min-height:52px;
+  padding:8px 10px;
+  font-size:16px;
+  font-weight:800;
+}
+@media(max-width:560px){
+  #popup.centerDefenseCompact .sheet{padding:4px 5px}
+  #popup.centerDefenseCompact .centerDefenseMap{
+    max-height:min(34dvh,245px);
+  }
+  #popup.centerDefenseCompact #whoOptions{
+    grid-template-columns:repeat(5,minmax(0,1fr));
+  }
+  #popup.centerDefenseCompact .options button{
+    min-height:25px;
+    font-size:9px;
+    padding:2px 3px;
+  }
+  #popup.centerDefenseCompact .centerDefenseMap .roleText{font-size:15px}
+  #popup.centerDefenseCompact .centerDefenseMap .ballText{font-size:16px}
+}
+@media(max-height:720px){
+  #popup.centerDefenseCompact .centerDefenseMap{
+    max-height:min(31dvh,205px);
+  }
+  #popup.centerDefenseCompact .step{margin-top:3px}
+  #popup.centerDefenseCompact .centerDefenseGestureHint{
+    font-size:8px;
+  }
+  #popup.centerDefenseCompact #clearCenterDefenseZone{
+    display:none;
+  }
+  #popup.centerDefenseCompact .options button{
+    min-height:23px;
+  }
+  #popup.centerDefenseCompact #savePopup{
+    min-height:48px;
+  }
+}
+
 </style>
 </head>
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V2.4 Préliminaire — Bouton d’enregistrement corrigé</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V2.4 Préliminaire — Défense au centre optimisée tactile</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -824,7 +963,7 @@ button:active{transform:scale(.985)}
 
    <div class="step hidden" id="centerDefenseMapStep">
     <h3>Zone de responsabilité</h3>
-    <div class="small" style="margin-bottom:8px">Affecte les postes en regardant le schéma, puis sélectionne la zone : <strong>clic / tap simple = ballon défendu</strong> · <strong>double-clic ou appui long = échappé</strong>. <strong>Double-tap / double-clic sur le ballon = défensive illégale.</strong> Les boutons de résultat restent visibles pour confirmer ou corriger la sélection.</div>
+    <div class="small centerDefenseGestureHint">Zone : <strong>1 tap = défendu</strong> · <strong>2 taps / appui long = échappé</strong> · Ballon : <strong>2 taps / appui long = défensive illégale</strong>.</div>
 
     <div class="centerDefenseRoleEditor">
       <div class="centerDefenseRoleEditorGrid">
@@ -871,9 +1010,9 @@ button:active{transform:scale(.985)}
     <h3 id="whoTitle">Attribution — facultatif</h3>
     <div class="options" id="whoOptions"></div>
    </div>
-   <div class="row" style="margin-top:14px">
+   <div class="row popupActionBar" style="margin-top:14px">
     <button class="ghost" style="flex:1" id="cancelPopup">Annuler</button>
-    <button class="primary" style="flex:2" id="savePopup" disabled>Enregistrer</button>
+    <button class="primary" style="flex:2" id="savePopup">Enregistrer</button>
    </div>
  </div>
 </div>
@@ -1953,15 +2092,23 @@ function buildOpponentOptions(){
   });
   $('#opponentTitle').textContent=actionType==='Attaque'?'Équipe attaquée':'Équipe attaquante';
 }
+function missingActionFields(){
+  const missing=[];
+  if(!opponentTeam) missing.push(actionType==='Attaque'?'équipe attaquée':'équipe attaquante');
+  if(family==='remise'&&!restartLocation) missing.push('position de la remise en jeu');
+  if(!pending) missing.push('issue de l’action');
+  return missing;
+}
 function updatePopupSaveVisibility(){
-  const ready=!!pending && !!opponentTeam && (family!=='remise'||!!restartLocation);
   const btn=$('#savePopup');
   if(!btn)return;
-  btn.disabled=!ready;
-  btn.title=ready?'':'Choisis l’équipe adverse et renseigne l’issue de l’action.';
+  btn.disabled=false;
+  const missing=missingActionFields();
+  btn.title=missing.length?`À compléter : ${missing.join(', ')}`:'Enregistrer l’action';
 }
 function openActionPopup(selectedFamily,selectedActionType){
   family=selectedFamily;actionType=selectedActionType;restartLocation='';
+  $('#popup').classList.toggle('centerDefenseCompact',family==='centre'&&actionType==='Défense');
   context=family==='centre'?'centre':(family==='gel'?'gel':'remise_centre');
   pending=null;actionResult='';zone='';movement='Non';who='';whoMany=[];opponentTeam='';editingId=null;
   $('#popupTitle').textContent=actionType+(family==='centre'?' au centre':family==='gel'?' Gel':' sur remise en jeu');
@@ -1977,7 +2124,7 @@ function openActionPopup(selectedFamily,selectedActionType){
   $('#resultStep').classList.remove('hidden');
   configureZoneUI(family!=='gel');
   $('#moveStep').classList.remove('hidden');$('#whoStep').classList.remove('hidden');
-  $('#savePopup').disabled=true;
+  updatePopupSaveVisibility();
   configureWhoUI();
   $('#popup').classList.remove('hidden');resetPopupScroll('#popup');
 }
@@ -2058,8 +2205,37 @@ $('#clearCenterDefenseZone').onclick=clearCenterDefenseSectorSelection;
 const centerBall=$('#centerDefenseMap .ball');
 if(centerBall){
   let lastBallTap=0;
+  let ballLongTimer=null;
+  let ballLongTriggered=false;
+  let suppressBallTapUntil=0;
+
+  centerBall.addEventListener('pointerdown',ev=>{
+    if(!isCenterDefense())return;
+    ballLongTriggered=false;
+    clearTimeout(ballLongTimer);
+    ballLongTimer=setTimeout(()=>{
+      ballLongTriggered=true;
+      suppressBallTapUntil=Date.now()+700;
+      lastBallTap=0;
+      applyCenterDefenseIllegal();
+      if(navigator.vibrate)navigator.vibrate(45);
+    },480);
+  });
+
+  const cancelBallLong=()=>{
+    clearTimeout(ballLongTimer);
+    ballLongTimer=null;
+  };
+  centerBall.addEventListener('pointercancel',cancelBallLong);
+  centerBall.addEventListener('pointerleave',cancelBallLong);
+
   centerBall.addEventListener('pointerup',ev=>{
     if(!isCenterDefense())return;
+    cancelBallLong();
+    if(ballLongTriggered||Date.now()<suppressBallTapUntil){
+      ballLongTriggered=false;
+      return;
+    }
     const now=Date.now();
     if(now-lastBallTap<360){
       ev.preventDefault();
@@ -2070,9 +2246,12 @@ if(centerBall){
       lastBallTap=now;
     }
   });
+
   centerBall.addEventListener('dblclick',ev=>{
     if(!isCenterDefense())return;
     ev.preventDefault();
+    cancelBallLong();
+    if(Date.now()<suppressBallTapUntil)return;
     lastBallTap=0;
     applyCenterDefenseIllegal();
   });
@@ -2084,7 +2263,14 @@ $$('#moveOptions button').forEach(b=>b.onclick=()=>{movement=b.dataset.move;$$('
 $$('#faultTypes button').forEach(b=>b.onclick=()=>{faultType=b.dataset.fault;$$('#faultTypes button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice')});
 
 $('#savePopup').onclick=async()=>{
-  if(!pending)return;
+  const missing=missingActionFields();
+  if(missing.length){
+    const message=missing.length===1
+      ? `Impossible d’enregistrer : il manque le champ « ${missing[0]} ».`
+      : `Impossible d’enregistrer. Il manque :\n• ${missing.join('\n• ')}`;
+    alert(message);
+    return;
+  }
   try{
     setCloud('Enregistrement…',true);
     const isDefenseFault=actionType==='Défense'&&actionResult==='Défensive illégale';
@@ -2190,6 +2376,7 @@ function editEvent(id){
     $('#faultPopup').classList.remove('hidden');resetPopupScroll('#faultPopup');return
   }
   pending=e.action;actionType=e.action.startsWith('Attaque')?'Attaque':'Défense';
+  $('#popup').classList.toggle('centerDefenseCompact',family==='centre'&&actionType==='Défense');
   if(e.action.includes('Point marqué'))actionResult='Point marqué';
   else if(e.action.includes('Ballon défendu'))actionResult='Ballon défendu';
   else if(e.action.includes('Échappé'))actionResult='Échappé';
