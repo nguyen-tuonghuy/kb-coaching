@@ -172,7 +172,7 @@ button:active{transform:scale(.985)}
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V2.3 Préliminaire — Défense au centre avec retour visuel</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V2.3 Préliminaire — Défense au centre déplacement avant schéma</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -796,17 +796,6 @@ button:active{transform:scale(.985)}
     </div>
    </div>
 
-   <div class="step" id="resultStep">
-    <h3>Issue de l’action</h3>
-    <div class="options" id="resultOptions"></div>
-   </div>
-   <div class="step hidden" id="moveStep">
-    <h3>Déplacement — facultatif</h3>
-    <div class="options" id="moveOptions">
-      <button data-move="Non">SANS DÉPLACEMENT</button>
-      <button data-move="Oui">AVEC DÉPLACEMENT</button>
-    </div>
-   </div>
    <div class="step hidden" id="zoneStep">
     <h3>Zone — facultatif</h3>
     <div class="options" id="zoneOptions">
@@ -815,6 +804,14 @@ button:active{transform:scale(.985)}
       <button data-zone="EE">EE</button>
     </div>
    </div>
+   <div class="step hidden" id="moveStep">
+    <h3>Déplacement — facultatif</h3>
+    <div class="options" id="moveOptions">
+      <button data-move="Non">SANS DÉPLACEMENT</button>
+      <button data-move="Oui">AVEC DÉPLACEMENT</button>
+    </div>
+   </div>
+
    <div class="step hidden" id="centerDefenseMapStep">
     <h3>Zone de responsabilité</h3>
     <div class="small" style="margin-bottom:8px">Affecte les postes en regardant le schéma, puis sélectionne la zone : <strong>clic / tap simple = ballon défendu</strong> · <strong>double-clic ou appui long = échappé</strong>. <strong>Double-tap / double-clic sur le ballon = défensive illégale.</strong> Les boutons de résultat restent visibles pour confirmer ou corriger la sélection.</div>
@@ -851,6 +848,12 @@ button:active{transform:scale(.985)}
     <div class="row" style="margin-top:8px">
       <button class="ghost" id="clearCenterDefenseZone" style="flex:1">Zone non précisée</button>
     </div>
+   </div>
+
+
+   <div class="step" id="resultStep">
+    <h3>Issue de l’action</h3>
+    <div class="options" id="resultOptions"></div>
    </div>
 
 
@@ -1376,7 +1379,9 @@ function applyCenterDefenseIllegal(){
   movement='Non';
   $$('#centerDefenseMap .sector').forEach(x=>x.classList.remove('selected'));
   $$('#resultOptions button').forEach(x=>x.classList.toggle('choice',x===button));
-  configureZoneUI(false);
+  // The map must remain visible: only clear its selected sector.
+  $('#centerDefenseMapStep').classList.remove('hidden');
+  $('#zoneStep').classList.add('hidden');
   $('#moveStep').classList.add('hidden');
   $('#whoStep').classList.remove('hidden');
   configureWhoUI();
@@ -1856,7 +1861,14 @@ function handleOutcome(value,button){
   }
   if(actionType==='Défense'&&value==='Défensive illégale'){
     pending='Faute';faultType='Défensive illégale';zone='';movement='Non';
-    configureZoneUI(false);$('#moveStep').classList.add('hidden');$('#whoStep').classList.remove('hidden');
+    if(isCenterDefense()){
+      $('#centerDefenseMapStep').classList.remove('hidden');
+      $('#zoneStep').classList.add('hidden');
+      $$('#centerDefenseMap .sector').forEach(x=>x.classList.remove('selected'));
+    }else{
+      configureZoneUI(false);
+    }
+    $('#moveStep').classList.add('hidden');$('#whoStep').classList.remove('hidden');
     configureWhoUI();
     updatePopupSaveVisibility();
     return
