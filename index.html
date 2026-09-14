@@ -172,7 +172,7 @@ button:active{transform:scale(.985)}
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V2.3 Préliminaire — Défense au centre déplacement avant schéma</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V2.4 Préliminaire — Préférences de postes joueurs</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -300,8 +300,18 @@ button:active{transform:scale(.985)}
    <h3 style="font-size:16px;margin:0 0 8px">Effectif du groupe</h3>
    <div class="row" style="margin-bottom:10px">
     <div class="field"><input id="groupAddPlayers" placeholder="Noms séparés par des virgules"></div>
+    <div class="field">
+     <label>Poste habituel</label>
+     <select id="groupAddPlayerRole">
+      <option value="AP">A / P</option>
+      <option value="A">Ailier (A)</option>
+      <option value="P">Pointe (P)</option>
+      <option value="R">Rapproché (R)</option>
+     </select>
+    </div>
     <button class="primary" id="groupAddPlayersBtn">Ajouter</button>
    </div>
+   <div class="small" style="margin:-4px 0 10px">Préférence souple utilisée pour préremplir les postes en match. A1 et A2 sont équivalents.</div>
    <div id="groupPlayersList"></div>
 
    <h3 style="font-size:16px;margin:18px 0 8px">Entraîneurs</h3>
@@ -583,7 +593,7 @@ button:active{transform:scale(.985)}
     <div class="field"><label>P · Pointe</label><select id="defRoleP"></select></div>
     <div class="field"><label>A2 · Ailier 2</label><select id="defRoleA2"></select></div>
    </div>
-   <div class="small defenseRoleHint" id="defenseRoleHint">Ordre autour du ballon : R – A1 – P – A2.</div>
+   <div class="small defenseRoleHint" id="defenseRoleHint">Prérempli selon les postes habituels du groupe · modifiable à tout moment.</div>
   </section>
 
   <section class="panel hidden" id="playerEditor">
@@ -1139,7 +1149,7 @@ $('#logout').onclick=async()=>{
   hideMainModules();
   categoryState.categories=[];
   currentUser=null;
-  state={matchName:'',matchTypeId:null,teamName:'',opponentTeams:[],opponentTeamIds:{},matchDate:'',players:[],activePlayers:[],events:[],currentMatchId:null,currentTeamId:null,workspaceId:null,playerIds:{},defenseRolesByPeriod:{}};
+  state={matchName:'',matchTypeId:null,teamName:'',opponentTeams:[],opponentTeamIds:{},matchDate:'',players:[],activePlayers:[],events:[],currentMatchId:null,currentTeamId:null,workspaceId:null,playerIds:{},playerRolePreferences:{},defenseRolesByPeriod:{}};
   localStorage.removeItem(KEY);
   $('#live').classList.add('hidden');
   $('#footer').classList.add('hidden');
@@ -1214,6 +1224,44 @@ function currentDefensePeriod(){
 function validDefensePlayers(){
   return [...state.activePlayers].slice(0,4);
 }
+function preferredRoleForPlayer(name){
+  return state.playerRolePreferences?.[name]||'AP';
+}
+function buildPreferredDefenseRoleMap(players){
+  const map={R:'',A1:'',P:'',A2:''};
+  const remaining=players.map(name=>({name,pref:preferredRoleForPlayer(name)}));
+  const take=(slot,predicate)=>{
+    if(map[slot])return false;
+    const i=remaining.findIndex(predicate);
+    if(i<0)return false;
+    map[slot]=remaining.splice(i,1)[0].name;
+    return true;
+  };
+  const takeWing=predicate=>{
+    const slot=!map.A1?'A1':(!map.A2?'A2':null);
+    return slot?take(slot,predicate):false;
+  };
+
+  take('R',x=>x.pref==='R');
+  take('P',x=>x.pref==='P');
+  while((!map.A1||!map.A2) && remaining.some(x=>x.pref==='A')) takeWing(x=>x.pref==='A');
+
+  while(remaining.some(x=>x.pref==='AP') && (!map.P||!map.A1||!map.A2)){
+    if(!map.P) take('P',x=>x.pref==='AP');
+    else takeWing(x=>x.pref==='AP');
+  }
+
+  while(remaining.some(x=>x.pref==='P') && (!map.A1||!map.A2)) takeWing(x=>x.pref==='P');
+  if(!map.P) take('P',x=>x.pref==='A');
+  if(!map.P) take('P',x=>x.pref==='R');
+  while(remaining.some(x=>x.pref==='A') && (!map.A1||!map.A2)) takeWing(x=>x.pref==='A');
+  while(remaining.some(x=>x.pref==='R') && (!map.A1||!map.A2)) takeWing(x=>x.pref==='R');
+
+  const free=['R','P','A1','A2'].filter(slot=>!map[slot]);
+  const leftovers=[...remaining].sort(()=>Math.random()-.5);
+  free.forEach((slot,i)=>{map[slot]=leftovers[i]?.name||''});
+  return map;
+}
 function defenseRoleMap(period=currentDefensePeriod()){
   state.defenseRolesByPeriod ||= {};
   const players=validDefensePlayers();
@@ -1226,7 +1274,7 @@ function defenseRoleMap(period=currentDefensePeriod()){
     const prev=migrateDefenseRoleMap(prevRaw);
     if(prevRaw&&prev)state.defenseRolesByPeriod['P'+(n-1)]=prev;
     const prevValid=prev && DEFENSE_ROLES.every(r=>players.includes(prev[r])) && new Set(DEFENSE_ROLES.map(r=>prev[r])).size===4;
-    map=prevValid?{...prev}:Object.fromEntries(DEFENSE_ROLES.map((r,i)=>[r,players[i]||'']));
+    map=prevValid?{...prev}:buildPreferredDefenseRoleMap(players);
     state.defenseRolesByPeriod[period]=map;
     saveLocal();
   }
@@ -1377,6 +1425,8 @@ function applyCenterDefenseIllegal(){
   faultType='Défensive illégale';
   zone='';
   movement='Non';
+  const map=defenseRoleMap();
+  whoMany=map.R?[map.R]:[];
   $$('#centerDefenseMap .sector').forEach(x=>x.classList.remove('selected'));
   $$('#resultOptions button').forEach(x=>x.classList.toggle('choice',x===button));
   // The map must remain visible: only clear its selected sector.
@@ -1496,6 +1546,7 @@ function resetForNewMatch(){
   state.currentMatchId=null;
   state.currentTeamId=null;
   state.playerIds={};
+  state.playerRolePreferences={};
   state.defenseRolesByPeriod={};
 
   $('#matchName').value='Match';
@@ -1546,6 +1597,7 @@ async function start(){
     if(groupState.matchPlayers.length<4){alert('Le groupe doit contenir au moins 4 joueurs.');return}
     state.players=groupState.matchPlayers.map(p=>p.display_name);
     state.playerIds=Object.fromEntries(groupState.matchPlayers.map(p=>[p.display_name,p.id]));
+    state.playerRolePreferences=Object.fromEntries(groupState.matchPlayers.map(p=>[p.display_name,p.preferred_role||'AP']));
 
     const checked=$$('#rosterChecks input:checked');
     if(checked.length!==4){
@@ -1727,6 +1779,11 @@ async function loadMatch(matchId){
     }
     playerRows.forEach(p=>{state.playerIds[p.display_name]=p.id;idToName[p.id]=p.display_name});
     state.players=(mp||[]).map(x=>idToName[x.player_id]).filter(Boolean);
+    state.playerRolePreferences={};
+    if(m.group_id){
+      const groupRoster=await fetchGroupPlayers(m.group_id);
+      groupRoster.forEach(p=>{state.playerRolePreferences[p.display_name]=p.preferred_role||'AP'});
+    }
 
     const ids=(events||[]).map(e=>e.id);
     let lineups=[];
@@ -1862,6 +1919,8 @@ function handleOutcome(value,button){
   if(actionType==='Défense'&&value==='Défensive illégale'){
     pending='Faute';faultType='Défensive illégale';zone='';movement='Non';
     if(isCenterDefense()){
+      const map=defenseRoleMap();
+      whoMany=map.R?[map.R]:[];
       $('#centerDefenseMapStep').classList.remove('hidden');
       $('#zoneStep').classList.add('hidden');
       $$('#centerDefenseMap .sector').forEach(x=>x.classList.remove('selected'));
@@ -2609,10 +2668,10 @@ function populateGroupSelectors(){
 async function fetchGroupPlayers(groupId){
   if(!groupId)return[];
   const {data,error}=await db.from('coaching_group_players')
-    .select('player_id,active,player:players!coaching_group_players_player_id_fkey(id,display_name)')
+    .select('player_id,active,preferred_role,player:players!coaching_group_players_player_id_fkey(id,display_name)')
     .eq('group_id',groupId).eq('active',true);
   if(error)throw error;
-  return (data||[]).filter(x=>x.player).map(x=>x.player).sort((a,b)=>a.display_name.localeCompare(b.display_name,'fr'));
+  return (data||[]).filter(x=>x.player).map(x=>({...x.player,preferred_role:x.preferred_role||'AP'})).sort((a,b)=>a.display_name.localeCompare(b.display_name,'fr'));
 }
 async function openGroupsModule(){
   try{
@@ -2661,12 +2720,43 @@ async function openGroupDetail(groupId){
 function renderGroupPlayers(){
   const box=$('#groupPlayersList');if(!box)return;box.innerHTML='';
   if(!groupState.currentPlayers.length){box.innerHTML='<div class="small">Aucun joueur dans ce groupe.</div>';return}
+  const roleLabel={R:'Rapproché (R)',A:'Ailier (A)',P:'Pointe (P)',AP:'A / P'};
   groupState.currentPlayers.forEach(p=>{
-    const d=document.createElement('div');d.className='historyItem';d.textContent=p.display_name;box.append(d);
+    const d=document.createElement('div');d.className='historyItem';
+    const row=document.createElement('div');row.className='row';row.style.alignItems='center';
+    const name=document.createElement('strong');name.textContent=p.display_name;name.style.flex='1';
+    const sel=document.createElement('select');sel.style.maxWidth='180px';sel.setAttribute('aria-label',`Poste habituel de ${p.display_name}`);
+    ['R','A','P','AP'].forEach(value=>{
+      const o=document.createElement('option');o.value=value;o.textContent=roleLabel[value];sel.append(o);
+    });
+    sel.value=p.preferred_role||'AP';
+    sel.onchange=()=>updateGroupPlayerPreference(p.id,sel.value);
+    row.append(name,sel);d.append(row);box.append(d);
   });
+}
+async function updateGroupPlayerPreference(playerId,preferredRole){
+  if(!groupState.currentGroupId)return;
+  try{
+    const {error}=await db.from('coaching_group_players')
+      .update({preferred_role:preferredRole})
+      .eq('group_id',groupState.currentGroupId)
+      .eq('player_id',playerId);
+    if(error)throw error;
+    const p=groupState.currentPlayers.find(x=>x.id===playerId);
+    if(p)p.preferred_role=preferredRole;
+    const mp=groupState.matchPlayers.find(x=>x.id===playerId);
+    if(mp)mp.preferred_role=preferredRole;
+    const name=Object.entries(state.playerIds||{}).find(([,id])=>id===playerId)?.[0];
+    if(name){
+      state.playerRolePreferences ||= {};
+      state.playerRolePreferences[name]=preferredRole;
+    }
+    setCloud('Synchronisé',true);
+  }catch(e){handleError('update player preferred role',e)}
 }
 async function addPlayersToCurrentGroup(){
   const names=$('#groupAddPlayers').value.split(',').map(x=>x.trim()).filter(Boolean);
+  const preferredRole=$('#groupAddPlayerRole')?.value||'AP';
   if(!names.length||!groupState.currentGroupId)return;
 
   const accepted=[];
@@ -2687,11 +2777,11 @@ async function addPlayersToCurrentGroup(){
     if(pe)throw pe;
 
     const {error:ge}=await db.from('coaching_group_players')
-      .insert({group_id:groupState.currentGroupId,player_id:p.id});
+      .insert({group_id:groupState.currentGroupId,player_id:p.id,preferred_role:preferredRole});
     if(ge)throw ge;
 
     accepted.push(name);
-    groupState.currentPlayers.push(p);
+    groupState.currentPlayers.push({...p,preferred_role:preferredRole});
   }
 
   $('#groupAddPlayers').value='';
@@ -2721,6 +2811,7 @@ async function joinGroup(){
 }
 async function loadMatchGroupPlayers(groupId){
   groupState.matchPlayers=await fetchGroupPlayers(groupId);
+  state.playerRolePreferences=Object.fromEntries(groupState.matchPlayers.map(p=>[p.display_name,p.preferred_role||'AP']));
   const box=$('#rosterChecks');box.innerHTML='';
   groupState.matchPlayers.forEach((p,i)=>{
     const l=document.createElement('label');l.className='check';
