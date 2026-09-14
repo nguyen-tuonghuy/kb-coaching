@@ -1700,7 +1700,8 @@ async function runCategoryAction(action){
     renderCategorySettings();
     categoryMessage('Catégories enregistrées ✓');
   }catch(e){
-    categoryMessage(e.code==='23505'?'Ce nom existe déjà, y compris parmi les catégories archivées.':(e.message||String(e)),true);
+    if(e.message==='__cancel__')categoryMessage('');
+    else categoryMessage(e.code==='23505'?'Ce nom existe déjà, y compris parmi les catégories archivées.':(e.message||String(e)),true);
   }finally{
     categoryState.busy=false;
     $$('#settingsHome button, #settingsHome input').forEach(el=>el.disabled=false);
@@ -1711,6 +1712,47 @@ async function updateCustomCategory(id,changes){
   if(!category||category.is_native)throw new Error('Cette catégorie est fixe.');
   const {error}=await db.from('exercise_categories').update(changes).eq('id',id).eq('is_native',false).select('id').single();
   if(error)throw error;
+}
+
+async function fetchExerciseCategoryUsage(categoryId){
+  const {data,error}=await db.rpc('get_exercise_category_usage',{p_category_id:categoryId});
+  if(error)throw error;
+  if(!data)throw new Error('Impossible de vérifier l’utilisation de cette catégorie.');
+  return data;
+}
+async function deleteCustomCategory(id){
+  const category=categoryById(id);
+  if(!category||category.is_native)throw new Error('Cette catégorie est fixe.');
+
+  const usage=await fetchExerciseCategoryUsage(id);
+  const count=Number(usage.exercise_count||0);
+  const usedCount=Number(usage.used_exercise_count||0);
+
+  if(usedCount>0){
+    throw new Error(`Cette catégorie contient ${usedCount} exercice${usedCount>1?'s':''} déjà utilisé${usedCount>1?'s':''}. Archive-la plutôt pour préserver l’historique.`);
+  }
+
+  if(count===0){
+    if(!confirm(`Supprimer définitivement la catégorie « ${category.name} » ?`))return false;
+  }else{
+    const other=fallbackCategory();
+    if(!other)throw new Error('La catégorie « Autre » est introuvable.');
+    if(!confirm(`Supprimer définitivement la catégorie « ${category.name} » ?\n\nSes ${count} exercice${count>1?'s':''} n’ont jamais été utilisé${count>1?'s':''} en séance et seront déplacé${count>1?'s':''} vers « Autre ».`))return false;
+
+    const {error:moveError}=await db.from('exercises')
+      .update({category_id:other.id})
+      .eq('category_id',id);
+    if(moveError)throw moveError;
+  }
+
+  const {error}=await db.from('exercise_categories')
+    .delete()
+    .eq('id',id)
+    .eq('is_native',false)
+    .select('id')
+    .single();
+  if(error)throw error;
+  return true;
 }
 function renderCategorySettings(){
   const list=$('#categoryList');list.replaceChildren();
@@ -1729,6 +1771,12 @@ function renderCategorySettings(){
       const toggle=document.createElement('button');toggle.className='ghost';toggle.textContent=category.active?'Archiver':'Réactiver';
       toggle.setAttribute('aria-label',toggle.textContent+' '+category.name);
       toggle.onclick=()=>runCategoryAction(()=>updateCustomCategory(category.id,{active:!category.active}));
+      const remove=document.createElement('button');remove.className='ghost';remove.textContent='Supprimer';
+      remove.setAttribute('aria-label','Supprimer '+category.name);
+      remove.onclick=()=>runCategoryAction(async()=>{
+        const deleted=await deleteCustomCategory(category.id);
+        if(deleted===false)throw new Error('__cancel__');
+      });
       rename.onclick=()=>{
         if(card.querySelector('form'))return;
         const form=document.createElement('form');form.className='row';form.style.marginTop='10px';
@@ -1741,7 +1789,7 @@ function renderCategorySettings(){
         form.onsubmit=event=>{event.preventDefault();runCategoryAction(()=>updateCustomCategory(category.id,{name:validateCategoryName(input.value,category.id)}))};
         form.append(field,save,cancel);card.append(form);input.focus();input.select();
       };
-      actions.append(rename,toggle);row.append(actions);
+      actions.append(rename,toggle,remove);row.append(actions);
     }
     list.append(card);
   });
