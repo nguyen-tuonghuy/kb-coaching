@@ -677,12 +677,22 @@ button:active{transform:scale(.985)}
   }
 }
 
+
+/* Défense au centre : 2 boutons sur la première ligne, défensive illégale en pleine largeur dessous */
+#popup.fieldMode.centerDefenseCompact:not(.centerAttackMode) #resultOptions{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-auto-rows:auto;
+}
+#popup.fieldMode.centerDefenseCompact:not(.centerAttackMode) #resultOptions button[data-result="Défensive illégale"]{
+  grid-column:1 / -1;
+}
+
 </style>
 </head>
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V2.6 Préliminaire — Mode terrain · Issues attaque 2×2</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V2.6 Préliminaire — Mode terrain · Issues attaque/défense optimisées</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
