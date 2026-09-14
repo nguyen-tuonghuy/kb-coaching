@@ -661,12 +661,28 @@ button:active{transform:scale(.985)}
   }
 }
 
+
+/* Attaque au centre : 4 issues en grille 2 x 2 pour libérer de la hauteur au schéma */
+#popup.fieldMode.centerAttackMode #resultOptions{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-auto-rows:1fr;
+}
+#popup.fieldMode.centerAttackMode #resultOptions button{
+  min-height:27px;
+  height:auto;
+}
+@media(max-width:640px){
+  #popup.fieldMode.centerAttackMode #resultOptions{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
 </style>
 </head>
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V2.6 Préliminaire — Mode terrain</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V2.6 Préliminaire — Mode terrain · Issues attaque 2×2</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
