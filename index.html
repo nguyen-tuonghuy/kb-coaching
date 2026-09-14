@@ -128,7 +128,7 @@ button:active{transform:scale(.985)}
 .centerDefenseMap .sector.selected{fill:rgba(58,155,255,.22);stroke:#6fb4ff;stroke-width:2.4}
 .centerDefenseMap .sectorText{font-size:19px;font-weight:800;fill:currentColor;pointer-events:none}
 .centerDefenseMap .roleText{font-size:18px;font-weight:800;fill:currentColor;pointer-events:none}
-.centerDefenseMap .ball{fill:var(--panel);stroke:currentColor;stroke-width:3}
+.centerDefenseMap .ball{fill:var(--panel);stroke:currentColor;stroke-width:3;cursor:pointer}
 .centerDefenseMap .ballText{font-size:18px;font-weight:700;fill:currentColor;pointer-events:none}
 .centerDefenseLegend{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .centerDefenseLegend span{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 7px}
@@ -172,7 +172,7 @@ button:active{transform:scale(.985)}
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V2.3 Préliminaire — Gestes défense au centre</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V2.3 Préliminaire — Défense au centre avec retour visuel</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -817,7 +817,7 @@ button:active{transform:scale(.985)}
    </div>
    <div class="step hidden" id="centerDefenseMapStep">
     <h3>Zone de responsabilité</h3>
-    <div class="small" style="margin-bottom:8px">Affecte les postes en regardant le schéma, puis sélectionne la zone : <strong>clic / tap simple = ballon défendu</strong> · <strong>double-clic ou appui long = échappé</strong>. Les joueurs du secteur sont pré-sélectionnés automatiquement.</div>
+    <div class="small" style="margin-bottom:8px">Affecte les postes en regardant le schéma, puis sélectionne la zone : <strong>clic / tap simple = ballon défendu</strong> · <strong>double-clic ou appui long = échappé</strong>. <strong>Double-tap / double-clic sur le ballon = défensive illégale.</strong> Les boutons de résultat restent visibles pour confirmer ou corriger la sélection.</div>
 
     <div class="centerDefenseRoleEditor">
       <div class="centerDefenseRoleEditorGrid">
@@ -845,7 +845,7 @@ button:active{transform:scale(.985)}
         <text class="roleText" id="centerMapRoleR" x="345" y="335" text-anchor="end">R</text>
         <text class="roleText" id="centerMapRoleA1" x="305" y="155" text-anchor="middle">A1</text>
         <text class="roleText" id="centerMapRoleP" x="545" y="165" text-anchor="middle">P</text>
-        <text class="roleText" id="centerMapRoleA2" x="560" y="350" text-anchor="middle">A2</text>
+        <text class="roleText" id="centerMapRoleA2" x="560" y="315" text-anchor="middle">A2</text>
       </svg>
     </div>
     <div class="row" style="margin-top:8px">
@@ -1362,6 +1362,24 @@ function applyCenterDefenseGesture(el,result){
   $('#moveStep').classList.remove('hidden');
   $('#whoStep').classList.remove('hidden');
   renderCenterDefenseResponsibility();
+  updatePopupSaveVisibility();
+}
+
+function applyCenterDefenseIllegal(){
+  if(!isCenterDefense())return;
+  const button=$('#resultOptions button[data-result="Défensive illégale"]');
+  if(!button)return;
+  actionResult='Défensive illégale';
+  pending='Faute';
+  faultType='Défensive illégale';
+  zone='';
+  movement='Non';
+  $$('#centerDefenseMap .sector').forEach(x=>x.classList.remove('selected'));
+  $$('#resultOptions button').forEach(x=>x.classList.toggle('choice',x===button));
+  configureZoneUI(false);
+  $('#moveStep').classList.add('hidden');
+  $('#whoStep').classList.remove('hidden');
+  configureWhoUI();
   updatePopupSaveVisibility();
 }
 
@@ -1882,7 +1900,7 @@ function openActionPopup(selectedFamily,selectedActionType){
   buildOpponentOptions();
   $('#restartLocationStep').classList.toggle('hidden',family!=='remise');
   buildOutcomeButtons();
-  $('#resultStep').classList.toggle('hidden',isCenterDefense());
+  $('#resultStep').classList.remove('hidden');
   configureZoneUI(family!=='gel');
   $('#moveStep').classList.remove('hidden');$('#whoStep').classList.remove('hidden');
   $('#savePopup').classList.add('hidden');
@@ -1962,6 +1980,30 @@ $$('#centerDefenseMap .sector').forEach(el=>{
   });
 });
 $('#clearCenterDefenseZone').onclick=clearCenterDefenseSectorSelection;
+
+const centerBall=$('#centerDefenseMap .ball');
+if(centerBall){
+  let lastBallTap=0;
+  centerBall.addEventListener('pointerup',ev=>{
+    if(!isCenterDefense())return;
+    const now=Date.now();
+    if(now-lastBallTap<360){
+      ev.preventDefault();
+      lastBallTap=0;
+      applyCenterDefenseIllegal();
+      if(navigator.vibrate)navigator.vibrate(45);
+    }else{
+      lastBallTap=now;
+    }
+  });
+  centerBall.addEventListener('dblclick',ev=>{
+    if(!isCenterDefense())return;
+    ev.preventDefault();
+    lastBallTap=0;
+    applyCenterDefenseIllegal();
+  });
+}
+
 $('#period').onchange=()=>{renderDefenseRoleSetup();refreshCenterDefenseMapLabels();};
 
 $$('#moveOptions button').forEach(b=>b.onclick=()=>{movement=b.dataset.move;$$('#moveOptions button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice')});
@@ -2086,7 +2128,7 @@ function editEvent(id){
   $$('#restartLocationOptions button').forEach(b=>b.classList.toggle('choice',b.dataset.restart===restartLocation));
   buildOutcomeButtons();
   $$('#resultOptions button').forEach(b=>b.classList.toggle('choice',b.dataset.result===actionResult));
-  $('#resultStep').classList.toggle('hidden',isCenterDefense());$('#moveStep').classList.remove('hidden');configureZoneUI(family!=='gel');$('#whoStep').classList.remove('hidden');$('#savePopup').classList.remove('hidden');
+  $('#resultStep').classList.remove('hidden');$('#moveStep').classList.remove('hidden');configureZoneUI(family!=='gel');$('#whoStep').classList.remove('hidden');$('#savePopup').classList.remove('hidden');
   $$('#zoneOptions button').forEach(b=>b.classList.toggle('choice',(b.dataset.zone||'')===zone));
   $$('#moveOptions button').forEach(b=>b.classList.toggle('choice',(b.dataset.move||'')===movement));
   configureWhoUI();
