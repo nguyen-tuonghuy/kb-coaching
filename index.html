@@ -453,12 +453,220 @@ button:active{transform:scale(.985)}
   min-height:28px;
 }
 
+
+/* === V2.6 : mode terrain pour les saisies au centre === */
+#popup.fieldMode{
+  padding:2px;
+  align-items:center;
+}
+#popup.fieldMode .sheet{
+  width:min(980px,100%);
+  max-height:calc(100dvh - 4px);
+  padding:4px 6px 6px;
+  border-radius:12px;
+  overflow:auto;
+}
+#popup.fieldMode .sheetTop{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:4px;
+  padding:0 0 2px;
+  border-bottom:0;
+}
+#popup.fieldMode .sheetTop > div:first-child{
+  display:flex;
+  align-items:baseline;
+  gap:7px;
+  min-width:0;
+}
+#popup.fieldMode .sheetTop h2{
+  font-size:16px;
+  line-height:1;
+  margin:0;
+  white-space:nowrap;
+}
+#popup.fieldMode .sheetTop .meta{
+  font-size:10px;
+  opacity:.72;
+  margin:0;
+  white-space:nowrap;
+}
+#popup.fieldMode .closePopup{
+  width:26px;
+  height:26px;
+  min-height:26px;
+  font-size:16px;
+  border-radius:7px;
+}
+#popup.fieldMode .step{
+  margin-top:2px;
+}
+#popup.fieldMode .step h3{
+  font-size:10px;
+  line-height:1;
+  margin:0 0 2px;
+  opacity:.78;
+}
+#popup.fieldMode #opponentStep,
+#popup.fieldMode #moveStep{
+  margin-top:2px;
+}
+#popup.fieldMode #opponentOptions,
+#popup.fieldMode #moveOptions{
+  gap:2px;
+}
+#popup.fieldMode #opponentOptions button,
+#popup.fieldMode #moveOptions button{
+  min-height:24px;
+  padding:2px 6px;
+  font-size:10.5px;
+  line-height:1;
+}
+#popup.fieldMode .centerDefenseArena{
+  margin-top:3px;
+}
+#popup.fieldMode .centerDefenseMap{
+  max-height:min(61dvh,560px);
+}
+#popup.fieldMode .centerDefenseMapWrap{
+  padding:0;
+  border-radius:8px;
+}
+#popup.fieldMode .centerDefenseGestureHint{
+  font-size:9px;
+  line-height:1.05;
+  margin:0 0 1px!important;
+  opacity:.72;
+}
+#popup.fieldMode .centerDefenseRoleEditor{
+  margin-bottom:1px;
+}
+#popup.fieldMode .centerDefenseRoleEditorGrid{
+  gap:2px;
+}
+#popup.fieldMode .centerDefenseRoleEditorGrid label{
+  font-size:9px;
+}
+#popup.fieldMode .centerDefenseRoleEditorGrid select{
+  min-height:23px;
+  padding:1px 2px;
+  font-size:10px;
+}
+#popup.fieldMode #resultStep > h3,
+#popup.fieldMode #whoStep > h3{
+  font-size:9px;
+  opacity:.72;
+}
+#popup.fieldMode #resultOptions,
+#popup.fieldMode #whoOptions{
+  gap:2px;
+}
+#popup.fieldMode #resultOptions button,
+#popup.fieldMode #whoOptions button{
+  min-height:28px;
+  padding:2px 3px;
+  font-size:9.5px;
+  line-height:1.02;
+  border-radius:6px;
+}
+#popup.fieldMode .popupActionBar{
+  position:sticky;
+  bottom:-6px;
+  z-index:5;
+  margin:4px -2px -4px!important;
+  padding:4px 2px 2px;
+  background:linear-gradient(to top,#161a21 78%,rgba(22,26,33,.92));
+  gap:4px;
+}
+#popup.fieldMode #cancelPopup{
+  flex:.48!important;
+  min-height:32px;
+  font-size:10px;
+  padding:3px 5px;
+}
+#popup.fieldMode #savePopup{
+  flex:3!important;
+  min-height:52px;
+  font-size:18px;
+  font-weight:800;
+  padding:7px 10px;
+  border-radius:10px;
+}
+
+/* iPad portrait / tablette : on protège encore davantage le schéma. */
+@media(max-width:900px) and (min-width:641px){
+  #popup.fieldMode .centerDefenseArena{
+    grid-template-columns:minmax(64px,.32fr) minmax(460px,4.6fr) minmax(72px,.36fr);
+    gap:3px;
+  }
+  #popup.fieldMode .centerDefenseMap{
+    max-height:min(59dvh,520px);
+  }
+  #popup.fieldMode #resultOptions button,
+  #popup.fieldMode #whoOptions button{
+    font-size:9px;
+    padding:2px;
+  }
+}
+
+/* Téléphone : priorité absolue au schéma, contrôles secondaires en bandeaux. */
+@media(max-width:640px){
+  #popup.fieldMode .sheet{
+    padding:3px 4px 5px;
+  }
+  #popup.fieldMode .sheetTop h2{font-size:15px}
+  #popup.fieldMode .sheetTop .meta{font-size:9px}
+  #popup.fieldMode #opponentStep h3,
+  #popup.fieldMode #moveStep h3{
+    display:none;
+  }
+  #popup.fieldMode #opponentOptions button,
+  #popup.fieldMode #moveOptions button{
+    min-height:23px;
+    font-size:10px;
+  }
+  #popup.fieldMode .centerDefenseArena{
+    grid-template-columns:1fr;
+    grid-template-areas:
+      "result"
+      "map"
+      "who";
+    gap:2px;
+  }
+  #popup.fieldMode #resultOptions{
+    grid-template-columns:repeat(4,minmax(0,1fr));
+  }
+  #popup.fieldMode.centerDefenseCompact:not(.centerAttackMode) #resultOptions{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+  #popup.fieldMode #whoOptions{
+    grid-template-columns:repeat(5,minmax(0,1fr));
+  }
+  #popup.fieldMode #resultOptions button,
+  #popup.fieldMode #whoOptions button{
+    min-height:25px;
+    font-size:9px;
+    padding:2px;
+  }
+  #popup.fieldMode .centerDefenseMap{
+    max-height:min(46dvh,360px);
+  }
+  #popup.fieldMode .centerDefenseGestureHint{
+    font-size:8.5px;
+  }
+  #popup.fieldMode #savePopup{
+    min-height:50px;
+    font-size:17px;
+  }
+}
+
 </style>
 </head>
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V2.5 Préliminaire — Attaque au centre avec défensive illégale</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V2.6 Préliminaire — Mode terrain</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -2329,10 +2537,14 @@ function openActionPopup(selectedFamily,selectedActionType){
   family=selectedFamily;actionType=selectedActionType;restartLocation='';
   $('#popup').classList.toggle('centerDefenseCompact',family==='centre');
   $('#popup').classList.toggle('centerAttackMode',family==='centre'&&actionType==='Attaque');
+  $('#popup').classList.toggle('fieldMode',family==='centre');
   context=family==='centre'?'centre':(family==='gel'?'gel':'remise_centre');
   pending=null;actionResult='';zone='';movement='Non';who='';whoMany=[];opponentTeam='';editingId=null;
   $('#popupTitle').textContent=actionType+(family==='centre'?' au centre':family==='gel'?' Gel':' sur remise en jeu');
   $('#popupMeta').textContent=(currentVideoPosition()?'Vidéo '+currentVideoPosition()+' · ':'')+$('#period').value;
+  if(family==='centre'){
+    $('#popupMeta').textContent=$('#period').value+(currentVideoPosition()?' · '+currentVideoPosition():'');
+  }
   $$('#restartLocationOptions button').forEach(b=>b.classList.remove('choice'));
   $$('#zoneOptions button').forEach(b=>b.classList.remove('choice'));
   $('#zoneOptions button[data-zone=""]').classList.add('choice');
