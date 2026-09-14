@@ -155,7 +155,7 @@ button:active{transform:scale(.985)}
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V2.2 Préliminaire — Défense au centre V2</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V2.2 Préliminaire — Défense R / A1 / P / A2</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -300,7 +300,7 @@ button:active{transform:scale(.985)}
     <button class="ghost" id="cancelTraining">← Retour</button>
    </div>
    <div class="row">
-    <div class="field"><label>Date</label><input id="trainingDate" type="date"></div>
+    <div class="field"><label>Date</label><input id="trainingDate" type="text" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AA" autocomplete="off"></div>
     <div class="field"><label>Groupe</label><select id="trainingGroup"><option value="">— Choisir un groupe —</option></select></div>
     <div class="field"><label>Thème</label><input id="trainingTheme" placeholder="ex. Défense et transition"></div>
     <div class="field"><label>Durée prévue (min)</label><input id="trainingDuration" type="number" min="1" inputmode="numeric" placeholder="90"></div>
@@ -464,7 +464,7 @@ button:active{transform:scale(.985)}
     <div class="field"><label>Équipe suivie</label><input id="teamName" value="Mon équipe"></div>
     <div class="field"><label>Équipe adverse 1</label><input id="opponentTeam1" placeholder="Équipe 2"></div>
     <div class="field"><label>Équipe adverse 2</label><input id="opponentTeam2" placeholder="Équipe 3"></div>
-    <div class="field"><label>Date</label><input id="matchDate" type="date"></div>
+    <div class="field"><label>Date</label><input id="matchDate" type="text" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AA" autocomplete="off"></div>
    </div>
    <div id="rosterWrap" class="hidden" style="margin-top:12px">
     <div class="small" style="margin-bottom:7px">Sélectionne exactement 4 joueurs parmi l’effectif du groupe.</div>
@@ -513,11 +513,11 @@ button:active{transform:scale(.985)}
    </div>
    <div class="defenseRoleGrid">
     <div class="field"><label>R</label><select id="defRoleR"></select></div>
-    <div class="field"><label>E1</label><select id="defRoleE1"></select></div>
-    <div class="field"><label>E2</label><select id="defRoleE2"></select></div>
-    <div class="field"><label>E3</label><select id="defRoleE3"></select></div>
+    <div class="field"><label>A1 · Ailier 1</label><select id="defRoleA1"></select></div>
+    <div class="field"><label>P · Pointe</label><select id="defRoleP"></select></div>
+    <div class="field"><label>A2 · Ailier 2</label><select id="defRoleA2"></select></div>
    </div>
-   <div class="small defenseRoleHint" id="defenseRoleHint">Ordre autour du ballon : R – E1 – E2 – E3.</div>
+   <div class="small defenseRoleHint" id="defenseRoleHint">Ordre autour du ballon : R – A1 – P – A2.</div>
   </section>
 
   <section class="panel hidden" id="playerEditor">
@@ -756,30 +756,30 @@ button:active{transform:scale(.985)}
     <div class="centerDefenseRoleEditor">
       <div class="centerDefenseRoleEditorGrid">
         <div><label>R</label><select id="popupDefRoleR"></select></div>
-        <div><label>E1</label><select id="popupDefRoleE1"></select></div>
-        <div><label>E2</label><select id="popupDefRoleE2"></select></div>
-        <div><label>E3</label><select id="popupDefRoleE3"></select></div>
+        <div><label>A1</label><select id="popupDefRoleA1"></select></div>
+        <div><label>P</label><select id="popupDefRoleP"></select></div>
+        <div><label>A2</label><select id="popupDefRoleA2"></select></div>
       </div>
     </div>
 
     <div class="centerDefenseMapWrap">
       <svg class="centerDefenseMap" id="centerDefenseMap" viewBox="0 0 800 500" role="img" aria-label="Schéma des zones de défense au centre">
         <polygon class="sector" data-sector="R" data-zone="R" data-roles="R" points="400,270 400,480 20,480 20,295"></polygon>
-        <polygon class="sector" data-sector="RE-left" data-zone="RE" data-roles="R,E1" points="400,270 20,295 20,20 110,20"></polygon>
-        <polygon class="sector" data-sector="E1" data-zone="E1" data-roles="E1" points="400,270 110,20 280,20"></polygon>
-        <polygon class="sector" data-sector="EE-top" data-zone="EE" data-roles="E1,E2" points="400,270 280,20 650,20"></polygon>
-        <polygon class="sector" data-sector="E2" data-zone="E2" data-roles="E2" points="400,270 650,20 780,20 780,50"></polygon>
-        <polygon class="sector" data-sector="EE-right" data-zone="EE" data-roles="E2,E3" points="400,270 780,50 780,350"></polygon>
-        <polygon class="sector" data-sector="E3" data-zone="E3" data-roles="E3" points="400,270 780,350 780,455"></polygon>
-        <polygon class="sector" data-sector="RE-bottom" data-zone="RE" data-roles="R,E3" points="400,270 780,455 780,480 400,480"></polygon>
+        <polygon class="sector" data-sector="RE-left" data-zone="RE" data-roles="R,A1" points="400,270 20,295 20,20 110,20"></polygon>
+        <polygon class="sector" data-sector="A1" data-zone="A1" data-roles="A1" points="400,270 110,20 280,20"></polygon>
+        <polygon class="sector" data-sector="EE-top" data-zone="EE" data-roles="A1,P" points="400,270 280,20 650,20"></polygon>
+        <polygon class="sector" data-sector="P" data-zone="P" data-roles="P" points="400,270 650,20 780,20 780,50"></polygon>
+        <polygon class="sector" data-sector="EE-right" data-zone="EE" data-roles="P,A2" points="400,270 780,50 780,350"></polygon>
+        <polygon class="sector" data-sector="A2" data-zone="A2" data-roles="A2" points="400,270 780,350 780,455"></polygon>
+        <polygon class="sector" data-sector="RE-bottom" data-zone="RE" data-roles="R,A2" points="400,270 780,455 780,480 400,480"></polygon>
 
         <circle class="ball" cx="400" cy="270" r="39"></circle>
         <text class="ballText" x="400" y="277" text-anchor="middle">Ballon</text>
 
         <text class="roleText" id="centerMapRoleR" x="345" y="335" text-anchor="end">R</text>
-        <text class="roleText" id="centerMapRoleE1" x="305" y="155" text-anchor="middle">E1</text>
-        <text class="roleText" id="centerMapRoleE2" x="545" y="165" text-anchor="middle">E2</text>
-        <text class="roleText" id="centerMapRoleE3" x="560" y="350" text-anchor="middle">E3</text>
+        <text class="roleText" id="centerMapRoleA1" x="305" y="155" text-anchor="middle">A1</text>
+        <text class="roleText" id="centerMapRoleP" x="545" y="165" text-anchor="middle">P</text>
+        <text class="roleText" id="centerMapRoleA2" x="560" y="350" text-anchor="middle">A2</text>
       </svg>
     </div>
     <div class="row" style="margin-top:8px">
@@ -975,10 +975,10 @@ async function initAuthenticated(user){
 }
 
 async function initAuth(){
-  $('#matchDate').value=today();
+  $('#matchDate').value=isoToFrInput(today());
   $('#matchGroup').value=groupState.groups[0]?.id||'';
   if($('#matchGroup').value) loadMatchGroupPlayers($('#matchGroup').value).catch(e=>handleError('match group',e));
-  if($('#trainingDate')) $('#trainingDate').value=today();
+  if($('#trainingDate')) $('#trainingDate').value=isoToFrInput(today());
   const {data:{session}}=await db.auth.getSession();
   if(session?.user){
     try{await initAuthenticated(session.user)}catch(e){handleError('initAuthenticated',e)}
@@ -1127,7 +1127,15 @@ function renderPlayers(){
   renderDefenseRoleSetup();
 }
 
-const DEFENSE_ROLES=['R','E1','E2','E3'];
+const DEFENSE_ROLES=['R','A1','P','A2'];
+function migrateDefenseRoleMap(map){
+  if(!map)return map;
+  if(map.A1||map.P||map.A2)return map;
+  if(map.E1||map.E2||map.E3){
+    return {R:map.R||'',A1:map.E1||'',P:map.E2||'',A2:map.E3||''};
+  }
+  return map;
+}
 
 function currentDefensePeriod(){
   return $('#period')?.value||$('#startPeriod')?.value||'P1';
@@ -1138,11 +1146,14 @@ function validDefensePlayers(){
 function defenseRoleMap(period=currentDefensePeriod()){
   state.defenseRolesByPeriod ||= {};
   const players=validDefensePlayers();
-  let map=state.defenseRolesByPeriod[period];
+  let map=migrateDefenseRoleMap(state.defenseRolesByPeriod[period]);
+  if(map)state.defenseRolesByPeriod[period]=map;
   const validMap=map && DEFENSE_ROLES.every(r=>players.includes(map[r])) && new Set(DEFENSE_ROLES.map(r=>map[r])).size===4;
   if(!validMap){
     const n=parseInt(String(period).replace(/\D/g,''),10);
-    const prev=Number.isFinite(n)&&n>1?state.defenseRolesByPeriod['P'+(n-1)]:null;
+    const prevRaw=Number.isFinite(n)&&n>1?state.defenseRolesByPeriod['P'+(n-1)]:null;
+    const prev=migrateDefenseRoleMap(prevRaw);
+    if(prevRaw&&prev)state.defenseRolesByPeriod['P'+(n-1)]=prev;
     const prevValid=prev && DEFENSE_ROLES.every(r=>players.includes(prev[r])) && new Set(DEFENSE_ROLES.map(r=>prev[r])).size===4;
     map=prevValid?{...prev}:Object.fromEntries(DEFENSE_ROLES.map((r,i)=>[r,players[i]||'']));
     state.defenseRolesByPeriod[period]=map;
@@ -1170,10 +1181,10 @@ function renderDefenseRoleSetup(){
   if(!panel)return;
   const players=validDefensePlayers();
   const hint=$('#defenseRoleHint');
-  const ids={R:'#defRoleR',E1:'#defRoleE1',E2:'#defRoleE2',E3:'#defRoleE3'};
+  const ids={R:'#defRoleR',A1:'#defRoleA1',P:'#defRoleP',A2:'#defRoleA2'};
   if(players.length!==4){
     DEFENSE_ROLES.forEach(r=>{const sel=$(ids[r]);if(sel){sel.innerHTML='<option>—</option>';sel.disabled=true}});
-    if(hint)hint.textContent='Il faut exactement 4 joueurs en jeu pour configurer R, E1, E2 et E3.';
+    if(hint)hint.textContent='Il faut exactement 4 joueurs en jeu pour configurer R, A1, P et A2.';
     return;
   }
   const map=defenseRoleMap();
@@ -1186,7 +1197,7 @@ function renderDefenseRoleSetup(){
     sel.value=map[role];
     sel.onchange=()=>swapDefenseRole(role,sel.value);
   });
-  if(hint)hint.textContent=`${currentDefensePeriod()} · R = ${map.R} · E1 = ${map.E1} · E2 = ${map.E2} · E3 = ${map.E3}`;
+  if(hint)hint.textContent=`${currentDefensePeriod()} · R = ${map.R} · A1 = ${map.A1} · P = ${map.P} · A2 = ${map.A2}`;
   refreshCenterDefenseMapLabels();
 }
 function isCenterDefense(){
@@ -1217,7 +1228,7 @@ function populateDefenseRoleSelects(prefix){
 }
 function refreshCenterDefenseMapLabels(){
   const map=defenseRoleMap();
-  const ids={R:'#centerMapRoleR',E1:'#centerMapRoleE1',E2:'#centerMapRoleE2',E3:'#centerMapRoleE3'};
+  const ids={R:'#centerMapRoleR',A1:'#centerMapRoleA1',P:'#centerMapRoleP',A2:'#centerMapRoleA2'};
   DEFENSE_ROLES.forEach(role=>{
     const el=$(ids[role]);
     if(el)el.textContent=map[role]||role;
@@ -1386,8 +1397,8 @@ function resetForNewMatch(){
   $('#teamName').value='Mon équipe';
   $('#opponentTeam1').value='';
   $('#opponentTeam2').value='';
-  $('#matchDate').value=today();
-  if($('#trainingDate')) $('#trainingDate').value=today();
+  $('#matchDate').value=isoToFrInput(today());
+  if($('#trainingDate')) $('#trainingDate').value=isoToFrInput(today());
   $('#rosterWrap').classList.add('hidden');
   $('#recentMatches').value='';
   $('#videoPosition').value='';
@@ -1422,7 +1433,7 @@ async function start(){
     state.opponentTeams=[$('#opponentTeam1').value.trim(),$('#opponentTeam2').value.trim()];
     if(state.opponentTeams.some(x=>!x)){alert('Renseigne le nom des 3 équipes du match.');return}
     if(new Set([state.teamName,...state.opponentTeams].map(x=>x.toLowerCase())).size!==3){alert('Les 3 équipes doivent avoir des noms différents.');return}
-    state.matchDate=$('#matchDate').value||today();
+    state.matchDate=frInputToIso($('#matchDate').value||isoToFrInput(today()));
     const groupId=$('#matchGroup').value;
     if(!groupId){alert('Choisis le groupe suivi.');return}
     if(groupState.matchPlayers.length<4){alert('Le groupe doit contenir au moins 4 joueurs.');return}
@@ -1658,7 +1669,7 @@ async function loadMatch(matchId){
     $('#teamName').value=state.teamName;
     $('#opponentTeam1').value=state.opponentTeams[0]||'';
     $('#opponentTeam2').value=state.opponentTeams[1]||'';
-    $('#matchDate').value=state.matchDate||today();
+    $('#matchDate').value=isoToFrInput(state.matchDate||today());
     if(m.group_id){$('#matchGroup').value=m.group_id;await loadMatchGroupPlayers(m.group_id);}
     $('#setup').classList.add('hidden');
     $('#live').classList.remove('hidden');
@@ -1881,7 +1892,7 @@ function editEvent(id){
   else if(e.action.includes('Ballon défendu'))actionResult='Ballon défendu';
   else if(e.action.includes('Échappé'))actionResult='Échappé';
   else actionResult='';
-  zone=family==='gel'?'':(e.zone||'');movement=e.movement||'Non';who=e.player||'';whoMany=actionType==='Défense'?[...(e.attributedPlayers||((e.player)?[e.player]:[]))]:[];opponentTeam=e.opponentTeam||'';
+  zone=family==='gel'?'':(({E1:'A1',E2:'P',E3:'A2'}[e.zone])||e.zone||'');movement=e.movement||'Non';who=e.player||'';whoMany=actionType==='Défense'?[...(e.attributedPlayers||((e.player)?[e.player]:[]))]:[];opponentTeam=e.opponentTeam||'';
   $('#popupTitle').textContent='Modifier · '+actionType;
   $('#popupMeta').textContent=labelContext(context)+(e.videoPosition?' · vidéo '+e.videoPosition:'')+' · '+(e.period||'P1');
   buildOpponentOptions();
@@ -2136,6 +2147,31 @@ function formatDateShort(v){
   const d=new Date(v);
   if(Number.isNaN(d.getTime()))return String(v);
   return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'});
+}
+function isoToFrInput(v){
+  if(!v)return '';
+  const m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m)return `${m[3]}/${m[2]}/${m[1].slice(-2)}`;
+  return formatDateShort(v);
+}
+function frInputToIso(v){
+  const raw=String(v||'').trim();
+  if(!raw)return '';
+  if(/^\d{4}-\d{2}-\d{2}$/.test(raw))return raw;
+  const m=raw.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})$/);
+  if(!m)throw new Error('Date invalide. Utilise le format JJ/MM/AA.');
+  const day=Number(m[1]),month=Number(m[2]);
+  let year=Number(m[3]);
+  if(m[3].length===2)year=2000+year;
+  const d=new Date(Date.UTC(year,month-1,day));
+  if(d.getUTCFullYear()!==year||d.getUTCMonth()!==month-1||d.getUTCDate()!==day)
+    throw new Error('Date invalide. Utilise le format JJ/MM/AA.');
+  return `${String(year).padStart(4,'0')}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+}
+function normalizeFrDateField(input){
+  if(!input||!input.value.trim())return;
+  try{input.value=isoToFrInput(frInputToIso(input.value))}
+  catch(_){}
 }
 function formatAuditDate(v){
   if(!v)return '';
@@ -2426,7 +2462,7 @@ async function startNewTraining(){
     alert('Crée ou rejoins d’abord un groupe dans le volet Groupes.');
     return;
   }
-  $('#trainingDate').value=today();
+  $('#trainingDate').value=isoToFrInput(today());
   $('#trainingTheme').value='';$('#trainingDuration').value='';$('#trainingNotes').value='';
   $('#trainingSaveStatus').textContent='';
   $('#trainingGroup').value=groupState.groups[0]?.id||'';
@@ -2961,7 +2997,7 @@ async function duplicateTrainingSessionById(sessionId){
     .filter(x=>x.exercise)
     .map(x=>({...x.exercise,localKey:crypto.randomUUID(),expanded:false,variant:x.variant||null,target:x.target||null,focus:x.focus||null}));
 
-  $('#trainingDate').value=today();
+  $('#trainingDate').value=isoToFrInput(today());
   $('#trainingGroup').value=source.group_id||'';
   await fetchTrainingPlayers(source.group_id||null);
   $('#trainingTheme').value=source.theme||source.label||'';
@@ -3000,7 +3036,7 @@ async function editTrainingSessionById(sessionId){
     .filter(x=>x.exercise)
     .map(x=>({...x.exercise,localKey:crypto.randomUUID(),expanded:false,variant:x.variant||null,target:x.target||null,focus:x.focus||null}));
 
-  $('#trainingDate').value=source.trained_on||today();
+  $('#trainingDate').value=isoToFrInput(source.trained_on||today());
   $('#trainingGroup').value=source.group_id||'';
   await fetchTrainingPlayers(source.group_id||null);
   $('#trainingTheme').value=source.theme||source.label||'';
@@ -3045,7 +3081,7 @@ async function saveTrainingSession(){
     trainingStatus(trainingState.currentSessionId?'Mise à jour…':'Enregistrement…');
     const groupId=$('#trainingGroup').value;
     const group=groupState.groups.find(g=>g.id===groupId);
-    const date=$('#trainingDate').value||today();
+    const date=frInputToIso($('#trainingDate').value||isoToFrInput(today()));
     const present=trainingPresentPlayers();
     if(!groupId||!group){trainingStatus('Choisis un groupe.',true);return}
     if(!present.length){trainingStatus('Sélectionne au moins un joueur présent.',true);return}
@@ -3420,6 +3456,11 @@ $('#createGroupBtn').onclick=()=>createGroup().catch(e=>{const st=$('#createGrou
 $('#joinGroupBtn').onclick=()=>joinGroup().catch(e=>{const st=$('#joinGroupStatus');st.textContent=e.message||String(e);st.className='authStatus cloudErr'});
 $('#groupAddPlayersBtn').onclick=()=>addPlayersToCurrentGroup().catch(e=>handleError('add group players',e));
 $('#matchGroup').onchange=()=>loadMatchGroupPlayers($('#matchGroup').value).catch(e=>handleError('match group',e));
+['#matchDate','#trainingDate'].forEach(sel=>{
+  const input=$(sel);
+  if(input)input.addEventListener('blur',()=>normalizeFrDateField(input));
+});
+
 $('#trainingGroup').onchange=()=>fetchTrainingPlayers($('#trainingGroup').value).then(()=>renderTrainingExerciseCards()).catch(e=>handleError('training group',e));
 $('#historyGroup').onchange=()=>fetchTrainingPlayers($('#historyGroup').value).catch(e=>handleError('history group',e));
 
@@ -3494,7 +3535,7 @@ function render(){
   [...state.events].reverse().forEach(e=>{
     const d=document.createElement('div');d.className='item';
     const detail=e.faultType?e.faultType:e.action,pos=e.videoPosition||'—';
-    d.innerHTML=`<div class="time">${pos}<br>${e.period}</div><div><strong>${detail}</strong><div class="small">${labelContext(e.context)}${e.opponentTeam?' · '+e.opponentTeam:''}${e.zone?' · '+e.zone:''}${e.movement?' · déplacement '+e.movement.toLowerCase():''} · ${eventAttributionLabel(e)}</div></div>`;
+    d.innerHTML=`<div class="time">${pos}<br>${e.period}</div><div><strong>${detail}</strong><div class="small">${labelContext(e.context)}${e.opponentTeam?' · '+e.opponentTeam:''}${e.zone?' · '+({E1:'A1',E2:'P',E3:'A2'}[e.zone]||e.zone):''}${e.movement?' · déplacement '+e.movement.toLowerCase():''} · ${eventAttributionLabel(e)}</div></div>`;
     d.onclick=()=>editEvent(e.id);
     const controls=document.createElement('div');controls.className='row';
     const edit=document.createElement('button');edit.className='ghost';edit.textContent='Modifier';edit.onclick=evt=>{evt.stopPropagation();editEvent(e.id)};
