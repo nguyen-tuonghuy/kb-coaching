@@ -172,7 +172,7 @@ button:active{transform:scale(.985)}
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V2.4 Préliminaire — Préférences de postes joueurs</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V2.4 Préliminaire — Bouton d’enregistrement corrigé</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -298,7 +298,7 @@ button:active{transform:scale(.985)}
    </div>
 
    <h3 style="font-size:16px;margin:0 0 8px">Effectif du groupe</h3>
-   <div class="row" style="margin-bottom:10px">
+   <div class="row" style="margin-bottom:10px;align-items:flex-end">
     <div class="field"><input id="groupAddPlayers" placeholder="Noms séparés par des virgules"></div>
     <div class="field">
      <label>Poste habituel</label>
@@ -311,7 +311,7 @@ button:active{transform:scale(.985)}
     </div>
     <button class="primary" id="groupAddPlayersBtn">Ajouter</button>
    </div>
-   <div class="small" style="margin:-4px 0 10px">Préférence souple utilisée pour préremplir les postes en match. A1 et A2 sont équivalents.</div>
+   <div class="small" style="margin:-4px 0 10px">Préférence souple utilisée pour préremplir les postes en match.</div>
    <div id="groupPlayersList"></div>
 
    <h3 style="font-size:16px;margin:18px 0 8px">Entraîneurs</h3>
@@ -873,7 +873,7 @@ button:active{transform:scale(.985)}
    </div>
    <div class="row" style="margin-top:14px">
     <button class="ghost" style="flex:1" id="cancelPopup">Annuler</button>
-    <button class="primary hidden" style="flex:2" id="savePopup">Enregistrer</button>
+    <button class="primary" style="flex:2" id="savePopup" disabled>Enregistrer</button>
    </div>
  </div>
 </div>
@@ -1955,7 +1955,10 @@ function buildOpponentOptions(){
 }
 function updatePopupSaveVisibility(){
   const ready=!!pending && !!opponentTeam && (family!=='remise'||!!restartLocation);
-  $('#savePopup').classList.toggle('hidden',!ready);
+  const btn=$('#savePopup');
+  if(!btn)return;
+  btn.disabled=!ready;
+  btn.title=ready?'':'Choisis l’équipe adverse et renseigne l’issue de l’action.';
 }
 function openActionPopup(selectedFamily,selectedActionType){
   family=selectedFamily;actionType=selectedActionType;restartLocation='';
@@ -1974,7 +1977,7 @@ function openActionPopup(selectedFamily,selectedActionType){
   $('#resultStep').classList.remove('hidden');
   configureZoneUI(family!=='gel');
   $('#moveStep').classList.remove('hidden');$('#whoStep').classList.remove('hidden');
-  $('#savePopup').classList.add('hidden');
+  $('#savePopup').disabled=true;
   configureWhoUI();
   $('#popup').classList.remove('hidden');resetPopupScroll('#popup');
 }
@@ -2199,7 +2202,7 @@ function editEvent(id){
   $$('#restartLocationOptions button').forEach(b=>b.classList.toggle('choice',b.dataset.restart===restartLocation));
   buildOutcomeButtons();
   $$('#resultOptions button').forEach(b=>b.classList.toggle('choice',b.dataset.result===actionResult));
-  $('#resultStep').classList.remove('hidden');$('#moveStep').classList.remove('hidden');configureZoneUI(family!=='gel');$('#whoStep').classList.remove('hidden');$('#savePopup').classList.remove('hidden');
+  $('#resultStep').classList.remove('hidden');$('#moveStep').classList.remove('hidden');configureZoneUI(family!=='gel');$('#whoStep').classList.remove('hidden');$('#savePopup').disabled=false;
   $$('#zoneOptions button').forEach(b=>b.classList.toggle('choice',(b.dataset.zone||'')===zone));
   $$('#moveOptions button').forEach(b=>b.classList.toggle('choice',(b.dataset.move||'')===movement));
   configureWhoUI();
