@@ -186,21 +186,21 @@ button:active{transform:scale(.985)}
   padding:0 0 2px;
   min-height:0;
 }
-#popup.centerDefenseCompact .sheetTop h2{font-size:15px;margin:0}
-#popup.centerDefenseCompact .sheetTop .meta{margin:0;font-size:10px}
+#popup.centerDefenseCompact .sheetTop h2{font-size:17px;margin:0}
+#popup.centerDefenseCompact .sheetTop .meta{margin:0;font-size:11px}
 #popup.centerDefenseCompact .closePopup{
   width:28px;height:28px;padding:0;font-size:17px;
 }
-#popup.centerDefenseCompact .step{margin-top:4px}
+#popup.centerDefenseCompact .step{margin-top:3px}
 #popup.centerDefenseCompact .step h3{
-  font-size:10px;
+  font-size:12px;
   margin:0 0 2px;
 }
-#popup.centerDefenseCompact .options{gap:3px}
+#popup.centerDefenseCompact .options{gap:2px}
 #popup.centerDefenseCompact .options button{
-  min-height:27px;
-  padding:3px 5px;
-  font-size:9.5px;
+  min-height:25px;
+  padding:2px 4px;
+  font-size:10.5px;
   line-height:1.05;
   border-radius:7px;
 }
@@ -216,35 +216,35 @@ button:active{transform:scale(.985)}
 }
 #popup.centerDefenseCompact #whoOptions .full{grid-column:auto}
 #popup.centerDefenseCompact .centerDefenseGestureHint{
-  margin:0 0 3px!important;
-  font-size:9px;
+  margin:0 0 2px!important;
+  font-size:10px;
   line-height:1.1;
 }
-#popup.centerDefenseCompact .centerDefenseRoleEditor{margin-bottom:3px}
+#popup.centerDefenseCompact .centerDefenseRoleEditor{margin-bottom:2px}
 #popup.centerDefenseCompact .centerDefenseRoleEditorGrid{
   grid-template-columns:repeat(4,minmax(0,1fr))!important;
   gap:3px;
 }
 #popup.centerDefenseCompact .centerDefenseRoleEditorGrid label{
-  font-size:8px;
+  font-size:10px;
   margin-bottom:1px;
 }
 #popup.centerDefenseCompact .centerDefenseRoleEditorGrid select{
   padding:2px 3px;
   min-height:25px;
-  font-size:9.5px;
+  font-size:11px;
 }
 #popup.centerDefenseCompact .centerDefenseMapWrap{
-  padding:2px;
+  padding:1px;
   border-radius:9px;
 }
 #popup.centerDefenseCompact .centerDefenseMap{
-  max-height:min(36dvh,300px);
+  max-height:min(44dvh,380px);
 }
 #popup.centerDefenseCompact #clearCenterDefenseZone{
   min-height:24px;
   padding:2px 5px;
-  font-size:9px;
+  font-size:10.5px;
 }
 #popup.centerDefenseCompact #centerDefenseMapStep > .row{
   margin-top:2px!important;
@@ -259,7 +259,7 @@ button:active{transform:scale(.985)}
   gap:4px;
 }
 #popup.centerDefenseCompact #cancelPopup{
-  flex:.55!important;
+  flex:.5!important;
   min-height:34px;
   padding:4px 6px;
   font-size:10px;
@@ -268,20 +268,20 @@ button:active{transform:scale(.985)}
   flex:2.45!important;
   min-height:52px;
   padding:8px 10px;
-  font-size:16px;
+  font-size:17px;
   font-weight:800;
 }
 @media(max-width:560px){
   #popup.centerDefenseCompact .sheet{padding:4px 5px}
   #popup.centerDefenseCompact .centerDefenseMap{
-    max-height:min(34dvh,245px);
+    max-height:min(38dvh,300px);
   }
   #popup.centerDefenseCompact #whoOptions{
     grid-template-columns:repeat(5,minmax(0,1fr));
   }
   #popup.centerDefenseCompact .options button{
     min-height:25px;
-    font-size:9px;
+    font-size:10.5px;
     padding:2px 3px;
   }
   #popup.centerDefenseCompact .centerDefenseMap .roleText{font-size:15px}
@@ -289,7 +289,7 @@ button:active{transform:scale(.985)}
 }
 @media(max-height:720px){
   #popup.centerDefenseCompact .centerDefenseMap{
-    max-height:min(31dvh,205px);
+    max-height:min(34dvh,240px);
   }
   #popup.centerDefenseCompact .step{margin-top:3px}
   #popup.centerDefenseCompact .centerDefenseGestureHint{
@@ -306,12 +306,122 @@ button:active{transform:scale(.985)}
   }
 }
 
+
+/* Zone centrale : Issue + schéma + Attribution.
+   Hors défense au centre, le wrapper est transparent pour ne rien changer. */
+.centerDefenseArena{display:contents}
+
+#popup.centerDefenseCompact .centerDefenseArena{
+  display:grid;
+  grid-template-columns:minmax(120px,.72fr) minmax(360px,2.7fr) minmax(145px,.9fr);
+  grid-template-areas:"result map who";
+  gap:6px;
+  align-items:stretch;
+  margin-top:3px;
+}
+#popup.centerDefenseCompact #centerDefenseMapStep{
+  grid-area:map;
+  margin-top:0;
+  min-width:0;
+}
+#popup.centerDefenseCompact #resultStep{
+  grid-area:result;
+  margin-top:0;
+  min-width:0;
+  align-self:stretch;
+  display:flex;
+  flex-direction:column;
+}
+#popup.centerDefenseCompact #whoStep{
+  grid-area:who;
+  margin-top:0;
+  min-width:0;
+  align-self:stretch;
+  display:flex;
+  flex-direction:column;
+}
+#popup.centerDefenseCompact #resultOptions,
+#popup.centerDefenseCompact #whoOptions{
+  flex:1;
+  display:grid;
+  grid-template-columns:1fr;
+  align-content:stretch;
+  gap:4px;
+}
+#popup.centerDefenseCompact #resultOptions button,
+#popup.centerDefenseCompact #whoOptions button{
+  min-height:42px;
+  height:100%;
+  font-size:11.5px;
+  padding:5px 6px;
+}
+#popup.centerDefenseCompact #whoOptions .full{grid-column:auto}
+#popup.centerDefenseCompact .centerDefenseMap{
+  width:100%;
+  max-height:min(49dvh,430px);
+}
+#popup.centerDefenseCompact .centerDefenseMapWrap{
+  height:auto;
+}
+#popup.centerDefenseCompact #centerDefenseMapStep > h3,
+#popup.centerDefenseCompact #resultStep > h3,
+#popup.centerDefenseCompact #whoStep > h3{
+  min-height:15px;
+}
+
+/* iPad portrait / petits laptops : garde les panneaux latéraux mais les resserre. */
+@media(max-width:820px) and (min-width:641px){
+  #popup.centerDefenseCompact .centerDefenseArena{
+    grid-template-columns:minmax(105px,.62fr) minmax(330px,2.5fr) minmax(125px,.75fr);
+    gap:4px;
+  }
+  #popup.centerDefenseCompact #resultOptions button,
+  #popup.centerDefenseCompact #whoOptions button{
+    min-height:38px;
+    font-size:10.5px;
+    padding:4px;
+  }
+  #popup.centerDefenseCompact .centerDefenseMap{
+    max-height:min(46dvh,390px);
+  }
+}
+
+/* Téléphone : le schéma garde toute la largeur, Issue au-dessus, Attribution dessous. */
+@media(max-width:640px){
+  #popup.centerDefenseCompact .centerDefenseArena{
+    grid-template-columns:1fr;
+    grid-template-areas:
+      "result"
+      "map"
+      "who";
+    gap:3px;
+  }
+  #popup.centerDefenseCompact #resultOptions{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:2px;
+  }
+  #popup.centerDefenseCompact #whoOptions{
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:2px;
+  }
+  #popup.centerDefenseCompact #resultOptions button,
+  #popup.centerDefenseCompact #whoOptions button{
+    min-height:27px;
+    height:auto;
+    font-size:10px;
+    padding:3px;
+  }
+  #popup.centerDefenseCompact .centerDefenseMap{
+    max-height:min(42dvh,330px);
+  }
+}
+
 </style>
 </head>
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V2.4 Préliminaire — Défense au centre optimisée tactile</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V2.4 Préliminaire — Schéma central entouré des contrôles</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -961,6 +1071,7 @@ button:active{transform:scale(.985)}
     </div>
    </div>
 
+   <div class="centerDefenseArena">
    <div class="step hidden" id="centerDefenseMapStep">
     <h3>Zone de responsabilité</h3>
     <div class="small centerDefenseGestureHint">Zone : <strong>1 tap = défendu</strong> · <strong>2 taps / appui long = échappé</strong> · Ballon : <strong>2 taps / appui long = défensive illégale</strong>.</div>
@@ -1009,6 +1120,7 @@ button:active{transform:scale(.985)}
    <div class="step hidden" id="whoStep">
     <h3 id="whoTitle">Attribution — facultatif</h3>
     <div class="options" id="whoOptions"></div>
+   </div>
    </div>
    <div class="row popupActionBar" style="margin-top:14px">
     <button class="ghost" style="flex:1" id="cancelPopup">Annuler</button>
@@ -1502,7 +1614,7 @@ function renderCenterDefenseResponsibility(){
   collective.className='full';
   collective.dataset.who='';
   collective.dataset.role='';
-  collective.textContent='COLLECTIF / NON SPÉCIFIÉ';
+  collective.textContent='NON SPÉCIFIÉ';
   box.append(collective);
   DEFENSE_ROLES.forEach(role=>{
     const p=map[role];
