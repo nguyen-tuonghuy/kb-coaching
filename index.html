@@ -115,12 +115,36 @@ button:active{transform:scale(.985)}
  .exerciseLibraryActions{margin-top:8px;justify-content:flex-start}
 }
 
+
+/* Prototype défense au centre */
+.defenseRoleGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.defenseRoleGrid .field{min-width:0}
+.defenseRoleGrid select{width:100%}
+.defenseRoleHint{margin-top:7px}
+.centerDefenseMapWrap{border:1px solid var(--line);border-radius:14px;padding:8px;background:var(--panel2)}
+.centerDefenseMap{display:block;width:100%;height:auto;max-height:360px}
+.centerDefenseMap .sector{fill:rgba(255,255,255,.035);stroke:var(--line);stroke-width:1.2;cursor:pointer;transition:.12s}
+.centerDefenseMap .sector:hover{fill:rgba(255,255,255,.08)}
+.centerDefenseMap .sector.selected{fill:rgba(58,155,255,.22);stroke:#6fb4ff;stroke-width:2.4}
+.centerDefenseMap .sectorText{font-size:19px;font-weight:800;fill:currentColor;pointer-events:none}
+.centerDefenseMap .roleText{font-size:18px;font-weight:800;fill:currentColor;pointer-events:none}
+.centerDefenseMap .ball{fill:var(--panel);stroke:currentColor;stroke-width:3}
+.centerDefenseMap .ballText{font-size:18px;font-weight:700;fill:currentColor;pointer-events:none}
+.centerDefenseLegend{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.centerDefenseLegend span{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 7px}
+.centerDefenseResponsibility .options button{font-size:13px}
+@media(max-width:620px){
+  .defenseRoleGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .centerDefenseMap .sectorText{font-size:17px}
+  .centerDefenseMap .roleText{font-size:16px}
+}
+
 </style>
 </head>
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V2.2 Préliminaire — Match + Entraînement + Groupes + Statistiques</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V2.2 Préliminaire — Prototype défense au centre</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -469,6 +493,22 @@ button:active{transform:scale(.985)}
    <div class="players" id="activePlayers"></div>
   </section>
 
+  <section class="panel" id="defenseRolesPanel">
+   <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
+    <div>
+     <h2 style="font-size:18px;margin:0">Organisation défensive au centre</h2>
+     <div class="small">Mémorisée pour la période sélectionnée</div>
+    </div>
+   </div>
+   <div class="defenseRoleGrid">
+    <div class="field"><label>R</label><select id="defRoleR"></select></div>
+    <div class="field"><label>E1</label><select id="defRoleE1"></select></div>
+    <div class="field"><label>E2</label><select id="defRoleE2"></select></div>
+    <div class="field"><label>E3</label><select id="defRoleE3"></select></div>
+   </div>
+   <div class="small defenseRoleHint" id="defenseRoleHint">Ordre autour du ballon : R – E1 – E2 – E3.</div>
+  </section>
+
   <section class="panel hidden" id="playerEditor">
    <h2 style="font-size:18px;margin-bottom:9px">Joueurs en jeu</h2>
    <div class="players" id="allPlayers"></div>
@@ -699,6 +739,45 @@ button:active{transform:scale(.985)}
     </div>
    </div>
 
+   <div class="step hidden" id="centerDefenseMapStep">
+    <h3>Zone de responsabilité</h3>
+    <div class="small" style="margin-bottom:8px">Touche la zone où tombe le ballon. Les joueurs du secteur sont pré-sélectionnés automatiquement.</div>
+    <div class="centerDefenseMapWrap">
+      <svg class="centerDefenseMap" id="centerDefenseMap" viewBox="0 0 800 500" role="img" aria-label="Schéma des zones de défense au centre">
+        <!-- sens horaire : R, RE, E1, EE, E2, EE, E3, RE -->
+        <polygon class="sector" data-sector="R" data-zone="R" data-roles="R" points="400,270 400,480 20,480 20,295"></polygon>
+        <polygon class="sector" data-sector="RE-left" data-zone="RE" data-roles="R,E1" points="400,270 20,295 20,20 110,20"></polygon>
+        <polygon class="sector" data-sector="E1" data-zone="E1" data-roles="E1" points="400,270 110,20 280,20"></polygon>
+        <polygon class="sector" data-sector="EE-top" data-zone="EE" data-roles="E1,E2" points="400,270 280,20 650,20"></polygon>
+        <polygon class="sector" data-sector="E2" data-zone="E2" data-roles="E2" points="400,270 650,20 780,20 780,50"></polygon>
+        <polygon class="sector" data-sector="EE-right" data-zone="EE" data-roles="E2,E3" points="400,270 780,50 780,350"></polygon>
+        <polygon class="sector" data-sector="E3" data-zone="E3" data-roles="E3" points="400,270 780,350 780,455"></polygon>
+        <polygon class="sector" data-sector="RE-bottom" data-zone="RE" data-roles="R,E3" points="400,270 780,455 780,480 400,480"></polygon>
+
+        <text class="sectorText" x="155" y="235">RE</text>
+        <text class="sectorText" x="246" y="100">E1</text>
+        <text class="sectorText" x="418" y="87">EE</text>
+        <text class="sectorText" x="668" y="102">E2</text>
+        <text class="sectorText" x="675" y="240">EE</text>
+        <text class="sectorText" x="690" y="390">E3</text>
+        <text class="sectorText" x="518" y="430">RE</text>
+        <text class="sectorText" x="160" y="410">R</text>
+
+        <circle class="ball" cx="400" cy="270" r="39"></circle>
+        <text class="ballText" x="400" y="277" text-anchor="middle">Ballon</text>
+
+        <text class="roleText" id="centerMapRoleR" x="354" y="330" text-anchor="end">R</text>
+        <text class="roleText" id="centerMapRoleE1" x="315" y="155" text-anchor="middle">E1</text>
+        <text class="roleText" id="centerMapRoleE2" x="535" y="165" text-anchor="middle">E2</text>
+        <text class="roleText" id="centerMapRoleE3" x="550" y="345" text-anchor="middle">E3</text>
+      </svg>
+      <div class="centerDefenseLegend" id="centerDefenseLegend"></div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="ghost" id="clearCenterDefenseZone" style="flex:1">Zone non précisée</button>
+    </div>
+   </div>
+
    <div class="step hidden" id="whoStep">
     <h3 id="whoTitle">Attribution — facultatif</h3>
     <div class="options" id="whoOptions"></div>
@@ -754,7 +833,7 @@ const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
 let state={
   matchName:'',teamName:'',opponentTeams:[],opponentTeamIds:{},matchDate:'',players:[],activePlayers:[],events:[],
-  currentMatchId:null,currentTeamId:null,workspaceId:null,playerIds:{}
+  currentMatchId:null,currentTeamId:null,workspaceId:null,playerIds:{},defenseRolesByPeriod:{}
 };
 let context='jeu_centre', pending=null, zone='', movement='', who='', whoMany=[], faultType='', faultWho='', editingId=null, opponentTeam='';
 let family='centre',actionType='Attaque',actionResult='',restartLocation='';
@@ -780,7 +859,8 @@ const handleError=(where,error)=>{
 function saveLocal(){
   localStorage.setItem(KEY,JSON.stringify({
     currentMatchId:state.currentMatchId,
-    workspaceId:state.workspaceId
+    workspaceId:state.workspaceId,
+    defenseRolesByPeriod:state.defenseRolesByPeriod||{}
   }));
 }
 function loadLocal(){
@@ -978,7 +1058,7 @@ $('#logout').onclick=async()=>{
   hideMainModules();
   categoryState.categories=[];
   currentUser=null;
-  state={matchName:'',teamName:'',opponentTeams:[],opponentTeamIds:{},matchDate:'',players:[],activePlayers:[],events:[],currentMatchId:null,currentTeamId:null,workspaceId:null,playerIds:{}};
+  state={matchName:'',teamName:'',opponentTeams:[],opponentTeamIds:{},matchDate:'',players:[],activePlayers:[],events:[],currentMatchId:null,currentTeamId:null,workspaceId:null,playerIds:{},defenseRolesByPeriod:{}};
   localStorage.removeItem(KEY);
   $('#live').classList.add('hidden');
   $('#footer').classList.add('hidden');
@@ -1034,7 +1114,187 @@ function renderPlayers(){
     };
     a.append(x)
   });
+  renderDefenseRoleSetup();
 }
+
+const DEFENSE_ROLES=['R','E1','E2','E3'];
+
+function currentDefensePeriod(){
+  return $('#period')?.value||$('#startPeriod')?.value||'P1';
+}
+function validDefensePlayers(){
+  return [...state.activePlayers].slice(0,4);
+}
+function defenseRoleMap(period=currentDefensePeriod()){
+  state.defenseRolesByPeriod ||= {};
+  const players=validDefensePlayers();
+  let map=state.defenseRolesByPeriod[period];
+  const validMap=map && DEFENSE_ROLES.every(r=>players.includes(map[r])) && new Set(DEFENSE_ROLES.map(r=>map[r])).size===4;
+  if(!validMap){
+    const n=parseInt(String(period).replace(/\D/g,''),10);
+    const prev=Number.isFinite(n)&&n>1?state.defenseRolesByPeriod['P'+(n-1)]:null;
+    const prevValid=prev && DEFENSE_ROLES.every(r=>players.includes(prev[r])) && new Set(DEFENSE_ROLES.map(r=>prev[r])).size===4;
+    map=prevValid?{...prev}:Object.fromEntries(DEFENSE_ROLES.map((r,i)=>[r,players[i]||'']));
+    state.defenseRolesByPeriod[period]=map;
+    saveLocal();
+  }
+  return map;
+}
+function roleForPlayer(name,period=currentDefensePeriod()){
+  const map=defenseRoleMap(period);
+  return DEFENSE_ROLES.find(r=>map[r]===name)||'';
+}
+function swapDefenseRole(role,newPlayer){
+  const map={...defenseRoleMap()};
+  const oldPlayer=map[role];
+  const otherRole=DEFENSE_ROLES.find(r=>r!==role&&map[r]===newPlayer);
+  map[role]=newPlayer;
+  if(otherRole)map[otherRole]=oldPlayer;
+  state.defenseRolesByPeriod[currentDefensePeriod()]=map;
+  saveLocal();
+  renderDefenseRoleSetup();
+  refreshCenterDefenseMapLabels();
+}
+function renderDefenseRoleSetup(){
+  const panel=$('#defenseRolesPanel');
+  if(!panel)return;
+  const players=validDefensePlayers();
+  const hint=$('#defenseRoleHint');
+  const ids={R:'#defRoleR',E1:'#defRoleE1',E2:'#defRoleE2',E3:'#defRoleE3'};
+  if(players.length!==4){
+    DEFENSE_ROLES.forEach(r=>{const sel=$(ids[r]);if(sel){sel.innerHTML='<option>—</option>';sel.disabled=true}});
+    if(hint)hint.textContent='Il faut exactement 4 joueurs en jeu pour configurer R, E1, E2 et E3.';
+    return;
+  }
+  const map=defenseRoleMap();
+  DEFENSE_ROLES.forEach(role=>{
+    const sel=$(ids[role]);if(!sel)return;
+    sel.disabled=false;sel.innerHTML='';
+    players.forEach(p=>{
+      const o=document.createElement('option');o.value=p;o.textContent=p;sel.append(o);
+    });
+    sel.value=map[role];
+    sel.onchange=()=>swapDefenseRole(role,sel.value);
+  });
+  if(hint)hint.textContent=`${currentDefensePeriod()} · R = ${map.R} · E1 = ${map.E1} · E2 = ${map.E2} · E3 = ${map.E3}`;
+}
+function isCenterDefense(){
+  return family==='centre'&&actionType==='Défense';
+}
+function refreshCenterDefenseMapLabels(){
+  const map=defenseRoleMap();
+  const legend=$('#centerDefenseLegend');
+  if(legend){
+    legend.innerHTML='';
+    DEFENSE_ROLES.forEach(r=>{
+      const chip=document.createElement('span');
+      chip.textContent=`${r} : ${map[r]||'—'}`;
+      legend.append(chip);
+    });
+  }
+}
+function renderCenterDefenseResponsibility(){
+  const box=$('#whoOptions');
+  if(!box)return;
+  box.innerHTML='';
+  const map=defenseRoleMap();
+  const collective=document.createElement('button');
+  collective.className='full';
+  collective.dataset.who='';
+  collective.dataset.role='';
+  collective.textContent='COLLECTIF / NON SPÉCIFIÉ';
+  box.append(collective);
+  DEFENSE_ROLES.forEach(role=>{
+    const p=map[role];
+    if(!p)return;
+    const b=document.createElement('button');
+    b.dataset.who=p;b.dataset.role=role;
+    b.textContent=`${role} · ${p}`;
+    box.append(b);
+  });
+  $$('#whoOptions button').forEach(b=>{
+    const name=b.dataset.who||'';
+    b.classList.toggle('choice',name?whoMany.includes(name):whoMany.length===0);
+    b.onclick=()=>{
+      if(!name){
+        whoMany=[];
+      }else{
+        whoMany=whoMany.includes(name)?whoMany.filter(x=>x!==name):[...whoMany,name];
+      }
+      $$('#whoOptions button').forEach(x=>{
+        const n=x.dataset.who||'';
+        x.classList.toggle('choice',n?whoMany.includes(n):whoMany.length===0);
+      });
+    };
+  });
+}
+function clearCenterDefenseSectorSelection(){
+  zone='';
+  $$('#centerDefenseMap .sector').forEach(x=>x.classList.remove('selected'));
+  whoMany=[];
+  if(isCenterDefense())renderCenterDefenseResponsibility();
+}
+function selectCenterDefenseSector(el){
+  const map=defenseRoleMap();
+  zone=el.dataset.zone||'';
+  const roles=(el.dataset.roles||'').split(',').filter(Boolean);
+  whoMany=roles.map(r=>map[r]).filter(Boolean);
+  $$('#centerDefenseMap .sector').forEach(x=>x.classList.toggle('selected',x===el));
+  renderCenterDefenseResponsibility();
+}
+function syncCenterDefenseSectorFromEvent(){
+  $$('#centerDefenseMap .sector').forEach(x=>x.classList.remove('selected'));
+  if(!zone)return;
+  const map=defenseRoleMap();
+  const selected=new Set(whoMany);
+  let candidate=$$('#centerDefenseMap .sector').find(el=>{
+    if(el.dataset.zone!==zone)return false;
+    const names=(el.dataset.roles||'').split(',').filter(Boolean).map(r=>map[r]).filter(Boolean);
+    return names.length===selected.size&&names.every(n=>selected.has(n));
+  });
+  if(!candidate)candidate=$$('#centerDefenseMap .sector').find(el=>el.dataset.zone===zone);
+  candidate?.classList.add('selected');
+}
+function configureWhoUI(){
+  if(isCenterDefense()){
+    $('#whoTitle').textContent='Responsabilité — modifiable';
+    renderCenterDefenseResponsibility();
+  }else{
+    buildWho('#whoOptions');
+    $('#whoTitle').textContent=actionType==='Défense'?'Attribution — plusieurs joueurs possibles':'Attribution — facultatif';
+    $$('#whoOptions button').forEach(b=>{
+      const name=b.dataset.who||'';
+      b.classList.toggle('choice',actionType==='Défense'?(name?whoMany.includes(name):whoMany.length===0):name===who);
+      b.onclick=()=>{
+        if(actionType==='Défense'){
+          if(!name){
+            whoMany=[];
+            $$('#whoOptions button').forEach(x=>x.classList.remove('choice'));
+            b.classList.add('choice');
+          }else{
+            whoMany=whoMany.includes(name)?whoMany.filter(x=>x!==name):[...whoMany,name];
+            $('#whoOptions button[data-who=""]').classList.toggle('choice',whoMany.length===0);
+            b.classList.toggle('choice',whoMany.includes(name));
+          }
+        }else{
+          who=name;
+          $$('#whoOptions button').forEach(x=>x.classList.remove('choice'));
+          b.classList.add('choice');
+        }
+      };
+    });
+  }
+}
+function configureZoneUI(show=true){
+  const center=isCenterDefense();
+  $('#centerDefenseMapStep').classList.toggle('hidden',!show||!center);
+  $('#zoneStep').classList.toggle('hidden',!show||center||family==='gel');
+  if(center&&show){
+    refreshCenterDefenseMapLabels();
+    syncCenterDefenseSectorFromEvent();
+  }
+}
+
 function buildWho(boxId){
   const box=$(boxId);box.innerHTML='';
   const collective=document.createElement('button');
@@ -1089,6 +1349,7 @@ function resetForNewMatch(){
   state.currentMatchId=null;
   state.currentTeamId=null;
   state.playerIds={};
+  state.defenseRolesByPeriod={};
 
   $('#matchName').value='Match';
   $('#teamName').value='Mon équipe';
@@ -1166,6 +1427,7 @@ async function start(){
     if(error) throw error;
 
     state.currentMatchId=m.id;
+    state.defenseRolesByPeriod={};
     state.events=[];
     $('#timeline').innerHTML='';
     $('#last').textContent='Aucune';
@@ -1285,6 +1547,8 @@ async function loadMatch(matchId){
     if(me) throw me;if(pe) throw pe;if(ee) throw ee;
 
     state.currentMatchId=m.id;
+    const localMatch=loadLocal();
+    state.defenseRolesByPeriod=(localMatch.currentMatchId===matchId&&localMatch.defenseRolesByPeriod)?localMatch.defenseRolesByPeriod:{};
     state.currentTeamId=m.team_id;
     state.matchName=m.label;
     state.teamName=m.followed_team?.name||'Mon équipe';
@@ -1397,12 +1661,14 @@ function handleOutcome(value,button){
   }
   if(actionType==='Défense'&&value==='Défensive illégale'){
     pending='Faute';faultType='Défensive illégale';zone='';movement='Non';
-    $('#zoneStep').classList.add('hidden');$('#moveStep').classList.add('hidden');$('#whoStep').classList.remove('hidden');
+    configureZoneUI(false);$('#moveStep').classList.add('hidden');$('#whoStep').classList.remove('hidden');
+    configureWhoUI();
     updatePopupSaveVisibility();
     return
   }
   pending=actionType+' · '+value;
-  $('#zoneStep').classList.remove('hidden');$('#moveStep').classList.remove('hidden');$('#whoStep').classList.remove('hidden');
+  configureZoneUI(true);$('#moveStep').classList.remove('hidden');$('#whoStep').classList.remove('hidden');
+  configureWhoUI();
   updatePopupSaveVisibility();
 }
 function resetPopupScroll(popupId){const sheet=$(popupId+' .sheet');if(sheet) sheet.scrollTop=0}
@@ -1439,30 +1705,11 @@ function openActionPopup(selectedFamily,selectedActionType){
   buildOpponentOptions();
   $('#restartLocationStep').classList.toggle('hidden',family!=='remise');
   buildOutcomeButtons();
-  $('#resultStep').classList.remove('hidden');$('#zoneStep').classList.toggle('hidden',family==='gel');$('#moveStep').classList.remove('hidden');$('#whoStep').classList.remove('hidden');
+  $('#resultStep').classList.remove('hidden');
+  configureZoneUI(family!=='gel');
+  $('#moveStep').classList.remove('hidden');$('#whoStep').classList.remove('hidden');
   $('#savePopup').classList.add('hidden');
-  buildWho('#whoOptions');
-  $('#whoTitle').textContent=actionType==='Défense'?'Attribution — plusieurs joueurs possibles':'Attribution — facultatif';
-  $$('#whoOptions button').forEach(b=>b.classList.remove('choice'));
-  $('#whoOptions button[data-who=""]').classList.add('choice');
-  $$('#whoOptions button').forEach(b=>b.onclick=()=>{
-    const name=b.dataset.who;
-    if(actionType==='Défense'){
-      if(!name){
-        whoMany=[];
-        $$('#whoOptions button').forEach(x=>x.classList.remove('choice'));
-        b.classList.add('choice');
-      }else{
-        whoMany=whoMany.includes(name)?whoMany.filter(x=>x!==name):[...whoMany,name];
-        $('#whoOptions button[data-who=""]').classList.toggle('choice',whoMany.length===0);
-        b.classList.toggle('choice',whoMany.includes(name));
-      }
-    }else{
-      who=name;
-      $$('#whoOptions button').forEach(x=>x.classList.remove('choice'));
-      b.classList.add('choice');
-    }
-  });
+  configureWhoUI();
   $('#popup').classList.remove('hidden');resetPopupScroll('#popup');
 }
 $$('.entryAction').forEach(b=>b.onclick=()=>{
@@ -1486,6 +1733,10 @@ function openFaultPopup(){
   $('#faultPopup').classList.remove('hidden');resetPopupScroll('#faultPopup');
 }
 $$('#zoneOptions button').forEach(b=>b.onclick=()=>{zone=b.dataset.zone;$$('#zoneOptions button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice')});
+$$('#centerDefenseMap .sector').forEach(el=>el.onclick=()=>selectCenterDefenseSector(el));
+$('#clearCenterDefenseZone').onclick=clearCenterDefenseSectorSelection;
+$('#period').onchange=()=>{renderDefenseRoleSetup();refreshCenterDefenseMapLabels();};
+
 $$('#moveOptions button').forEach(b=>b.onclick=()=>{movement=b.dataset.move;$$('#moveOptions button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice')});
 $$('#faultTypes button').forEach(b=>b.onclick=()=>{faultType=b.dataset.fault;$$('#faultTypes button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice')});
 
@@ -1607,32 +1858,11 @@ function editEvent(id){
   $$('#restartLocationOptions button').forEach(b=>b.classList.toggle('choice',b.dataset.restart===restartLocation));
   buildOutcomeButtons();
   $$('#resultOptions button').forEach(b=>b.classList.toggle('choice',b.dataset.result===actionResult));
-  $('#resultStep').classList.remove('hidden');$('#moveStep').classList.remove('hidden');$('#zoneStep').classList.toggle('hidden',family==='gel');$('#whoStep').classList.remove('hidden');$('#savePopup').classList.remove('hidden');
+  $('#resultStep').classList.remove('hidden');$('#moveStep').classList.remove('hidden');configureZoneUI(family!=='gel');$('#whoStep').classList.remove('hidden');$('#savePopup').classList.remove('hidden');
   $$('#zoneOptions button').forEach(b=>b.classList.toggle('choice',(b.dataset.zone||'')===zone));
   $$('#moveOptions button').forEach(b=>b.classList.toggle('choice',(b.dataset.move||'')===movement));
-  buildWho('#whoOptions');
-  $('#whoTitle').textContent=actionType==='Défense'?'Attribution — plusieurs joueurs possibles':'Attribution — facultatif';
-  $$('#whoOptions button').forEach(b=>{
-    const name=b.dataset.who||'';
-    b.classList.toggle('choice',actionType==='Défense'?(name?whoMany.includes(name):whoMany.length===0):name===who);
-    b.onclick=()=>{
-      if(actionType==='Défense'){
-        if(!name){
-          whoMany=[];
-          $$('#whoOptions button').forEach(x=>x.classList.remove('choice'));
-          b.classList.add('choice');
-        }else{
-          whoMany=whoMany.includes(name)?whoMany.filter(x=>x!==name):[...whoMany,name];
-          $('#whoOptions button[data-who=""]').classList.toggle('choice',whoMany.length===0);
-          b.classList.toggle('choice',whoMany.includes(name));
-        }
-      }else{
-        who=name;
-        $$('#whoOptions button').forEach(x=>x.classList.remove('choice'));
-        b.classList.add('choice');
-      }
-    }
-  });
+  configureWhoUI();
+  if(isCenterDefense())syncCenterDefenseSectorFromEvent();
   $('#popup').classList.remove('hidden');resetPopupScroll('#popup');
 }
 
