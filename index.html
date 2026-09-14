@@ -313,11 +313,11 @@ button:active{transform:scale(.985)}
 
 #popup.centerDefenseCompact .centerDefenseArena{
   display:grid;
-  grid-template-columns:minmax(120px,.72fr) minmax(360px,2.7fr) minmax(145px,.9fr);
+  grid-template-columns:minmax(72px,.38fr) minmax(500px,4.5fr) minmax(82px,.42fr);
   grid-template-areas:"result map who";
-  gap:6px;
+  gap:3px;
   align-items:stretch;
-  margin-top:3px;
+  margin-top:2px;
 }
 #popup.centerDefenseCompact #centerDefenseMapStep{
   grid-area:map;
@@ -350,15 +350,18 @@ button:active{transform:scale(.985)}
 }
 #popup.centerDefenseCompact #resultOptions button,
 #popup.centerDefenseCompact #whoOptions button{
-  min-height:42px;
+  min-height:30px;
   height:100%;
-  font-size:11.5px;
-  padding:5px 6px;
+  font-size:9.5px;
+  line-height:1.05;
+  padding:2px 3px;
+  white-space:normal;
+  text-align:center;
 }
 #popup.centerDefenseCompact #whoOptions .full{grid-column:auto}
 #popup.centerDefenseCompact .centerDefenseMap{
   width:100%;
-  max-height:min(49dvh,430px);
+  max-height:min(58dvh,520px);
 }
 #popup.centerDefenseCompact .centerDefenseMapWrap{
   height:auto;
@@ -372,17 +375,19 @@ button:active{transform:scale(.985)}
 /* iPad portrait / petits laptops : garde les panneaux latéraux mais les resserre. */
 @media(max-width:820px) and (min-width:641px){
   #popup.centerDefenseCompact .centerDefenseArena{
-    grid-template-columns:minmax(105px,.62fr) minmax(330px,2.5fr) minmax(125px,.75fr);
-    gap:4px;
+    grid-template-columns:minmax(66px,.34fr) minmax(430px,4.2fr) minmax(76px,.38fr);
+    gap:3px;
   }
   #popup.centerDefenseCompact #resultOptions button,
   #popup.centerDefenseCompact #whoOptions button{
-    min-height:38px;
-    font-size:10.5px;
-    padding:4px;
+    min-height:30px;
+    font-size:9.5px;
+    line-height:1.05;
+    padding:2px 3px;
+    white-space:normal;
   }
   #popup.centerDefenseCompact .centerDefenseMap{
-    max-height:min(46dvh,390px);
+    max-height:min(55dvh,470px);
   }
 }
 
@@ -416,12 +421,32 @@ button:active{transform:scale(.985)}
   }
 }
 
+
+#popup.centerDefenseCompact #resultStep > h3,
+#popup.centerDefenseCompact #whoStep > h3{
+  font-size:9px;
+  line-height:1;
+  margin-bottom:2px;
+}
+
+
+#popup.centerDefenseCompact #whoOptions button{
+  max-width:86px;
+  justify-self:stretch;
+  width:100%;
+}
+@media(max-width:820px) and (min-width:641px){
+  #popup.centerDefenseCompact #whoOptions button{
+    max-width:78px;
+  }
+}
+
 </style>
 </head>
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V2.4 Préliminaire — Schéma central entouré des contrôles</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V2.4 Préliminaire — Schéma central épuré</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -1074,7 +1099,7 @@ button:active{transform:scale(.985)}
    <div class="centerDefenseArena">
    <div class="step hidden" id="centerDefenseMapStep">
     <h3>Zone de responsabilité</h3>
-    <div class="small centerDefenseGestureHint">Zone : <strong>1 tap = défendu</strong> · <strong>2 taps / appui long = échappé</strong> · Ballon : <strong>2 taps / appui long = défensive illégale</strong>.</div>
+    <div class="small centerDefenseGestureHint">Zone : <strong>1 tap = défendu</strong> · <strong>2 taps / appui long = échappé</strong> · Ballon : <strong>1 tap = défensive illégale</strong>.</div>
 
     <div class="centerDefenseRoleEditor">
       <div class="centerDefenseRoleEditorGrid">
@@ -1104,9 +1129,6 @@ button:active{transform:scale(.985)}
         <text class="roleText" id="centerMapRoleP" x="545" y="165" text-anchor="middle">P</text>
         <text class="roleText" id="centerMapRoleA2" x="560" y="315" text-anchor="middle">A2</text>
       </svg>
-    </div>
-    <div class="row" style="margin-top:8px">
-      <button class="ghost" id="clearCenterDefenseZone" style="flex:1">Zone non précisée</button>
     </div>
    </div>
 
@@ -2159,6 +2181,12 @@ function buildOutcomeButtons(){
     add('BALLON DÉFENDU','Ballon défendu');
     add('ÉCHAPPÉ','Échappé');
     add('DÉFENSIVE ILLÉGALE','Défensive illégale');
+    if(isCenterDefense()){
+      const defended=$('#resultOptions button[data-result="Ballon défendu"]');
+      const illegal=$('#resultOptions button[data-result="Défensive illégale"]');
+      if(defended)defended.innerHTML='BALLON<br>DÉFENDU';
+      if(illegal)illegal.innerHTML='DÉFENSIVE<br>ILLÉGALE';
+    }
   }
 }
 function handleOutcome(value,button){
@@ -2312,60 +2340,14 @@ $$('#centerDefenseMap .sector').forEach(el=>{
     applyCenterDefenseGesture(el,'Échappé');
   });
 });
-$('#clearCenterDefenseZone').onclick=clearCenterDefenseSectorSelection;
 
 const centerBall=$('#centerDefenseMap .ball');
 if(centerBall){
-  let lastBallTap=0;
-  let ballLongTimer=null;
-  let ballLongTriggered=false;
-  let suppressBallTapUntil=0;
-
-  centerBall.addEventListener('pointerdown',ev=>{
-    if(!isCenterDefense())return;
-    ballLongTriggered=false;
-    clearTimeout(ballLongTimer);
-    ballLongTimer=setTimeout(()=>{
-      ballLongTriggered=true;
-      suppressBallTapUntil=Date.now()+700;
-      lastBallTap=0;
-      applyCenterDefenseIllegal();
-      if(navigator.vibrate)navigator.vibrate(45);
-    },480);
-  });
-
-  const cancelBallLong=()=>{
-    clearTimeout(ballLongTimer);
-    ballLongTimer=null;
-  };
-  centerBall.addEventListener('pointercancel',cancelBallLong);
-  centerBall.addEventListener('pointerleave',cancelBallLong);
-
   centerBall.addEventListener('pointerup',ev=>{
     if(!isCenterDefense())return;
-    cancelBallLong();
-    if(ballLongTriggered||Date.now()<suppressBallTapUntil){
-      ballLongTriggered=false;
-      return;
-    }
-    const now=Date.now();
-    if(now-lastBallTap<360){
-      ev.preventDefault();
-      lastBallTap=0;
-      applyCenterDefenseIllegal();
-      if(navigator.vibrate)navigator.vibrate(45);
-    }else{
-      lastBallTap=now;
-    }
-  });
-
-  centerBall.addEventListener('dblclick',ev=>{
-    if(!isCenterDefense())return;
     ev.preventDefault();
-    cancelBallLong();
-    if(Date.now()<suppressBallTapUntil)return;
-    lastBallTap=0;
     applyCenterDefenseIllegal();
+    if(navigator.vibrate)navigator.vibrate(35);
   });
 }
 
