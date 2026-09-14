@@ -133,6 +133,17 @@ button:active{transform:scale(.985)}
 .centerDefenseLegend{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .centerDefenseLegend span{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 7px}
 .centerDefenseResponsibility .options button{font-size:13px}
+
+.centerDefenseRoleEditor{margin-bottom:9px}
+.centerDefenseRoleEditor .small{margin-bottom:6px}
+.centerDefenseRoleEditorGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.centerDefenseRoleEditorGrid label{font-size:11px;color:var(--muted);display:block;margin-bottom:3px}
+.centerDefenseRoleEditorGrid select{width:100%;padding:7px 6px;font-size:12px}
+.centerDefenseMap .roleText{font-size:16px;font-weight:800;fill:currentColor;pointer-events:none}
+@media(max-width:620px){
+  .centerDefenseRoleEditorGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
 @media(max-width:620px){
   .defenseRoleGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .centerDefenseMap .sectorText{font-size:17px}
@@ -144,7 +155,7 @@ button:active{transform:scale(.985)}
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V2.2 Préliminaire — Prototype défense au centre</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V2.2 Préliminaire — Défense au centre V2</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -738,13 +749,21 @@ button:active{transform:scale(.985)}
       <button data-zone="EE">EE</button>
     </div>
    </div>
-
    <div class="step hidden" id="centerDefenseMapStep">
     <h3>Zone de responsabilité</h3>
-    <div class="small" style="margin-bottom:8px">Touche la zone où tombe le ballon. Les joueurs du secteur sont pré-sélectionnés automatiquement.</div>
+    <div class="small" style="margin-bottom:8px">Affecte les postes en regardant le schéma, puis touche la zone où tombe le ballon. Les joueurs du secteur sont pré-sélectionnés automatiquement.</div>
+
+    <div class="centerDefenseRoleEditor">
+      <div class="centerDefenseRoleEditorGrid">
+        <div><label>R</label><select id="popupDefRoleR"></select></div>
+        <div><label>E1</label><select id="popupDefRoleE1"></select></div>
+        <div><label>E2</label><select id="popupDefRoleE2"></select></div>
+        <div><label>E3</label><select id="popupDefRoleE3"></select></div>
+      </div>
+    </div>
+
     <div class="centerDefenseMapWrap">
       <svg class="centerDefenseMap" id="centerDefenseMap" viewBox="0 0 800 500" role="img" aria-label="Schéma des zones de défense au centre">
-        <!-- sens horaire : R, RE, E1, EE, E2, EE, E3, RE -->
         <polygon class="sector" data-sector="R" data-zone="R" data-roles="R" points="400,270 400,480 20,480 20,295"></polygon>
         <polygon class="sector" data-sector="RE-left" data-zone="RE" data-roles="R,E1" points="400,270 20,295 20,20 110,20"></polygon>
         <polygon class="sector" data-sector="E1" data-zone="E1" data-roles="E1" points="400,270 110,20 280,20"></polygon>
@@ -754,29 +773,20 @@ button:active{transform:scale(.985)}
         <polygon class="sector" data-sector="E3" data-zone="E3" data-roles="E3" points="400,270 780,350 780,455"></polygon>
         <polygon class="sector" data-sector="RE-bottom" data-zone="RE" data-roles="R,E3" points="400,270 780,455 780,480 400,480"></polygon>
 
-        <text class="sectorText" x="155" y="235">RE</text>
-        <text class="sectorText" x="246" y="100">E1</text>
-        <text class="sectorText" x="418" y="87">EE</text>
-        <text class="sectorText" x="668" y="102">E2</text>
-        <text class="sectorText" x="675" y="240">EE</text>
-        <text class="sectorText" x="690" y="390">E3</text>
-        <text class="sectorText" x="518" y="430">RE</text>
-        <text class="sectorText" x="160" y="410">R</text>
-
         <circle class="ball" cx="400" cy="270" r="39"></circle>
         <text class="ballText" x="400" y="277" text-anchor="middle">Ballon</text>
 
-        <text class="roleText" id="centerMapRoleR" x="354" y="330" text-anchor="end">R</text>
-        <text class="roleText" id="centerMapRoleE1" x="315" y="155" text-anchor="middle">E1</text>
-        <text class="roleText" id="centerMapRoleE2" x="535" y="165" text-anchor="middle">E2</text>
-        <text class="roleText" id="centerMapRoleE3" x="550" y="345" text-anchor="middle">E3</text>
+        <text class="roleText" id="centerMapRoleR" x="345" y="335" text-anchor="end">R</text>
+        <text class="roleText" id="centerMapRoleE1" x="305" y="155" text-anchor="middle">E1</text>
+        <text class="roleText" id="centerMapRoleE2" x="545" y="165" text-anchor="middle">E2</text>
+        <text class="roleText" id="centerMapRoleE3" x="560" y="350" text-anchor="middle">E3</text>
       </svg>
-      <div class="centerDefenseLegend" id="centerDefenseLegend"></div>
     </div>
     <div class="row" style="margin-top:8px">
       <button class="ghost" id="clearCenterDefenseZone" style="flex:1">Zone non précisée</button>
     </div>
    </div>
+
 
    <div class="step hidden" id="whoStep">
     <h3 id="whoTitle">Attribution — facultatif</h3>
@@ -919,7 +929,7 @@ async function refreshRecentMatches(){
   await fetchProfiles((data||[]).flatMap(m=>[m.created_by,m.updated_by]));
   (data||[]).forEach(m=>{
     const o=document.createElement('option');o.value=m.id;
-    o.textContent=`${m.played_on||'Date ?'} · ${m.label} · ${m.group?.name||m.followed_team?.name||'Groupe'}`;
+    o.textContent=`${m.played_on?formatDateShort(m.played_on):'Date ?'} · ${m.label} · ${m.group?.name||m.followed_team?.name||'Groupe'}`;
     o.dataset.createdBy=m.created_by||'';
     o.dataset.updatedBy=m.updated_by||'';
     o.dataset.createdAt=m.created_at||'';
@@ -1177,21 +1187,42 @@ function renderDefenseRoleSetup(){
     sel.onchange=()=>swapDefenseRole(role,sel.value);
   });
   if(hint)hint.textContent=`${currentDefensePeriod()} · R = ${map.R} · E1 = ${map.E1} · E2 = ${map.E2} · E3 = ${map.E3}`;
+  refreshCenterDefenseMapLabels();
 }
 function isCenterDefense(){
   return family==='centre'&&actionType==='Défense';
 }
+function populateDefenseRoleSelects(prefix){
+  const players=validDefensePlayers();
+  const map=defenseRoleMap();
+  DEFENSE_ROLES.forEach(role=>{
+    const sel=$(`#${prefix}${role}`);
+    if(!sel)return;
+    const current=map[role]||'';
+    sel.innerHTML='';
+    players.forEach(p=>{
+      const o=document.createElement('option');
+      o.value=p;o.textContent=p;sel.append(o);
+    });
+    if(players.includes(current))sel.value=current;
+    sel.onchange=()=>{
+      swapDefenseRole(role,sel.value);
+      populateDefenseRoleSelects(prefix);
+      if(isCenterDefense()){
+        syncCenterDefenseSectorFromEvent();
+        renderCenterDefenseResponsibility();
+      }
+    };
+  });
+}
 function refreshCenterDefenseMapLabels(){
   const map=defenseRoleMap();
-  const legend=$('#centerDefenseLegend');
-  if(legend){
-    legend.innerHTML='';
-    DEFENSE_ROLES.forEach(r=>{
-      const chip=document.createElement('span');
-      chip.textContent=`${r} : ${map[r]||'—'}`;
-      legend.append(chip);
-    });
-  }
+  const ids={R:'#centerMapRoleR',E1:'#centerMapRoleE1',E2:'#centerMapRoleE2',E3:'#centerMapRoleE3'};
+  DEFENSE_ROLES.forEach(role=>{
+    const el=$(ids[role]);
+    if(el)el.textContent=map[role]||role;
+  });
+  populateDefenseRoleSelects('popupDefRole');
 }
 function renderCenterDefenseResponsibility(){
   const box=$('#whoOptions');
@@ -2098,11 +2129,19 @@ async function ensureMyProfile(){
 }
 
 
+function formatDateShort(v){
+  if(!v)return '';
+  const m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m)return `${m[3]}/${m[2]}/${m[1].slice(-2)}`;
+  const d=new Date(v);
+  if(Number.isNaN(d.getTime()))return String(v);
+  return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'});
+}
 function formatAuditDate(v){
   if(!v)return '';
   const d=new Date(v);
   if(Number.isNaN(d.getTime()))return '';
-  return d.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  return d.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
 }
 function auditName(userId){
   if(!userId)return 'inconnu';
@@ -2875,7 +2914,7 @@ function renderDuplicateTrainingSessions(){
     d.className='historyItem';
     d.innerHTML=`<div class="row" style="justify-content:space-between;align-items:flex-start;gap:8px">
       <div style="min-width:0;flex:1">
-        <strong>${sess.trained_on||''}${sess.theme?' · '+sess.theme:(sess.label?' · '+sess.label:'')}</strong>
+        <strong>${sess.trained_on?formatDateShort(sess.trained_on):''}${sess.theme?' · '+sess.theme:(sess.label?' · '+sess.label:'')}</strong>
         <div class="small" style="margin-top:4px">${sess.group?.name||sess.team?.name||'Groupe'}${sess.duration_minutes?' · '+sess.duration_minutes+' min':''}</div>
         <div class="small" style="margin-top:4px">Créé par ${auditName(sess.created_by)}${sess.created_at?' le '+formatAuditDate(sess.created_at):''}${sess.updated_at&&sess.updated_at!==sess.created_at?' · Modifié par '+auditName(sess.updated_by)+(sess.updated_at?' le '+formatAuditDate(sess.updated_at):''):''}</div>
       </div>
@@ -3256,7 +3295,7 @@ function renderStatsPlayer(){
   const dates=present.map(a=>statsState.sessionMap[a.session_id]?.trained_on).filter(Boolean).sort();
   m.innerHTML=statsMetric('Présence',att.length?rate+' %':'—')+
     statsMetric('Séances suivies',present.length)+
-    statsMetric('Dernier entraînement',dates.length?dates.at(-1):'—');
+    statsMetric('Dernier entraînement',dates.length?formatDateShort(dates.at(-1)):'—');
 
   const exId=$('#statsPlayerExercise').value;
   if(!exId){sum.innerHTML='<div class="statsEmpty">Choisis un exercice pour voir l’évolution.</div>';return}
@@ -3267,7 +3306,7 @@ function renderStatsPlayer(){
   const last=rows.at(-1),best=statsBestRow(rows,ex.measurement_type),recent=rows.slice(-3);
   sum.innerHTML=`<div class="statsMetrics">${statsMetric('Dernier',statsFormatSingle(last,ex.measurement_type))}${statsMetric('Moyenne récente',statsFormatAggregate(recent,ex.measurement_type),'3 derniers résultats')}${statsMetric('Meilleur',statsFormatSingle(best,ex.measurement_type))}</div>`;
   const values=rows.map(r=>statsValueNumber(r,ex.measurement_type)).filter(v=>v!=null);
-  const labels=rows.filter(r=>statsValueNumber(r,ex.measurement_type)!=null).map(r=>statsState.sessionMap[r.session_id]?.trained_on||'');
+  const labels=rows.filter(r=>statsValueNumber(r,ex.measurement_type)!=null).map(r=>formatDateShort(statsState.sessionMap[r.session_id]?.trained_on||''));
   evo.innerHTML=values.length>1?`<h3 style="font-size:16px;margin:12px 0 6px">Évolution</h3>${statsSparkline(values,labels)}`:'';
 }
 function renderStatsExercise(){
@@ -3301,7 +3340,7 @@ function renderStatsExercise(){
     }
     return {date:statsState.sessionMap[sid]?.trained_on||'',val};
   }).filter(x=>x.val!=null).sort((a,b)=>a.date.localeCompare(b.date));
-  if(bySession.length>1)evo.innerHTML=`<h3 style="font-size:16px;margin:12px 0 6px">Évolution du groupe</h3>${statsSparkline(bySession.map(x=>x.val),bySession.map(x=>x.date))}`;
+  if(bySession.length>1)evo.innerHTML=`<h3 style="font-size:16px;margin:12px 0 6px">Évolution du groupe</h3>${statsSparkline(bySession.map(x=>x.val),bySession.map(x=>formatDateShort(x.date)))}`;
 
   renderStatsLeaderboard(rows,ex);
 }
@@ -3362,7 +3401,7 @@ async function loadPlayerHistory(playerId){
       val=`${r.successes??'—'} / ${r.attempts??'—'}`;
       if(r.attempts>0&&r.successes!=null) val+=` · ${Math.round(100*r.successes/r.attempts)} %`;
     }else if(r.numeric_value!=null) val=String(r.numeric_value);
-    const d=document.createElement('div');d.className='historyItem';d.innerHTML=`<strong>${r.exercise?.name||'Exercice'}</strong><div>${val}</div><div class="small">${r.session?.trained_on||''}${r.session?.theme?' · '+r.session.theme:''}${r.note?' · '+r.note:''}</div>`;out.append(d);
+    const d=document.createElement('div');d.className='historyItem';d.innerHTML=`<strong>${r.exercise?.name||'Exercice'}</strong><div>${val}</div><div class="small">${r.session?.trained_on?formatDateShort(r.session.trained_on):''}${r.session?.theme?' · '+r.session.theme:''}${r.note?' · '+r.note:''}</div>`;out.append(d);
   });
 }
 
