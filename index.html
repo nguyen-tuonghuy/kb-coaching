@@ -445,12 +445,20 @@ button:active{transform:scale(.985)}
 #popup.centerDefenseCompact.centerAttackMode .centerDefenseRoleEditor{display:none}
 #popup.centerDefenseCompact.centerAttackMode .centerDefenseMap .roleText{font-weight:800}
 
+
+#popup.centerDefenseCompact.centerAttackMode #resultOptions{
+  grid-template-columns:1fr;
+}
+#popup.centerDefenseCompact.centerAttackMode #resultOptions button{
+  min-height:28px;
+}
+
 </style>
 </head>
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V2.5 Préliminaire — Diagramme Attaque au centre</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V2.5 Préliminaire — Attaque au centre avec défensive illégale</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -1817,7 +1825,7 @@ function configureZoneUI(show=true){
 function buildWho(boxId){
   const box=$(boxId);box.innerHTML='';
   const collective=document.createElement('button');
-  collective.className='full';collective.dataset.who='';collective.textContent='COLLECTIF / NON SPÉCIFIÉ';
+  collective.className='full';collective.dataset.who='';collective.textContent='COLLECTIF';
   box.append(collective);
   state.activePlayers.forEach(p=>{
     const b=document.createElement('button');b.dataset.who=p;b.textContent=p;box.append(b)
@@ -2228,12 +2236,15 @@ function buildOutcomeButtons(){
     add('BALLON DÉFENDU','Ballon défendu');
     add('FAUTE D’ATTAQUE','Faute attaque');
     if(isCenterAttack()){
+      add('DÉFENSIVE ILLÉGALE','Défensive illégale');
       const point=$('#resultOptions button[data-result="Point marqué"]');
       const defended=$('#resultOptions button[data-result="Ballon défendu"]');
       const fault=$('#resultOptions button[data-result="Faute attaque"]');
+      const illegal=$('#resultOptions button[data-result="Défensive illégale"]');
       if(point)point.innerHTML='POINT<br>MARQUÉ';
       if(defended)defended.innerHTML='BALLON<br>DÉFENDU';
       if(fault)fault.innerHTML='FAUTE<br>D’ATTAQUE';
+      if(illegal)illegal.innerHTML='DÉFENSIVE<br>ILLÉGALE';
     }
   }else{
     add('BALLON DÉFENDU','Ballon défendu');
@@ -2252,6 +2263,16 @@ function handleOutcome(value,button){
   $$('#resultOptions button').forEach(x=>x.classList.remove('choice'));button.classList.add('choice');
   if(actionType==='Attaque'&&value==='Faute attaque'){
     $('#popup').classList.add('hidden');openFaultPopup();return
+  }
+  if(isCenterAttack()&&value==='Défensive illégale'){
+    pending='Attaque · Défensive illégale';
+    faultType='Défensive illégale';
+    who='';
+    $('#whoStep').classList.remove('hidden');
+    configureWhoUI();
+    $$('#whoOptions button').forEach(x=>x.classList.toggle('choice',(x.dataset.who||'')===''));
+    updatePopupSaveVisibility();
+    return
   }
   if(actionType==='Défense'&&value==='Défensive illégale'){
     pending='Faute';faultType='Défensive illégale';zone='';movement='Non';
