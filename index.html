@@ -860,7 +860,7 @@ button:active{transform:scale(.985)}
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V2.7 Préliminaire — Administration des groupes</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V2.7 Préliminaire — Administration · Nom de groupe modifiable</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -986,7 +986,19 @@ button:active{transform:scale(.985)}
 
  <section class="panel hidden" id="groupDetail">
    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
-    <div><h2 style="font-size:20px" id="groupDetailName">Groupe</h2><div class="small" id="groupDetailClub"></div></div>
+    <div style="min-width:0;flex:1">
+     <div class="row" style="align-items:center;gap:6px;flex-wrap:nowrap">
+      <h2 style="font-size:20px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="groupDetailName">Groupe</h2>
+      <button class="ghost hidden" id="editGroupNameBtn" style="padding:6px 8px;font-size:12px;white-space:nowrap">Modifier</button>
+     </div>
+     <div class="small" id="groupDetailClub"></div>
+     <div class="row hidden" id="groupNameEditRow" style="margin-top:8px;align-items:center;gap:6px">
+      <input id="groupNameEditInput" maxlength="100" style="flex:1;min-width:0" placeholder="Nom du groupe">
+      <button class="ghost" id="cancelGroupNameEdit">Annuler</button>
+      <button class="primary" id="saveGroupNameEdit">Enregistrer</button>
+     </div>
+     <div class="authStatus" id="groupNameEditStatus"></div>
+    </div>
     <button class="ghost" id="groupDetailBack">← Groupes</button>
    </div>
 
@@ -3567,6 +3579,10 @@ async function openGroupDetail(groupId){
     $('#groupDetailName').textContent=g.name;
     $('#groupDetailClub').textContent=g.club||'';
     $('#groupInviteCode').textContent=g.invite_code||'—';
+    $('#editGroupNameBtn').classList.toggle('hidden',g.role!=='owner');
+    $('#groupNameEditRow').classList.add('hidden');
+    $('#groupNameEditInput').value=g.name||'';
+    $('#groupNameEditStatus').textContent='';
     renderGroupPlayers();
     const {data:coaches,error}=await db.from('coaching_group_coaches').select('user_id,role,joined_at').eq('group_id',groupId).order('joined_at');
     if(error)throw error;
@@ -3581,6 +3597,47 @@ async function openGroupDetail(groupId){
     hideMainModules();setMatchHeaderMode(false);$('#groupDetail').classList.remove('hidden');window.scrollTo({top:0,behavior:'instant'});
   }catch(e){handleError('openGroupDetail',e)}
 }
+
+async function saveCurrentGroupName(){
+  const groupId=groupState.currentGroupId;
+  const g=groupState.groups.find(x=>x.id===groupId);
+  if(!groupId||!g||g.role!=='owner')return;
+  const input=$('#groupNameEditInput');
+  const status=$('#groupNameEditStatus');
+  const name=(input?.value||'').trim();
+  if(!name){
+    status.textContent='Le nom du groupe ne peut pas être vide.';
+    status.className='authStatus cloudErr';
+    return;
+  }
+  if(name===g.name){
+    $('#groupNameEditRow').classList.add('hidden');
+    status.textContent='';
+    return;
+  }
+  try{
+    status.textContent='Enregistrement…';
+    status.className='authStatus';
+    const {error}=await db.from('coaching_groups')
+      .update({name})
+      .eq('id',groupId);
+    if(error)throw error;
+
+    g.name=name;
+    $('#groupDetailName').textContent=name;
+    $('#groupNameEditRow').classList.add('hidden');
+    status.textContent='Nom du groupe mis à jour ✓';
+    status.className='authStatus cloudOk';
+    populateGroupSelectors();
+    renderGroupsList();
+    setCloud('Synchronisé',true);
+  }catch(e){
+    status.textContent='Impossible de modifier le nom du groupe.';
+    status.className='authStatus cloudErr';
+    handleError('update group name',e);
+  }
+}
+
 function renderGroupPlayers(){
   const box=$('#groupPlayersList');if(!box)return;box.innerHTML='';
   if(!groupState.currentPlayers.length){box.innerHTML='<div class="small">Aucun joueur dans ce groupe.</div>';return}
@@ -4905,6 +4962,24 @@ $('#trainingBackHome').onclick=showAppHome;
 
 $('#groupsBackHome').onclick=showAppHome;
 $('#groupDetailBack').onclick=()=>openGroupsModule();
+$('#editGroupNameBtn').onclick=()=>{
+  const g=groupState.groups.find(x=>x.id===groupState.currentGroupId);
+  if(!g||g.role!=='owner')return;
+  $('#groupNameEditInput').value=g.name||'';
+  $('#groupNameEditRow').classList.remove('hidden');
+  $('#groupNameEditStatus').textContent='';
+  $('#groupNameEditInput').focus();
+  $('#groupNameEditInput').select();
+};
+$('#cancelGroupNameEdit').onclick=()=>{
+  $('#groupNameEditRow').classList.add('hidden');
+  $('#groupNameEditStatus').textContent='';
+};
+$('#saveGroupNameEdit').onclick=()=>saveCurrentGroupName();
+$('#groupNameEditInput').onkeydown=e=>{
+  if(e.key==='Enter'){e.preventDefault();saveCurrentGroupName()}
+  if(e.key==='Escape'){$('#groupNameEditRow').classList.add('hidden');$('#groupNameEditStatus').textContent=''}
+};
 $('#showCreateGroup').onclick=()=>{$('#createGroupBox').classList.toggle('hidden');$('#joinGroupBox').classList.add('hidden')};
 $('#showJoinGroup').onclick=()=>{$('#joinGroupBox').classList.toggle('hidden');$('#createGroupBox').classList.add('hidden')};
 $('#createGroupBtn').onclick=()=>createGroup().catch(e=>{const st=$('#createGroupStatus');st.textContent=e.message||String(e);st.className='authStatus cloudErr'});
