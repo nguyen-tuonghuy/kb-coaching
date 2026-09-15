@@ -832,12 +832,35 @@ button:active{transform:scale(.985)}
   }
 }
 
+
+.adminGroupCard{
+  background:var(--panel2);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:12px;
+  margin-bottom:9px;
+}
+.adminGroupTitle{font-weight:800;font-size:16px;line-height:1.2}
+.adminGroupClub{font-size:12px;color:var(--muted);margin-top:3px}
+.adminCoachList{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.adminCoachRow{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  background:var(--panel);
+  border-radius:10px;
+  padding:8px 9px;
+}
+.adminCoachName{font-weight:750}
+.adminCoachMeta{font-size:11px;color:var(--muted);text-align:right}
+
 </style>
 </head>
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V2.6 Préliminaire — Schéma pleine largeur · Ballon lisible</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V2.7 Préliminaire — Administration des groupes</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -888,11 +911,24 @@ button:active{transform:scale(.985)}
     <button class="moduleCard primary" id="openMatchModule"><strong>🏐 Matchs</strong><span>Prise de notes et statistiques partagées du groupe</span></button>
     <button class="moduleCard" id="openTrainingModule"><strong>🎯 Entraînements</strong><span>Séances, exercices, résultats et progression des joueurs</span></button>
     <button class="moduleCard" id="openGroupsModule"><strong>👥 Groupes</strong><span>Effectifs et entraîneurs partageant les mêmes données</span></button>
+    <button class="moduleCard hidden" id="openAdminModule"><strong>🛡️ Administration</strong><span>Voir tous les groupes et leurs entraîneurs</span></button>
     <button class="moduleCard" id="openSettingsModule"><strong>⚙️ Paramètres</strong><span>Catégories d’exercices · Types de match</span></button>
     <button class="moduleCard" id="openStatsModule"><strong>📊 Statistiques</strong><span>Dashboard d’entraînement : groupe, joueurs, exercices et classements</span></button>
    </div>
  </section>
 
+
+ <section class="panel hidden" id="adminHome">
+   <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div>
+     <h2 style="font-size:20px">🛡️ Administration</h2>
+     <div class="small">Tous les groupes créés et leurs entraîneurs</div>
+    </div>
+    <button class="ghost" id="adminBackHome">← Accueil</button>
+   </div>
+   <div id="adminGroupsStatus" class="small" style="margin-bottom:10px"></div>
+   <div id="adminGroupsList"></div>
+ </section>
 
  <section class="panel hidden" id="settingsHome">
    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:14px">
@@ -1714,6 +1750,7 @@ async function initAuthenticated(user){
   setCloud('Synchronisé',true);
   await ensureWorkspace();
   await ensureMyProfile();
+  await refreshAdminAccess();
   await fetchMyGroups();
   await refreshRecentMatches();
 }
@@ -1811,6 +1848,8 @@ $('#logout').onclick=async()=>{
   await db.auth.signOut();
   hideMainModules();
   categoryState.categories=[];
+  adminState={isAdmin:false,groups:[]};
+  $('#openAdminModule')?.classList.add('hidden');
   currentUser=null;
   state={matchName:'',matchTypeId:null,teamName:'',opponentTeams:[],opponentTeamIds:{},matchDate:'',players:[],activePlayers:[],events:[],currentMatchId:null,currentTeamId:null,workspaceId:null,playerIds:{},playerRolePreferences:{},defenseRolesByPeriod:{}};
   localStorage.removeItem(KEY);
@@ -3265,6 +3304,7 @@ $('#matchTypeCreateForm').onsubmit=event=>{
 
 let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{}};
 let groupState={groups:[],currentGroupId:null,currentPlayers:[],matchPlayers:[],profiles:{}};
+let adminState={isAdmin:false,groups:[]};
 let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',leaderMode:'recent'};
 
 
@@ -3317,6 +3357,74 @@ async function ensureMyProfile(){
   openProfilePopup();
 }
 
+
+
+async function refreshAdminAccess(){
+  if(!currentUser){
+    adminState.isAdmin=false;
+    $('#openAdminModule')?.classList.add('hidden');
+    return false;
+  }
+  const {data,error}=await db.rpc('is_app_admin');
+  if(error)throw error;
+  adminState.isAdmin=!!data;
+  $('#openAdminModule')?.classList.toggle('hidden',!adminState.isAdmin);
+  return adminState.isAdmin;
+}
+
+async function fetchAdminGroups(){
+  if(!adminState.isAdmin)throw new Error('Accès administrateur requis.');
+  const {data,error}=await db.rpc('admin_list_groups');
+  if(error)throw error;
+  adminState.groups=data||[];
+  return adminState.groups;
+}
+
+function renderAdminGroups(){
+  const box=$('#adminGroupsList');
+  const status=$('#adminGroupsStatus');
+  if(!box||!status)return;
+  const groups=adminState.groups||[];
+  status.textContent=`${groups.length} groupe${groups.length>1?'s':''}`;
+  box.innerHTML='';
+  if(!groups.length){
+    box.innerHTML='<div class="small">Aucun groupe créé.</div>';
+    return;
+  }
+  groups.forEach(g=>{
+    const card=document.createElement('div');
+    card.className='adminGroupCard';
+    const coaches=Array.isArray(g.coaches)?g.coaches:[];
+    const coachRows=coaches.map(c=>{
+      const display=(c.first_name||c.email||'Entraîneur');
+      const role=c.role==='owner'?'Créateur':'Entraîneur';
+      const email=c.email&&c.email!==display?c.email:'';
+      return `<div class="adminCoachRow">
+        <div class="adminCoachName">${statsEscape(display)}</div>
+        <div class="adminCoachMeta">${statsEscape(role)}${email?'<br>'+statsEscape(email):''}</div>
+      </div>`;
+    }).join('');
+    card.innerHTML=`<div class="adminGroupTitle">${statsEscape(g.group_name||'Groupe')}</div>
+      <div class="adminGroupClub">${statsEscape(g.club||'Club non renseigné')}</div>
+      <div class="adminCoachList">${coachRows||'<div class="small">Aucun entraîneur associé.</div>'}</div>`;
+    box.append(card);
+  });
+}
+
+async function openAdminModule(){
+  if(!adminState.isAdmin){
+    const ok=await refreshAdminAccess();
+    if(!ok)return;
+  }
+  hideMainModules();
+  setMatchHeaderMode(false);
+  $('#adminHome').classList.remove('hidden');
+  $('#adminGroupsStatus').textContent='Chargement…';
+  $('#adminGroupsList').innerHTML='';
+  await fetchAdminGroups();
+  renderAdminGroups();
+  window.scrollTo({top:0,behavior:'instant'});
+}
 
 function formatDateShort(v){
   if(!v)return '';
@@ -3590,7 +3698,7 @@ function setMatchHeaderMode(isMatch){
 }
 
 function hideMainModules(){
-  ['settingsHome','appHome','setup','live','matchLibrary','matchReadOnly','groupsHome','groupDetail','trainingHome','trainingSession','trainingDuplicate','exerciseLibrary','trainingHistory','statsHome'].forEach(id=>$('#'+id)?.classList.add('hidden'));
+  ['settingsHome','adminHome','appHome','setup','live','matchLibrary','matchReadOnly','groupsHome','groupDetail','trainingHome','trainingSession','trainingDuplicate','exerciseLibrary','trainingHistory','statsHome'].forEach(id=>$('#'+id)?.classList.add('hidden'));
   $('#footer').classList.add('hidden');
   $('#newMatchTop').classList.add('hidden');
 }
@@ -4781,6 +4889,8 @@ async function loadPlayerHistory(playerId){
 $('#openMatchModule').onclick=()=>openMatchModule().catch(e=>handleError('openMatchModule',e));
 $('#openTrainingModule').onclick=()=>openTrainingModule();
 $('#openGroupsModule').onclick=()=>openGroupsModule();
+$('#openAdminModule').onclick=()=>openAdminModule().catch(e=>handleError('admin module',e));
+$('#adminBackHome').onclick=showAppHome;
 $('#matchBackHome').onclick=showAppHome;
 $('#liveBackHome').onclick=showAppHome;
 $('#openMatchLibrary').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
