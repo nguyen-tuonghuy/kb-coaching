@@ -750,12 +750,94 @@ button:active{transform:scale(.985)}
   fill:#23303d;
 }
 
+
+/* === Correction UI : Issue au-dessus, schéma pleine largeur, Attribution dessous === */
+#popup.fieldMode .centerDefenseArena{
+  display:grid;
+  grid-template-columns:1fr;
+  grid-template-areas:
+    "result"
+    "map"
+    "who";
+  gap:3px;
+  margin-top:2px;
+  align-items:stretch;
+}
+#popup.fieldMode #resultStep{grid-area:result;margin-top:0}
+#popup.fieldMode #centerDefenseMapStep{grid-area:map;margin-top:0;min-width:0}
+#popup.fieldMode #whoStep{grid-area:who;margin-top:0}
+
+#popup.fieldMode .centerDefenseMap{
+  width:100%;
+  max-height:min(62dvh,580px);
+}
+
+/* Attaque : 4 issues en 2 x 2 */
+#popup.fieldMode.centerAttackMode #resultOptions{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:2px;
+}
+
+/* Défense : 2 issues puis défensive illégale pleine largeur */
+#popup.fieldMode.centerDefenseCompact:not(.centerAttackMode) #resultOptions{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:2px;
+}
+#popup.fieldMode.centerDefenseCompact:not(.centerAttackMode) #resultOptions button[data-result="Défensive illégale"]{
+  grid-column:1 / -1;
+}
+
+/* Attribution / attaquants sous le schéma */
+#popup.fieldMode #whoOptions{
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:2px;
+}
+#popup.fieldMode #whoOptions button{
+  max-width:none;
+  width:100%;
+  min-height:26px;
+  height:auto;
+}
+
+/* Ballon lisible sur le terrain clair */
+#popup.fieldMode .centerDefenseMap .ball{
+  fill:#f7fafc;
+  stroke:#44576a;
+  stroke-width:3;
+}
+#popup.fieldMode .centerDefenseMap .ballText{
+  fill:#1f2a36;
+  font-weight:800;
+}
+
+/* Tablette / mobile : même hiérarchie */
+@media(max-width:900px){
+  #popup.fieldMode .centerDefenseArena{
+    grid-template-columns:1fr;
+    grid-template-areas:
+      "result"
+      "map"
+      "who";
+  }
+  #popup.fieldMode .centerDefenseMap{
+    max-height:min(58dvh,520px);
+  }
+}
+@media(max-width:640px){
+  #popup.fieldMode .centerDefenseMap{
+    max-height:min(47dvh,370px);
+  }
+  #popup.fieldMode #whoOptions{
+    grid-template-columns:repeat(5,minmax(0,1fr));
+  }
+}
+
 </style>
 </head>
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V2.6 Préliminaire — Attaque/Défense au centre harmonisées</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V2.6 Préliminaire — Schéma pleine largeur · Ballon lisible</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
