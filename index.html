@@ -910,12 +910,39 @@ button:active{transform:scale(.985)}
   .analysisTimelineFilters{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 
+
+/* ===== Analyse groupée + évolution ===== */
+.matchLibraryPrimaryActions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.analysisSelectionToolbar{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.analysisSelectionActions{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0 10px}
+.analysisMatchChoice{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--panel2);margin-bottom:7px;cursor:pointer}
+.analysisMatchChoice input{margin-top:3px;flex:0 0 auto}
+.analysisMatchChoiceMain{min-width:0;flex:1}
+.analysisMatchChoiceTitle{font-weight:800;font-size:13px;line-height:1.25}
+.analysisMatchChoiceMeta{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.35}
+.analysisSelectionFooter{position:sticky;bottom:0;padding:9px 0 2px;background:var(--panel);margin-top:8px}
+.analysisEvolutionToolbar{display:grid;grid-template-columns:minmax(0,320px) 1fr;gap:9px;align-items:end}
+.analysisEvolutionChart{display:flex;align-items:flex-end;gap:7px;min-height:185px;overflow-x:auto;padding:12px 2px 0}
+.analysisEvolutionCol{min-width:64px;flex:1;text-align:center}
+.analysisEvolutionBars{height:130px;display:flex;align-items:flex-end;justify-content:center;gap:5px}
+.analysisEvolutionBar{width:18px;border-radius:5px 5px 2px 2px;min-height:2px}
+.analysisEvolutionBar.attack{background:var(--accent)}
+.analysisEvolutionBar.defense{background:#7ddc9f}
+.analysisEvolutionBar.volume{background:#d8ad62}
+.analysisEvolutionLabel{font-size:10px;color:var(--muted);margin-top:6px;line-height:1.2;white-space:normal}
+.analysisEvolutionValue{font-size:10px;font-weight:800;margin-top:3px}
+@media(max-width:620px){
+ .matchLibraryPrimaryActions{grid-template-columns:1fr}
+ .analysisSelectionToolbar{grid-template-columns:1fr}
+ .analysisEvolutionToolbar{grid-template-columns:1fr}
+}
+
 </style>
 </head>
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V2.9 Préliminaire — Bibliothèque Matchs</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V3.0 Préliminaire — Analyse groupée & évolution</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -1251,7 +1278,10 @@ button:active{transform:scale(.985)}
     <div><h2 style="font-size:20px">Matchs</h2><div class="small">Bibliothèque des matchs enregistrés : analyser, consulter, reprendre ou supprimer.</div></div>
     <button class="ghost" id="matchLibraryBack">← Accueil</button>
    </div>
-   <button class="primary" id="libraryNewMatch" style="width:100%;margin-bottom:12px">＋ Nouveau match</button>
+   <div class="matchLibraryPrimaryActions">
+    <button class="primary" id="libraryNewMatch">＋ Nouveau match</button>
+    <button class="ghost" id="libraryGroupAnalysis">📊 Analyse groupée</button>
+   </div>
    <div class="matchLibraryToolbar">
     <input id="matchLibrarySearch" placeholder="Rechercher un match…">
     <select id="matchLibraryGroup"><option value="">Tous les groupes</option></select>
@@ -1259,6 +1289,30 @@ button:active{transform:scale(.985)}
    </div>
    <div class="small" id="matchLibraryCount" style="margin-bottom:8px"></div>
    <div id="matchLibraryList"></div>
+ </section>
+
+
+ <section class="panel hidden" id="matchAnalysisSelect">
+   <div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:10px">
+    <div>
+      <h2 style="font-size:20px">Analyse groupée</h2>
+      <div class="small">Sélectionne un type de match pour pré-sélectionner la compétition, puis ajuste librement les matchs inclus.</div>
+    </div>
+    <button class="ghost" id="matchAnalysisSelectBack">← Matchs</button>
+   </div>
+   <div class="analysisSelectionToolbar">
+    <div class="field"><label>Groupe</label><select id="groupAnalysisGroup"><option value="">Tous les groupes</option></select></div>
+    <div class="field"><label>Type de match / compétition</label><select id="groupAnalysisType"><option value="">— Sélection manuelle —</option></select></div>
+   </div>
+   <div class="analysisSelectionActions">
+    <button class="ghost" id="groupAnalysisSelectVisible">Tout sélectionner</button>
+    <button class="ghost" id="groupAnalysisClear">Tout désélectionner</button>
+   </div>
+   <div class="small" id="groupAnalysisStatus" style="margin-bottom:8px"></div>
+   <div id="groupAnalysisMatchList"></div>
+   <div class="analysisSelectionFooter">
+    <button class="primary" id="groupAnalysisRun" style="width:100%" disabled>Analyser la sélection</button>
+   </div>
  </section>
 
  <section class="panel hidden" id="matchReadOnly">
@@ -1299,7 +1353,7 @@ button:active{transform:scale(.985)}
     <button class="ghost active" data-analysis-tab="summary">Résumé</button>
     <button class="ghost" data-analysis-tab="players">Joueurs</button>
     <button class="ghost" data-analysis-tab="zones">Zones & contextes</button>
-    <button class="ghost" data-analysis-tab="timeline">Timeline</button>
+    <button class="ghost" data-analysis-tab="evolution">Évolution</button>
    </div>
 
    <div id="analysisSummaryTab" class="matchAnalysisSection">
@@ -1357,32 +1411,23 @@ button:active{transform:scale(.985)}
     </div>
    </div>
 
-   <div id="analysisTimelineTab" class="matchAnalysisSection hidden">
-    <div class="analysisTimelineFilters">
-      <div class="field"><label>Période</label><select id="analysisFilterPeriod"><option value="">Toutes</option></select></div>
-      <div class="field"><label>Joueur</label><select id="analysisFilterPlayer"><option value="">Tous</option></select></div>
-      <div class="field"><label>Contexte</label>
-       <select id="analysisFilterContext">
-        <option value="">Tous</option>
-        <option value="centre">Centre</option>
-        <option value="remise">Remise en jeu</option>
-        <option value="remise_centre">Remise · Centre</option>
-        <option value="remise_ligne">Remise · Ligne</option>
-        <option value="remise_coin">Remise · Coin</option>
-        <option value="gel">Gel</option>
-       </select>
+   <div id="analysisEvolutionTab" class="matchAnalysisSection hidden">
+    <div class="analysisEvolutionToolbar">
+      <div class="field">
+       <label>Lecture</label>
+       <select id="analysisEvolutionPlayer"><option value="">Équipe · Global</option></select>
       </div>
-      <div class="field"><label>Type</label>
-       <select id="analysisFilterType">
-        <option value="">Tous</option>
-        <option value="attack">Attaque</option>
-        <option value="defense">Défense</option>
-        <option value="fault">Faute</option>
-       </select>
-      </div>
+      <div class="analysisSubtle" id="analysisEvolutionHint">Sur un match : évolution par période. Sur plusieurs matchs : évolution rencontre par rencontre.</div>
     </div>
-    <div class="small" id="analysisTimelineCount" style="margin-bottom:7px"></div>
-    <div class="analysisBlock" id="analysisTimelineList"></div>
+    <div class="analysisBlock">
+      <h3 id="analysisEvolutionChartTitle">Évolution globale</h3>
+      <div class="analysisLegend" id="analysisEvolutionLegend"><span>Taux de point marqué</span><span class="defense">Taux de défense réussie</span></div>
+      <div class="analysisEvolutionChart" id="analysisEvolutionChart"></div>
+    </div>
+    <div class="analysisBlock">
+      <h3>Détail</h3>
+      <div class="analysisTableWrap"><table class="analysisTable" id="analysisEvolutionTable"></table></div>
+    </div>
    </div>
  </section>
 
@@ -3911,7 +3956,7 @@ function setMatchHeaderMode(isMatch){
 }
 
 function hideMainModules(){
-  ['settingsHome','adminHome','appHome','setup','live','matchLibrary','matchReadOnly','matchAnalysis','groupsHome','groupDetail','trainingHome','trainingSession','trainingDuplicate','exerciseLibrary','trainingHistory','statsHome'].forEach(id=>$('#'+id)?.classList.add('hidden'));
+  ['settingsHome','adminHome','appHome','setup','live','matchLibrary','matchAnalysisSelect','matchReadOnly','matchAnalysis','groupsHome','groupDetail','trainingHome','trainingSession','trainingDuplicate','exerciseLibrary','trainingHistory','statsHome'].forEach(id=>$('#'+id)?.classList.add('hidden'));
   $('#footer').classList.add('hidden');
   $('#newMatchTop').classList.add('hidden');
 }
@@ -4050,6 +4095,51 @@ async function openMatchReadOnly(matchId){
 }
 
 
+
+
+// ===== SÉLECTION ANALYSE GROUPÉE =====
+let groupAnalysisState={selected:new Set()};
+async function openGroupAnalysisSelector(){
+  if(!groupState.groups.length)await fetchMyGroups();
+  await fetchMatchLibrary();
+  hideMainModules();setMatchHeaderMode(false);$('#matchAnalysisSelect').classList.remove('hidden');
+  groupAnalysisState.selected=new Set();
+  const gs=$('#groupAnalysisGroup');gs.innerHTML='<option value="">Tous les groupes</option>';
+  groupState.groups.forEach(g=>{const o=document.createElement('option');o.value=g.id;o.textContent=g.name;gs.append(o)});
+  const ts=$('#groupAnalysisType');ts.innerHTML='<option value="">— Sélection manuelle —</option>';
+  matchTypeState.types.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.name+(t.active?'':' · archivé');ts.append(o)});
+  renderGroupAnalysisMatches();window.scrollTo({top:0,behavior:'instant'});
+}
+function groupAnalysisVisibleMatches(){
+  const gid=$('#groupAnalysisGroup')?.value||'',tid=$('#groupAnalysisType')?.value||'';
+  return (matchLibraryState.matches||[]).filter(m=>(!gid||m.group_id===gid)&&(!tid||m.match_type_id===tid));
+}
+function renderGroupAnalysisMatches(){
+  const box=$('#groupAnalysisMatchList'),visible=groupAnalysisVisibleMatches();box.innerHTML='';
+  visible.forEach(m=>{
+    const opponents=[m.opponent1?.name,m.opponent2?.name].filter(Boolean).join(' / ');
+    const label=document.createElement('label');label.className='analysisMatchChoice';
+    const cb=document.createElement('input');cb.type='checkbox';cb.checked=groupAnalysisState.selected.has(m.id);cb.value=m.id;
+    cb.onchange=()=>{cb.checked?groupAnalysisState.selected.add(m.id):groupAnalysisState.selected.delete(m.id);updateGroupAnalysisSelectionStatus()};
+    const main=document.createElement('div');main.className='analysisMatchChoiceMain';
+    const title=document.createElement('div');title.className='analysisMatchChoiceTitle';title.textContent=`${formatDateShort(m.played_on)||'Date ?'} · ${m.label||'Match'}`;
+    const meta=document.createElement('div');meta.className='analysisMatchChoiceMeta';meta.textContent=[m.match_type?.name||'Sans type',m.group?.name||m.followed_team?.name||'Groupe',opponents?'vs '+opponents:'',`${matchActionCount(m)} action${matchActionCount(m)>1?'s':''}`].filter(Boolean).join(' · ');
+    main.append(title,meta);label.append(cb,main);box.append(label);
+  });
+  if(!visible.length)box.innerHTML='<div class="analysisEmpty">Aucun match ne correspond à ces filtres.</div>';
+  updateGroupAnalysisSelectionStatus();
+}
+function updateGroupAnalysisSelectionStatus(){
+  const n=groupAnalysisState.selected.size;$('#groupAnalysisStatus').textContent=`${n} match${n>1?'s':''} sélectionné${n>1?'s':''}`;
+  const b=$('#groupAnalysisRun');b.disabled=n===0;b.textContent=n?`Analyser ${n} match${n>1?'s':''}`:'Analyser la sélection';
+}
+function autoSelectGroupAnalysisType(){
+  const tid=$('#groupAnalysisType').value,gid=$('#groupAnalysisGroup').value||'';
+  if(!tid){renderGroupAnalysisMatches();return}
+  groupAnalysisState.selected=new Set((matchLibraryState.matches||[]).filter(m=>m.match_type_id===tid&&(!gid||m.group_id===gid)).map(m=>m.id));
+  renderGroupAnalysisMatches();
+}
+async function runGroupedAnalysis(){const ids=[...groupAnalysisState.selected];if(ids.length)await openMatchAnalysisIds(ids)}
 
 // ===== ANALYSE POST-MATCH =====
 // Le moteur travaille sur un dataset pouvant contenir un ou plusieurs matchs.
@@ -4213,52 +4303,37 @@ async function loadMatchAnalysisDataset(matchIds){
   return {matchIds:unique,matches:matches||[],events:normalized,players:playerNames};
 }
 
-async function openMatchAnalysis(matchId){
+async function openMatchAnalysis(matchId){return openMatchAnalysisIds([matchId]);}
+async function openMatchAnalysisIds(matchIds){
   setCloud('Analyse…',true);
-  const dataset=await loadMatchAnalysisDataset([matchId]);
+  const dataset=await loadMatchAnalysisDataset(matchIds);
   analysisState={...analysisState,...dataset,activeTab:'summary'};
-  renderMatchAnalysisHeader();
-  populateAnalysisTimelineFilters();
-  setAnalysisTab('summary');
-  renderMatchAnalysis();
-  hideMainModules();
-  setMatchHeaderMode(false);
-  $('#matchAnalysis').classList.remove('hidden');
-  setCloud('Synchronisé',true);
-  window.scrollTo({top:0,behavior:'instant'});
+  renderMatchAnalysisHeader();populateAnalysisEvolutionPlayers();setAnalysisTab('summary');renderMatchAnalysis();
+  hideMainModules();setMatchHeaderMode(false);$('#matchAnalysis').classList.remove('hidden');setCloud('Synchronisé',true);window.scrollTo({top:0,behavior:'instant'});
 }
 
 function renderMatchAnalysisHeader(){
-  const m=analysisState.matches[0];
-  if(!m)return;
-  $('#matchAnalysisTitle').textContent=m.label||'Analyse du match';
-  const opponents=[m.opponent1?.name,m.opponent2?.name].filter(Boolean).join(' / ');
-  $('#matchAnalysisMeta').textContent=[
-    formatDateShort(m.played_on),
-    m.match_type?.name||'Sans type',
-    m.group?.name||m.followed_team?.name||'Groupe',
-    opponents?'vs '+opponents:''
-  ].filter(Boolean).join(' · ');
-  $('#matchAnalysisScope').textContent=analysisState.matches.length===1
-    ? 'Analyse calculée à partir des actions enregistrées pour ce match. Le même moteur pourra agréger plusieurs matchs d’une compétition.'
-    : `Analyse agrégée sur ${analysisState.matches.length} matchs.`;
+  const matches=[...(analysisState.matches||[])].sort((a,b)=>(a.played_on||'').localeCompare(b.played_on||'')||(a.label||'').localeCompare(b.label||'','fr'));
+  if(!matches.length)return;
+  if(matches.length===1){
+    const m=matches[0],opponents=[m.opponent1?.name,m.opponent2?.name].filter(Boolean).join(' / ');
+    $('#matchAnalysisTitle').textContent=m.label||'Analyse du match';
+    $('#matchAnalysisMeta').textContent=[formatDateShort(m.played_on),m.match_type?.name||'Sans type',m.group?.name||m.followed_team?.name||'Groupe',opponents?'vs '+opponents:''].filter(Boolean).join(' · ');
+    $('#matchAnalysisScope').textContent='Analyse calculée à partir des actions enregistrées pour ce match.';
+  }else{
+    const types=[...new Set(matches.map(m=>m.match_type?.name).filter(Boolean))],groups=[...new Set(matches.map(m=>m.group?.name||m.followed_team?.name).filter(Boolean))];
+    $('#matchAnalysisTitle').textContent=types.length===1?`Analyse · ${types[0]}`:'Analyse groupée';
+    $('#matchAnalysisMeta').textContent=[`${matches.length} matchs`,types.length===1?types[0]:(types.length?`${types.length} types de match`:''),groups.length===1?groups[0]:(groups.length?`${groups.length} groupes`:'')].filter(Boolean).join(' · ');
+    $('#matchAnalysisScope').textContent=`Analyse agrégée sur ${matches.length} matchs. Les volumes et taux utilisent uniquement les actions réellement enregistrées.`;
+  }
 }
 
 function setAnalysisTab(tab){
-  analysisState.activeTab=tab;
-  $$('.matchAnalysisTabs button').forEach(b=>b.classList.toggle('active',b.dataset.analysisTab===tab));
-  const map={summary:'#analysisSummaryTab',players:'#analysisPlayersTab',zones:'#analysisZonesTab',timeline:'#analysisTimelineTab'};
-  Object.entries(map).forEach(([key,sel])=>$(sel).classList.toggle('hidden',key!==tab));
-  if(tab==='timeline')renderAnalysisTimeline();
+  analysisState.activeTab=tab;$$('.matchAnalysisTabs button').forEach(b=>b.classList.toggle('active',b.dataset.analysisTab===tab));
+  const map={summary:'#analysisSummaryTab',players:'#analysisPlayersTab',zones:'#analysisZonesTab',evolution:'#analysisEvolutionTab'};
+  Object.entries(map).forEach(([key,sel])=>$(sel).classList.toggle('hidden',key!==tab));if(tab==='evolution')renderAnalysisEvolution();
 }
-
-function renderMatchAnalysis(){
-  const events=analysisState.events||[];
-  renderAnalysisSummary(events);
-  renderAnalysisPlayers(events);
-  renderAnalysisZonesAndContexts(events);
-  renderAnalysisTimeline();
-}
+function renderMatchAnalysis(){const events=analysisState.events||[];renderAnalysisSummary(events);renderAnalysisPlayers(events);renderAnalysisZonesAndContexts(events);renderAnalysisEvolution();}
 
 function renderAnalysisSummary(events){
   const {attack,defense}=analysisStats(events);
@@ -4431,63 +4506,37 @@ function renderAnalysisZonesAndContexts(events){
   </tr>`).join('')}</tbody>`;
 }
 
-function populateAnalysisTimelineFilters(){
-  const periodSel=$('#analysisFilterPeriod');
-  const currentPeriod=periodSel.value;
-  const periods=[...new Set((analysisState.events||[]).map(e=>e.period).filter(Boolean))].sort(analysisPeriodSort);
-  periodSel.innerHTML='<option value="">Toutes</option>';
-  periods.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;periodSel.append(o)});
-  if([...periodSel.options].some(o=>o.value===currentPeriod))periodSel.value=currentPeriod;
 
-  const playerSel=$('#analysisFilterPlayer');
-  const currentPlayer=playerSel.value;
-  playerSel.innerHTML='<option value="">Tous</option>';
-  (analysisState.players||[]).forEach(name=>{const o=document.createElement('option');o.value=name;o.textContent=name;playerSel.append(o)});
-  if([...playerSel.options].some(o=>o.value===currentPlayer))playerSel.value=currentPlayer;
+function populateAnalysisEvolutionPlayers(){
+  const sel=$('#analysisEvolutionPlayer');if(!sel)return;sel.innerHTML='<option value="">Équipe · Global</option>';
+  (analysisState.players||[]).forEach(name=>{const o=document.createElement('option');o.value=name;o.textContent=name;sel.append(o)});
 }
-
-function renderAnalysisTimeline(){
-  if(!$('#analysisTimelineList'))return;
-  const period=$('#analysisFilterPeriod')?.value||'';
-  const player=$('#analysisFilterPlayer')?.value||'';
-  const context=$('#analysisFilterContext')?.value||'';
-  const type=$('#analysisFilterType')?.value||'';
-
-  const rows=(analysisState.events||[]).filter(e=>{
-    if(period&&e.period!==period)return false;
-    if(player&&!analysisEventPeople(e).includes(player))return false;
-    const ck=analysisContextKey(e);
-    if(context==='remise'&&!String(ck).startsWith('remise_'))return false;
-    if(context&&context!=='remise'&&ck!==context)return false;
-    if(type==='attack'&&analysisSemanticType(e)!=='attack')return false;
-    if(type==='defense'&&analysisSemanticType(e)!=='defense')return false;
-    if(type==='fault'&&!analysisIsFault(e))return false;
-    return true;
-  });
-
-  $('#analysisTimelineCount').textContent=`${rows.length} action${rows.length>1?'s':''} affichée${rows.length>1?'s':''} sur ${(analysisState.events||[]).length}`;
-  const box=$('#analysisTimelineList');
-  if(!rows.length){box.innerHTML='<div class="analysisEmpty">Aucune action ne correspond aux filtres.</div>';return}
-  box.innerHTML=rows.map((e,i)=>{
-    const semantic=analysisSemanticType(e)==='attack'?'Attaque':'Défense';
-    const outcome=analysisOutcome(e);
-    const people=analysisEventPeople(e);
-    const who=people.length?people.join(', '):'Collectif / non attribué';
-    const zone=e.zone?analysisAttackZoneLabel(e.zone):'';
-    const matchLabel=analysisState.matches.length>1?(e.match?.label||'Match'):'';
-    return `<div class="analysisTimelineItem">
-      <div class="analysisTimelineSeq">${escapeHtml(e.period||'—')}<br>#${escapeHtml(e.sequence_no||i+1)}</div>
-      <div>
-        <div class="analysisTimelineTitle">${escapeHtml(semantic+' · '+outcome)}</div>
-        <div class="analysisTimelineMeta">${[
-          matchLabel,
-          analysisContextLabel(analysisContextKey(e)),
-          zone?'Zone '+zone:'',
-          who
-        ].filter(Boolean).map(escapeHtml).join(' · ')}</div>
-      </div>
-    </div>`;
-  }).join('');
+function analysisEvolutionSegments(){
+  const events=analysisState.events||[];
+  if((analysisState.matches||[]).length>1)return [...analysisState.matches].sort((a,b)=>(a.played_on||'').localeCompare(b.played_on||'')||(a.label||'').localeCompare(b.label||'','fr')).map(m=>({key:m.id,label:`${formatDateShort(m.played_on)||''} ${m.label||'Match'}`.trim(),events:events.filter(e=>e.match_id===m.id)}));
+  const periods=[...new Set(events.map(e=>e.period||'Non précisée'))].sort(analysisPeriodSort);return periods.map(period=>({key:period,label:period,events:events.filter(e=>(e.period||'Non précisée')===period)}));
+}
+function analysisPlayerSegmentStats(events,player){
+  const attacks=events.filter(e=>analysisSemanticType(e)==='attack'&&analysisEventPeople(e).length===1&&analysisEventPeople(e)[0]===player);
+  const defenses=events.filter(e=>analysisSemanticType(e)==='defense'&&analysisEventPeople(e).includes(player));
+  return {attack:{total:attacks.length,points:attacks.filter(e=>analysisOutcome(e)==='Point marqué').length,faults:attacks.filter(e=>analysisOutcome(e)==='Faute attaque').length,defended:attacks.filter(e=>analysisOutcome(e)==='Ballon défendu').length,illegal:attacks.filter(e=>analysisOutcome(e)==='Défensive illégale').length},defense:{participations:defenses.length,defended:defenses.filter(e=>analysisOutcome(e)==='Ballon défendu').length,escaped:defenses.filter(e=>analysisOutcome(e)==='Échappé').length,illegal:defenses.filter(e=>analysisOutcome(e)==='Défensive illégale').length}};
+}
+function renderAnalysisEvolution(){
+  const chart=$('#analysisEvolutionChart'),table=$('#analysisEvolutionTable');if(!chart||!table)return;
+  const player=$('#analysisEvolutionPlayer')?.value||'',segments=analysisEvolutionSegments(),unit=(analysisState.matches||[]).length>1?'match':'période';
+  $('#analysisEvolutionHint').textContent=player?`Évolution de ${player} ${unit==='match'?'match par match':'période par période'}. Les défenses sont comptées comme participations, sans taux individuel artificiel.`:`Évolution de l’équipe ${unit==='match'?'match par match':'période par période'}.`;
+  if(!segments.length){chart.innerHTML='<div class="analysisEmpty">Aucune donnée d’évolution.</div>';table.innerHTML='<tbody><tr><td>Aucune donnée.</td></tr></tbody>';return}
+  if(!player){
+    $('#analysisEvolutionChartTitle').textContent=unit==='match'?'Évolution match par match':'Évolution par période';$('#analysisEvolutionLegend').innerHTML='<span>Taux de point marqué</span><span class="defense">Taux de défense réussie</span>';
+    const rows=segments.map(seg=>({seg,...analysisStats(seg.events)}));
+    chart.innerHTML=rows.map(x=>{const pa=analysisPct(x.attack.points,x.attack.total)||0,pd=analysisPct(x.defense.defended,x.defense.total)||0;return `<div class="analysisEvolutionCol"><div class="analysisEvolutionBars"><div class="analysisEvolutionBar attack" style="height:${Math.max(2,Math.round(125*pa/100))}px" title="Attaque ${pa}%"></div><div class="analysisEvolutionBar defense" style="height:${Math.max(2,Math.round(125*pd/100))}px" title="Défense ${pd}%"></div></div><div class="analysisEvolutionLabel">${escapeHtml(x.seg.label)}</div><div class="analysisEvolutionValue">${pa}% / ${pd}%</div></div>`}).join('');
+    table.innerHTML=`<thead><tr><th>${unit==='match'?'Match':'Période'}</th><th>Att.</th><th>Pts</th><th>Fautes</th><th>Taux pts</th><th>Déf.</th><th>Réussies</th><th>Échappés</th><th>Taux déf.</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${escapeHtml(x.seg.label)}</td><td>${x.attack.total}</td><td>${x.attack.points}</td><td>${x.attack.faults}</td><td>${analysisRateHtml(x.attack.points,x.attack.total)}</td><td>${x.defense.total}</td><td>${x.defense.defended}</td><td>${x.defense.escaped}</td><td>${analysisRateHtml(x.defense.defended,x.defense.total)}</td></tr>`).join('')}</tbody>`;
+  }else{
+    $('#analysisEvolutionChartTitle').textContent=`Évolution · ${player}`;$('#analysisEvolutionLegend').innerHTML='<span>Taux de point marqué</span><span class="defense">Participations défensives</span>';
+    const rows=segments.map(seg=>({seg,...analysisPlayerSegmentStats(seg.events,player)})),maxPart=Math.max(1,...rows.map(x=>x.defense.participations));
+    chart.innerHTML=rows.map(x=>{const pa=analysisPct(x.attack.points,x.attack.total)||0,hv=Math.max(2,Math.round(125*x.defense.participations/maxPart));return `<div class="analysisEvolutionCol"><div class="analysisEvolutionBars"><div class="analysisEvolutionBar attack" style="height:${Math.max(2,Math.round(125*pa/100))}px" title="Attaque ${pa}%"></div><div class="analysisEvolutionBar volume" style="height:${hv}px" title="${x.defense.participations} participations défensives"></div></div><div class="analysisEvolutionLabel">${escapeHtml(x.seg.label)}</div><div class="analysisEvolutionValue">${pa}% · ${x.defense.participations} déf.</div></div>`}).join('');
+    table.innerHTML=`<thead><tr><th>${unit==='match'?'Match':'Période'}</th><th>Att.</th><th>Pts</th><th>Fautes</th><th>Taux pts</th><th>Part. déf.</th><th>Sur défendu</th><th>Sur échappé</th><th>Sur déf. ill.</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${escapeHtml(x.seg.label)}</td><td>${x.attack.total}</td><td>${x.attack.points}</td><td>${x.attack.faults}</td><td>${analysisRateHtml(x.attack.points,x.attack.total)}</td><td>${x.defense.participations}</td><td>${x.defense.defended}</td><td>${x.defense.escaped}</td><td>${x.defense.illegal}</td></tr>`).join('')}</tbody>`;
+  }
 }
 
 
@@ -5551,12 +5600,17 @@ $('#matchBackHome').onclick=()=>openMatchLibrary().catch(e=>handleError('match l
 $('#liveBackHome').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
 $('#matchLibraryBack').onclick=showAppHome;
 $('#libraryNewMatch').onclick=()=>openMatchModule().catch(e=>handleError('new match',e));
+$('#libraryGroupAnalysis').onclick=()=>openGroupAnalysisSelector().catch(e=>handleError('analyse groupée',e));
+$('#matchAnalysisSelectBack').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
+$('#groupAnalysisGroup').onchange=()=>{$('#groupAnalysisType').value?autoSelectGroupAnalysisType():renderGroupAnalysisMatches()};
+$('#groupAnalysisType').onchange=autoSelectGroupAnalysisType;
+$('#groupAnalysisSelectVisible').onclick=()=>{groupAnalysisVisibleMatches().forEach(m=>groupAnalysisState.selected.add(m.id));renderGroupAnalysisMatches()};
+$('#groupAnalysisClear').onclick=()=>{groupAnalysisState.selected.clear();renderGroupAnalysisMatches()};
+$('#groupAnalysisRun').onclick=()=>runGroupedAnalysis().catch(e=>handleError('analyse groupée',e));
 $('#matchReadBack').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
 $('#matchAnalysisBack').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
 $$('.matchAnalysisTabs button').forEach(b=>b.onclick=()=>setAnalysisTab(b.dataset.analysisTab));
-['analysisFilterPeriod','analysisFilterPlayer','analysisFilterContext','analysisFilterType'].forEach(id=>{
-  $('#'+id).onchange=renderAnalysisTimeline;
-});
+$('#analysisEvolutionPlayer').onchange=renderAnalysisEvolution;
 $('#matchReadResume').onclick=()=>{const id=matchLibraryState.currentReadId;if(id)loadMatch(id)};
 $('#matchReadDelete').onclick=async()=>{const id=matchLibraryState.currentReadId;if(id){await deleteSavedMatch(id);await openMatchLibrary()}};
 $('#matchLibrarySearch').oninput=renderMatchLibrary;
