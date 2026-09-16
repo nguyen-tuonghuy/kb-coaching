@@ -861,6 +861,7 @@ button:active{transform:scale(.985)}
 .analysisMetric .label{font-size:11px;color:var(--muted);line-height:1.25}
 .analysisBlock{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:11px;margin-top:10px}
 .analysisBlock h3{font-size:15px;margin:0 0 9px}
+.analysisSubsectionTitle{font-size:13px;font-weight:800;margin:12px 0 6px}
 .analysisTableWrap{overflow:auto;-webkit-overflow-scrolling:touch}
 .analysisTable{width:100%;border-collapse:collapse;min-width:620px;font-size:12px}
 .analysisTable th,.analysisTable td{padding:8px 7px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
@@ -876,10 +877,12 @@ button:active{transform:scale(.985)}
 .analysisPeriodBar{width:15px;border-radius:5px 5px 2px 2px;min-height:2px}
 .analysisPeriodBar.attack{background:var(--accent)}
 .analysisPeriodBar.defense{background:#7ddc9f}
+.analysisPeriodBar.attackFault{background:var(--warn)}
 .analysisPeriodLabel{font-size:11px;color:var(--muted);margin-top:6px}
 .analysisLegend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-bottom:6px}
 .analysisLegend span::before{content:"";display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:-1px;background:var(--accent)}
 .analysisLegend span.defense::before{background:#7ddc9f}
+.analysisLegend span.attackFault::before{background:var(--warn)}
 .analysisSubtle{font-size:11px;color:var(--muted);line-height:1.35}
 .analysisTimelineFilters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:10px}
 .analysisTimelineItem{display:grid;grid-template-columns:46px minmax(0,1fr);gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}
@@ -889,6 +892,7 @@ button:active{transform:scale(.985)}
 .analysisTimelineMeta{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.35}
 .analysisEmpty{padding:18px;text-align:center;color:var(--muted);font-size:12px}
 .analysisContextGrid{display:grid;grid-template-columns:1fr;gap:8px}
+.analysisContextPeriod{margin-top:12px}.analysisContextPeriod:first-child{margin-top:0}
 .analysisContextCard{border:1px solid var(--line);border-radius:12px;padding:10px}
 .analysisContextCard strong{font-size:13px}
 .analysisContextStats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:7px}
@@ -899,6 +903,13 @@ button:active{transform:scale(.985)}
 .analysisSummaryContext:first-child{margin-top:0}
 .analysisSummaryContextTitle{font-size:13px;font-weight:800;margin:0 0 7px;color:var(--text)}
 .analysisSummaryContext .analysisMetricGrid{margin:0}
+.analysisOpponentBreakdown{grid-column:1/-1;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.analysisOpponentBreakdownTitle{font-size:14px;font-weight:800;margin-bottom:9px}
+.analysisOpponentCard{border:1px solid var(--line);border-radius:13px;padding:10px;margin-top:9px;background:rgba(255,255,255,.018)}
+.analysisOpponentCard:first-of-type{margin-top:0}
+.analysisOpponentTitle{font-size:13px;font-weight:800;margin-bottom:9px}
+.analysisOpponentCard .analysisSummaryContext{margin-top:10px}
+.analysisOpponentCard .analysisSummaryContext:first-of-type{margin-top:0}
 @media(min-width:700px){
   .analysisMetricGrid{grid-template-columns:repeat(4,minmax(0,1fr))}
   .analysisContextGrid{grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -1403,16 +1414,16 @@ button:active{transform:scale(.985)}
 
    <div id="analysisSummaryTab" class="matchAnalysisSection">
     <div class="analysisBlock">
-      <h3>Attaque</h3>
-      <div class="analysisMetricGrid" id="analysisAttackMetrics"></div>
+      <h3>Cumul contre les deux adversaires</h3>
+      <div id="analysisCombinedMetrics"></div>
     </div>
     <div class="analysisBlock">
-      <h3>Défense</h3>
-      <div class="analysisMetricGrid" id="analysisDefenseMetrics"></div>
+      <h3>Par équipe adverse</h3>
+      <div id="analysisOpponentMetrics"></div>
     </div>
     <div class="analysisBlock">
       <h3>Évolution par période</h3>
-      <div class="analysisLegend"><span>Taux de point marqué</span><span class="defense">Taux de défense réussie</span></div>
+      <div class="analysisLegend"><span>Taux de point marqué</span><span class="defense">Taux de défense réussie</span><span class="attackFault">Taux de faute d’attaque</span></div>
       <div class="analysisPeriodChart" id="analysisPeriodChart"></div>
     </div>
     <div class="analysisBlock">
@@ -1427,7 +1438,7 @@ button:active{transform:scale(.985)}
     </div>
     <div class="analysisBlock">
       <h3>Attaque par joueur</h3>
-      <div class="analysisTableWrap"><table class="analysisTable" id="analysisAttackPlayersTable"></table></div>
+      <div id="analysisAttackPlayersTables"></div>
     </div>
     <div class="analysisBlock">
       <h3>Implication défensive</h3>
@@ -1437,17 +1448,17 @@ button:active{transform:scale(.985)}
 
    <div id="analysisZonesTab" class="matchAnalysisSection hidden">
     <div class="analysisBlock">
-      <h3>Zones d’attaque</h3>
-      <div class="analysisTableWrap"><table class="analysisTable" id="analysisAttackZonesTable"></table></div>
+      <h3>Contextes de jeu · Global</h3>
+      <div class="analysisContextGrid" id="analysisContexts"></div>
+    </div>
+    <div class="analysisBlock">
+      <h3>Contextes de jeu · Par période</h3>
+      <div id="analysisContextsByPeriod"></div>
     </div>
     <div class="analysisBlock">
       <h3>Zones de défense</h3>
       <div class="analysisSubtle" style="margin-bottom:7px">R et RE sont regroupés. EE regroupe également A1, P, A2 et les anciennes zones E1/E2/E3.</div>
       <div class="analysisTableWrap"><table class="analysisTable" id="analysisDefenseZonesTable"></table></div>
-    </div>
-    <div class="analysisBlock">
-      <h3>Contextes de jeu</h3>
-      <div class="analysisContextGrid" id="analysisContexts"></div>
     </div>
     <div class="analysisBlock">
       <h3>Remise en jeu</h3>
@@ -1838,6 +1849,10 @@ button:active{transform:scale(.985)}
      <div class="meta" id="faultMeta"></div>
     </div>
     <button class="closePopup" id="closeFaultPopup" aria-label="Fermer">×</button>
+   </div>
+   <div class="step">
+    <h3 id="faultOpponentTitle">Équipe attaquée</h3>
+    <div class="options" id="faultOpponentOptions"></div>
    </div>
    <div class="step">
     <h3>Type de faute</h3>
@@ -3074,10 +3089,25 @@ $$('#restartLocationOptions button').forEach(b=>b.onclick=()=>{
   $$('#restartLocationOptions button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice');
   updatePopupSaveVisibility();
 });
+function buildFaultOpponentOptions(){
+  const box=$('#faultOpponentOptions');box.innerHTML='';
+  state.opponentTeams.forEach(name=>{
+    const b=document.createElement('button');
+    b.dataset.opponent=name;b.textContent=name;
+    b.classList.toggle('choice',opponentTeam===name);
+    b.onclick=()=>{
+      opponentTeam=name;
+      $$('#faultOpponentOptions button').forEach(x=>x.classList.toggle('choice',x.dataset.opponent===name));
+    };
+    box.append(b);
+  });
+  $('#faultOpponentTitle').textContent=actionType==='Défense'?'Équipe attaquante':'Équipe attaquée';
+}
 function openFaultPopup(){
   faultType='';faultWho='';
   const vp=currentVideoPosition();
   $('#faultMeta').textContent='Faute d’attaque · '+labelContext(context)+(vp?' · vidéo '+vp:'')+' · '+$('#period').value;
+  buildFaultOpponentOptions();
   $$('#faultTypes button').forEach(b=>b.classList.remove('choice'));
   buildWho('#faultWhoOptions');
   $$('#faultWhoOptions button').forEach(b=>b.classList.remove('choice'));
@@ -3196,6 +3226,10 @@ $('#savePopup').onclick=async()=>{
   }catch(e){handleError('save event',e)}
 };
 $('#saveFault').onclick=async()=>{
+  if(!opponentTeam){
+    alert(actionType==='Défense'?'Choisis l’équipe attaquante.':'Choisis l’équipe attaquée.');
+    return;
+  }
   if(!faultType){alert('Choisis un type de faute.');return}
   try{
     setCloud('Enregistrement…',true);
@@ -3258,12 +3292,14 @@ function editEvent(id){
   $('#period').value=e.period||'P1';$('#videoPosition').value=e.videoPosition||'';
   if(e.action==='Faute'){
     faultType=e.faultType||'';faultWho=e.player||'';opponentTeam=e.opponentTeam||'';
+    actionType=faultType==='Défensive illégale'?'Défense':'Attaque';
     if(faultType==='Défensive illégale'&&!$('#faultTypes button[data-fault="Défensive illégale"]')){
       const b=document.createElement('button');b.dataset.fault='Défensive illégale';b.textContent='DÉFENSIVE ILLÉGALE';
       $('#faultTypes').appendChild(b);
       b.onclick=()=>{faultType=b.dataset.fault;$$('#faultTypes button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice')};
     }
-    $('#faultMeta').textContent=labelContext(context)+(e.videoPosition?' · vidéo '+e.videoPosition:'')+' · '+(e.period||'P1');
+    $('#faultMeta').textContent=(actionType==='Défense'?'Défensive illégale':'Faute d’attaque')+' · '+labelContext(context)+(e.videoPosition?' · vidéo '+e.videoPosition:'')+' · '+(e.period||'P1');
+    buildFaultOpponentOptions();
     $$('#faultTypes button').forEach(b=>b.classList.toggle('choice',b.dataset.fault===faultType));
     buildWho('#faultWhoOptions');
     $$('#faultWhoOptions button').forEach(b=>{
@@ -4182,6 +4218,15 @@ async function openMatchReadOnly(matchId){
     const attr=(attMap[e.id]||[]).join(', ')||(e.player_id?playerMap[e.player_id]:'')||'Collectif/non spécifié';
     const d=document.createElement('div');d.className='item';
     d.innerHTML=`<div class="time">${escapeHtml(e.video_position||'')}<br>${escapeHtml(e.period||'')}</div><div><strong>${escapeHtml(result)}</strong><div class="small">${escapeHtml(eventContext(e.family,e.restart_location))}${e.zone?' · '+escapeHtml(({E1:'A1',E2:'P',E3:'A2'}[e.zone]||e.zone)):''}${e.movement!=null?' · déplacement '+(e.movement?'oui':'non'):''} · ${escapeHtml(attr)}</div></div>`;
+    const edit=document.createElement('button');
+    edit.className='ghost';
+    edit.textContent='Modifier';
+    edit.onclick=async evt=>{
+      evt.stopPropagation();
+      await loadMatch(matchId);
+      if(state.currentMatchId===matchId)editEvent(e.id);
+    };
+    d.append(edit);
     box.append(d);
   });
   matchLibraryState.currentReadId=matchId;
@@ -4310,21 +4355,36 @@ function analysisRateHtml(n,d){
 function analysisMetricHtml(label,value){
   return `<div class="analysisMetric"><div class="label">${escapeHtml(label)}</div><div class="value">${escapeHtml(value)}</div></div>`;
 }
+function analysisAttackPointsMetricHtml(stats){
+  const illegal=Number(stats?.illegal)||0;
+  const detail=illegal?`<div class="analysisSubtle" style="margin-top:4px">dont ${illegal} défensive${illegal>1?'s':''} illégale${illegal>1?'s':''} adverse${illegal>1?'s':''}</div>`:'';
+  return `<div class="analysisMetric"><div class="label">Points marqués</div><div class="value">${escapeHtml(stats?.points??0)}</div>${detail}</div>`;
+}
+function analysisDefensePointsMetricHtml(stats){
+  const illegal=Number(stats?.illegal)||0;
+  const points=Number(stats?.points)||0;
+  const detail=illegal?`<div class="analysisSubtle" style="margin-top:4px">dont ${illegal} défensive${illegal>1?'s':''} illégale${illegal>1?'s':''} commise${illegal>1?'s':''} par nous</div>`:'';
+  return `<div class="analysisMetric"><div class="label">Points marqués par l’adversaire</div><div class="value">${escapeHtml(points)}</div>${detail}</div>`;
+}
 function analysisStats(events){
   const attacks=events.filter(e=>analysisSemanticType(e)==='attack');
   const defenses=events.filter(e=>analysisSemanticType(e)==='defense');
   const attack={
     total:attacks.length,
-    points:attacks.filter(e=>analysisOutcome(e)==='Point marqué').length,
+    points:attacks.filter(e=>['Point marqué','Défensive illégale'].includes(analysisOutcome(e))).length,
     faults:attacks.filter(e=>analysisOutcome(e)==='Faute attaque').length,
     defended:attacks.filter(e=>analysisOutcome(e)==='Ballon défendu').length,
     illegal:attacks.filter(e=>analysisOutcome(e)==='Défensive illégale').length
   };
+  const defenseEscaped=defenses.filter(e=>analysisOutcome(e)==='Échappé').length;
+  const defenseIllegal=defenses.filter(e=>analysisOutcome(e)==='Défensive illégale').length;
   const defense={
     total:defenses.length,
     defended:defenses.filter(e=>analysisOutcome(e)==='Ballon défendu').length,
-    escaped:defenses.filter(e=>analysisOutcome(e)==='Échappé').length,
-    illegal:defenses.filter(e=>analysisOutcome(e)==='Défensive illégale').length
+    escaped:defenseEscaped,
+    illegal:defenseIllegal,
+    points:defenseEscaped+defenseIllegal,
+    opponentFaults:defenses.filter(e=>analysisOutcome(e)==='Faute de l’adversaire').length
   };
   return {attack,defense};
 }
@@ -4342,7 +4402,7 @@ async function loadMatchAnalysisDataset(matchIds){
   const unique=[...new Set((matchIds||[]).filter(Boolean))];
   if(!unique.length)throw new Error('Aucun match à analyser.');
   const {data:matches,error:me}=await db.from('matches')
-    .select('id,label,played_on,group_id,match_type_id,team_id,match_type:match_types!matches_match_type_id_fkey(name),group:coaching_groups!matches_group_id_fkey(name),followed_team:teams!matches_team_id_fkey(name),opponent1:teams!matches_opponent_team_1_id_fkey(name),opponent2:teams!matches_opponent_team_2_id_fkey(name)')
+    .select('id,label,played_on,group_id,match_type_id,team_id,opponent_team_1_id,opponent_team_2_id,match_type:match_types!matches_match_type_id_fkey(name),group:coaching_groups!matches_group_id_fkey(name),followed_team:teams!matches_team_id_fkey(name),opponent1:teams!matches_opponent_team_1_id_fkey(id,name),opponent2:teams!matches_opponent_team_2_id_fkey(id,name)')
     .in('id',unique);
   if(me)throw me;
 
@@ -4384,13 +4444,22 @@ async function loadMatchAnalysisDataset(matchIds){
   });
 
   const matchMap=Object.fromEntries((matches||[]).map(m=>[m.id,m]));
-  const normalized=(events||[]).map(e=>({
-    ...e,
-    match:matchMap[e.match_id]||null,
-    attributed_names:attrMap[e.id]||[],
-    lineup_names:lineMap[e.id]||[],
-    player_name:e.player_id?eventPlayerMap[e.player_id]||null:null
-  }));
+  const normalized=(events||[]).map(e=>{
+    const match=matchMap[e.match_id]||null;
+    let opponent_name=null;
+    if(e.opponent_team_id&&match){
+      if(e.opponent_team_id===match.opponent_team_1_id||e.opponent_team_id===match.opponent1?.id)opponent_name=match.opponent1?.name||null;
+      else if(e.opponent_team_id===match.opponent_team_2_id||e.opponent_team_id===match.opponent2?.id)opponent_name=match.opponent2?.name||null;
+    }
+    return {
+      ...e,
+      match,
+      opponent_name,
+      attributed_names:attrMap[e.id]||[],
+      lineup_names:lineMap[e.id]||[],
+      player_name:e.player_id?eventPlayerMap[e.player_id]||null:null
+    };
+  });
 
   const playerNames=[...new Set([
     ...attributions.map(a=>a.players?.display_name),
@@ -4435,7 +4504,7 @@ function renderMatchAnalysis(){const events=analysisState.events||[];renderAnaly
 
 function analysisSummaryContextGroups(events){
   const definitions=[
-    {key:'centre',label:'Centre en jeu',test:e=>e.family==='centre'},
+    {key:'centre',label:'Jeu au centre',test:e=>e.family==='centre'},
     {key:'remise',label:'Remise en jeu',test:e=>e.family==='remise'},
     {key:'gel',label:'Gel',test:e=>e.family==='gel'}
   ];
@@ -4448,86 +4517,179 @@ function analysisSummaryContextGroups(events){
 function analysisSummaryContextHtml(label,stats,type){
   const values=type==='attack'?[
     analysisMetricHtml('Attaques',stats.total),
-    analysisMetricHtml('Points marqués',stats.points),
+    analysisAttackPointsMetricHtml(stats),
     analysisMetricHtml('Fautes d’attaque',stats.faults),
-    analysisMetricHtml('Ballons défendus',stats.defended),
-    analysisMetricHtml('Défensives illégales adverses',stats.illegal),
+    analysisMetricHtml('Ballons défendus par l’adversaire',stats.defended),
     analysisMetricHtml('Taux de point marqué',analysisPctLabel(stats.points,stats.total))
   ]:[
-    analysisMetricHtml('Défenses',stats.total),
-    analysisMetricHtml('Ballons défendus',stats.defended),
-    analysisMetricHtml('Échappés',stats.escaped),
-    analysisMetricHtml('Défensives illégales',stats.illegal),
+    analysisMetricHtml('Situations défensives',stats.total),
+    analysisDefensePointsMetricHtml(stats),
+    analysisMetricHtml('Fautes d’attaque de l’adversaire',stats.opponentFaults),
+    analysisMetricHtml('Ballons défendus par nous',stats.defended),
     analysisMetricHtml('Taux de défense réussie',analysisPctLabel(stats.defended,stats.total))
   ];
   return `<div class="analysisSummaryContext"><div class="analysisSummaryContextTitle">${escapeHtml(label)}</div><div class="analysisMetricGrid">${values.join('')}</div></div>`;
 }
+function analysisCombinedBreakdownHtml(events){
+  const contextDefs=[
+    {key:'centre',label:'Jeu au centre',test:e=>e.family==='centre'},
+    {key:'remise',label:'Remise en jeu',test:e=>e.family==='remise'},
+    {key:'gel',label:'Gel',test:e=>e.family==='gel'}
+  ];
+  const known=new Set(contextDefs.map(c=>c.key));
+  const contexts=contextDefs.map(c=>({...c,events:events.filter(c.test)}));
+  const other=events.filter(e=>!known.has(e.family));
+  if(other.length)contexts.push({key:'other',label:'Autres contextes',events:other});
+  const body=contexts.filter(c=>c.events.length).map(context=>{
+    const attackEvents=context.events.filter(e=>analysisSemanticType(e)==='attack');
+    const defenseEvents=context.events.filter(e=>analysisSemanticType(e)==='defense');
+    const attackBody=attackEvents.length
+      ?`<div class="analysisMetricGrid">${[
+        analysisMetricHtml('Attaques',analysisStats(attackEvents).attack.total),
+        analysisAttackPointsMetricHtml(analysisStats(attackEvents).attack),
+        analysisMetricHtml('Fautes d’attaque',analysisStats(attackEvents).attack.faults),
+        analysisMetricHtml('Ballons défendus par l’adversaire',analysisStats(attackEvents).attack.defended),
+        analysisMetricHtml('Taux de point marqué',analysisPctLabel(analysisStats(attackEvents).attack.points,analysisStats(attackEvents).attack.total))
+      ].join('')}</div>`
+      :'<div class="analysisEmpty">Aucune attaque enregistrée dans ce contexte.</div>';
+    const defenseBody=defenseEvents.length
+      ?`<div class="analysisMetricGrid">${[
+        analysisMetricHtml('Situations défensives',analysisStats(defenseEvents).defense.total),
+        analysisDefensePointsMetricHtml(analysisStats(defenseEvents).defense),
+        analysisMetricHtml('Fautes d’attaque de l’adversaire',analysisStats(defenseEvents).defense.opponentFaults),
+        analysisMetricHtml('Ballons défendus par nous',analysisStats(defenseEvents).defense.defended),
+        analysisMetricHtml('Taux de défense réussie',analysisPctLabel(analysisStats(defenseEvents).defense.defended,analysisStats(defenseEvents).defense.total))
+      ].join('')}</div>`
+      :'<div class="analysisEmpty">Aucune défense enregistrée dans ce contexte.</div>';
+    return `<div class="analysisSummaryContext"><div class="analysisSummaryContextTitle">${escapeHtml(context.label)}</div><div class="analysisSubtle" style="font-weight:800;margin:0 0 6px">Attaque</div>${attackBody}<div class="analysisSubtle" style="font-weight:800;margin:10px 0 6px">Défense</div>${defenseBody}</div>`;
+  }).join('');
+  return body||'<div class="analysisEmpty">Aucune donnée enregistrée.</div>';
+}
+function analysisOpponentGroups(events){
+  const groups=new Map();
+  events.forEach(e=>{
+    const name=e.opponent_name||'Équipe non précisée';
+    if(!groups.has(name))groups.set(name,[]);
+    groups.get(name).push(e);
+  });
+  return [...groups.entries()].sort((a,b)=>{
+    if(a[0]==='Équipe non précisée')return 1;
+    if(b[0]==='Équipe non précisée')return -1;
+    return a[0].localeCompare(b[0],'fr');
+  }).map(([label,groupEvents])=>({label,events:groupEvents}));
+}
+function analysisOpponentBreakdownHtml(events){
+  const groups=analysisOpponentGroups(events);
+  if(!groups.length)return '<div class="analysisEmpty">Aucune donnée par équipe adverse.</div>';
+  const contextDefs=[
+    {key:'centre',label:'Jeu au centre',test:e=>e.family==='centre'},
+    {key:'remise',label:'Remise en jeu',test:e=>e.family==='remise'},
+    {key:'gel',label:'Gel',test:e=>e.family==='gel'}
+  ];
+  return groups.map(group=>{
+    const known=new Set(contextDefs.map(c=>c.key));
+    const contexts=contextDefs.map(c=>({...c,events:group.events.filter(c.test)}));
+    const other=group.events.filter(e=>!known.has(e.family));
+    if(other.length)contexts.push({key:'other',label:'Autres contextes',events:other});
+    const body=contexts.filter(c=>c.events.length).map(context=>{
+      const attackEvents=context.events.filter(e=>analysisSemanticType(e)==='attack');
+      const defenseEvents=context.events.filter(e=>analysisSemanticType(e)==='defense');
+      const attackBody=attackEvents.length
+        ?`<div class="analysisMetricGrid">${[
+          analysisMetricHtml('Attaques',analysisStats(attackEvents).attack.total),
+          analysisAttackPointsMetricHtml(analysisStats(attackEvents).attack),
+          analysisMetricHtml('Fautes d’attaque',analysisStats(attackEvents).attack.faults),
+          analysisMetricHtml('Ballons défendus par l’adversaire',analysisStats(attackEvents).attack.defended),
+          analysisMetricHtml('Taux de point marqué',analysisPctLabel(analysisStats(attackEvents).attack.points,analysisStats(attackEvents).attack.total))
+        ].join('')}</div>`
+        :'<div class="analysisEmpty">Aucune attaque enregistrée dans ce contexte.</div>';
+      const defenseBody=defenseEvents.length
+        ?`<div class="analysisMetricGrid">${[
+          analysisMetricHtml('Situations défensives',analysisStats(defenseEvents).defense.total),
+          analysisDefensePointsMetricHtml(analysisStats(defenseEvents).defense),
+          analysisMetricHtml('Fautes d’attaque de l’adversaire',analysisStats(defenseEvents).defense.opponentFaults),
+          analysisMetricHtml('Ballons défendus par nous',analysisStats(defenseEvents).defense.defended),
+          analysisMetricHtml('Taux de défense réussie',analysisPctLabel(analysisStats(defenseEvents).defense.defended,analysisStats(defenseEvents).defense.total))
+        ].join('')}</div>`
+        :'<div class="analysisEmpty">Aucune défense enregistrée dans ce contexte.</div>';
+      return `<div class="analysisSummaryContext"><div class="analysisSummaryContextTitle">${escapeHtml(context.label)}</div><div class="analysisSubtle" style="font-weight:800;margin:0 0 6px">Attaque</div>${attackBody}<div class="analysisSubtle" style="font-weight:800;margin:10px 0 6px">Défense</div>${defenseBody}</div>`;
+    }).join('');
+    return `<div class="analysisOpponentCard"><div class="analysisOpponentTitle">${escapeHtml(group.label)}</div>${body||'<div class="analysisEmpty">Aucune donnée pour cette équipe.</div>'}</div>`;
+  }).join('');
+}
 function renderAnalysisSummary(events){
-  const attackEvents=events.filter(e=>analysisSemanticType(e)==='attack');
-  const defenseEvents=events.filter(e=>analysisSemanticType(e)==='defense');
-  const attackGroups=analysisSummaryContextGroups(attackEvents);
-  const defenseGroups=analysisSummaryContextGroups(defenseEvents);
-  $('#analysisAttackMetrics').innerHTML=attackGroups.length
-    ?attackGroups.map(g=>analysisSummaryContextHtml(g.label,analysisStats(g.events).attack,'attack')).join('')
-    :'<div class="analysisEmpty" style="grid-column:1/-1">Aucune attaque enregistrée.</div>';
-  $('#analysisDefenseMetrics').innerHTML=defenseGroups.length
-    ?defenseGroups.map(g=>analysisSummaryContextHtml(g.label,analysisStats(g.events).defense,'defense')).join('')
-    :'<div class="analysisEmpty" style="grid-column:1/-1">Aucune défense enregistrée.</div>';
+  $('#analysisCombinedMetrics').innerHTML=analysisCombinedBreakdownHtml(events);
+  $('#analysisOpponentMetrics').innerHTML=analysisOpponentBreakdownHtml(events);
 
   const periods=[...new Set(events.map(e=>e.period||'Non précisée'))].sort(analysisPeriodSort);
   const per=periods.map(period=>({period,...analysisStats(events.filter(e=>(e.period||'Non précisée')===period))}));
 
   const maxPct=100;
   $('#analysisPeriodChart').innerHTML=per.length?per.map(x=>{
-    const pa=analysisPct(x.attack.points,x.attack.total)||0;
-    const pd=analysisPct(x.defense.defended,x.defense.total)||0;
-    const ha=Math.max(2,Math.round(120*pa/maxPct));
-    const hd=Math.max(2,Math.round(120*pd/maxPct));
+    const pointRate=analysisPct(x.attack.points,x.attack.total)||0;
+    const defenseRate=analysisPct(x.defense.defended,x.defense.total)||0;
+    const attackFaultRate=analysisPct(x.attack.faults,x.attack.total)||0;
+    const pointHeight=Math.max(2,Math.round(120*pointRate/maxPct));
+    const defenseHeight=Math.max(2,Math.round(120*defenseRate/maxPct));
+    const attackFaultHeight=Math.max(2,Math.round(120*attackFaultRate/maxPct));
     return `<div class="analysisPeriodCol" title="${escapeAttr(x.period)}">
       <div class="analysisPeriodBars">
-        <div class="analysisPeriodBar attack" style="height:${ha}px" title="Attaque ${pa}%"></div>
-        <div class="analysisPeriodBar defense" style="height:${hd}px" title="Défense ${pd}%"></div>
+        <div class="analysisPeriodBar attack" style="height:${pointHeight}px" title="Taux de point marqué ${pointRate}%"></div>
+        <div class="analysisPeriodBar defense" style="height:${defenseHeight}px" title="Taux de défense réussie ${defenseRate}%"></div>
+        <div class="analysisPeriodBar attackFault" style="height:${attackFaultHeight}px" title="Taux de faute d’attaque ${attackFaultRate}%"></div>
       </div>
       <div class="analysisPeriodLabel">${escapeHtml(x.period)}</div>
     </div>`;
   }).join(''):'<div class="analysisEmpty">Aucune période enregistrée.</div>';
 
   $('#analysisPeriodTable').innerHTML=`<thead><tr>
-    <th>Période</th><th>Att.</th><th>Pts</th><th>Fautes</th><th>Taux pts</th>
-    <th>Déf.</th><th>Réussies</th><th>Échappés</th><th>Déf. ill.</th><th>Taux déf.</th>
+    <th>Période</th><th>Taux d’attaque</th><th>Taux de défense</th><th>Taux de fautes d’attaque</th>
   </tr></thead><tbody>${per.map(x=>`<tr>
     <td>${escapeHtml(x.period)}</td>
-    <td>${x.attack.total}</td><td>${x.attack.points}</td><td>${x.attack.faults}</td><td>${analysisRateHtml(x.attack.points,x.attack.total)}</td>
-    <td>${x.defense.total}</td><td>${x.defense.defended}</td><td>${x.defense.escaped}</td><td>${x.defense.illegal}</td><td>${analysisRateHtml(x.defense.defended,x.defense.total)}</td>
-  </tr>`).join('')||'<tr><td colspan="10">Aucune donnée.</td></tr>'}</tbody>`;
+    <td>${analysisRateHtml(x.attack.points,x.attack.total)}</td>
+    <td>${analysisRateHtml(x.defense.defended,x.defense.total)}</td>
+    <td>${analysisRateHtml(x.attack.faults,x.attack.total)}</td>
+  </tr>`).join('')||'<tr><td colspan="4">Aucune donnée.</td></tr>'}</tbody>`;
 }
 
 function renderAnalysisPlayers(events){
   const attacks=events.filter(e=>analysisSemanticType(e)==='attack');
-  const attackMap={};
-  const addAttack=(name,outcome)=>{
-    attackMap[name]??={name,total:0,points:0,faults:0,defended:0,illegal:0};
-    const x=attackMap[name];x.total++;
-    if(outcome==='Point marqué')x.points++;
-    else if(outcome==='Faute attaque')x.faults++;
-    else if(outcome==='Ballon défendu')x.defended++;
-    else if(outcome==='Défensive illégale')x.illegal++;
+  const buildAttackRows=attackEvents=>{
+    const attackMap={};
+    const addAttack=(name,outcome)=>{
+      attackMap[name]??={name,total:0,points:0,faults:0,defended:0,illegal:0};
+      const x=attackMap[name];x.total++;
+      if(outcome==='Point marqué')x.points++;
+      else if(outcome==='Faute attaque')x.faults++;
+      else if(outcome==='Ballon défendu')x.defended++;
+      else if(outcome==='Défensive illégale')x.illegal++;
+    };
+    attackEvents.forEach(e=>{
+      const people=analysisEventPeople(e);
+      const name=people.length===1?people[0]:'Collectif / non attribué';
+      addAttack(name,analysisOutcome(e));
+    });
+    return Object.values(attackMap).sort((a,b)=>{
+      if(a.name==='Collectif / non attribué')return 1;
+      if(b.name==='Collectif / non attribué')return -1;
+      return a.name.localeCompare(b.name,'fr');
+    });
   };
-  attacks.forEach(e=>{
-    const people=analysisEventPeople(e);
-    const name=people.length===1?people[0]:'Collectif / non attribué';
-    addAttack(name,analysisOutcome(e));
-  });
-  const attackRows=Object.values(attackMap).sort((a,b)=>{
-    if(a.name==='Collectif / non attribué')return 1;
-    if(b.name==='Collectif / non attribué')return -1;
-    return a.name.localeCompare(b.name,'fr');
-  });
-  $('#analysisAttackPlayersTable').innerHTML=`<thead><tr>
+  const renderAttackTable=(title,rows,emptyText)=>`<div class="analysisSubsectionTitle">${escapeHtml(title)}</div><div class="analysisTableWrap"><table class="analysisTable"><thead><tr>
     <th>Joueur</th><th>Attaques</th><th>Points</th><th>Fautes</th><th>Défendues</th><th>Déf. ill. adv.</th><th>Taux pts</th>
-  </tr></thead><tbody>${attackRows.map(x=>`<tr>
+  </tr></thead><tbody>${rows.map(x=>`<tr>
     <td>${escapeHtml(x.name)}</td><td>${x.total}</td><td>${x.points}</td><td>${x.faults}</td><td>${x.defended}</td><td>${x.illegal}</td><td>${analysisRateHtml(x.points,x.total)}</td>
-  </tr>`).join('')||'<tr><td colspan="7">Aucune attaque attribuée.</td></tr>'}</tbody>`;
+  </tr>`).join('')||`<tr><td colspan="7">${escapeHtml(emptyText)}</td></tr>`}</tbody></table></div>`;
+  const attackSections=[
+    {title:'Jeu au centre',rows:buildAttackRows(attacks.filter(e=>e.family==='centre')),empty:'Aucune attaque au centre attribuée.'},
+    {title:'Remise en jeu',rows:buildAttackRows(attacks.filter(e=>e.family==='remise')),empty:'Aucune attaque sur remise en jeu attribuée.'}
+  ];
+  const extraAttackSections=[];
+  const gelRows=buildAttackRows(attacks.filter(e=>e.family==='gel'));
+  if(gelRows.length)extraAttackSections.push({title:'Gel',rows:gelRows,empty:'Aucune attaque Gel attribuée.'});
+  const otherRows=buildAttackRows(attacks.filter(e=>!['centre','remise','gel'].includes(e.family)));
+  if(otherRows.length)extraAttackSections.push({title:'Autres contextes',rows:otherRows,empty:'Aucune autre attaque attribuée.'});
+  $('#analysisAttackPlayersTables').innerHTML=[...attackSections,...extraAttackSections].map(sec=>renderAttackTable(sec.title,sec.rows,sec.empty)).join('');
 
   const defenses=events.filter(e=>analysisSemanticType(e)==='defense');
   const defenseMap={};
@@ -4556,28 +4718,6 @@ function renderAnalysisPlayers(events){
 }
 
 function renderAnalysisZonesAndContexts(events){
-  const attacks=events.filter(e=>analysisSemanticType(e)==='attack');
-  const attackGroups={};
-  attacks.forEach(e=>{
-    const name=analysisAttackZoneLabel(e.zone);
-    attackGroups[name]??={name,total:0,points:0,faults:0,defended:0,illegal:0};
-    const x=attackGroups[name],o=analysisOutcome(e);x.total++;
-    if(o==='Point marqué')x.points++;
-    else if(o==='Faute attaque')x.faults++;
-    else if(o==='Ballon défendu')x.defended++;
-    else if(o==='Défensive illégale')x.illegal++;
-  });
-  const attackOrder=['R','RE','A1','EE','P','A2','Non précisée'];
-  const attackRows=Object.values(attackGroups).sort((a,b)=>{
-    const ia=attackOrder.indexOf(a.name),ib=attackOrder.indexOf(b.name);
-    return (ia<0?999:ia)-(ib<0?999:ib)||a.name.localeCompare(b.name,'fr');
-  });
-  $('#analysisAttackZonesTable').innerHTML=`<thead><tr>
-    <th>Zone</th><th>Attaques</th><th>Points</th><th>Fautes</th><th>Défendues</th><th>Déf. ill. adv.</th><th>Taux pts</th>
-  </tr></thead><tbody>${attackRows.map(x=>`<tr>
-    <td>${escapeHtml(x.name)}</td><td>${x.total}</td><td>${x.points}</td><td>${x.faults}</td><td>${x.defended}</td><td>${x.illegal}</td><td>${analysisRateHtml(x.points,x.total)}</td>
-  </tr>`).join('')||'<tr><td colspan="7">Aucune attaque.</td></tr>'}</tbody>`;
-
   const defenses=events.filter(e=>analysisSemanticType(e)==='defense');
   const defenseGroups={};
   defenses.forEach(e=>{
@@ -4590,18 +4730,18 @@ function renderAnalysisZonesAndContexts(events){
   });
   const defenseRows=['R / RE','EE / reste','Non précisée'].filter(k=>defenseGroups[k]).map(k=>defenseGroups[k]);
   $('#analysisDefenseZonesTable').innerHTML=`<thead><tr>
-    <th>Zone</th><th>Défenses</th><th>Défendues</th><th>Échappés</th><th>Déf. ill.</th><th>Taux déf.</th>
+    <th>Zone</th><th>Situations déf.</th><th>Défendues</th><th>Échappés</th><th>Fautes déf.</th><th>Taux déf.</th>
   </tr></thead><tbody>${defenseRows.map(x=>`<tr>
     <td>${escapeHtml(x.name)}</td><td>${x.total}</td><td>${x.defended}</td><td>${x.escaped}</td><td>${x.illegal}</td><td>${analysisRateHtml(x.defended,x.total)}</td>
   </tr>`).join('')||'<tr><td colspan="6">Aucune défense.</td></tr>'}</tbody>`;
 
-  const contexts=[
-    {key:'centre',label:'Centre',events:events.filter(e=>analysisContextKey(e)==='centre')},
-    {key:'remise',label:'Remise en jeu',events:events.filter(e=>String(analysisContextKey(e)).startsWith('remise_'))},
-    {key:'gel',label:'Gel',events:events.filter(e=>analysisContextKey(e)==='gel')}
+  const contextDefinitions=[
+    {key:'centre',label:'Jeu au centre',test:e=>analysisContextKey(e)==='centre'},
+    {key:'remise',label:'Remise en jeu',test:e=>String(analysisContextKey(e)).startsWith('remise_')},
+    {key:'gel',label:'Gel',test:e=>analysisContextKey(e)==='gel'}
   ];
-  $('#analysisContexts').innerHTML=contexts.map(c=>{
-    const st=analysisStats(c.events);
+  const renderContextCards=contextEvents=>contextDefinitions.map(c=>{
+    const st=analysisStats(contextEvents.filter(c.test));
     return `<div class="analysisContextCard"><strong>${escapeHtml(c.label)}</strong>
       <div class="analysisContextStats">
         <div>Attaques<b>${st.attack.total}</b></div>
@@ -4611,6 +4751,13 @@ function renderAnalysisZonesAndContexts(events){
       </div>
     </div>`;
   }).join('');
+  $('#analysisContexts').innerHTML=renderContextCards(events);
+
+  const contextPeriods=[...new Set(events.map(e=>e.period||'Non précisée'))].sort(analysisPeriodSort);
+  $('#analysisContextsByPeriod').innerHTML=contextPeriods.length?contextPeriods.map(period=>{
+    const periodEvents=events.filter(e=>(e.period||'Non précisée')===period);
+    return `<div class="analysisContextPeriod"><div class="analysisSubsectionTitle">${escapeHtml(period)}</div><div class="analysisContextGrid">${renderContextCards(periodEvents)}</div></div>`;
+  }).join(''):'<div class="analysisEmpty">Aucune période enregistrée.</div>';
 
   const restartRows=[
     {key:'global',label:'Remise en jeu · Global',events:events.filter(e=>String(analysisContextKey(e)).startsWith('remise_'))},
@@ -4640,7 +4787,7 @@ function analysisEvolutionSegments(){
 function analysisPlayerSegmentStats(events,player){
   const attacks=events.filter(e=>analysisSemanticType(e)==='attack'&&analysisEventPeople(e).length===1&&analysisEventPeople(e)[0]===player);
   const defenses=events.filter(e=>analysisSemanticType(e)==='defense'&&analysisEventPeople(e).includes(player));
-  return {attack:{total:attacks.length,points:attacks.filter(e=>analysisOutcome(e)==='Point marqué').length,faults:attacks.filter(e=>analysisOutcome(e)==='Faute attaque').length,defended:attacks.filter(e=>analysisOutcome(e)==='Ballon défendu').length,illegal:attacks.filter(e=>analysisOutcome(e)==='Défensive illégale').length},defense:{participations:defenses.length,defended:defenses.filter(e=>analysisOutcome(e)==='Ballon défendu').length,escaped:defenses.filter(e=>analysisOutcome(e)==='Échappé').length,illegal:defenses.filter(e=>analysisOutcome(e)==='Défensive illégale').length}};
+  return {attack:{total:attacks.length,points:attacks.filter(e=>['Point marqué','Défensive illégale'].includes(analysisOutcome(e))).length,faults:attacks.filter(e=>analysisOutcome(e)==='Faute attaque').length,defended:attacks.filter(e=>analysisOutcome(e)==='Ballon défendu').length,illegal:attacks.filter(e=>analysisOutcome(e)==='Défensive illégale').length},defense:{participations:defenses.length,defended:defenses.filter(e=>analysisOutcome(e)==='Ballon défendu').length,escaped:defenses.filter(e=>analysisOutcome(e)==='Échappé').length,illegal:defenses.filter(e=>analysisOutcome(e)==='Défensive illégale').length}};
 }
 function renderAnalysisEvolution(){
   const chart=$('#analysisEvolutionChart'),table=$('#analysisEvolutionTable');if(!chart||!table)return;
@@ -4656,7 +4803,7 @@ function renderAnalysisEvolution(){
     $('#analysisEvolutionChartTitle').textContent=`Évolution · ${player}`;$('#analysisEvolutionLegend').innerHTML='<span>Taux de point marqué</span><span class="defense">Participations défensives</span>';
     const rows=segments.map(seg=>({seg,...analysisPlayerSegmentStats(seg.events,player)})),maxPart=Math.max(1,...rows.map(x=>x.defense.participations));
     chart.innerHTML=rows.map(x=>{const pa=analysisPct(x.attack.points,x.attack.total)||0,hv=Math.max(2,Math.round(125*x.defense.participations/maxPart));return `<div class="analysisEvolutionCol"><div class="analysisEvolutionBars"><div class="analysisEvolutionBar attack" style="height:${Math.max(2,Math.round(125*pa/100))}px" title="Attaque ${pa}%"></div><div class="analysisEvolutionBar volume" style="height:${hv}px" title="${x.defense.participations} participations défensives"></div></div><div class="analysisEvolutionLabel">${escapeHtml(x.seg.label)}</div><div class="analysisEvolutionValue">${pa}% · ${x.defense.participations} déf.</div></div>`}).join('');
-    table.innerHTML=`<thead><tr><th>${unit==='match'?'Match':'Période'}</th><th>Att.</th><th>Pts</th><th>Fautes</th><th>Taux pts</th><th>Part. déf.</th><th>Sur défendu</th><th>Sur échappé</th><th>Sur déf. ill.</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${escapeHtml(x.seg.label)}</td><td>${x.attack.total}</td><td>${x.attack.points}</td><td>${x.attack.faults}</td><td>${analysisRateHtml(x.attack.points,x.attack.total)}</td><td>${x.defense.participations}</td><td>${x.defense.defended}</td><td>${x.defense.escaped}</td><td>${x.defense.illegal}</td></tr>`).join('')}</tbody>`;
+    table.innerHTML=`<thead><tr><th>${unit==='match'?'Match':'Période'}</th><th>Att.</th><th>Pts</th><th>Fautes</th><th>Taux pts</th><th>Part. déf.</th><th>Sur défendu</th><th>Sur échappé</th><th>Sur faute déf.</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${escapeHtml(x.seg.label)}</td><td>${x.attack.total}</td><td>${x.attack.points}</td><td>${x.attack.faults}</td><td>${analysisRateHtml(x.attack.points,x.attack.total)}</td><td>${x.defense.participations}</td><td>${x.defense.defended}</td><td>${x.defense.escaped}</td><td>${x.defense.illegal}</td></tr>`).join('')}</tbody>`;
   }
 }
 
