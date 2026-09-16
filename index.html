@@ -915,7 +915,7 @@ button:active{transform:scale(.985)}
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V2.8 Préliminaire — Analyse post-match</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V2.9 Préliminaire — Bibliothèque Matchs</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -1247,10 +1247,11 @@ button:active{transform:scale(.985)}
 
 
  <section class="panel hidden" id="matchLibrary">
-   <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:12px">
-    <div><h2 style="font-size:20px">Bibliothèque des matchs</h2><div class="small">Consulter, reprendre ou supprimer les prises de notes enregistrées.</div></div>
-    <button class="ghost" id="matchLibraryBack">← Matchs</button>
+   <div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:10px">
+    <div><h2 style="font-size:20px">Matchs</h2><div class="small">Bibliothèque des matchs enregistrés : analyser, consulter, reprendre ou supprimer.</div></div>
+    <button class="ghost" id="matchLibraryBack">← Accueil</button>
    </div>
+   <button class="primary" id="libraryNewMatch" style="width:100%;margin-bottom:12px">＋ Nouveau match</button>
    <div class="matchLibraryToolbar">
     <input id="matchLibrarySearch" placeholder="Rechercher un match…">
     <select id="matchLibraryGroup"><option value="">Tous les groupes</option></select>
@@ -1386,21 +1387,12 @@ button:active{transform:scale(.985)}
  </section>
 
  <section class="panel hidden" id="setup">
-   <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
-    <h2 style="font-size:18px">Préparer le match</h2>
-    <button class="ghost" id="matchBackHome">← Accueil</button>
-   </div>
-   <div class="row" style="margin-bottom:12px">
-    <button class="primary" id="freshMatch">＋ Nouveau match</button>
-    <button class="ghost" id="openMatchLibrary">Bibliothèque des matchs</button>
-   </div>
-   <div class="matchHistory">
-    <div class="field">
-     <label>Reprendre un match enregistré</label>
-     <select id="recentMatches"><option value="">— Nouveau match —</option></select>
+   <div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:10px">
+    <div>
+      <h2 style="font-size:18px">Nouveau match</h2>
+      <div class="small">Prépare les équipes, les joueurs et la période avant de commencer la prise de notes.</div>
     </div>
-    <button class="ghost" id="resumeMatch">Ouvrir</button>
-    <button class="ghost" id="deleteSavedMatch" disabled>Supprimer</button>
+    <button class="ghost" id="matchBackHome">← Matchs</button>
    </div>
    <div id="matchAuditMeta" class="small hidden" style="margin:-4px 0 10px"></div>
    <div class="field" style="margin-bottom:10px">
@@ -1873,6 +1865,7 @@ async function refreshRecentMatches(){
   if(!currentUser)return;
   if(!groupState.groups.length) await fetchMyGroups();
   const sel=$('#recentMatches');
+  if(!sel)return;
   sel.innerHTML='<option value="">— Nouveau match —</option>';
   const ids=groupState.groups.map(g=>g.id);
   if(!ids.length)return;
@@ -1929,7 +1922,6 @@ async function initAuthenticated(user){
   await ensureMyProfile();
   await refreshAdminAccess();
   await fetchMyGroups();
-  await refreshRecentMatches();
 }
 
 async function initAuth(){
@@ -2486,7 +2478,7 @@ function resetForNewMatch(){
   $('#matchDate').value=isoToFrInput(today());
   if($('#trainingDate')) $('#trainingDate').value=isoToFrInput(today());
   $('#rosterWrap').classList.add('hidden');
-  $('#recentMatches').value='';
+  if($('#recentMatches')) $('#recentMatches').value='';
   $('#videoPosition').value='';
   $('#period').value='P1';
   $('#startPeriod').value='P1';
@@ -3108,10 +3100,9 @@ $('#closeFaultPopup').onclick=()=>closePopup('#faultPopup');
 $('#popup').onclick=e=>{if(e.target===$('#popup'))closePopup('#popup')};
 $('#faultPopup').onclick=e=>{if(e.target===$('#faultPopup'))closePopup('#faultPopup')};
 
-$('#freshMatch').onclick=resetForNewMatch;
 $('#newMatchTop').onclick=()=>{
   if(state.events.length && !confirm('Commencer un nouveau match ? Le match actuel restera enregistré dans la base.')) return;
-  resetForNewMatch();
+  openMatchModule().catch(e=>handleError('new match',e));
 };
 $('#start').onclick=()=>{
   if($('#rosterWrap').classList.contains('hidden')) buildChecks();
@@ -3123,9 +3114,6 @@ $('#start').onclick=()=>{
   }
   start();
 };
-$('#recentMatches').onchange=updateMatchAuditMeta;
-$('#resumeMatch').onclick=()=>{const id=$('#recentMatches').value;if(id)loadMatch(id)};
-$('#deleteSavedMatch').onclick=()=>{const id=$('#recentMatches').value;if(id)deleteSavedMatch(id)};
 $('#editPlayers').onclick=()=>$('#playerEditor').classList.remove('hidden');
 $('#closeEditor').onclick=()=>$('#playerEditor').classList.add('hidden');
 $('#editLast').onclick=()=>{const last=state.events.at(-1);if(last)editEvent(last.id)};
@@ -4505,15 +4493,17 @@ function renderAnalysisTimeline(){
 
 async function openMatchModule(){
   await Promise.all([fetchMyGroups(),fetchMatchTypes()]);
+  resetForNewMatch();
   hideMainModules();
   setMatchHeaderMode(true);
   $('#setup').classList.remove('hidden');
   $('#newMatchTop').classList.remove('hidden');
-  await refreshRecentMatches();
   if(!groupState.groups.length){
     $('#matchGroupHint').textContent='Crée ou rejoins d’abord un groupe dans le volet Groupes.';
+  }else{
+    $('#matchGroupHint').textContent='L’effectif du groupe sera utilisé pour sélectionner les 4 joueurs de départ.';
   }
-  populateMatchTypeSelect($('#matchType'),{selected:state.matchTypeId||''});
+  populateMatchTypeSelect($('#matchType'),{selected:''});
   if(!$('#matchGroup').value && groupState.groups.length) $('#matchGroup').value=groupState.groups[0].id;
   if($('#matchGroup').value) await loadMatchGroupPlayers($('#matchGroup').value);
   window.scrollTo({top:0,behavior:'instant'});
@@ -5552,15 +5542,15 @@ async function loadPlayerHistory(playerId){
   });
 }
 
-$('#openMatchModule').onclick=()=>openMatchModule().catch(e=>handleError('openMatchModule',e));
+$('#openMatchModule').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
 $('#openTrainingModule').onclick=()=>openTrainingModule();
 $('#openGroupsModule').onclick=()=>openGroupsModule();
 $('#openAdminModule').onclick=()=>openAdminModule().catch(e=>handleError('admin module',e));
 $('#adminBackHome').onclick=showAppHome;
-$('#matchBackHome').onclick=showAppHome;
-$('#liveBackHome').onclick=showAppHome;
-$('#openMatchLibrary').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
-$('#matchLibraryBack').onclick=()=>openMatchModule().catch(e=>handleError('openMatchModule',e));
+$('#matchBackHome').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
+$('#liveBackHome').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
+$('#matchLibraryBack').onclick=showAppHome;
+$('#libraryNewMatch').onclick=()=>openMatchModule().catch(e=>handleError('new match',e));
 $('#matchReadBack').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
 $('#matchAnalysisBack').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
 $$('.matchAnalysisTabs button').forEach(b=>b.onclick=()=>setAnalysisTab(b.dataset.analysisTab));
