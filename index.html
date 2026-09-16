@@ -879,6 +879,10 @@ button:active{transform:scale(.985)}
 .analysisPeriodBar.defense{background:#7ddc9f}
 .analysisPeriodBar.attackFault{background:var(--warn)}
 .analysisPeriodLabel{font-size:11px;color:var(--muted);margin-top:6px}
+.analysisOpponentPeriodCharts{display:grid;grid-template-columns:1fr;gap:10px;margin-top:12px}
+.analysisOpponentPeriodCard{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px}
+.analysisOpponentPeriodTitle{font-size:13px;font-weight:800;margin-bottom:6px}
+@media(min-width:760px){.analysisOpponentPeriodCharts{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .analysisLegend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-bottom:6px}
 .analysisLegend span::before{content:"";display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:-1px;background:var(--accent)}
 .analysisLegend span.defense::before{background:#7ddc9f}
@@ -1449,14 +1453,7 @@ button:active{transform:scale(.985)}
     <div class="analysisSubtle" style="margin-bottom:9px">
       Les actions collectives ou non attribuées restent séparées. En défense, une action attribuée à plusieurs joueurs compte comme une participation pour chacun, sans fractionnement.
     </div>
-    <div class="analysisBlock">
-      <h3>Attaque par joueur</h3>
-      <div id="analysisAttackPlayersTables"></div>
-    </div>
-    <div class="analysisBlock">
-      <h3>Implication défensive</h3>
-      <div class="analysisTableWrap"><table class="analysisTable" id="analysisDefensePlayersTable"></table></div>
-    </div>
+    <div id="analysisPlayersByOpponent"></div>
    </div>
 
    <div id="analysisZonesTab" class="matchAnalysisSection hidden">
@@ -4443,6 +4440,11 @@ async function loadMatchAnalysisDataset(matchIds){
     eventPlayerMap=Object.fromEntries((data||[]).map(p=>[p.id,p.display_name]));
   }
 
+  const {data:matchPlayers,error:mpe}=await db.from('match_players')
+    .select('match_id,player_id,players!match_players_player_id_fkey(display_name)')
+    .in('match_id',unique);
+  if(mpe)throw mpe;
+
   const attrMap={},lineMap={};
   attributions.forEach(a=>{
     const n=a.players?.display_name;
@@ -4472,6 +4474,7 @@ async function loadMatchAnalysisDataset(matchIds){
   });
 
   const playerNames=[...new Set([
+    ...(matchPlayers||[]).map(p=>p.players?.display_name),
     ...attributions.map(a=>a.players?.display_name),
     ...lineups.map(l=>l.players?.display_name),
     ...Object.values(eventPlayerMap)
@@ -4629,15 +4632,10 @@ function analysisOpponentBreakdownHtml(events){
     return `<div class="analysisOpponentCard"><div class="analysisOpponentTitle">${escapeHtml(group.label)}</div>${body||'<div class="analysisEmpty">Aucune donnée pour cette équipe.</div>'}</div>`;
   }).join('');
 }
-function renderAnalysisSummary(events){
-  $('#analysisCombinedMetrics').innerHTML=analysisCombinedBreakdownHtml(events);
-  $('#analysisOpponentMetrics').innerHTML=analysisOpponentBreakdownHtml(events);
-
-  const periods=[...new Set(events.map(e=>e.period||'Non précisée'))].sort(analysisPeriodSort);
-  const per=periods.map(period=>({period,...analysisStats(events.filter(e=>(e.period||'Non précisée')===period))}));
-
+function analysisPeriodChartHtml(events,periods){
   const maxPct=100;
-  $('#analysisPeriodChart').innerHTML=per.length?per.map(x=>{
+  const per=periods.map(period=>({period,...analysisStats(events.filter(e=>(e.period||'Non précisée')===period))}));
+  return per.length?per.map(x=>{
     const pointRate=analysisPct(x.attack.points,x.attack.total)||0;
     const defenseRate=analysisPct(x.defense.points,x.defense.total)||0;
     const attackFaultRate=analysisPct(x.attack.faults,x.attack.total)||0;
@@ -4653,6 +4651,26 @@ function renderAnalysisSummary(events){
       <div class="analysisPeriodLabel">${escapeHtml(x.period)}</div>
     </div>`;
   }).join(''):'<div class="analysisEmpty">Aucune période enregistrée.</div>';
+}
+function renderOpponentPeriodCharts(events,periods){
+  const box=$('#analysisOpponentPeriodCharts');
+  if(!box)return;
+  const groups=analysisOpponentGroups(events).filter(g=>g.label!=='Équipe non précisée');
+  if(!groups.length){box.innerHTML='';return}
+  box.innerHTML=groups.map(group=>`<div class="analysisOpponentPeriodCard">
+    <div class="analysisOpponentPeriodTitle">Évolution contre ${escapeHtml(group.label)}</div>
+    <div class="analysisPeriodChart">${analysisPeriodChartHtml(group.events,periods)}</div>
+  </div>`).join('');
+}
+
+function renderAnalysisSummary(events){
+  $('#analysisCombinedMetrics').innerHTML=analysisCombinedBreakdownHtml(events);
+  $('#analysisOpponentMetrics').innerHTML=analysisOpponentBreakdownHtml(events);
+
+  const periods=[...new Set(events.map(e=>e.period||'Non précisée'))].sort(analysisPeriodSort);
+  const per=periods.map(period=>({period,...analysisStats(events.filter(e=>(e.period||'Non précisée')===period))}));
+
+  $('#analysisPeriodChart').innerHTML=analysisPeriodChartHtml(events,periods);
 
   $('#analysisPeriodTable').innerHTML=`<thead><tr>
     <th>Période</th><th>Taux d’attaque</th><th>Taux d’attaque adverse</th><th>Taux de fautes d’attaque</th>
@@ -4665,9 +4683,10 @@ function renderAnalysisSummary(events){
 }
 
 function renderAnalysisPlayers(events){
-  const attacks=events.filter(e=>analysisSemanticType(e)==='attack');
+  const allPlayers=(analysisState.players||[]).filter(Boolean);
   const buildAttackRows=attackEvents=>{
     const attackMap={};
+    allPlayers.forEach(name=>attackMap[name]={name,total:0,points:0,faults:0,defended:0,illegal:0});
     const addAttack=(name,outcome)=>{
       attackMap[name]??={name,total:0,points:0,faults:0,defended:0,illegal:0};
       const x=attackMap[name];x.total++;
@@ -4687,48 +4706,59 @@ function renderAnalysisPlayers(events){
       return a.name.localeCompare(b.name,'fr');
     });
   };
-  const renderAttackTable=(title,rows,emptyText)=>`<div class="analysisSubsectionTitle">${escapeHtml(title)}</div><div class="analysisTableWrap"><table class="analysisTable"><thead><tr>
+  const renderAttackTable=(title,rows)=>`<div class="analysisSubsectionTitle">${escapeHtml(title)}</div><div class="analysisTableWrap"><table class="analysisTable"><thead><tr>
     <th>Joueur</th><th>Attaques</th><th>Points</th><th>Fautes</th><th>Défendues</th><th>Déf. ill. adv.</th><th>Taux pts</th>
   </tr></thead><tbody>${rows.map(x=>`<tr>
     <td>${escapeHtml(x.name)}</td><td>${x.total}</td><td>${x.points}</td><td>${x.faults}</td><td>${x.defended}</td><td>${x.illegal}</td><td>${analysisRateHtml(x.points,x.total)}</td>
-  </tr>`).join('')||`<tr><td colspan="7">${escapeHtml(emptyText)}</td></tr>`}</tbody></table></div>`;
-  const attackSections=[
-    {title:'Jeu au centre',rows:buildAttackRows(attacks.filter(e=>e.family==='centre')),empty:'Aucune attaque au centre attribuée.'},
-    {title:'Remise en jeu',rows:buildAttackRows(attacks.filter(e=>e.family==='remise')),empty:'Aucune attaque sur remise en jeu attribuée.'}
-  ];
-  const extraAttackSections=[];
-  const gelRows=buildAttackRows(attacks.filter(e=>e.family==='gel'));
-  if(gelRows.length)extraAttackSections.push({title:'Gel',rows:gelRows,empty:'Aucune attaque Gel attribuée.'});
-  const otherRows=buildAttackRows(attacks.filter(e=>!['centre','remise','gel'].includes(e.family)));
-  if(otherRows.length)extraAttackSections.push({title:'Autres contextes',rows:otherRows,empty:'Aucune autre attaque attribuée.'});
-  $('#analysisAttackPlayersTables').innerHTML=[...attackSections,...extraAttackSections].map(sec=>renderAttackTable(sec.title,sec.rows,sec.empty)).join('');
+  </tr>`).join('')}</tbody></table></div>`;
 
-  const defenses=events.filter(e=>analysisSemanticType(e)==='defense');
-  const defenseMap={};
-  const addDefense=(name,outcome)=>{
-    defenseMap[name]??={name,total:0,defended:0,escaped:0,illegal:0};
-    const x=defenseMap[name];x.total++;
-    if(outcome==='Ballon défendu')x.defended++;
-    else if(outcome==='Échappé')x.escaped++;
-    else if(outcome==='Défensive illégale')x.illegal++;
+  const buildDefenseRows=defenseEvents=>{
+    const defenseMap={};
+    allPlayers.forEach(name=>defenseMap[name]={name,total:0,defended:0,escaped:0,illegal:0,opponentFaults:0});
+    const addDefense=(name,outcome)=>{
+      defenseMap[name]??={name,total:0,defended:0,escaped:0,illegal:0,opponentFaults:0};
+      const x=defenseMap[name];x.total++;
+      if(outcome==='Ballon défendu')x.defended++;
+      else if(outcome==='Échappé')x.escaped++;
+      else if(outcome==='Défensive illégale')x.illegal++;
+      else if(outcome==='Faute de l’adversaire')x.opponentFaults++;
+    };
+    defenseEvents.forEach(e=>{
+      const people=analysisEventPeople(e);
+      if(people.length)people.forEach(name=>addDefense(name,analysisOutcome(e)));
+      else addDefense('Collectif / non attribué',analysisOutcome(e));
+    });
+    return Object.values(defenseMap).sort((a,b)=>{
+      if(a.name==='Collectif / non attribué')return 1;
+      if(b.name==='Collectif / non attribué')return -1;
+      return b.total-a.total||a.name.localeCompare(b.name,'fr');
+    });
   };
-  defenses.forEach(e=>{
-    const people=analysisEventPeople(e);
-    if(people.length)people.forEach(name=>addDefense(name,analysisOutcome(e)));
-    else addDefense('Collectif / non attribué',analysisOutcome(e));
-  });
-  const defenseRows=Object.values(defenseMap).sort((a,b)=>{
-    if(a.name==='Collectif / non attribué')return 1;
-    if(b.name==='Collectif / non attribué')return -1;
-    return b.total-a.total||a.name.localeCompare(b.name,'fr');
-  });
-  $('#analysisDefensePlayersTable').innerHTML=`<thead><tr>
-    <th>Joueur</th><th>Participations</th><th>Sur défendu</th><th>Sur échappé</th><th>Sur déf. ill.</th>
-  </tr></thead><tbody>${defenseRows.map(x=>`<tr>
-    <td>${escapeHtml(x.name)}</td><td>${x.total}</td><td>${x.defended}</td><td>${x.escaped}</td><td>${x.illegal}</td>
-  </tr>`).join('')||'<tr><td colspan="5">Aucune défense attribuée.</td></tr>'}</tbody>`;
-}
+  const renderDefenseTable=rows=>`<div class="analysisTableWrap"><table class="analysisTable"><thead><tr>
+    <th>Joueur</th><th>Participations</th><th>Sur défendu</th><th>Sur faute adv.</th><th>Sur échappé</th><th>Sur déf. ill.</th>
+  </tr></thead><tbody>${rows.map(x=>`<tr>
+    <td>${escapeHtml(x.name)}</td><td>${x.total}</td><td>${x.defended}</td><td>${x.opponentFaults}</td><td>${x.escaped}</td><td>${x.illegal}</td>
+  </tr>`).join('')}</tbody></table></div>`;
 
+  const scopes=[{label:'Global',events}];
+  analysisOpponentGroups(events).forEach(group=>{
+    if(group.label!=='Équipe non précisée')scopes.push({label:group.label,events:group.events});
+  });
+  const unassigned=events.filter(e=>!e.opponent_name);
+  if(unassigned.length)scopes.push({label:'Équipe non précisée',events:unassigned});
+
+  $('#analysisPlayersByOpponent').innerHTML=scopes.map(scope=>{
+    const scopeAttacks=scope.events.filter(e=>analysisSemanticType(e)==='attack');
+    const scopeDefenses=scope.events.filter(e=>analysisSemanticType(e)==='defense');
+    return `<div class="analysisBlock"><h3>${escapeHtml(scope.label)}</h3>
+      <div class="analysisSubtle" style="font-weight:800;margin:0 0 6px">Attaque par joueur</div>
+      ${renderAttackTable('Jeu au centre',buildAttackRows(scopeAttacks.filter(e=>e.family==='centre')))}
+      ${renderAttackTable('Remise en jeu',buildAttackRows(scopeAttacks.filter(e=>e.family==='remise')))}
+      <div class="analysisSubsectionTitle">Implication défensive</div>
+      ${renderDefenseTable(buildDefenseRows(scopeDefenses))}
+    </div>`;
+  }).join('');
+}
 function renderAnalysisZonesAndContexts(events){
   const defenses=events.filter(e=>analysisSemanticType(e)==='defense');
   const defenseGroups={};
