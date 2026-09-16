@@ -989,7 +989,7 @@ button:active{transform:scale(.985)}
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V3.0 Préliminaire — Analyse groupée & évolution · correctifs ergonomie/suppression</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V3.3 Préliminaire — Bibliothèque en ligne</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -1599,9 +1599,8 @@ button:active{transform:scale(.985)}
  </div>
 </div>
 
-<div class="footer hidden" id="footer">
- <div class="footerin"><button class="ghost" id="csv">Exporter CSV</button><button class="primary" id="json">Sauvegarder JSON</button></div>
-</div>
+
+
 
 
 <div class="popupBackdrop hidden" id="profilePopup">
@@ -2118,7 +2117,7 @@ $('#logout').onclick=async()=>{
   state={matchName:'',matchTypeId:null,teamName:'',opponentTeams:[],opponentTeamIds:{},matchDate:'',players:[],activePlayers:[],events:[],currentMatchId:null,currentTeamId:null,workspaceId:null,playerIds:{},playerRolePreferences:{},defenseRolesByPeriod:{}};
   localStorage.removeItem(KEY);
   $('#live').classList.add('hidden');
-  $('#footer').classList.add('hidden');
+  $('#footer')?.classList.add('hidden');
   $('#setup').classList.add('hidden');
   $('#appHome').classList.add('hidden');
   $('#trainingHome').classList.add('hidden');
@@ -2582,7 +2581,7 @@ function resetForNewMatch(){
   $('#count').textContent='0 actions';
 
   $('#live').classList.add('hidden');
-  $('#footer').classList.add('hidden');
+  $('#footer')?.classList.add('hidden');
   $('#appHome').classList.add('hidden');
   $('#trainingHome').classList.add('hidden');
   $('#trainingSession').classList.add('hidden');
@@ -2659,7 +2658,7 @@ async function start(){
     $('#period').value=$('#startPeriod').value;
     $('#setup').classList.add('hidden');
     $('#live').classList.remove('hidden');
-    $('#footer').classList.remove('hidden');
+    $('#footer')?.classList.remove('hidden');
     saveLocal();renderPlayers();render();
     await refreshRecentMatches();
     setCloud('Synchronisé',true);
@@ -2854,7 +2853,7 @@ async function loadMatch(matchId){
     if(m.group_id){$('#matchGroup').value=m.group_id;await loadMatchGroupPlayers(m.group_id);}
     $('#setup').classList.add('hidden');
     $('#live').classList.remove('hidden');
-    $('#footer').classList.remove('hidden');
+    $('#footer')?.classList.remove('hidden');
     renderPlayers();render();saveLocal();
     setCloud('Synchronisé',true);
   }catch(e){handleError('loadMatch',e)}
@@ -4020,7 +4019,7 @@ function setMatchHeaderMode(isMatch){
 
 function hideMainModules(){
   ['settingsHome','adminHome','appHome','setup','live','matchLibrary','matchAnalysisSelect','matchReadOnly','matchAnalysis','groupsHome','groupDetail','trainingHome','trainingSession','trainingDuplicate','exerciseLibrary','trainingHistory','statsHome'].forEach(id=>$('#'+id)?.classList.add('hidden'));
-  $('#footer').classList.add('hidden');
+  $('#footer')?.classList.add('hidden');
   $('#newMatchTop').classList.add('hidden');
 }
 function showAppHome(){
@@ -4159,6 +4158,7 @@ async function openMatchReadOnly(matchId){
   hideMainModules();setMatchHeaderMode(false);$('#matchReadOnly').classList.remove('hidden');
   window.scrollTo({top:0,behavior:'instant'});
 }
+
 
 
 
@@ -5814,17 +5814,6 @@ function render(){
     controls.append(edit,del);d.append(controls);t.append(d)
   });
 }
-function dl(name,content,type){
-  const blob=new Blob([content],{type}),a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)
-}
-$('#json').onclick=()=>dl('kinball_cloud_match.json',JSON.stringify(state,null,2),'application/json');
-$('#csv').onclick=()=>{
-  const rows=[['match','team','opponentTeam','videoPosition','period','context','family','restartLocation','action','faultType','zone','movement','player','activePlayers','createdAt']];
-  state.events.forEach(e=>rows.push([state.matchName,state.teamName,e.opponentTeam||'',e.videoPosition||'',e.period,e.context,e.family||'',e.restartLocation||'',e.action,e.faultType||'',e.zone||'',e.movement||'',e.player||'',e.activePlayers.join(' | '),e.createdAt]));
-  const csv=rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n');
-  dl('kinball_cloud_match.csv',csv,'text/csv;charset=utf-8')
-};
 
 render();
 initAuth().catch(e=>handleError('initAuth',e));
