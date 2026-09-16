@@ -989,7 +989,7 @@ button:active{transform:scale(.985)}
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V3.0 Préliminaire — Analyse groupée & évolution · correctif ergonomie</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V3.0 Préliminaire — Analyse groupée & évolution · correctifs ergonomie/suppression</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -2862,22 +2862,25 @@ async function loadMatch(matchId){
 
 
 async function deleteSavedMatch(matchId){
-  const sel=$('#recentMatches');
-  const option=[...sel.options].find(o=>o.value===matchId);
-  if(!option)return;
+  const libraryMatch=(matchLibraryState.matches||[]).find(m=>m.id===matchId);
+  const recentSel=$('#recentMatches');
+  const recentOption=recentSel?[...recentSel.options].find(o=>o.value===matchId):null;
+  const label=libraryMatch
+    ? `${formatDateShort(libraryMatch.played_on)||''} · ${libraryMatch.label||'ce match'}`.trim()
+    : (recentOption?.textContent||'ce match');
 
-  const label=option.textContent||'ce match';
   const ok=confirm(`Supprimer définitivement ${label} ?\n\nToutes les prises de notes et compositions liées à ce match seront supprimées. Cette action est irréversible.`);
-  if(!ok)return;
+  if(!ok)return false;
 
-  const btn=$('#deleteSavedMatch');
-  if(btn)btn.disabled=true;
   setCloud('Suppression…',true);
 
   try{
-    const {data,error}=await db.from('matches').delete().eq('id',matchId).select('id').single();
+    const {data,error}=await db.from('matches').delete().eq('id',matchId).select('id');
     if(error)throw error;
-    if(!data?.id)throw new Error('Le match n’a pas pu être supprimé.');
+    const deleted=Array.isArray(data)?data:data?[data]:[];
+    if(!deleted.some(x=>x?.id===matchId)){
+      throw new Error('Le match n’a pas pu être supprimé. Vérifie tes droits sur ce groupe.');
+    }
 
     if(state.currentMatchId===matchId){
       state.currentMatchId=null;
@@ -2893,17 +2896,30 @@ async function deleteSavedMatch(matchId){
       }
     }
 
-    await refreshRecentMatches();
-    matchLibraryState.matches=matchLibraryState.matches.filter(m=>m.id!==matchId);
-    if($('#matchLibrary')&&!$('#matchLibrary').classList.contains('hidden'))renderMatchLibrary();
-    sel.value='';
-    updateMatchAuditMeta();
+    matchLibraryState.matches=(matchLibraryState.matches||[]).filter(m=>m.id!==matchId);
+    groupAnalysisState.selected?.delete(matchId);
+
+    // Le sélecteur historique a été retiré de l'interface V2.9+, mais
+    // on garde cette branche pour compatibilité avec d'anciennes vues.
+    if(recentSel){
+      await refreshRecentMatches();
+      recentSel.value='';
+      updateMatchAuditMeta();
+    }
+
+    if($('#matchLibrary')&&!$('#matchLibrary').classList.contains('hidden')){
+      renderMatchLibrary();
+    }
+    if($('#matchAnalysisSelect')&&!$('#matchAnalysisSelect').classList.contains('hidden')){
+      renderGroupAnalysisMatches();
+    }
+
     setCloud('Synchronisé',true);
+    return true;
   }catch(e){
     setCloud('Erreur',false);
     handleError('delete match',e);
-  }finally{
-    if(btn)btn.disabled=!sel.value;
+    return false;
   }
 }
 
@@ -4077,7 +4093,10 @@ function renderMatchLibrary(){
     card.querySelector('[data-analyze]').onclick=()=>openMatchAnalysis(m.id).catch(e=>handleError('analyse match',e));
     card.querySelector('[data-consult]').onclick=()=>openMatchReadOnly(m.id).catch(e=>handleError('consult match',e));
     card.querySelector('[data-resume]').onclick=()=>loadMatch(m.id);
-    card.querySelector('[data-delete]').onclick=async()=>{await deleteSavedMatch(m.id);await openMatchLibrary()};
+    card.querySelector('[data-delete]').onclick=async()=>{
+      const deleted=await deleteSavedMatch(m.id);
+      if(deleted)await openMatchLibrary();
+    };
     list.append(card);
   });
 }
@@ -5661,7 +5680,13 @@ $('#matchAnalysisBack').onclick=()=>openMatchLibrary().catch(e=>handleError('mat
 $$('.matchAnalysisTabs button').forEach(b=>b.onclick=()=>setAnalysisTab(b.dataset.analysisTab));
 $('#analysisEvolutionPlayer').onchange=renderAnalysisEvolution;
 $('#matchReadResume').onclick=()=>{const id=matchLibraryState.currentReadId;if(id)loadMatch(id)};
-$('#matchReadDelete').onclick=async()=>{const id=matchLibraryState.currentReadId;if(id){await deleteSavedMatch(id);await openMatchLibrary()}};
+$('#matchReadDelete').onclick=async()=>{
+  const id=matchLibraryState.currentReadId;
+  if(id){
+    const deleted=await deleteSavedMatch(id);
+    if(deleted)await openMatchLibrary();
+  }
+};
 $('#matchLibrarySearch').oninput=renderMatchLibrary;
 $('#matchLibraryGroup').onchange=renderMatchLibrary;
 $('#matchLibraryType').onchange=renderMatchLibrary;
