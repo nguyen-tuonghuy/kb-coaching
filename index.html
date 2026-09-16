@@ -855,12 +855,67 @@ button:active{transform:scale(.985)}
 .adminCoachName{font-weight:750}
 .adminCoachMeta{font-size:11px;color:var(--muted);text-align:right}
 
+
+/* ===== Analyse post-match ===== */
+.matchAnalysisTabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:12px 0}
+.matchAnalysisTabs button{min-height:44px;padding:8px 7px;font-size:12px}
+.matchAnalysisTabs button.active{background:var(--accent);color:#fff}
+.matchAnalysisSection{margin-top:12px}
+.analysisMetricGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.analysisMetric{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px}
+.analysisMetric .value{font-size:22px;font-weight:800;line-height:1.05;margin-top:3px}
+.analysisMetric .label{font-size:11px;color:var(--muted);line-height:1.25}
+.analysisBlock{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:11px;margin-top:10px}
+.analysisBlock h3{font-size:15px;margin:0 0 9px}
+.analysisTableWrap{overflow:auto;-webkit-overflow-scrolling:touch}
+.analysisTable{width:100%;border-collapse:collapse;min-width:620px;font-size:12px}
+.analysisTable th,.analysisTable td{padding:8px 7px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+.analysisTable th:first-child,.analysisTable td:first-child{text-align:left;position:sticky;left:0;background:var(--panel2);z-index:1}
+.analysisTable th{font-size:11px;color:var(--muted);font-weight:700}
+.analysisTable tr:last-child td{border-bottom:0}
+.analysisRateBar{display:flex;align-items:center;gap:7px;min-width:120px}
+.analysisRateTrack{height:8px;flex:1;background:rgba(255,255,255,.07);border-radius:999px;overflow:hidden}
+.analysisRateFill{height:100%;background:var(--accent);border-radius:999px}
+.analysisPeriodChart{display:flex;gap:7px;align-items:flex-end;min-height:170px;overflow-x:auto;padding:10px 2px 0}
+.analysisPeriodCol{min-width:54px;flex:1;text-align:center}
+.analysisPeriodBars{height:125px;display:flex;align-items:flex-end;justify-content:center;gap:4px}
+.analysisPeriodBar{width:15px;border-radius:5px 5px 2px 2px;min-height:2px}
+.analysisPeriodBar.attack{background:var(--accent)}
+.analysisPeriodBar.defense{background:#7ddc9f}
+.analysisPeriodLabel{font-size:11px;color:var(--muted);margin-top:6px}
+.analysisLegend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-bottom:6px}
+.analysisLegend span::before{content:"";display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:-1px;background:var(--accent)}
+.analysisLegend span.defense::before{background:#7ddc9f}
+.analysisSubtle{font-size:11px;color:var(--muted);line-height:1.35}
+.analysisTimelineFilters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.analysisTimelineItem{display:grid;grid-template-columns:46px minmax(0,1fr);gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}
+.analysisTimelineItem:last-child{border-bottom:0}
+.analysisTimelineSeq{font-size:11px;color:var(--muted);text-align:right}
+.analysisTimelineTitle{font-weight:800;font-size:13px}
+.analysisTimelineMeta{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.35}
+.analysisEmpty{padding:18px;text-align:center;color:var(--muted);font-size:12px}
+.analysisContextGrid{display:grid;grid-template-columns:1fr;gap:8px}
+.analysisContextCard{border:1px solid var(--line);border-radius:12px;padding:10px}
+.analysisContextCard strong{font-size:13px}
+.analysisContextStats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:7px}
+.analysisContextStats div{font-size:11px;color:var(--muted)}
+.analysisContextStats b{display:block;color:inherit;font-size:16px;margin-top:2px}
+.analysisScopeNote{padding:8px 10px;border:1px dashed var(--line);border-radius:10px;margin-top:8px;font-size:11px;color:var(--muted)}
+@media(min-width:700px){
+  .analysisMetricGrid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .analysisContextGrid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:620px){
+  .matchAnalysisTabs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .analysisTimelineFilters{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
 </style>
 </head>
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V2.7 Préliminaire — Faute de temps ajoutée</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V2.8 Préliminaire — Analyse post-match</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -1223,6 +1278,111 @@ button:active{transform:scale(.985)}
    </div>
    <h3 style="font-size:17px;margin-bottom:8px">Retranscription</h3>
    <div class="matchReadTimeline" id="matchReadTimeline"></div>
+ </section>
+
+
+ <section class="panel hidden" id="matchAnalysis">
+   <div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:10px">
+    <div style="min-width:0">
+      <h2 style="font-size:20px" id="matchAnalysisTitle">Analyse du match</h2>
+      <div class="small" id="matchAnalysisMeta"></div>
+    </div>
+    <button class="ghost" id="matchAnalysisBack">← Bibliothèque</button>
+   </div>
+
+   <div class="analysisScopeNote" id="matchAnalysisScope">
+    Analyse calculée à partir des actions enregistrées pour ce match. Le moteur est prévu pour accepter plusieurs matchs lors de l’ajout de l’agrégation par compétition.
+   </div>
+
+   <div class="matchAnalysisTabs">
+    <button class="ghost active" data-analysis-tab="summary">Résumé</button>
+    <button class="ghost" data-analysis-tab="players">Joueurs</button>
+    <button class="ghost" data-analysis-tab="zones">Zones & contextes</button>
+    <button class="ghost" data-analysis-tab="timeline">Timeline</button>
+   </div>
+
+   <div id="analysisSummaryTab" class="matchAnalysisSection">
+    <div class="analysisBlock">
+      <h3>Attaque</h3>
+      <div class="analysisMetricGrid" id="analysisAttackMetrics"></div>
+    </div>
+    <div class="analysisBlock">
+      <h3>Défense</h3>
+      <div class="analysisMetricGrid" id="analysisDefenseMetrics"></div>
+    </div>
+    <div class="analysisBlock">
+      <h3>Évolution par période</h3>
+      <div class="analysisLegend"><span>Taux de point marqué</span><span class="defense">Taux de défense réussie</span></div>
+      <div class="analysisPeriodChart" id="analysisPeriodChart"></div>
+    </div>
+    <div class="analysisBlock">
+      <h3>Détail par période</h3>
+      <div class="analysisTableWrap"><table class="analysisTable" id="analysisPeriodTable"></table></div>
+    </div>
+   </div>
+
+   <div id="analysisPlayersTab" class="matchAnalysisSection hidden">
+    <div class="analysisSubtle" style="margin-bottom:9px">
+      Les actions collectives ou non attribuées restent séparées. En défense, une action attribuée à plusieurs joueurs compte comme une participation pour chacun, sans fractionnement.
+    </div>
+    <div class="analysisBlock">
+      <h3>Attaque par joueur</h3>
+      <div class="analysisTableWrap"><table class="analysisTable" id="analysisAttackPlayersTable"></table></div>
+    </div>
+    <div class="analysisBlock">
+      <h3>Implication défensive</h3>
+      <div class="analysisTableWrap"><table class="analysisTable" id="analysisDefensePlayersTable"></table></div>
+    </div>
+   </div>
+
+   <div id="analysisZonesTab" class="matchAnalysisSection hidden">
+    <div class="analysisBlock">
+      <h3>Zones d’attaque</h3>
+      <div class="analysisTableWrap"><table class="analysisTable" id="analysisAttackZonesTable"></table></div>
+    </div>
+    <div class="analysisBlock">
+      <h3>Zones de défense</h3>
+      <div class="analysisSubtle" style="margin-bottom:7px">R et RE sont regroupés. EE regroupe également A1, P, A2 et les anciennes zones E1/E2/E3.</div>
+      <div class="analysisTableWrap"><table class="analysisTable" id="analysisDefenseZonesTable"></table></div>
+    </div>
+    <div class="analysisBlock">
+      <h3>Contextes de jeu</h3>
+      <div class="analysisContextGrid" id="analysisContexts"></div>
+    </div>
+    <div class="analysisBlock">
+      <h3>Remise en jeu</h3>
+      <div class="analysisSubtle" style="margin-bottom:7px">Lecture globale puis détail selon la position de remise en jeu.</div>
+      <div class="analysisTableWrap"><table class="analysisTable" id="analysisRestartTable"></table></div>
+    </div>
+   </div>
+
+   <div id="analysisTimelineTab" class="matchAnalysisSection hidden">
+    <div class="analysisTimelineFilters">
+      <div class="field"><label>Période</label><select id="analysisFilterPeriod"><option value="">Toutes</option></select></div>
+      <div class="field"><label>Joueur</label><select id="analysisFilterPlayer"><option value="">Tous</option></select></div>
+      <div class="field"><label>Contexte</label>
+       <select id="analysisFilterContext">
+        <option value="">Tous</option>
+        <option value="centre">Centre</option>
+        <option value="remise">Remise en jeu</option>
+        <option value="remise_centre">Remise · Centre</option>
+        <option value="remise_ligne">Remise · Ligne</option>
+        <option value="remise_coin">Remise · Coin</option>
+        <option value="gel">Gel</option>
+       </select>
+      </div>
+      <div class="field"><label>Type</label>
+       <select id="analysisFilterType">
+        <option value="">Tous</option>
+        <option value="attack">Attaque</option>
+        <option value="defense">Défense</option>
+        <option value="fault">Faute</option>
+       </select>
+      </div>
+    </div>
+    <div class="small" id="analysisTimelineCount" style="margin-bottom:7px"></div>
+    <div class="analysisBlock" id="analysisTimelineList"></div>
+   </div>
  </section>
 
  <section class="panel hidden" id="setup">
@@ -1641,6 +1801,10 @@ let family='centre',actionType='Attaque',actionResult='',restartLocation='';
 let currentUser=null;
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+function escapeHtml(v){
+  return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+const escapeAttr=escapeHtml;
 const today=()=>new Date().toISOString().slice(0,10);
 const setCloud=(text,ok=true)=>{
   $('#cloudStatus').textContent=text;
@@ -1793,6 +1957,7 @@ $('#login').onclick=async()=>{
   const email=$('#authEmail').value.trim();
   const password=$('#authPassword').value;
   const {data,error}=await db.auth.signInWithPassword({email,password});
+  $('#authPassword').value='';
   if(error){authMessage(error.message,true);return}
   authMessage('');
   try{await initAuthenticated(data.user)}catch(e){handleError('login init',e)}
@@ -1812,6 +1977,7 @@ function openSignupPopup(){
   setTimeout(()=>$('#signupEmail').focus(),0);
 }
 function closeSignupPopup(){
+  $('#signupPassword').value='';
   $('#signupPopup').classList.add('hidden');
   signupMessage('');
 }
@@ -1831,6 +1997,7 @@ $('#confirmSignup').onclick=async()=>{
     email,password,
     options:{emailRedirectTo:location.origin,data:{first_name:firstName}}
   });
+  $('#signupPassword').value='';
   if(error){signupMessage(error.message,true);return}
   if(data.session){
     const {error:profileError}=await db.rpc('set_my_first_name',{p_first_name:firstName});
@@ -3566,7 +3733,7 @@ function renderGroupsList(){
   }
   groupState.groups.forEach(g=>{
     const d=document.createElement('button');d.className='historyItem';d.style='width:100%;text-align:left;margin-bottom:8px';
-    d.innerHTML=`<strong>${g.name}</strong><div class="small">${g.club||'Club non renseigné'} · ${g.role==='owner'?'Créateur':'Entraîneur'}</div>`;
+    d.innerHTML=`<strong>${escapeHtml(g.name)}</strong><div class="small">${escapeHtml(g.club||'Club non renseigné')} · ${g.role==='owner'?'Créateur':'Entraîneur'}</div>`;
     d.onclick=()=>openGroupDetail(g.id);
     box.append(d);
   });
@@ -3592,7 +3759,7 @@ async function openGroupDetail(groupId){
     (coaches||[]).forEach((c,i)=>{
       const d=document.createElement('div');d.className='historyItem';
       const name=groupState.profiles[c.user_id]||`Entraîneur ${i+1}`;
-      d.innerHTML=`<strong>${name}</strong><div class="small">${c.role==='owner'?'Créateur du groupe':'Entraîneur'}${c.user_id===currentUser.id?' · toi':''}</div>`;
+      d.innerHTML=`<strong>${escapeHtml(name)}</strong><div class="small">${c.role==='owner'?'Créateur du groupe':'Entraîneur'}${c.user_id===currentUser.id?' · toi':''}</div>`;
       cb.append(d);
     });
     hideMainModules();setMatchHeaderMode(false);$('#groupDetail').classList.remove('hidden');window.scrollTo({top:0,behavior:'instant'});
@@ -3756,7 +3923,7 @@ function setMatchHeaderMode(isMatch){
 }
 
 function hideMainModules(){
-  ['settingsHome','adminHome','appHome','setup','live','matchLibrary','matchReadOnly','groupsHome','groupDetail','trainingHome','trainingSession','trainingDuplicate','exerciseLibrary','trainingHistory','statsHome'].forEach(id=>$('#'+id)?.classList.add('hidden'));
+  ['settingsHome','adminHome','appHome','setup','live','matchLibrary','matchReadOnly','matchAnalysis','groupsHome','groupDetail','trainingHome','trainingSession','trainingDuplicate','exerciseLibrary','trainingHistory','statsHome'].forEach(id=>$('#'+id)?.classList.add('hidden'));
   $('#footer').classList.add('hidden');
   $('#newMatchTop').classList.add('hidden');
 }
@@ -3821,11 +3988,13 @@ function renderMatchLibrary(){
         <div class="matchLibraryMeta">${statsEscape(type)}${m.match_type&&!m.match_type.active?'<span class="matchTypeArchived">archivé</span>':''} · ${statsEscape(m.group?.name||m.followed_team?.name||'Groupe')}${opponents?' · vs '+statsEscape(opponents):''} · ${n} action${n>1?'s':''}</div>
       </div>
       <div class="matchLibraryActions">
+        <button class="primary" data-analyze="${m.id}">Analyser</button>
         <button class="ghost" data-consult="${m.id}">Consulter</button>
         <button class="ghost" data-resume="${m.id}">Reprendre</button>
         <button class="ghost" data-delete="${m.id}">Supprimer</button>
       </div>
     </div>`;
+    card.querySelector('[data-analyze]').onclick=()=>openMatchAnalysis(m.id).catch(e=>handleError('analyse match',e));
     card.querySelector('[data-consult]').onclick=()=>openMatchReadOnly(m.id).catch(e=>handleError('consult match',e));
     card.querySelector('[data-resume]').onclick=()=>loadMatch(m.id);
     card.querySelector('[data-delete]').onclick=async()=>{await deleteSavedMatch(m.id);await openMatchLibrary()};
@@ -3884,12 +4053,453 @@ async function openMatchReadOnly(matchId){
     const result=action==='Faute'?(e.fault_type||'Faute'):`${action} · ${e.result||''}`;
     const attr=(attMap[e.id]||[]).join(', ')||(e.player_id?playerMap[e.player_id]:'')||'Collectif/non spécifié';
     const d=document.createElement('div');d.className='item';
-    d.innerHTML=`<div class="time">${e.video_position||''}<br>${e.period||''}</div><div><strong>${statsEscape(result)}</strong><div class="small">${statsEscape(eventContext(e.family,e.restart_location))}${e.zone?' · '+statsEscape(({E1:'A1',E2:'P',E3:'A2'}[e.zone]||e.zone)):''}${e.movement!=null?' · déplacement '+(e.movement?'oui':'non'):''} · ${statsEscape(attr)}</div></div>`;
+    d.innerHTML=`<div class="time">${escapeHtml(e.video_position||'')}<br>${escapeHtml(e.period||'')}</div><div><strong>${escapeHtml(result)}</strong><div class="small">${escapeHtml(eventContext(e.family,e.restart_location))}${e.zone?' · '+escapeHtml(({E1:'A1',E2:'P',E3:'A2'}[e.zone]||e.zone)):''}${e.movement!=null?' · déplacement '+(e.movement?'oui':'non'):''} · ${escapeHtml(attr)}</div></div>`;
     box.append(d);
   });
   matchLibraryState.currentReadId=matchId;
   hideMainModules();setMatchHeaderMode(false);$('#matchReadOnly').classList.remove('hidden');
   window.scrollTo({top:0,behavior:'instant'});
+}
+
+
+
+// ===== ANALYSE POST-MATCH =====
+// Le moteur travaille sur un dataset pouvant contenir un ou plusieurs matchs.
+// La V2.8 appelle pour l'instant loadMatchAnalysisDataset([matchId]).
+let analysisState={
+  matchIds:[],
+  matches:[],
+  events:[],
+  players:[],
+  activeTab:'summary'
+};
+
+function analysisSemanticType(e){
+  if(e.action_type==='attaque')return 'attack';
+  if(e.action_type==='defense')return 'defense';
+  if(e.action_type==='faute'&&e.fault_type==='Défensive illégale')return 'defense';
+  return 'attack';
+}
+function analysisOutcome(e){
+  const type=analysisSemanticType(e);
+  if(type==='attack'){
+    if(e.action_type==='faute')return 'Faute attaque';
+    return e.result||'Non précisé';
+  }
+  if(e.action_type==='faute'&&e.fault_type==='Défensive illégale')return 'Défensive illégale';
+  return e.result||'Non précisé';
+}
+function analysisContextKey(e){
+  if(e.family==='centre')return 'centre';
+  if(e.family==='gel')return 'gel';
+  if(e.family==='remise')return 'remise_'+(e.restart_location||'centre');
+  return e.family||'autre';
+}
+function analysisContextLabel(key){
+  return ({
+    centre:'Centre',
+    remise:'Remise en jeu',
+    remise_centre:'Remise · Centre',
+    remise_ligne:'Remise · Ligne',
+    remise_coin:'Remise · Coin',
+    gel:'Gel'
+  })[key]||key||'Autre';
+}
+function analysisEventPeople(e){
+  const names=[...(e.attributed_names||[])];
+  if(!names.length&&e.player_name)names.push(e.player_name);
+  return [...new Set(names.filter(Boolean))];
+}
+function analysisIsFault(e){
+  return e.action_type==='faute';
+}
+function analysisPct(n,d){
+  return d?Math.round(100*n/d):null;
+}
+function analysisPctLabel(n,d){
+  const p=analysisPct(n,d);
+  return p==null?'—':p+' %';
+}
+function analysisPeriodSort(a,b){
+  const na=parseInt(String(a).replace(/\D/g,''),10);
+  const nb=parseInt(String(b).replace(/\D/g,''),10);
+  if(Number.isFinite(na)&&Number.isFinite(nb))return na-nb;
+  return String(a).localeCompare(String(b),'fr');
+}
+function analysisRateHtml(n,d){
+  const p=analysisPct(n,d);
+  const width=p==null?0:Math.max(0,Math.min(100,p));
+  return `<div class="analysisRateBar"><span>${p==null?'—':p+' %'}</span><div class="analysisRateTrack"><div class="analysisRateFill" style="width:${width}%"></div></div></div>`;
+}
+function analysisMetricHtml(label,value){
+  return `<div class="analysisMetric"><div class="label">${escapeHtml(label)}</div><div class="value">${escapeHtml(value)}</div></div>`;
+}
+function analysisStats(events){
+  const attacks=events.filter(e=>analysisSemanticType(e)==='attack');
+  const defenses=events.filter(e=>analysisSemanticType(e)==='defense');
+  const attack={
+    total:attacks.length,
+    points:attacks.filter(e=>analysisOutcome(e)==='Point marqué').length,
+    faults:attacks.filter(e=>analysisOutcome(e)==='Faute attaque').length,
+    defended:attacks.filter(e=>analysisOutcome(e)==='Ballon défendu').length,
+    illegal:attacks.filter(e=>analysisOutcome(e)==='Défensive illégale').length
+  };
+  const defense={
+    total:defenses.length,
+    defended:defenses.filter(e=>analysisOutcome(e)==='Ballon défendu').length,
+    escaped:defenses.filter(e=>analysisOutcome(e)==='Échappé').length,
+    illegal:defenses.filter(e=>analysisOutcome(e)==='Défensive illégale').length
+  };
+  return {attack,defense};
+}
+function analysisAttackZoneLabel(zone){
+  const z=({E1:'A1',E2:'P',E3:'A2'}[zone]||zone||'Non précisée');
+  return z;
+}
+function analysisDefenseZoneGroup(zone){
+  if(zone==='R'||zone==='RE')return 'R / RE';
+  if(['EE','A1','P','A2','E1','E2','E3'].includes(zone))return 'EE / reste';
+  return 'Non précisée';
+}
+
+async function loadMatchAnalysisDataset(matchIds){
+  const unique=[...new Set((matchIds||[]).filter(Boolean))];
+  if(!unique.length)throw new Error('Aucun match à analyser.');
+  const {data:matches,error:me}=await db.from('matches')
+    .select('id,label,played_on,group_id,match_type_id,team_id,match_type:match_types!matches_match_type_id_fkey(name),group:coaching_groups!matches_group_id_fkey(name),followed_team:teams!matches_team_id_fkey(name),opponent1:teams!matches_opponent_team_1_id_fkey(name),opponent2:teams!matches_opponent_team_2_id_fkey(name)')
+    .in('id',unique);
+  if(me)throw me;
+
+  const {data:events,error:ee}=await db.from('match_events')
+    .select('*')
+    .in('match_id',unique)
+    .order('sequence_no',{ascending:true});
+  if(ee)throw ee;
+
+  const ids=(events||[]).map(e=>e.id);
+  let attributions=[],lineups=[];
+  if(ids.length){
+    const [a,l]=await Promise.all([
+      db.from('match_event_attributions').select('event_id,player_id,players!match_event_attributions_player_id_fkey(display_name)').in('event_id',ids),
+      db.from('match_event_lineup').select('event_id,player_id,players!match_event_lineup_player_id_fkey(display_name)').in('event_id',ids)
+    ]);
+    if(a.error)throw a.error;
+    if(l.error)throw l.error;
+    attributions=a.data||[];
+    lineups=l.data||[];
+  }
+
+  const eventPlayerIds=[...new Set((events||[]).map(e=>e.player_id).filter(Boolean))];
+  let eventPlayerMap={};
+  if(eventPlayerIds.length){
+    const {data,error}=await db.from('players').select('id,display_name').in('id',eventPlayerIds);
+    if(error)throw error;
+    eventPlayerMap=Object.fromEntries((data||[]).map(p=>[p.id,p.display_name]));
+  }
+
+  const attrMap={},lineMap={};
+  attributions.forEach(a=>{
+    const n=a.players?.display_name;
+    if(n)(attrMap[a.event_id]??=[]).push(n);
+  });
+  lineups.forEach(l=>{
+    const n=l.players?.display_name;
+    if(n)(lineMap[l.event_id]??=[]).push(n);
+  });
+
+  const matchMap=Object.fromEntries((matches||[]).map(m=>[m.id,m]));
+  const normalized=(events||[]).map(e=>({
+    ...e,
+    match:matchMap[e.match_id]||null,
+    attributed_names:attrMap[e.id]||[],
+    lineup_names:lineMap[e.id]||[],
+    player_name:e.player_id?eventPlayerMap[e.player_id]||null:null
+  }));
+
+  const playerNames=[...new Set([
+    ...attributions.map(a=>a.players?.display_name),
+    ...lineups.map(l=>l.players?.display_name),
+    ...Object.values(eventPlayerMap)
+  ].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
+
+  return {matchIds:unique,matches:matches||[],events:normalized,players:playerNames};
+}
+
+async function openMatchAnalysis(matchId){
+  setCloud('Analyse…',true);
+  const dataset=await loadMatchAnalysisDataset([matchId]);
+  analysisState={...analysisState,...dataset,activeTab:'summary'};
+  renderMatchAnalysisHeader();
+  populateAnalysisTimelineFilters();
+  setAnalysisTab('summary');
+  renderMatchAnalysis();
+  hideMainModules();
+  setMatchHeaderMode(false);
+  $('#matchAnalysis').classList.remove('hidden');
+  setCloud('Synchronisé',true);
+  window.scrollTo({top:0,behavior:'instant'});
+}
+
+function renderMatchAnalysisHeader(){
+  const m=analysisState.matches[0];
+  if(!m)return;
+  $('#matchAnalysisTitle').textContent=m.label||'Analyse du match';
+  const opponents=[m.opponent1?.name,m.opponent2?.name].filter(Boolean).join(' / ');
+  $('#matchAnalysisMeta').textContent=[
+    formatDateShort(m.played_on),
+    m.match_type?.name||'Sans type',
+    m.group?.name||m.followed_team?.name||'Groupe',
+    opponents?'vs '+opponents:''
+  ].filter(Boolean).join(' · ');
+  $('#matchAnalysisScope').textContent=analysisState.matches.length===1
+    ? 'Analyse calculée à partir des actions enregistrées pour ce match. Le même moteur pourra agréger plusieurs matchs d’une compétition.'
+    : `Analyse agrégée sur ${analysisState.matches.length} matchs.`;
+}
+
+function setAnalysisTab(tab){
+  analysisState.activeTab=tab;
+  $$('.matchAnalysisTabs button').forEach(b=>b.classList.toggle('active',b.dataset.analysisTab===tab));
+  const map={summary:'#analysisSummaryTab',players:'#analysisPlayersTab',zones:'#analysisZonesTab',timeline:'#analysisTimelineTab'};
+  Object.entries(map).forEach(([key,sel])=>$(sel).classList.toggle('hidden',key!==tab));
+  if(tab==='timeline')renderAnalysisTimeline();
+}
+
+function renderMatchAnalysis(){
+  const events=analysisState.events||[];
+  renderAnalysisSummary(events);
+  renderAnalysisPlayers(events);
+  renderAnalysisZonesAndContexts(events);
+  renderAnalysisTimeline();
+}
+
+function renderAnalysisSummary(events){
+  const {attack,defense}=analysisStats(events);
+  $('#analysisAttackMetrics').innerHTML=[
+    analysisMetricHtml('Attaques',attack.total),
+    analysisMetricHtml('Points marqués',attack.points),
+    analysisMetricHtml('Fautes d’attaque',attack.faults),
+    analysisMetricHtml('Ballons défendus',attack.defended),
+    analysisMetricHtml('Défensives illégales adverses',attack.illegal),
+    analysisMetricHtml('Taux de point marqué',analysisPctLabel(attack.points,attack.total))
+  ].join('');
+  $('#analysisDefenseMetrics').innerHTML=[
+    analysisMetricHtml('Défenses',defense.total),
+    analysisMetricHtml('Ballons défendus',defense.defended),
+    analysisMetricHtml('Échappés',defense.escaped),
+    analysisMetricHtml('Défensives illégales',defense.illegal),
+    analysisMetricHtml('Taux de défense réussie',analysisPctLabel(defense.defended,defense.total))
+  ].join('');
+
+  const periods=[...new Set(events.map(e=>e.period||'Non précisée'))].sort(analysisPeriodSort);
+  const per=periods.map(period=>({period,...analysisStats(events.filter(e=>(e.period||'Non précisée')===period))}));
+
+  const maxPct=100;
+  $('#analysisPeriodChart').innerHTML=per.length?per.map(x=>{
+    const pa=analysisPct(x.attack.points,x.attack.total)||0;
+    const pd=analysisPct(x.defense.defended,x.defense.total)||0;
+    const ha=Math.max(2,Math.round(120*pa/maxPct));
+    const hd=Math.max(2,Math.round(120*pd/maxPct));
+    return `<div class="analysisPeriodCol" title="${escapeAttr(x.period)}">
+      <div class="analysisPeriodBars">
+        <div class="analysisPeriodBar attack" style="height:${ha}px" title="Attaque ${pa}%"></div>
+        <div class="analysisPeriodBar defense" style="height:${hd}px" title="Défense ${pd}%"></div>
+      </div>
+      <div class="analysisPeriodLabel">${escapeHtml(x.period)}</div>
+    </div>`;
+  }).join(''):'<div class="analysisEmpty">Aucune période enregistrée.</div>';
+
+  $('#analysisPeriodTable').innerHTML=`<thead><tr>
+    <th>Période</th><th>Att.</th><th>Pts</th><th>Fautes</th><th>Taux pts</th>
+    <th>Déf.</th><th>Réussies</th><th>Échappés</th><th>Déf. ill.</th><th>Taux déf.</th>
+  </tr></thead><tbody>${per.map(x=>`<tr>
+    <td>${escapeHtml(x.period)}</td>
+    <td>${x.attack.total}</td><td>${x.attack.points}</td><td>${x.attack.faults}</td><td>${analysisRateHtml(x.attack.points,x.attack.total)}</td>
+    <td>${x.defense.total}</td><td>${x.defense.defended}</td><td>${x.defense.escaped}</td><td>${x.defense.illegal}</td><td>${analysisRateHtml(x.defense.defended,x.defense.total)}</td>
+  </tr>`).join('')||'<tr><td colspan="10">Aucune donnée.</td></tr>'}</tbody>`;
+}
+
+function renderAnalysisPlayers(events){
+  const attacks=events.filter(e=>analysisSemanticType(e)==='attack');
+  const attackMap={};
+  const addAttack=(name,outcome)=>{
+    attackMap[name]??={name,total:0,points:0,faults:0,defended:0,illegal:0};
+    const x=attackMap[name];x.total++;
+    if(outcome==='Point marqué')x.points++;
+    else if(outcome==='Faute attaque')x.faults++;
+    else if(outcome==='Ballon défendu')x.defended++;
+    else if(outcome==='Défensive illégale')x.illegal++;
+  };
+  attacks.forEach(e=>{
+    const people=analysisEventPeople(e);
+    const name=people.length===1?people[0]:'Collectif / non attribué';
+    addAttack(name,analysisOutcome(e));
+  });
+  const attackRows=Object.values(attackMap).sort((a,b)=>{
+    if(a.name==='Collectif / non attribué')return 1;
+    if(b.name==='Collectif / non attribué')return -1;
+    return a.name.localeCompare(b.name,'fr');
+  });
+  $('#analysisAttackPlayersTable').innerHTML=`<thead><tr>
+    <th>Joueur</th><th>Attaques</th><th>Points</th><th>Fautes</th><th>Défendues</th><th>Déf. ill. adv.</th><th>Taux pts</th>
+  </tr></thead><tbody>${attackRows.map(x=>`<tr>
+    <td>${escapeHtml(x.name)}</td><td>${x.total}</td><td>${x.points}</td><td>${x.faults}</td><td>${x.defended}</td><td>${x.illegal}</td><td>${analysisRateHtml(x.points,x.total)}</td>
+  </tr>`).join('')||'<tr><td colspan="7">Aucune attaque attribuée.</td></tr>'}</tbody>`;
+
+  const defenses=events.filter(e=>analysisSemanticType(e)==='defense');
+  const defenseMap={};
+  const addDefense=(name,outcome)=>{
+    defenseMap[name]??={name,total:0,defended:0,escaped:0,illegal:0};
+    const x=defenseMap[name];x.total++;
+    if(outcome==='Ballon défendu')x.defended++;
+    else if(outcome==='Échappé')x.escaped++;
+    else if(outcome==='Défensive illégale')x.illegal++;
+  };
+  defenses.forEach(e=>{
+    const people=analysisEventPeople(e);
+    if(people.length)people.forEach(name=>addDefense(name,analysisOutcome(e)));
+    else addDefense('Collectif / non attribué',analysisOutcome(e));
+  });
+  const defenseRows=Object.values(defenseMap).sort((a,b)=>{
+    if(a.name==='Collectif / non attribué')return 1;
+    if(b.name==='Collectif / non attribué')return -1;
+    return b.total-a.total||a.name.localeCompare(b.name,'fr');
+  });
+  $('#analysisDefensePlayersTable').innerHTML=`<thead><tr>
+    <th>Joueur</th><th>Participations</th><th>Sur défendu</th><th>Sur échappé</th><th>Sur déf. ill.</th>
+  </tr></thead><tbody>${defenseRows.map(x=>`<tr>
+    <td>${escapeHtml(x.name)}</td><td>${x.total}</td><td>${x.defended}</td><td>${x.escaped}</td><td>${x.illegal}</td>
+  </tr>`).join('')||'<tr><td colspan="5">Aucune défense attribuée.</td></tr>'}</tbody>`;
+}
+
+function renderAnalysisZonesAndContexts(events){
+  const attacks=events.filter(e=>analysisSemanticType(e)==='attack');
+  const attackGroups={};
+  attacks.forEach(e=>{
+    const name=analysisAttackZoneLabel(e.zone);
+    attackGroups[name]??={name,total:0,points:0,faults:0,defended:0,illegal:0};
+    const x=attackGroups[name],o=analysisOutcome(e);x.total++;
+    if(o==='Point marqué')x.points++;
+    else if(o==='Faute attaque')x.faults++;
+    else if(o==='Ballon défendu')x.defended++;
+    else if(o==='Défensive illégale')x.illegal++;
+  });
+  const attackOrder=['R','RE','A1','EE','P','A2','Non précisée'];
+  const attackRows=Object.values(attackGroups).sort((a,b)=>{
+    const ia=attackOrder.indexOf(a.name),ib=attackOrder.indexOf(b.name);
+    return (ia<0?999:ia)-(ib<0?999:ib)||a.name.localeCompare(b.name,'fr');
+  });
+  $('#analysisAttackZonesTable').innerHTML=`<thead><tr>
+    <th>Zone</th><th>Attaques</th><th>Points</th><th>Fautes</th><th>Défendues</th><th>Déf. ill. adv.</th><th>Taux pts</th>
+  </tr></thead><tbody>${attackRows.map(x=>`<tr>
+    <td>${escapeHtml(x.name)}</td><td>${x.total}</td><td>${x.points}</td><td>${x.faults}</td><td>${x.defended}</td><td>${x.illegal}</td><td>${analysisRateHtml(x.points,x.total)}</td>
+  </tr>`).join('')||'<tr><td colspan="7">Aucune attaque.</td></tr>'}</tbody>`;
+
+  const defenses=events.filter(e=>analysisSemanticType(e)==='defense');
+  const defenseGroups={};
+  defenses.forEach(e=>{
+    const name=analysisDefenseZoneGroup(e.zone);
+    defenseGroups[name]??={name,total:0,defended:0,escaped:0,illegal:0};
+    const x=defenseGroups[name],o=analysisOutcome(e);x.total++;
+    if(o==='Ballon défendu')x.defended++;
+    else if(o==='Échappé')x.escaped++;
+    else if(o==='Défensive illégale')x.illegal++;
+  });
+  const defenseRows=['R / RE','EE / reste','Non précisée'].filter(k=>defenseGroups[k]).map(k=>defenseGroups[k]);
+  $('#analysisDefenseZonesTable').innerHTML=`<thead><tr>
+    <th>Zone</th><th>Défenses</th><th>Défendues</th><th>Échappés</th><th>Déf. ill.</th><th>Taux déf.</th>
+  </tr></thead><tbody>${defenseRows.map(x=>`<tr>
+    <td>${escapeHtml(x.name)}</td><td>${x.total}</td><td>${x.defended}</td><td>${x.escaped}</td><td>${x.illegal}</td><td>${analysisRateHtml(x.defended,x.total)}</td>
+  </tr>`).join('')||'<tr><td colspan="6">Aucune défense.</td></tr>'}</tbody>`;
+
+  const contexts=[
+    {key:'centre',label:'Centre',events:events.filter(e=>analysisContextKey(e)==='centre')},
+    {key:'remise',label:'Remise en jeu',events:events.filter(e=>String(analysisContextKey(e)).startsWith('remise_'))},
+    {key:'gel',label:'Gel',events:events.filter(e=>analysisContextKey(e)==='gel')}
+  ];
+  $('#analysisContexts').innerHTML=contexts.map(c=>{
+    const st=analysisStats(c.events);
+    return `<div class="analysisContextCard"><strong>${escapeHtml(c.label)}</strong>
+      <div class="analysisContextStats">
+        <div>Attaques<b>${st.attack.total}</b></div>
+        <div>Taux points<b>${escapeHtml(analysisPctLabel(st.attack.points,st.attack.total))}</b></div>
+        <div>Défenses<b>${st.defense.total}</b></div>
+        <div>Taux défense<b>${escapeHtml(analysisPctLabel(st.defense.defended,st.defense.total))}</b></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const restartRows=[
+    {key:'global',label:'Remise en jeu · Global',events:events.filter(e=>String(analysisContextKey(e)).startsWith('remise_'))},
+    {key:'remise_centre',label:'Centre',events:events.filter(e=>analysisContextKey(e)==='remise_centre')},
+    {key:'remise_ligne',label:'Ligne',events:events.filter(e=>analysisContextKey(e)==='remise_ligne')},
+    {key:'remise_coin',label:'Coin',events:events.filter(e=>analysisContextKey(e)==='remise_coin')}
+  ].map(x=>({...x,...analysisStats(x.events)}));
+  $('#analysisRestartTable').innerHTML=`<thead><tr>
+    <th>Position</th><th>Att.</th><th>Pts</th><th>Taux pts</th><th>Déf.</th><th>Réussies</th><th>Échappés</th><th>Taux déf.</th>
+  </tr></thead><tbody>${restartRows.map(x=>`<tr>
+    <td>${escapeHtml(x.label)}</td>
+    <td>${x.attack.total}</td><td>${x.attack.points}</td><td>${analysisRateHtml(x.attack.points,x.attack.total)}</td>
+    <td>${x.defense.total}</td><td>${x.defense.defended}</td><td>${x.defense.escaped}</td><td>${analysisRateHtml(x.defense.defended,x.defense.total)}</td>
+  </tr>`).join('')}</tbody>`;
+}
+
+function populateAnalysisTimelineFilters(){
+  const periodSel=$('#analysisFilterPeriod');
+  const currentPeriod=periodSel.value;
+  const periods=[...new Set((analysisState.events||[]).map(e=>e.period).filter(Boolean))].sort(analysisPeriodSort);
+  periodSel.innerHTML='<option value="">Toutes</option>';
+  periods.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;periodSel.append(o)});
+  if([...periodSel.options].some(o=>o.value===currentPeriod))periodSel.value=currentPeriod;
+
+  const playerSel=$('#analysisFilterPlayer');
+  const currentPlayer=playerSel.value;
+  playerSel.innerHTML='<option value="">Tous</option>';
+  (analysisState.players||[]).forEach(name=>{const o=document.createElement('option');o.value=name;o.textContent=name;playerSel.append(o)});
+  if([...playerSel.options].some(o=>o.value===currentPlayer))playerSel.value=currentPlayer;
+}
+
+function renderAnalysisTimeline(){
+  if(!$('#analysisTimelineList'))return;
+  const period=$('#analysisFilterPeriod')?.value||'';
+  const player=$('#analysisFilterPlayer')?.value||'';
+  const context=$('#analysisFilterContext')?.value||'';
+  const type=$('#analysisFilterType')?.value||'';
+
+  const rows=(analysisState.events||[]).filter(e=>{
+    if(period&&e.period!==period)return false;
+    if(player&&!analysisEventPeople(e).includes(player))return false;
+    const ck=analysisContextKey(e);
+    if(context==='remise'&&!String(ck).startsWith('remise_'))return false;
+    if(context&&context!=='remise'&&ck!==context)return false;
+    if(type==='attack'&&analysisSemanticType(e)!=='attack')return false;
+    if(type==='defense'&&analysisSemanticType(e)!=='defense')return false;
+    if(type==='fault'&&!analysisIsFault(e))return false;
+    return true;
+  });
+
+  $('#analysisTimelineCount').textContent=`${rows.length} action${rows.length>1?'s':''} affichée${rows.length>1?'s':''} sur ${(analysisState.events||[]).length}`;
+  const box=$('#analysisTimelineList');
+  if(!rows.length){box.innerHTML='<div class="analysisEmpty">Aucune action ne correspond aux filtres.</div>';return}
+  box.innerHTML=rows.map((e,i)=>{
+    const semantic=analysisSemanticType(e)==='attack'?'Attaque':'Défense';
+    const outcome=analysisOutcome(e);
+    const people=analysisEventPeople(e);
+    const who=people.length?people.join(', '):'Collectif / non attribué';
+    const zone=e.zone?analysisAttackZoneLabel(e.zone):'';
+    const matchLabel=analysisState.matches.length>1?(e.match?.label||'Match'):'';
+    return `<div class="analysisTimelineItem">
+      <div class="analysisTimelineSeq">${escapeHtml(e.period||'—')}<br>#${escapeHtml(e.sequence_no||i+1)}</div>
+      <div>
+        <div class="analysisTimelineTitle">${escapeHtml(semantic+' · '+outcome)}</div>
+        <div class="analysisTimelineMeta">${[
+          matchLabel,
+          analysisContextLabel(analysisContextKey(e)),
+          zone?'Zone '+zone:'',
+          who
+        ].filter(Boolean).map(escapeHtml).join(' · ')}</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 
@@ -4045,11 +4655,11 @@ function getTrainingDraft(exKey,playerId){
 }
 
 function resultInputsHtml(ex,p){
-  const key=`${ex.localKey}__${p.id}`;
+  const key=escapeAttr(`${ex.localKey}__${p.id}`);
   const d=getTrainingDraft(ex.localKey,p.id);
-  if(ex.measurement_type==='success_attempts') return `<div class="miniGrid"><div><label>Réussites</label><input class="tr-success" data-key="${key}" type="number" min="0" inputmode="numeric" value="${d.successes}"></div><div><label>Tentatives</label><input class="tr-attempts" data-key="${key}" type="number" min="0" inputmode="numeric" value="${d.attempts}"></div></div>`;
+  if(ex.measurement_type==='success_attempts') return `<div class="miniGrid"><div><label>Réussites</label><input class="tr-success" data-key="${key}" type="number" min="0" inputmode="numeric" value="${escapeAttr(d.successes)}"></div><div><label>Tentatives</label><input class="tr-attempts" data-key="${key}" type="number" min="0" inputmode="numeric" value="${escapeAttr(d.attempts)}"></div></div>`;
   let max=''; if(ex.measurement_type==='rating_5')max=' max="5"';if(ex.measurement_type==='rating_10')max=' max="10"';
-  return `<label>${measurementLabel(ex.measurement_type)}</label><input class="tr-value" data-key="${key}" type="number" step="any" inputmode="decimal"${max} value="${d.value}">`;
+  return `<label>${escapeHtml(measurementLabel(ex.measurement_type))}</label><input class="tr-value" data-key="${key}" type="number" step="any" inputmode="decimal"${max} value="${escapeAttr(d.value)}">`;
 }
 function renderTrainingExerciseCards(){
   captureTrainingResultDraft();
@@ -4064,9 +4674,9 @@ function renderTrainingExerciseCards(){
     card.innerHTML=`
       <div class="row trainingExerciseHeader" style="justify-content:space-between;align-items:flex-start;gap:8px;cursor:pointer">
         <div style="min-width:0;flex:1">
-          <h3>${idx+1}. ${ex.name}</h3>
-          <div class="small">${statsEscape(categoryLabel(ex))} · ${measurementLabel(ex.measurement_type)}${ex.objective?' · '+ex.objective:''}</div>
-          ${isDualExercise(ex)?`<div class="small" style="margin-top:5px"><strong>Focus : ${focusLabel(ex.focus)||'à choisir'}</strong>${focusInstruction(ex)?' · '+focusInstruction(ex):''}</div>`:''}
+          <h3>${idx+1}. ${escapeHtml(ex.name)}</h3>
+          <div class="small">${escapeHtml(categoryLabel(ex))} · ${escapeHtml(measurementLabel(ex.measurement_type))}${ex.objective?' · '+escapeHtml(ex.objective):''}</div>
+          ${isDualExercise(ex)?`<div class="small" style="margin-top:5px"><strong>Focus : ${escapeHtml(focusLabel(ex.focus)||'à choisir')}</strong>${focusInstruction(ex)?' · '+escapeHtml(focusInstruction(ex)):''}</div>`:''}
           <div class="small" style="margin-top:5px">${present.length} joueur${present.length>1?'s':''} présent${present.length>1?'s':''}</div>
         </div>
         <div class="row" style="gap:6px;flex:0 0 auto">
@@ -4118,7 +4728,7 @@ function renderTrainingExerciseCards(){
     present.forEach(p=>{
       const row=document.createElement('div');row.className='resultRow';row.dataset.exercise=ex.localKey;row.dataset.player=p.id;
       const draft=getTrainingDraft(ex.localKey,p.id);
-      row.innerHTML=`<div class="name">${p.name}</div>${resultInputsHtml(ex,p)}<div style="margin-top:7px"><label>Note facultative</label><input class="tr-note" placeholder="Observation courte" value="${draft.note.replaceAll('"','&quot;')}"></div>`;
+      row.innerHTML=`<div class="name">${escapeHtml(p.name)}</div>${resultInputsHtml(ex,p)}<div style="margin-top:7px"><label>Note facultative</label><input class="tr-note" placeholder="Observation courte" value="${escapeAttr(draft.note)}"></div>`;
       rb.append(row);
     });
 
@@ -4453,9 +5063,9 @@ function renderDuplicateTrainingSessions(){
     d.className='historyItem';
     d.innerHTML=`<div class="row" style="justify-content:space-between;align-items:flex-start;gap:8px">
       <div style="min-width:0;flex:1">
-        <strong>${sess.trained_on?formatDateShort(sess.trained_on):''}${sess.theme?' · '+sess.theme:(sess.label?' · '+sess.label:'')}</strong>
-        <div class="small" style="margin-top:4px">${sess.group?.name||sess.team?.name||'Groupe'}${sess.duration_minutes?' · '+sess.duration_minutes+' min':''}</div>
-        <div class="small" style="margin-top:4px">Créé par ${auditName(sess.created_by)}${sess.created_at?' le '+formatAuditDate(sess.created_at):''}${sess.updated_at&&sess.updated_at!==sess.created_at?' · Modifié par '+auditName(sess.updated_by)+(sess.updated_at?' le '+formatAuditDate(sess.updated_at):''):''}</div>
+        <strong>${escapeHtml(sess.trained_on?formatDateShort(sess.trained_on):'')}${sess.theme?' · '+escapeHtml(sess.theme):(sess.label?' · '+escapeHtml(sess.label):'')}</strong>
+        <div class="small" style="margin-top:4px">${escapeHtml(sess.group?.name||sess.team?.name||'Groupe')}${sess.duration_minutes?' · '+escapeHtml(sess.duration_minutes)+' min':''}</div>
+        <div class="small" style="margin-top:4px">Créé par ${escapeHtml(auditName(sess.created_by))}${sess.created_at?' le '+escapeHtml(formatAuditDate(sess.created_at)):''}${sess.updated_at&&sess.updated_at!==sess.created_at?' · Modifié par '+escapeHtml(auditName(sess.updated_by))+(sess.updated_at?' le '+escapeHtml(formatAuditDate(sess.updated_at)):''):''}</div>
       </div>
       <div class="row" style="gap:6px;flex:0 0 auto">
         <button class="ghost" data-edit-session="${sess.id}">Modifier</button>
@@ -4656,9 +5266,7 @@ async function saveTrainingSession(){
   }catch(e){trainingStatus(e.message||String(e),true);handleError('saveTrainingSession',e)}
 }
 
-function statsEscape(v){
-  return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-}
+function statsEscape(v){ return escapeHtml(v); }
 function statsMetric(label,value,sub=''){
   return `<div class="statsMetric"><div class="small">${statsEscape(label)}</div><div class="value">${statsEscape(value)}</div>${sub?`<div class="small">${statsEscape(sub)}</div>`:''}</div>`;
 }
@@ -4940,7 +5548,7 @@ async function loadPlayerHistory(playerId){
       val=`${r.successes??'—'} / ${r.attempts??'—'}`;
       if(r.attempts>0&&r.successes!=null) val+=` · ${Math.round(100*r.successes/r.attempts)} %`;
     }else if(r.numeric_value!=null) val=String(r.numeric_value);
-    const d=document.createElement('div');d.className='historyItem';d.innerHTML=`<strong>${r.exercise?.name||'Exercice'}</strong><div>${val}</div><div class="small">${r.session?.trained_on?formatDateShort(r.session.trained_on):''}${r.session?.theme?' · '+r.session.theme:''}${r.note?' · '+r.note:''}</div>`;out.append(d);
+    const d=document.createElement('div');d.className='historyItem';d.innerHTML=`<strong>${escapeHtml(r.exercise?.name||'Exercice')}</strong><div>${escapeHtml(val)}</div><div class="small">${escapeHtml(r.session?.trained_on?formatDateShort(r.session.trained_on):'')}${r.session?.theme?' · '+escapeHtml(r.session.theme):''}${r.note?' · '+escapeHtml(r.note):''}</div>`;out.append(d);
   });
 }
 
@@ -4954,6 +5562,11 @@ $('#liveBackHome').onclick=showAppHome;
 $('#openMatchLibrary').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
 $('#matchLibraryBack').onclick=()=>openMatchModule().catch(e=>handleError('openMatchModule',e));
 $('#matchReadBack').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
+$('#matchAnalysisBack').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
+$$('.matchAnalysisTabs button').forEach(b=>b.onclick=()=>setAnalysisTab(b.dataset.analysisTab));
+['analysisFilterPeriod','analysisFilterPlayer','analysisFilterContext','analysisFilterType'].forEach(id=>{
+  $('#'+id).onchange=renderAnalysisTimeline;
+});
 $('#matchReadResume').onclick=()=>{const id=matchLibraryState.currentReadId;if(id)loadMatch(id)};
 $('#matchReadDelete').onclick=async()=>{const id=matchLibraryState.currentReadId;if(id){await deleteSavedMatch(id);await openMatchLibrary()}};
 $('#matchLibrarySearch').oninput=renderMatchLibrary;
@@ -5066,7 +5679,7 @@ function render(){
   [...state.events].reverse().forEach(e=>{
     const d=document.createElement('div');d.className='item';
     const detail=e.faultType?e.faultType:e.action,pos=e.videoPosition||'—';
-    d.innerHTML=`<div class="time">${pos}<br>${e.period}</div><div><strong>${detail}</strong><div class="small">${labelContext(e.context)}${e.opponentTeam?' · '+e.opponentTeam:''}${e.zone?' · '+({E1:'A1',E2:'P',E3:'A2'}[e.zone]||e.zone):''}${e.movement?' · déplacement '+e.movement.toLowerCase():''} · ${eventAttributionLabel(e)}</div></div>`;
+    d.innerHTML=`<div class="time">${escapeHtml(pos)}<br>${escapeHtml(e.period)}</div><div><strong>${escapeHtml(detail)}</strong><div class="small">${escapeHtml(labelContext(e.context))}${e.opponentTeam?' · '+escapeHtml(e.opponentTeam):''}${e.zone?' · '+escapeHtml(({E1:'A1',E2:'P',E3:'A2'}[e.zone]||e.zone)):''}${e.movement?' · déplacement '+escapeHtml(e.movement.toLowerCase()):''} · ${escapeHtml(eventAttributionLabel(e))}</div></div>`;
     d.onclick=()=>editEvent(e.id);
     const controls=document.createElement('div');controls.className='row';
     const edit=document.createElement('button');edit.className='ghost';edit.textContent='Modifier';edit.onclick=evt=>{evt.stopPropagation();editEvent(e.id)};
