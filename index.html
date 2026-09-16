@@ -849,141 +849,16 @@ button:active{transform:scale(.985)}
 .adminCoachName{font-weight:750}
 .adminCoachMeta{font-size:11px;color:var(--muted);text-align:right}
 
-
-/* ===== Analyse post-match ===== */
-.matchAnalysisTabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:12px 0}
-.matchAnalysisTabs button{min-height:44px;padding:8px 7px;font-size:12px}
-.matchAnalysisTabs button.active{background:var(--accent);color:#fff}
-.matchAnalysisSection{margin-top:12px}
-.analysisMetricGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.analysisMetric{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px}
-.analysisMetric .value{font-size:22px;font-weight:800;line-height:1.05;margin-top:3px}
-.analysisMetric .label{font-size:11px;color:var(--muted);line-height:1.25}
-.analysisBlock{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:11px;margin-top:10px}
-.analysisBlock h3{font-size:15px;margin:0 0 9px}
-.analysisTableWrap{overflow:auto;-webkit-overflow-scrolling:touch}
-.analysisTable{width:100%;border-collapse:collapse;min-width:620px;font-size:12px}
-.analysisTable th,.analysisTable td{padding:8px 7px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
-.analysisTable th:first-child,.analysisTable td:first-child{text-align:left;position:sticky;left:0;background:var(--panel2);z-index:1}
-.analysisTable th{font-size:11px;color:var(--muted);font-weight:700}
-.analysisTable tr:last-child td{border-bottom:0}
-.analysisRateBar{display:flex;align-items:center;gap:7px;min-width:120px}
-.analysisRateTrack{height:8px;flex:1;background:rgba(255,255,255,.07);border-radius:999px;overflow:hidden}
-.analysisRateFill{height:100%;background:var(--accent);border-radius:999px}
-.analysisPeriodChart{display:flex;gap:7px;align-items:flex-end;min-height:170px;overflow-x:auto;padding:10px 2px 0}
-.analysisPeriodCol{min-width:54px;flex:1;text-align:center}
-.analysisPeriodBars{height:125px;display:flex;align-items:flex-end;justify-content:center;gap:4px}
-.analysisPeriodBar{width:15px;border-radius:5px 5px 2px 2px;min-height:2px}
-.analysisPeriodBar.attack{background:var(--accent)}
-.analysisPeriodBar.defense{background:#7ddc9f}
-.analysisPeriodLabel{font-size:11px;color:var(--muted);margin-top:6px}
-.analysisLegend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-bottom:6px}
-.analysisLegend span::before{content:"";display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:-1px;background:var(--accent)}
-.analysisLegend span.defense::before{background:#7ddc9f}
-.analysisSubtle{font-size:11px;color:var(--muted);line-height:1.35}
-.analysisTimelineFilters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:10px}
-.analysisTimelineItem{display:grid;grid-template-columns:46px minmax(0,1fr);gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}
-.analysisTimelineItem:last-child{border-bottom:0}
-.analysisTimelineSeq{font-size:11px;color:var(--muted);text-align:right}
-.analysisTimelineTitle{font-weight:800;font-size:13px}
-.analysisTimelineMeta{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.35}
-.analysisEmpty{padding:18px;text-align:center;color:var(--muted);font-size:12px}
-.analysisContextGrid{display:grid;grid-template-columns:1fr;gap:8px}
-.analysisContextCard{border:1px solid var(--line);border-radius:12px;padding:10px}
-.analysisContextCard strong{font-size:13px}
-.analysisContextStats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:7px}
-.analysisContextStats div{font-size:11px;color:var(--muted)}
-.analysisContextStats b{display:block;color:inherit;font-size:16px;margin-top:2px}
-.analysisScopeNote{padding:8px 10px;border:1px dashed var(--line);border-radius:10px;margin-top:8px;font-size:11px;color:var(--muted)}
-@media(min-width:700px){
-  .analysisMetricGrid{grid-template-columns:repeat(4,minmax(0,1fr))}
-  .analysisContextGrid{grid-template-columns:repeat(3,minmax(0,1fr))}
-}
-@media(max-width:620px){
-  .matchAnalysisTabs{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .analysisTimelineFilters{grid-template-columns:repeat(2,minmax(0,1fr))}
-}
-
-
-/* ===== Analyse groupée + évolution ===== */
-.matchLibraryPrimaryActions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-.analysisSelectionToolbar{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
-.analysisSelectionActions{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0 10px}
-.analysisMatchChoice{
-  display:flex;
-  gap:10px;
-  align-items:flex-start;
-  padding:11px 12px;
-  border:1px solid var(--line);
-  border-radius:12px;
-  background:var(--panel2);
-  margin:0 0 7px;
-  cursor:pointer;
-  color:var(--text);
-}
-.analysisMatchChoice:hover{border-color:#526276}
-.analysisMatchChoice:has(input:checked){
-  border-color:var(--accent);
-  box-shadow:inset 0 0 0 1px var(--accent);
-}
-.analysisMatchChoice input[type="checkbox"]{
-  appearance:auto;
-  -webkit-appearance:checkbox;
-  width:18px;
-  height:18px;
-  min-width:18px;
-  max-width:18px;
-  flex:0 0 18px;
-  margin:1px 0 0;
-  padding:0;
-  border:0;
-  border-radius:3px;
-  background:transparent;
-  accent-color:var(--accent);
-}
-.analysisMatchChoiceMain{
-  min-width:0;
-  flex:1 1 auto;
-  width:auto;
-  overflow:hidden;
-}
-.analysisMatchChoiceTitle{
-  font-weight:800;
-  font-size:13px;
-  line-height:1.3;
-  color:var(--text);
-  overflow-wrap:anywhere;
-}
-.analysisMatchChoiceMeta{
-  font-size:11px;
-  color:var(--muted);
-  margin-top:4px;
-  line-height:1.4;
-  overflow-wrap:anywhere;
-}
-.analysisSelectionFooter{position:sticky;bottom:0;padding:9px 0 2px;background:var(--panel);margin-top:8px}
-.analysisEvolutionToolbar{display:grid;grid-template-columns:minmax(0,320px) 1fr;gap:9px;align-items:end}
-.analysisEvolutionChart{display:flex;align-items:flex-end;gap:7px;min-height:185px;overflow-x:auto;padding:12px 2px 0}
-.analysisEvolutionCol{min-width:64px;flex:1;text-align:center}
-.analysisEvolutionBars{height:130px;display:flex;align-items:flex-end;justify-content:center;gap:5px}
-.analysisEvolutionBar{width:18px;border-radius:5px 5px 2px 2px;min-height:2px}
-.analysisEvolutionBar.attack{background:var(--accent)}
-.analysisEvolutionBar.defense{background:#7ddc9f}
-.analysisEvolutionBar.volume{background:#d8ad62}
-.analysisEvolutionLabel{font-size:10px;color:var(--muted);margin-top:6px;line-height:1.2;white-space:normal}
-.analysisEvolutionValue{font-size:10px;font-weight:800;margin-top:3px}
-@media(max-width:620px){
- .matchLibraryPrimaryActions{grid-template-columns:1fr}
- .analysisSelectionToolbar{grid-template-columns:1fr}
- .analysisEvolutionToolbar{grid-template-columns:1fr}
-}
-
 </style>
 </head>
 <body>
 <div class="app">
  <div class="top">
+<<<<<<< HEAD
    <div><h1>Kinball Coach</h1><div class="sub">V3.3 Préliminaire — Bibliothèque en ligne · correctifs</div></div>
+=======
+   <div><h1>Kinball Coach</h1><div class="sub">V2.7 Préliminaire — Compatibilité données existantes</div></div>
+>>>>>>> f198386710a9c05319cc75d9609645ed5cdfcae8
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -1315,13 +1190,9 @@ button:active{transform:scale(.985)}
 
 
  <section class="panel hidden" id="matchLibrary">
-   <div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:10px">
-    <div><h2 style="font-size:20px">Matchs</h2><div class="small">Bibliothèque des matchs enregistrés : analyser, consulter, reprendre ou supprimer.</div></div>
-    <button class="ghost" id="matchLibraryBack">← Accueil</button>
-   </div>
-   <div class="matchLibraryPrimaryActions">
-    <button class="primary" id="libraryNewMatch">＋ Nouveau match</button>
-    <button class="ghost" id="libraryGroupAnalysis">📊 Analyse groupée</button>
+   <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div><h2 style="font-size:20px">Bibliothèque des matchs</h2><div class="small">Consulter, reprendre ou supprimer les prises de notes enregistrées.</div></div>
+    <button class="ghost" id="matchLibraryBack">← Matchs</button>
    </div>
    <div class="matchLibraryToolbar">
     <input id="matchLibrarySearch" placeholder="Rechercher un match…">
@@ -1330,30 +1201,6 @@ button:active{transform:scale(.985)}
    </div>
    <div class="small" id="matchLibraryCount" style="margin-bottom:8px"></div>
    <div id="matchLibraryList"></div>
- </section>
-
-
- <section class="panel hidden" id="matchAnalysisSelect">
-   <div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:10px">
-    <div>
-      <h2 style="font-size:20px">Analyse groupée</h2>
-      <div class="small">Sélectionne un type de match pour pré-sélectionner la compétition, puis ajuste librement les matchs inclus.</div>
-    </div>
-    <button class="ghost" id="matchAnalysisSelectBack">← Matchs</button>
-   </div>
-   <div class="analysisSelectionToolbar">
-    <div class="field"><label>Groupe</label><select id="groupAnalysisGroup"><option value="">Tous les groupes</option></select></div>
-    <div class="field"><label>Type de match / compétition</label><select id="groupAnalysisType"><option value="">— Sélection manuelle —</option></select></div>
-   </div>
-   <div class="analysisSelectionActions">
-    <button class="ghost" id="groupAnalysisSelectVisible">Tout sélectionner</button>
-    <button class="ghost" id="groupAnalysisClear">Tout désélectionner</button>
-   </div>
-   <div class="small" id="groupAnalysisStatus" style="margin-bottom:8px"></div>
-   <div id="groupAnalysisMatchList"></div>
-   <div class="analysisSelectionFooter">
-    <button class="primary" id="groupAnalysisRun" style="width:100%" disabled>Analyser la sélection</button>
-   </div>
  </section>
 
  <section class="panel hidden" id="matchReadOnly">
@@ -1376,109 +1223,22 @@ button:active{transform:scale(.985)}
    <div class="matchReadTimeline" id="matchReadTimeline"></div>
  </section>
 
-
- <section class="panel hidden" id="matchAnalysis">
-   <div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:10px">
-    <div style="min-width:0">
-      <h2 style="font-size:20px" id="matchAnalysisTitle">Analyse du match</h2>
-      <div class="small" id="matchAnalysisMeta"></div>
-    </div>
-    <button class="ghost" id="matchAnalysisBack">← Bibliothèque</button>
-   </div>
-
-   <div class="analysisScopeNote" id="matchAnalysisScope">
-    Analyse calculée à partir des actions enregistrées pour ce match. Le moteur est prévu pour accepter plusieurs matchs lors de l’ajout de l’agrégation par compétition.
-   </div>
-
-   <div class="matchAnalysisTabs">
-    <button class="ghost active" data-analysis-tab="summary">Résumé</button>
-    <button class="ghost" data-analysis-tab="players">Joueurs</button>
-    <button class="ghost" data-analysis-tab="zones">Zones & contextes</button>
-    <button class="ghost" data-analysis-tab="evolution">Évolution</button>
-   </div>
-
-   <div id="analysisSummaryTab" class="matchAnalysisSection">
-    <div class="analysisBlock">
-      <h3>Attaque</h3>
-      <div class="analysisMetricGrid" id="analysisAttackMetrics"></div>
-    </div>
-    <div class="analysisBlock">
-      <h3>Défense</h3>
-      <div class="analysisMetricGrid" id="analysisDefenseMetrics"></div>
-    </div>
-    <div class="analysisBlock">
-      <h3>Évolution par période</h3>
-      <div class="analysisLegend"><span>Taux de point marqué</span><span class="defense">Taux de défense réussie</span></div>
-      <div class="analysisPeriodChart" id="analysisPeriodChart"></div>
-    </div>
-    <div class="analysisBlock">
-      <h3>Détail par période</h3>
-      <div class="analysisTableWrap"><table class="analysisTable" id="analysisPeriodTable"></table></div>
-    </div>
-   </div>
-
-   <div id="analysisPlayersTab" class="matchAnalysisSection hidden">
-    <div class="analysisSubtle" style="margin-bottom:9px">
-      Les actions collectives ou non attribuées restent séparées. En défense, une action attribuée à plusieurs joueurs compte comme une participation pour chacun, sans fractionnement.
-    </div>
-    <div class="analysisBlock">
-      <h3>Attaque par joueur</h3>
-      <div class="analysisTableWrap"><table class="analysisTable" id="analysisAttackPlayersTable"></table></div>
-    </div>
-    <div class="analysisBlock">
-      <h3>Implication défensive</h3>
-      <div class="analysisTableWrap"><table class="analysisTable" id="analysisDefensePlayersTable"></table></div>
-    </div>
-   </div>
-
-   <div id="analysisZonesTab" class="matchAnalysisSection hidden">
-    <div class="analysisBlock">
-      <h3>Zones d’attaque</h3>
-      <div class="analysisTableWrap"><table class="analysisTable" id="analysisAttackZonesTable"></table></div>
-    </div>
-    <div class="analysisBlock">
-      <h3>Zones de défense</h3>
-      <div class="analysisSubtle" style="margin-bottom:7px">R et RE sont regroupés. EE regroupe également A1, P, A2 et les anciennes zones E1/E2/E3.</div>
-      <div class="analysisTableWrap"><table class="analysisTable" id="analysisDefenseZonesTable"></table></div>
-    </div>
-    <div class="analysisBlock">
-      <h3>Contextes de jeu</h3>
-      <div class="analysisContextGrid" id="analysisContexts"></div>
-    </div>
-    <div class="analysisBlock">
-      <h3>Remise en jeu</h3>
-      <div class="analysisSubtle" style="margin-bottom:7px">Lecture globale puis détail selon la position de remise en jeu.</div>
-      <div class="analysisTableWrap"><table class="analysisTable" id="analysisRestartTable"></table></div>
-    </div>
-   </div>
-
-   <div id="analysisEvolutionTab" class="matchAnalysisSection hidden">
-    <div class="analysisEvolutionToolbar">
-      <div class="field">
-       <label>Lecture</label>
-       <select id="analysisEvolutionPlayer"><option value="">Équipe · Global</option></select>
-      </div>
-      <div class="analysisSubtle" id="analysisEvolutionHint">Sur un match : évolution par période. Sur plusieurs matchs : évolution rencontre par rencontre.</div>
-    </div>
-    <div class="analysisBlock">
-      <h3 id="analysisEvolutionChartTitle">Évolution globale</h3>
-      <div class="analysisLegend" id="analysisEvolutionLegend"><span>Taux de point marqué</span><span class="defense">Taux de défense réussie</span></div>
-      <div class="analysisEvolutionChart" id="analysisEvolutionChart"></div>
-    </div>
-    <div class="analysisBlock">
-      <h3>Détail</h3>
-      <div class="analysisTableWrap"><table class="analysisTable" id="analysisEvolutionTable"></table></div>
-    </div>
-   </div>
- </section>
-
  <section class="panel hidden" id="setup">
-   <div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:10px">
-    <div>
-      <h2 style="font-size:18px">Nouveau match</h2>
-      <div class="small">Prépare les équipes, les joueurs et la période avant de commencer la prise de notes.</div>
+   <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+    <h2 style="font-size:18px">Préparer le match</h2>
+    <button class="ghost" id="matchBackHome">← Accueil</button>
+   </div>
+   <div class="row" style="margin-bottom:12px">
+    <button class="primary" id="freshMatch">＋ Nouveau match</button>
+    <button class="ghost" id="openMatchLibrary">Bibliothèque des matchs</button>
+   </div>
+   <div class="matchHistory">
+    <div class="field">
+     <label>Reprendre un match enregistré</label>
+     <select id="recentMatches"><option value="">— Nouveau match —</option></select>
     </div>
-    <button class="ghost" id="matchBackHome">← Matchs</button>
+    <button class="ghost" id="resumeMatch">Ouvrir</button>
+    <button class="ghost" id="deleteSavedMatch" disabled>Supprimer</button>
    </div>
    <div id="matchAuditMeta" class="small hidden" style="margin:-4px 0 10px"></div>
    <div class="field" style="margin-bottom:10px">
@@ -1593,8 +1353,9 @@ button:active{transform:scale(.985)}
  </div>
 </div>
 
-
-
+<div class="footer hidden" id="footer">
+ <div class="footerin"><button class="ghost" id="csv">Exporter CSV</button><button class="primary" id="json">Sauvegarder JSON</button></div>
+</div>
 
 
 <div class="popupBackdrop hidden" id="profilePopup">
@@ -1950,7 +1711,6 @@ async function refreshRecentMatches(){
   if(!currentUser)return;
   if(!groupState.groups.length) await fetchMyGroups();
   const sel=$('#recentMatches');
-  if(!sel)return;
   sel.innerHTML='<option value="">— Nouveau match —</option>';
   const ids=groupState.groups.map(g=>g.id);
   if(!ids.length)return;
@@ -2007,6 +1767,7 @@ async function initAuthenticated(user){
   await ensureMyProfile();
   await refreshAdminAccess();
   await fetchMyGroups();
+  await refreshRecentMatches();
 }
 
 async function initAuth(){
@@ -2111,7 +1872,7 @@ $('#logout').onclick=async()=>{
   state={matchName:'',matchTypeId:null,teamName:'',opponentTeams:[],opponentTeamIds:{},matchDate:'',players:[],activePlayers:[],events:[],currentMatchId:null,currentTeamId:null,workspaceId:null,playerIds:{},playerRolePreferences:{},defenseRolesByPeriod:{}};
   localStorage.removeItem(KEY);
   $('#live').classList.add('hidden');
-  $('#footer')?.classList.add('hidden');
+  $('#footer').classList.add('hidden');
   $('#setup').classList.add('hidden');
   $('#appHome').classList.add('hidden');
   $('#trainingHome').classList.add('hidden');
@@ -2563,7 +2324,7 @@ function resetForNewMatch(){
   $('#matchDate').value=isoToFrInput(today());
   if($('#trainingDate')) $('#trainingDate').value=isoToFrInput(today());
   $('#rosterWrap').classList.add('hidden');
-  if($('#recentMatches')) $('#recentMatches').value='';
+  $('#recentMatches').value='';
   $('#videoPosition').value='';
   $('#period').value='P1';
   $('#startPeriod').value='P1';
@@ -2575,7 +2336,7 @@ function resetForNewMatch(){
   $('#count').textContent='0 actions';
 
   $('#live').classList.add('hidden');
-  $('#footer')?.classList.add('hidden');
+  $('#footer').classList.add('hidden');
   $('#appHome').classList.add('hidden');
   $('#trainingHome').classList.add('hidden');
   $('#trainingSession').classList.add('hidden');
@@ -2652,7 +2413,7 @@ async function start(){
     $('#period').value=$('#startPeriod').value;
     $('#setup').classList.add('hidden');
     $('#live').classList.remove('hidden');
-    $('#footer')?.classList.remove('hidden');
+    $('#footer').classList.remove('hidden');
     saveLocal();renderPlayers();render();
     await refreshRecentMatches();
     setCloud('Synchronisé',true);
@@ -2847,7 +2608,7 @@ async function loadMatch(matchId){
     if(m.group_id){$('#matchGroup').value=m.group_id;await loadMatchGroupPlayers(m.group_id);}
     $('#setup').classList.add('hidden');
     $('#live').classList.remove('hidden');
-    $('#footer')?.classList.remove('hidden');
+    $('#footer').classList.remove('hidden');
     renderPlayers();render();saveLocal();
     setCloud('Synchronisé',true);
   }catch(e){handleError('loadMatch',e)}
@@ -2855,25 +2616,22 @@ async function loadMatch(matchId){
 
 
 async function deleteSavedMatch(matchId){
-  const libraryMatch=(matchLibraryState.matches||[]).find(m=>m.id===matchId);
-  const recentSel=$('#recentMatches');
-  const recentOption=recentSel?[...recentSel.options].find(o=>o.value===matchId):null;
-  const label=libraryMatch
-    ? `${formatDateShort(libraryMatch.played_on)||''} · ${libraryMatch.label||'ce match'}`.trim()
-    : (recentOption?.textContent||'ce match');
+  const sel=$('#recentMatches');
+  const option=[...sel.options].find(o=>o.value===matchId);
+  if(!option)return;
 
+  const label=option.textContent||'ce match';
   const ok=confirm(`Supprimer définitivement ${label} ?\n\nToutes les prises de notes et compositions liées à ce match seront supprimées. Cette action est irréversible.`);
-  if(!ok)return false;
+  if(!ok)return;
 
+  const btn=$('#deleteSavedMatch');
+  if(btn)btn.disabled=true;
   setCloud('Suppression…',true);
 
   try{
-    const {data,error}=await db.from('matches').delete().eq('id',matchId).select('id');
+    const {data,error}=await db.from('matches').delete().eq('id',matchId).select('id').single();
     if(error)throw error;
-    const deleted=Array.isArray(data)?data:data?[data]:[];
-    if(!deleted.some(x=>x?.id===matchId)){
-      throw new Error('Le match n’a pas pu être supprimé. Vérifie tes droits sur ce groupe.');
-    }
+    if(!data?.id)throw new Error('Le match n’a pas pu être supprimé.');
 
     if(state.currentMatchId===matchId){
       state.currentMatchId=null;
@@ -2889,30 +2647,17 @@ async function deleteSavedMatch(matchId){
       }
     }
 
-    matchLibraryState.matches=(matchLibraryState.matches||[]).filter(m=>m.id!==matchId);
-    groupAnalysisState.selected?.delete(matchId);
-
-    // Le sélecteur historique a été retiré de l'interface V2.9+, mais
-    // on garde cette branche pour compatibilité avec d'anciennes vues.
-    if(recentSel){
-      await refreshRecentMatches();
-      recentSel.value='';
-      updateMatchAuditMeta();
-    }
-
-    if($('#matchLibrary')&&!$('#matchLibrary').classList.contains('hidden')){
-      renderMatchLibrary();
-    }
-    if($('#matchAnalysisSelect')&&!$('#matchAnalysisSelect').classList.contains('hidden')){
-      renderGroupAnalysisMatches();
-    }
-
+    await refreshRecentMatches();
+    matchLibraryState.matches=matchLibraryState.matches.filter(m=>m.id!==matchId);
+    if($('#matchLibrary')&&!$('#matchLibrary').classList.contains('hidden'))renderMatchLibrary();
+    sel.value='';
+    updateMatchAuditMeta();
     setCloud('Synchronisé',true);
-    return true;
   }catch(e){
     setCloud('Erreur',false);
     handleError('delete match',e);
-    return false;
+  }finally{
+    if(btn)btn.disabled=!sel.value;
   }
 }
 
@@ -3220,9 +2965,10 @@ $('#closeFaultPopup').onclick=()=>closePopup('#faultPopup');
 $('#popup').onclick=e=>{if(e.target===$('#popup'))closePopup('#popup')};
 $('#faultPopup').onclick=e=>{if(e.target===$('#faultPopup'))closePopup('#faultPopup')};
 
+$('#freshMatch').onclick=resetForNewMatch;
 $('#newMatchTop').onclick=()=>{
   if(state.events.length && !confirm('Commencer un nouveau match ? Le match actuel restera enregistré dans la base.')) return;
-  openMatchModule().catch(e=>handleError('new match',e));
+  resetForNewMatch();
 };
 $('#start').onclick=()=>{
   if($('#rosterWrap').classList.contains('hidden')) buildChecks();
@@ -3234,6 +2980,9 @@ $('#start').onclick=()=>{
   }
   start();
 };
+$('#recentMatches').onchange=updateMatchAuditMeta;
+$('#resumeMatch').onclick=()=>{const id=$('#recentMatches').value;if(id)loadMatch(id)};
+$('#deleteSavedMatch').onclick=()=>{const id=$('#recentMatches').value;if(id)deleteSavedMatch(id)};
 $('#editPlayers').onclick=()=>$('#playerEditor').classList.remove('hidden');
 $('#closeEditor').onclick=()=>$('#playerEditor').classList.add('hidden');
 $('#editLast').onclick=()=>{const last=state.events.at(-1);if(last)editEvent(last.id)};
@@ -4044,8 +3793,8 @@ function setMatchHeaderMode(isMatch){
 }
 
 function hideMainModules(){
-  ['settingsHome','adminHome','appHome','setup','live','matchLibrary','matchAnalysisSelect','matchReadOnly','matchAnalysis','groupsHome','groupDetail','trainingHome','trainingSession','trainingDuplicate','exerciseLibrary','trainingHistory','statsHome'].forEach(id=>$('#'+id)?.classList.add('hidden'));
-  $('#footer')?.classList.add('hidden');
+  ['settingsHome','adminHome','appHome','setup','live','matchLibrary','matchReadOnly','groupsHome','groupDetail','trainingHome','trainingSession','trainingDuplicate','exerciseLibrary','trainingHistory','statsHome'].forEach(id=>$('#'+id)?.classList.add('hidden'));
+  $('#footer').classList.add('hidden');
   $('#newMatchTop').classList.add('hidden');
 }
 function showAppHome(){
@@ -4109,19 +3858,14 @@ function renderMatchLibrary(){
         <div class="matchLibraryMeta">${statsEscape(type)}${m.match_type&&!m.match_type.active?'<span class="matchTypeArchived">archivé</span>':''} · ${statsEscape(m.group?.name||m.followed_team?.name||'Groupe')}${opponents?' · vs '+statsEscape(opponents):''} · ${n} action${n>1?'s':''}</div>
       </div>
       <div class="matchLibraryActions">
-        <button class="primary" data-analyze="${m.id}">Analyser</button>
         <button class="ghost" data-consult="${m.id}">Consulter</button>
         <button class="ghost" data-resume="${m.id}">Reprendre</button>
         <button class="ghost" data-delete="${m.id}">Supprimer</button>
       </div>
     </div>`;
-    card.querySelector('[data-analyze]').onclick=()=>openMatchAnalysis(m.id).catch(e=>handleError('analyse match',e));
     card.querySelector('[data-consult]').onclick=()=>openMatchReadOnly(m.id).catch(e=>handleError('consult match',e));
     card.querySelector('[data-resume]').onclick=()=>loadMatch(m.id);
-    card.querySelector('[data-delete]').onclick=async()=>{
-      const deleted=await deleteSavedMatch(m.id);
-      if(deleted)await openMatchLibrary();
-    };
+    card.querySelector('[data-delete]').onclick=async()=>{await deleteSavedMatch(m.id);await openMatchLibrary()};
     list.append(card);
   });
 }
@@ -4186,467 +3930,17 @@ async function openMatchReadOnly(matchId){
 }
 
 
-
-
-
-// ===== SÉLECTION ANALYSE GROUPÉE =====
-let groupAnalysisState={selected:new Set()};
-async function openGroupAnalysisSelector(){
-  if(!groupState.groups.length)await fetchMyGroups();
-  await fetchMatchLibrary();
-  hideMainModules();setMatchHeaderMode(false);$('#matchAnalysisSelect').classList.remove('hidden');
-  groupAnalysisState.selected=new Set();
-  const gs=$('#groupAnalysisGroup');gs.innerHTML='<option value="">Tous les groupes</option>';
-  groupState.groups.forEach(g=>{const o=document.createElement('option');o.value=g.id;o.textContent=g.name;gs.append(o)});
-  const ts=$('#groupAnalysisType');ts.innerHTML='<option value="">— Sélection manuelle —</option>';
-  matchTypeState.types.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.name+(t.active?'':' · archivé');ts.append(o)});
-  renderGroupAnalysisMatches();window.scrollTo({top:0,behavior:'instant'});
-}
-function groupAnalysisVisibleMatches(){
-  const gid=$('#groupAnalysisGroup')?.value||'',tid=$('#groupAnalysisType')?.value||'';
-  return (matchLibraryState.matches||[]).filter(m=>(!gid||m.group_id===gid)&&(!tid||m.match_type_id===tid));
-}
-function renderGroupAnalysisMatches(){
-  const box=$('#groupAnalysisMatchList'),visible=groupAnalysisVisibleMatches();box.innerHTML='';
-  visible.forEach(m=>{
-    const opponents=[m.opponent1?.name,m.opponent2?.name].filter(Boolean).join(' / ');
-    const label=document.createElement('label');label.className='analysisMatchChoice';
-    const cb=document.createElement('input');cb.type='checkbox';cb.checked=groupAnalysisState.selected.has(m.id);cb.value=m.id;
-    cb.onchange=()=>{cb.checked?groupAnalysisState.selected.add(m.id):groupAnalysisState.selected.delete(m.id);updateGroupAnalysisSelectionStatus()};
-    const main=document.createElement('div');main.className='analysisMatchChoiceMain';
-    const title=document.createElement('div');title.className='analysisMatchChoiceTitle';title.textContent=`${formatDateShort(m.played_on)||'Date ?'} · ${m.label||'Match'}`;
-    const meta=document.createElement('div');meta.className='analysisMatchChoiceMeta';meta.textContent=[m.match_type?.name||'Sans type',m.group?.name||m.followed_team?.name||'Groupe',opponents?'vs '+opponents:'',`${matchActionCount(m)} action${matchActionCount(m)>1?'s':''}`].filter(Boolean).join(' · ');
-    main.append(title,meta);label.append(cb,main);box.append(label);
-  });
-  if(!visible.length)box.innerHTML='<div class="analysisEmpty">Aucun match ne correspond à ces filtres.</div>';
-  updateGroupAnalysisSelectionStatus();
-}
-function updateGroupAnalysisSelectionStatus(){
-  const n=groupAnalysisState.selected.size;
-  const visible=groupAnalysisVisibleMatches().length;
-  $('#groupAnalysisStatus').textContent=`${n} match${n>1?'s':''} sélectionné${n>1?'s':''} · ${visible} affiché${visible>1?'s':''}`;
-  const b=$('#groupAnalysisRun');b.disabled=n===0;b.textContent=n?`Analyser ${n} match${n>1?'s':''}`:'Analyser la sélection';
-}
-function autoSelectGroupAnalysisType(){
-  const tid=$('#groupAnalysisType').value,gid=$('#groupAnalysisGroup').value||'';
-  if(!tid){renderGroupAnalysisMatches();return}
-  groupAnalysisState.selected=new Set((matchLibraryState.matches||[]).filter(m=>m.match_type_id===tid&&(!gid||m.group_id===gid)).map(m=>m.id));
-  renderGroupAnalysisMatches();
-}
-async function runGroupedAnalysis(){const ids=[...groupAnalysisState.selected];if(ids.length)await openMatchAnalysisIds(ids)}
-
-// ===== ANALYSE POST-MATCH =====
-// Le moteur travaille sur un dataset pouvant contenir un ou plusieurs matchs.
-// La V2.8 appelle pour l'instant loadMatchAnalysisDataset([matchId]).
-let analysisState={
-  matchIds:[],
-  matches:[],
-  events:[],
-  players:[],
-  activeTab:'summary'
-};
-
-function analysisSemanticType(e){
-  if(e.action_type==='attaque')return 'attack';
-  if(e.action_type==='defense')return 'defense';
-  if(e.action_type==='faute'&&e.fault_type==='Défensive illégale')return 'defense';
-  return 'attack';
-}
-function analysisOutcome(e){
-  const type=analysisSemanticType(e);
-  if(type==='attack'){
-    if(e.action_type==='faute')return 'Faute attaque';
-    return e.result||'Non précisé';
-  }
-  if(e.action_type==='faute'&&e.fault_type==='Défensive illégale')return 'Défensive illégale';
-  return e.result||'Non précisé';
-}
-function analysisContextKey(e){
-  if(e.family==='centre')return 'centre';
-  if(e.family==='gel')return 'gel';
-  if(e.family==='remise')return 'remise_'+(e.restart_location||'centre');
-  return e.family||'autre';
-}
-function analysisContextLabel(key){
-  return ({
-    centre:'Centre',
-    remise:'Remise en jeu',
-    remise_centre:'Remise · Centre',
-    remise_ligne:'Remise · Ligne',
-    remise_coin:'Remise · Coin',
-    gel:'Gel'
-  })[key]||key||'Autre';
-}
-function analysisEventPeople(e){
-  const names=[...(e.attributed_names||[])];
-  if(!names.length&&e.player_name)names.push(e.player_name);
-  return [...new Set(names.filter(Boolean))];
-}
-function analysisIsFault(e){
-  return e.action_type==='faute';
-}
-function analysisPct(n,d){
-  return d?Math.round(100*n/d):null;
-}
-function analysisPctLabel(n,d){
-  const p=analysisPct(n,d);
-  return p==null?'—':p+' %';
-}
-function analysisPeriodSort(a,b){
-  const na=parseInt(String(a).replace(/\D/g,''),10);
-  const nb=parseInt(String(b).replace(/\D/g,''),10);
-  if(Number.isFinite(na)&&Number.isFinite(nb))return na-nb;
-  return String(a).localeCompare(String(b),'fr');
-}
-function analysisRateHtml(n,d){
-  const p=analysisPct(n,d);
-  const width=p==null?0:Math.max(0,Math.min(100,p));
-  return `<div class="analysisRateBar"><span>${p==null?'—':p+' %'}</span><div class="analysisRateTrack"><div class="analysisRateFill" style="width:${width}%"></div></div></div>`;
-}
-function analysisMetricHtml(label,value){
-  return `<div class="analysisMetric"><div class="label">${escapeHtml(label)}</div><div class="value">${escapeHtml(value)}</div></div>`;
-}
-function analysisStats(events){
-  const attacks=events.filter(e=>analysisSemanticType(e)==='attack');
-  const defenses=events.filter(e=>analysisSemanticType(e)==='defense');
-  const attack={
-    total:attacks.length,
-    points:attacks.filter(e=>analysisOutcome(e)==='Point marqué').length,
-    faults:attacks.filter(e=>analysisOutcome(e)==='Faute attaque').length,
-    defended:attacks.filter(e=>analysisOutcome(e)==='Ballon défendu').length,
-    illegal:attacks.filter(e=>analysisOutcome(e)==='Défensive illégale').length
-  };
-  const defense={
-    total:defenses.length,
-    defended:defenses.filter(e=>analysisOutcome(e)==='Ballon défendu').length,
-    escaped:defenses.filter(e=>analysisOutcome(e)==='Échappé').length,
-    illegal:defenses.filter(e=>analysisOutcome(e)==='Défensive illégale').length
-  };
-  return {attack,defense};
-}
-function analysisAttackZoneLabel(zone){
-  const z=({E1:'A1',E2:'P',E3:'A2'}[zone]||zone||'Non précisée');
-  return z;
-}
-function analysisDefenseZoneGroup(zone){
-  if(zone==='R'||zone==='RE')return 'R / RE';
-  if(['EE','A1','P','A2','E1','E2','E3'].includes(zone))return 'EE / reste';
-  return 'Non précisée';
-}
-
-async function loadMatchAnalysisDataset(matchIds){
-  const unique=[...new Set((matchIds||[]).filter(Boolean))];
-  if(!unique.length)throw new Error('Aucun match à analyser.');
-  const {data:matches,error:me}=await db.from('matches')
-    .select('id,label,played_on,group_id,match_type_id,team_id,match_type:match_types!matches_match_type_id_fkey(name),group:coaching_groups!matches_group_id_fkey(name),followed_team:teams!matches_team_id_fkey(name),opponent1:teams!matches_opponent_team_1_id_fkey(name),opponent2:teams!matches_opponent_team_2_id_fkey(name)')
-    .in('id',unique);
-  if(me)throw me;
-
-  const {data:events,error:ee}=await db.from('match_events')
-    .select('*')
-    .in('match_id',unique)
-    .order('sequence_no',{ascending:true});
-  if(ee)throw ee;
-
-  const ids=(events||[]).map(e=>e.id);
-  let attributions=[],lineups=[];
-  if(ids.length){
-    const [a,l]=await Promise.all([
-      db.from('match_event_attributions').select('event_id,player_id,players!match_event_attributions_player_id_fkey(display_name)').in('event_id',ids),
-      db.from('match_event_lineup').select('event_id,player_id,players!match_event_lineup_player_id_fkey(display_name)').in('event_id',ids)
-    ]);
-    if(a.error)throw a.error;
-    if(l.error)throw l.error;
-    attributions=a.data||[];
-    lineups=l.data||[];
-  }
-
-  const eventPlayerIds=[...new Set((events||[]).map(e=>e.player_id).filter(Boolean))];
-  let eventPlayerMap={};
-  if(eventPlayerIds.length){
-    const {data,error}=await db.from('players').select('id,display_name').in('id',eventPlayerIds);
-    if(error)throw error;
-    eventPlayerMap=Object.fromEntries((data||[]).map(p=>[p.id,p.display_name]));
-  }
-
-  const attrMap={},lineMap={};
-  attributions.forEach(a=>{
-    const n=a.players?.display_name;
-    if(n)(attrMap[a.event_id]??=[]).push(n);
-  });
-  lineups.forEach(l=>{
-    const n=l.players?.display_name;
-    if(n)(lineMap[l.event_id]??=[]).push(n);
-  });
-
-  const matchMap=Object.fromEntries((matches||[]).map(m=>[m.id,m]));
-  const normalized=(events||[]).map(e=>({
-    ...e,
-    match:matchMap[e.match_id]||null,
-    attributed_names:attrMap[e.id]||[],
-    lineup_names:lineMap[e.id]||[],
-    player_name:e.player_id?eventPlayerMap[e.player_id]||null:null
-  }));
-
-  const playerNames=[...new Set([
-    ...attributions.map(a=>a.players?.display_name),
-    ...lineups.map(l=>l.players?.display_name),
-    ...Object.values(eventPlayerMap)
-  ].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
-
-  return {matchIds:unique,matches:matches||[],events:normalized,players:playerNames};
-}
-
-async function openMatchAnalysis(matchId){return openMatchAnalysisIds([matchId]);}
-async function openMatchAnalysisIds(matchIds){
-  setCloud('Analyse…',true);
-  const dataset=await loadMatchAnalysisDataset(matchIds);
-  analysisState={...analysisState,...dataset,activeTab:'summary'};
-  renderMatchAnalysisHeader();populateAnalysisEvolutionPlayers();setAnalysisTab('summary');renderMatchAnalysis();
-  hideMainModules();setMatchHeaderMode(false);$('#matchAnalysis').classList.remove('hidden');setCloud('Synchronisé',true);window.scrollTo({top:0,behavior:'instant'});
-}
-
-function renderMatchAnalysisHeader(){
-  const matches=[...(analysisState.matches||[])].sort((a,b)=>(a.played_on||'').localeCompare(b.played_on||'')||(a.label||'').localeCompare(b.label||'','fr'));
-  if(!matches.length)return;
-  if(matches.length===1){
-    const m=matches[0],opponents=[m.opponent1?.name,m.opponent2?.name].filter(Boolean).join(' / ');
-    $('#matchAnalysisTitle').textContent=m.label||'Analyse du match';
-    $('#matchAnalysisMeta').textContent=[formatDateShort(m.played_on),m.match_type?.name||'Sans type',m.group?.name||m.followed_team?.name||'Groupe',opponents?'vs '+opponents:''].filter(Boolean).join(' · ');
-    $('#matchAnalysisScope').textContent='Analyse calculée à partir des actions enregistrées pour ce match.';
-  }else{
-    const types=[...new Set(matches.map(m=>m.match_type?.name).filter(Boolean))],groups=[...new Set(matches.map(m=>m.group?.name||m.followed_team?.name).filter(Boolean))];
-    $('#matchAnalysisTitle').textContent=types.length===1?`Analyse · ${types[0]}`:'Analyse groupée';
-    $('#matchAnalysisMeta').textContent=[`${matches.length} matchs`,types.length===1?types[0]:(types.length?`${types.length} types de match`:''),groups.length===1?groups[0]:(groups.length?`${groups.length} groupes`:'')].filter(Boolean).join(' · ');
-    $('#matchAnalysisScope').textContent=`Analyse agrégée sur ${matches.length} matchs. Les volumes et taux utilisent uniquement les actions réellement enregistrées.`;
-  }
-}
-
-function setAnalysisTab(tab){
-  analysisState.activeTab=tab;$$('.matchAnalysisTabs button').forEach(b=>b.classList.toggle('active',b.dataset.analysisTab===tab));
-  const map={summary:'#analysisSummaryTab',players:'#analysisPlayersTab',zones:'#analysisZonesTab',evolution:'#analysisEvolutionTab'};
-  Object.entries(map).forEach(([key,sel])=>$(sel).classList.toggle('hidden',key!==tab));if(tab==='evolution')renderAnalysisEvolution();
-}
-function renderMatchAnalysis(){const events=analysisState.events||[];renderAnalysisSummary(events);renderAnalysisPlayers(events);renderAnalysisZonesAndContexts(events);renderAnalysisEvolution();}
-
-function renderAnalysisSummary(events){
-  const {attack,defense}=analysisStats(events);
-  $('#analysisAttackMetrics').innerHTML=[
-    analysisMetricHtml('Attaques',attack.total),
-    analysisMetricHtml('Points marqués',attack.points),
-    analysisMetricHtml('Fautes d’attaque',attack.faults),
-    analysisMetricHtml('Ballons défendus',attack.defended),
-    analysisMetricHtml('Défensives illégales adverses',attack.illegal),
-    analysisMetricHtml('Taux de point marqué',analysisPctLabel(attack.points,attack.total))
-  ].join('');
-  $('#analysisDefenseMetrics').innerHTML=[
-    analysisMetricHtml('Défenses',defense.total),
-    analysisMetricHtml('Ballons défendus',defense.defended),
-    analysisMetricHtml('Échappés',defense.escaped),
-    analysisMetricHtml('Défensives illégales',defense.illegal),
-    analysisMetricHtml('Taux de défense réussie',analysisPctLabel(defense.defended,defense.total))
-  ].join('');
-
-  const periods=[...new Set(events.map(e=>e.period||'Non précisée'))].sort(analysisPeriodSort);
-  const per=periods.map(period=>({period,...analysisStats(events.filter(e=>(e.period||'Non précisée')===period))}));
-
-  const maxPct=100;
-  $('#analysisPeriodChart').innerHTML=per.length?per.map(x=>{
-    const pa=analysisPct(x.attack.points,x.attack.total)||0;
-    const pd=analysisPct(x.defense.defended,x.defense.total)||0;
-    const ha=Math.max(2,Math.round(120*pa/maxPct));
-    const hd=Math.max(2,Math.round(120*pd/maxPct));
-    return `<div class="analysisPeriodCol" title="${escapeAttr(x.period)}">
-      <div class="analysisPeriodBars">
-        <div class="analysisPeriodBar attack" style="height:${ha}px" title="Attaque ${pa}%"></div>
-        <div class="analysisPeriodBar defense" style="height:${hd}px" title="Défense ${pd}%"></div>
-      </div>
-      <div class="analysisPeriodLabel">${escapeHtml(x.period)}</div>
-    </div>`;
-  }).join(''):'<div class="analysisEmpty">Aucune période enregistrée.</div>';
-
-  $('#analysisPeriodTable').innerHTML=`<thead><tr>
-    <th>Période</th><th>Att.</th><th>Pts</th><th>Fautes</th><th>Taux pts</th>
-    <th>Déf.</th><th>Réussies</th><th>Échappés</th><th>Déf. ill.</th><th>Taux déf.</th>
-  </tr></thead><tbody>${per.map(x=>`<tr>
-    <td>${escapeHtml(x.period)}</td>
-    <td>${x.attack.total}</td><td>${x.attack.points}</td><td>${x.attack.faults}</td><td>${analysisRateHtml(x.attack.points,x.attack.total)}</td>
-    <td>${x.defense.total}</td><td>${x.defense.defended}</td><td>${x.defense.escaped}</td><td>${x.defense.illegal}</td><td>${analysisRateHtml(x.defense.defended,x.defense.total)}</td>
-  </tr>`).join('')||'<tr><td colspan="10">Aucune donnée.</td></tr>'}</tbody>`;
-}
-
-function renderAnalysisPlayers(events){
-  const attacks=events.filter(e=>analysisSemanticType(e)==='attack');
-  const attackMap={};
-  const addAttack=(name,outcome)=>{
-    attackMap[name]??={name,total:0,points:0,faults:0,defended:0,illegal:0};
-    const x=attackMap[name];x.total++;
-    if(outcome==='Point marqué')x.points++;
-    else if(outcome==='Faute attaque')x.faults++;
-    else if(outcome==='Ballon défendu')x.defended++;
-    else if(outcome==='Défensive illégale')x.illegal++;
-  };
-  attacks.forEach(e=>{
-    const people=analysisEventPeople(e);
-    const name=people.length===1?people[0]:'Collectif / non attribué';
-    addAttack(name,analysisOutcome(e));
-  });
-  const attackRows=Object.values(attackMap).sort((a,b)=>{
-    if(a.name==='Collectif / non attribué')return 1;
-    if(b.name==='Collectif / non attribué')return -1;
-    return a.name.localeCompare(b.name,'fr');
-  });
-  $('#analysisAttackPlayersTable').innerHTML=`<thead><tr>
-    <th>Joueur</th><th>Attaques</th><th>Points</th><th>Fautes</th><th>Défendues</th><th>Déf. ill. adv.</th><th>Taux pts</th>
-  </tr></thead><tbody>${attackRows.map(x=>`<tr>
-    <td>${escapeHtml(x.name)}</td><td>${x.total}</td><td>${x.points}</td><td>${x.faults}</td><td>${x.defended}</td><td>${x.illegal}</td><td>${analysisRateHtml(x.points,x.total)}</td>
-  </tr>`).join('')||'<tr><td colspan="7">Aucune attaque attribuée.</td></tr>'}</tbody>`;
-
-  const defenses=events.filter(e=>analysisSemanticType(e)==='defense');
-  const defenseMap={};
-  const addDefense=(name,outcome)=>{
-    defenseMap[name]??={name,total:0,defended:0,escaped:0,illegal:0};
-    const x=defenseMap[name];x.total++;
-    if(outcome==='Ballon défendu')x.defended++;
-    else if(outcome==='Échappé')x.escaped++;
-    else if(outcome==='Défensive illégale')x.illegal++;
-  };
-  defenses.forEach(e=>{
-    const people=analysisEventPeople(e);
-    if(people.length)people.forEach(name=>addDefense(name,analysisOutcome(e)));
-    else addDefense('Collectif / non attribué',analysisOutcome(e));
-  });
-  const defenseRows=Object.values(defenseMap).sort((a,b)=>{
-    if(a.name==='Collectif / non attribué')return 1;
-    if(b.name==='Collectif / non attribué')return -1;
-    return b.total-a.total||a.name.localeCompare(b.name,'fr');
-  });
-  $('#analysisDefensePlayersTable').innerHTML=`<thead><tr>
-    <th>Joueur</th><th>Participations</th><th>Sur défendu</th><th>Sur échappé</th><th>Sur déf. ill.</th>
-  </tr></thead><tbody>${defenseRows.map(x=>`<tr>
-    <td>${escapeHtml(x.name)}</td><td>${x.total}</td><td>${x.defended}</td><td>${x.escaped}</td><td>${x.illegal}</td>
-  </tr>`).join('')||'<tr><td colspan="5">Aucune défense attribuée.</td></tr>'}</tbody>`;
-}
-
-function renderAnalysisZonesAndContexts(events){
-  const attacks=events.filter(e=>analysisSemanticType(e)==='attack');
-  const attackGroups={};
-  attacks.forEach(e=>{
-    const name=analysisAttackZoneLabel(e.zone);
-    attackGroups[name]??={name,total:0,points:0,faults:0,defended:0,illegal:0};
-    const x=attackGroups[name],o=analysisOutcome(e);x.total++;
-    if(o==='Point marqué')x.points++;
-    else if(o==='Faute attaque')x.faults++;
-    else if(o==='Ballon défendu')x.defended++;
-    else if(o==='Défensive illégale')x.illegal++;
-  });
-  const attackOrder=['R','RE','A1','EE','P','A2','Non précisée'];
-  const attackRows=Object.values(attackGroups).sort((a,b)=>{
-    const ia=attackOrder.indexOf(a.name),ib=attackOrder.indexOf(b.name);
-    return (ia<0?999:ia)-(ib<0?999:ib)||a.name.localeCompare(b.name,'fr');
-  });
-  $('#analysisAttackZonesTable').innerHTML=`<thead><tr>
-    <th>Zone</th><th>Attaques</th><th>Points</th><th>Fautes</th><th>Défendues</th><th>Déf. ill. adv.</th><th>Taux pts</th>
-  </tr></thead><tbody>${attackRows.map(x=>`<tr>
-    <td>${escapeHtml(x.name)}</td><td>${x.total}</td><td>${x.points}</td><td>${x.faults}</td><td>${x.defended}</td><td>${x.illegal}</td><td>${analysisRateHtml(x.points,x.total)}</td>
-  </tr>`).join('')||'<tr><td colspan="7">Aucune attaque.</td></tr>'}</tbody>`;
-
-  const defenses=events.filter(e=>analysisSemanticType(e)==='defense');
-  const defenseGroups={};
-  defenses.forEach(e=>{
-    const name=analysisDefenseZoneGroup(e.zone);
-    defenseGroups[name]??={name,total:0,defended:0,escaped:0,illegal:0};
-    const x=defenseGroups[name],o=analysisOutcome(e);x.total++;
-    if(o==='Ballon défendu')x.defended++;
-    else if(o==='Échappé')x.escaped++;
-    else if(o==='Défensive illégale')x.illegal++;
-  });
-  const defenseRows=['R / RE','EE / reste','Non précisée'].filter(k=>defenseGroups[k]).map(k=>defenseGroups[k]);
-  $('#analysisDefenseZonesTable').innerHTML=`<thead><tr>
-    <th>Zone</th><th>Défenses</th><th>Défendues</th><th>Échappés</th><th>Déf. ill.</th><th>Taux déf.</th>
-  </tr></thead><tbody>${defenseRows.map(x=>`<tr>
-    <td>${escapeHtml(x.name)}</td><td>${x.total}</td><td>${x.defended}</td><td>${x.escaped}</td><td>${x.illegal}</td><td>${analysisRateHtml(x.defended,x.total)}</td>
-  </tr>`).join('')||'<tr><td colspan="6">Aucune défense.</td></tr>'}</tbody>`;
-
-  const contexts=[
-    {key:'centre',label:'Centre',events:events.filter(e=>analysisContextKey(e)==='centre')},
-    {key:'remise',label:'Remise en jeu',events:events.filter(e=>String(analysisContextKey(e)).startsWith('remise_'))},
-    {key:'gel',label:'Gel',events:events.filter(e=>analysisContextKey(e)==='gel')}
-  ];
-  $('#analysisContexts').innerHTML=contexts.map(c=>{
-    const st=analysisStats(c.events);
-    return `<div class="analysisContextCard"><strong>${escapeHtml(c.label)}</strong>
-      <div class="analysisContextStats">
-        <div>Attaques<b>${st.attack.total}</b></div>
-        <div>Taux points<b>${escapeHtml(analysisPctLabel(st.attack.points,st.attack.total))}</b></div>
-        <div>Défenses<b>${st.defense.total}</b></div>
-        <div>Taux défense<b>${escapeHtml(analysisPctLabel(st.defense.defended,st.defense.total))}</b></div>
-      </div>
-    </div>`;
-  }).join('');
-
-  const restartRows=[
-    {key:'global',label:'Remise en jeu · Global',events:events.filter(e=>String(analysisContextKey(e)).startsWith('remise_'))},
-    {key:'remise_centre',label:'Centre',events:events.filter(e=>analysisContextKey(e)==='remise_centre')},
-    {key:'remise_ligne',label:'Ligne',events:events.filter(e=>analysisContextKey(e)==='remise_ligne')},
-    {key:'remise_coin',label:'Coin',events:events.filter(e=>analysisContextKey(e)==='remise_coin')}
-  ].map(x=>({...x,...analysisStats(x.events)}));
-  $('#analysisRestartTable').innerHTML=`<thead><tr>
-    <th>Position</th><th>Att.</th><th>Pts</th><th>Taux pts</th><th>Déf.</th><th>Réussies</th><th>Échappés</th><th>Taux déf.</th>
-  </tr></thead><tbody>${restartRows.map(x=>`<tr>
-    <td>${escapeHtml(x.label)}</td>
-    <td>${x.attack.total}</td><td>${x.attack.points}</td><td>${analysisRateHtml(x.attack.points,x.attack.total)}</td>
-    <td>${x.defense.total}</td><td>${x.defense.defended}</td><td>${x.defense.escaped}</td><td>${analysisRateHtml(x.defense.defended,x.defense.total)}</td>
-  </tr>`).join('')}</tbody>`;
-}
-
-
-function populateAnalysisEvolutionPlayers(){
-  const sel=$('#analysisEvolutionPlayer');if(!sel)return;sel.innerHTML='<option value="">Équipe · Global</option>';
-  (analysisState.players||[]).forEach(name=>{const o=document.createElement('option');o.value=name;o.textContent=name;sel.append(o)});
-}
-function analysisEvolutionSegments(){
-  const events=analysisState.events||[];
-  if((analysisState.matches||[]).length>1)return [...analysisState.matches].sort((a,b)=>(a.played_on||'').localeCompare(b.played_on||'')||(a.label||'').localeCompare(b.label||'','fr')).map(m=>({key:m.id,label:`${formatDateShort(m.played_on)||''} ${m.label||'Match'}`.trim(),events:events.filter(e=>e.match_id===m.id)}));
-  const periods=[...new Set(events.map(e=>e.period||'Non précisée'))].sort(analysisPeriodSort);return periods.map(period=>({key:period,label:period,events:events.filter(e=>(e.period||'Non précisée')===period)}));
-}
-function analysisPlayerSegmentStats(events,player){
-  const attacks=events.filter(e=>analysisSemanticType(e)==='attack'&&analysisEventPeople(e).length===1&&analysisEventPeople(e)[0]===player);
-  const defenses=events.filter(e=>analysisSemanticType(e)==='defense'&&analysisEventPeople(e).includes(player));
-  return {attack:{total:attacks.length,points:attacks.filter(e=>analysisOutcome(e)==='Point marqué').length,faults:attacks.filter(e=>analysisOutcome(e)==='Faute attaque').length,defended:attacks.filter(e=>analysisOutcome(e)==='Ballon défendu').length,illegal:attacks.filter(e=>analysisOutcome(e)==='Défensive illégale').length},defense:{participations:defenses.length,defended:defenses.filter(e=>analysisOutcome(e)==='Ballon défendu').length,escaped:defenses.filter(e=>analysisOutcome(e)==='Échappé').length,illegal:defenses.filter(e=>analysisOutcome(e)==='Défensive illégale').length}};
-}
-function renderAnalysisEvolution(){
-  const chart=$('#analysisEvolutionChart'),table=$('#analysisEvolutionTable');if(!chart||!table)return;
-  const player=$('#analysisEvolutionPlayer')?.value||'',segments=analysisEvolutionSegments(),unit=(analysisState.matches||[]).length>1?'match':'période';
-  $('#analysisEvolutionHint').textContent=player?`Évolution de ${player} ${unit==='match'?'match par match':'période par période'}. Les défenses sont comptées comme participations, sans taux individuel artificiel.`:`Évolution de l’équipe ${unit==='match'?'match par match':'période par période'}.`;
-  if(!segments.length){chart.innerHTML='<div class="analysisEmpty">Aucune donnée d’évolution.</div>';table.innerHTML='<tbody><tr><td>Aucune donnée.</td></tr></tbody>';return}
-  if(!player){
-    $('#analysisEvolutionChartTitle').textContent=unit==='match'?'Évolution match par match':'Évolution par période';$('#analysisEvolutionLegend').innerHTML='<span>Taux de point marqué</span><span class="defense">Taux de défense réussie</span>';
-    const rows=segments.map(seg=>({seg,...analysisStats(seg.events)}));
-    chart.innerHTML=rows.map(x=>{const pa=analysisPct(x.attack.points,x.attack.total)||0,pd=analysisPct(x.defense.defended,x.defense.total)||0;return `<div class="analysisEvolutionCol"><div class="analysisEvolutionBars"><div class="analysisEvolutionBar attack" style="height:${Math.max(2,Math.round(125*pa/100))}px" title="Attaque ${pa}%"></div><div class="analysisEvolutionBar defense" style="height:${Math.max(2,Math.round(125*pd/100))}px" title="Défense ${pd}%"></div></div><div class="analysisEvolutionLabel">${escapeHtml(x.seg.label)}</div><div class="analysisEvolutionValue">${pa}% / ${pd}%</div></div>`}).join('');
-    table.innerHTML=`<thead><tr><th>${unit==='match'?'Match':'Période'}</th><th>Att.</th><th>Pts</th><th>Fautes</th><th>Taux pts</th><th>Déf.</th><th>Réussies</th><th>Échappés</th><th>Taux déf.</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${escapeHtml(x.seg.label)}</td><td>${x.attack.total}</td><td>${x.attack.points}</td><td>${x.attack.faults}</td><td>${analysisRateHtml(x.attack.points,x.attack.total)}</td><td>${x.defense.total}</td><td>${x.defense.defended}</td><td>${x.defense.escaped}</td><td>${analysisRateHtml(x.defense.defended,x.defense.total)}</td></tr>`).join('')}</tbody>`;
-  }else{
-    $('#analysisEvolutionChartTitle').textContent=`Évolution · ${player}`;$('#analysisEvolutionLegend').innerHTML='<span>Taux de point marqué</span><span class="defense">Participations défensives</span>';
-    const rows=segments.map(seg=>({seg,...analysisPlayerSegmentStats(seg.events,player)})),maxPart=Math.max(1,...rows.map(x=>x.defense.participations));
-    chart.innerHTML=rows.map(x=>{const pa=analysisPct(x.attack.points,x.attack.total)||0,hv=Math.max(2,Math.round(125*x.defense.participations/maxPart));return `<div class="analysisEvolutionCol"><div class="analysisEvolutionBars"><div class="analysisEvolutionBar attack" style="height:${Math.max(2,Math.round(125*pa/100))}px" title="Attaque ${pa}%"></div><div class="analysisEvolutionBar volume" style="height:${hv}px" title="${x.defense.participations} participations défensives"></div></div><div class="analysisEvolutionLabel">${escapeHtml(x.seg.label)}</div><div class="analysisEvolutionValue">${pa}% · ${x.defense.participations} déf.</div></div>`}).join('');
-    table.innerHTML=`<thead><tr><th>${unit==='match'?'Match':'Période'}</th><th>Att.</th><th>Pts</th><th>Fautes</th><th>Taux pts</th><th>Part. déf.</th><th>Sur défendu</th><th>Sur échappé</th><th>Sur déf. ill.</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${escapeHtml(x.seg.label)}</td><td>${x.attack.total}</td><td>${x.attack.points}</td><td>${x.attack.faults}</td><td>${analysisRateHtml(x.attack.points,x.attack.total)}</td><td>${x.defense.participations}</td><td>${x.defense.defended}</td><td>${x.defense.escaped}</td><td>${x.defense.illegal}</td></tr>`).join('')}</tbody>`;
-  }
-}
-
-
 async function openMatchModule(){
   await Promise.all([fetchMyGroups(),fetchMatchTypes()]);
-  resetForNewMatch();
   hideMainModules();
   setMatchHeaderMode(true);
   $('#setup').classList.remove('hidden');
   $('#newMatchTop').classList.remove('hidden');
+  await refreshRecentMatches();
   if(!groupState.groups.length){
     $('#matchGroupHint').textContent='Crée ou rejoins d’abord un groupe dans le volet Groupes.';
-  }else{
-    $('#matchGroupHint').textContent='L’effectif du groupe sera utilisé pour sélectionner les 4 joueurs de départ.';
   }
-  populateMatchTypeSelect($('#matchType'),{selected:''});
+  populateMatchTypeSelect($('#matchType'),{selected:state.matchTypeId||''});
   if(!$('#matchGroup').value && groupState.groups.length) $('#matchGroup').value=groupState.groups[0].id;
   if($('#matchGroup').value) await loadMatchGroupPlayers($('#matchGroup').value);
   window.scrollTo({top:0,behavior:'instant'});
@@ -5685,34 +4979,18 @@ async function loadPlayerHistory(playerId){
   });
 }
 
-$('#openMatchModule').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
+$('#openMatchModule').onclick=()=>openMatchModule().catch(e=>handleError('openMatchModule',e));
 $('#openTrainingModule').onclick=()=>openTrainingModule();
 $('#openGroupsModule').onclick=()=>openGroupsModule();
 $('#openAdminModule').onclick=()=>openAdminModule().catch(e=>handleError('admin module',e));
 $('#adminBackHome').onclick=showAppHome;
-$('#matchBackHome').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
-$('#liveBackHome').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
-$('#matchLibraryBack').onclick=showAppHome;
-$('#libraryNewMatch').onclick=()=>openMatchModule().catch(e=>handleError('new match',e));
-$('#libraryGroupAnalysis').onclick=()=>openGroupAnalysisSelector().catch(e=>handleError('analyse groupée',e));
-$('#matchAnalysisSelectBack').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
-$('#groupAnalysisGroup').onchange=()=>{$('#groupAnalysisType').value?autoSelectGroupAnalysisType():renderGroupAnalysisMatches()};
-$('#groupAnalysisType').onchange=autoSelectGroupAnalysisType;
-$('#groupAnalysisSelectVisible').onclick=()=>{groupAnalysisVisibleMatches().forEach(m=>groupAnalysisState.selected.add(m.id));renderGroupAnalysisMatches()};
-$('#groupAnalysisClear').onclick=()=>{groupAnalysisState.selected.clear();renderGroupAnalysisMatches()};
-$('#groupAnalysisRun').onclick=()=>runGroupedAnalysis().catch(e=>handleError('analyse groupée',e));
+$('#matchBackHome').onclick=showAppHome;
+$('#liveBackHome').onclick=showAppHome;
+$('#openMatchLibrary').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
+$('#matchLibraryBack').onclick=()=>openMatchModule().catch(e=>handleError('openMatchModule',e));
 $('#matchReadBack').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
-$('#matchAnalysisBack').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
-$$('.matchAnalysisTabs button').forEach(b=>b.onclick=()=>setAnalysisTab(b.dataset.analysisTab));
-$('#analysisEvolutionPlayer').onchange=renderAnalysisEvolution;
 $('#matchReadResume').onclick=()=>{const id=matchLibraryState.currentReadId;if(id)loadMatch(id)};
-$('#matchReadDelete').onclick=async()=>{
-  const id=matchLibraryState.currentReadId;
-  if(id){
-    const deleted=await deleteSavedMatch(id);
-    if(deleted)await openMatchLibrary();
-  }
-};
+$('#matchReadDelete').onclick=async()=>{const id=matchLibraryState.currentReadId;if(id){await deleteSavedMatch(id);await openMatchLibrary()}};
 $('#matchLibrarySearch').oninput=renderMatchLibrary;
 $('#matchLibraryGroup').onchange=renderMatchLibrary;
 $('#matchLibraryType').onchange=renderMatchLibrary;
@@ -5840,6 +5118,17 @@ function render(){
     controls.append(edit,del);d.append(controls);t.append(d)
   });
 }
+function dl(name,content,type){
+  const blob=new Blob([content],{type}),a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)
+}
+$('#json').onclick=()=>dl('kinball_cloud_match.json',JSON.stringify(state,null,2),'application/json');
+$('#csv').onclick=()=>{
+  const rows=[['match','team','opponentTeam','videoPosition','period','context','family','restartLocation','action','faultType','zone','movement','player','activePlayers','createdAt']];
+  state.events.forEach(e=>rows.push([state.matchName,state.teamName,e.opponentTeam||'',e.videoPosition||'',e.period,e.context,e.family||'',e.restartLocation||'',e.action,e.faultType||'',e.zone||'',e.movement||'',e.player||'',e.activePlayers.join(' | '),e.createdAt]));
+  const csv=rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n');
+  dl('kinball_cloud_match.csv',csv,'text/csv;charset=utf-8')
+};
 
 render();
 initAuth().catch(e=>handleError('initAuth',e));
