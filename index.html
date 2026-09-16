@@ -851,7 +851,7 @@ button:active{transform:scale(.985)}
 
 
 /* ===== Analyse post-match ===== */
-.matchAnalysisTabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:12px 0}
+.matchAnalysisTabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:12px 0}
 .matchAnalysisTabs button{min-height:44px;padding:8px 7px;font-size:12px}
 .matchAnalysisTabs button.active{background:var(--accent);color:#fff}
 .matchAnalysisSection{margin-top:12px}
@@ -910,6 +910,20 @@ button:active{transform:scale(.985)}
 .analysisOpponentTitle{font-size:13px;font-weight:800;margin-bottom:9px}
 .analysisOpponentCard .analysisSummaryContext{margin-top:10px}
 .analysisOpponentCard .analysisSummaryContext:first-of-type{margin-top:0}
+.analysisOpponentCompareGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 10px;align-items:stretch}
+.analysisOpponentCompareTitle{font-size:12px;font-weight:800;color:var(--muted);margin:0 0 1px}
+.analysisOpponentCompareGrid>.analysisMetric{height:100%;min-width:0}
+.analysisMetricRateOwn{background:rgba(61,123,253,.14);border-color:rgba(61,123,253,.5)}
+.analysisMetricRateOwn .label,.analysisMetricRateOwn .value{color:#9fc0ff}
+.analysisMetricRateOpponent{background:rgba(125,220,159,.12);border-color:rgba(125,220,159,.45)}
+.analysisMetricRateOpponent .label,.analysisMetricRateOpponent .value{color:#9fe8b9}
+.analysisOpponentComparePlaceholder{visibility:hidden}
+@media(max-width:520px){
+  .analysisOpponentCompareGrid{gap:6px}
+  .analysisOpponentCompareGrid>.analysisMetric{padding:8px}
+  .analysisOpponentCompareGrid>.analysisMetric .label{font-size:10px}
+  .analysisOpponentCompareGrid>.analysisMetric .value{font-size:20px}
+}
 @media(min-width:700px){
   .analysisMetricGrid{grid-template-columns:repeat(4,minmax(0,1fr))}
   .analysisContextGrid{grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -1409,7 +1423,6 @@ button:active{transform:scale(.985)}
     <button class="ghost active" data-analysis-tab="summary">Résumé</button>
     <button class="ghost" data-analysis-tab="players">Joueurs</button>
     <button class="ghost" data-analysis-tab="zones">Zones & contextes</button>
-    <button class="ghost" data-analysis-tab="evolution">Évolution</button>
    </div>
 
    <div id="analysisSummaryTab" class="matchAnalysisSection">
@@ -1423,7 +1436,7 @@ button:active{transform:scale(.985)}
     </div>
     <div class="analysisBlock">
       <h3>Évolution par période</h3>
-      <div class="analysisLegend"><span>Taux de point marqué</span><span class="defense">Taux de défense réussie</span><span class="attackFault">Taux de faute d’attaque</span></div>
+      <div class="analysisLegend"><span>Taux de point marqué</span><span class="defense">Taux d’attaque de l’adversaire</span><span class="attackFault">Taux de faute d’attaque</span></div>
       <div class="analysisPeriodChart" id="analysisPeriodChart"></div>
     </div>
     <div class="analysisBlock">
@@ -1467,24 +1480,6 @@ button:active{transform:scale(.985)}
     </div>
    </div>
 
-   <div id="analysisEvolutionTab" class="matchAnalysisSection hidden">
-    <div class="analysisEvolutionToolbar">
-      <div class="field">
-       <label>Lecture</label>
-       <select id="analysisEvolutionPlayer"><option value="">Équipe · Global</option></select>
-      </div>
-      <div class="analysisSubtle" id="analysisEvolutionHint">Sur un match : évolution par période. Sur plusieurs matchs : évolution rencontre par rencontre.</div>
-    </div>
-    <div class="analysisBlock">
-      <h3 id="analysisEvolutionChartTitle">Évolution globale</h3>
-      <div class="analysisLegend" id="analysisEvolutionLegend"><span>Taux de point marqué</span><span class="defense">Taux de défense réussie</span></div>
-      <div class="analysisEvolutionChart" id="analysisEvolutionChart"></div>
-    </div>
-    <div class="analysisBlock">
-      <h3>Détail</h3>
-      <div class="analysisTableWrap"><table class="analysisTable" id="analysisEvolutionTable"></table></div>
-    </div>
-   </div>
  </section>
 
  <section class="panel hidden" id="setup">
@@ -4388,6 +4383,21 @@ function analysisStats(events){
   };
   return {attack,defense};
 }
+function analysisDefenseSuccesses(stats){
+  return (stats?.defended||0)+(stats?.opponentFaults||0);
+}
+function analysisDefensePctLabel(stats){
+  return analysisPctLabel(analysisDefenseSuccesses(stats),stats?.total||0);
+}
+function analysisDefenseRateHtml(stats){
+  return analysisRateHtml(analysisDefenseSuccesses(stats),stats?.total||0);
+}
+function analysisOpponentAttackPctLabel(stats){
+  return analysisPctLabel(stats?.points||0,stats?.total||0);
+}
+function analysisOpponentAttackRateHtml(stats){
+  return analysisRateHtml(stats?.points||0,stats?.total||0);
+}
 function analysisAttackZoneLabel(zone){
   const z=({E1:'A1',E2:'P',E3:'A2'}[zone]||zone||'Non précisée');
   return z;
@@ -4497,10 +4507,10 @@ function renderMatchAnalysisHeader(){
 
 function setAnalysisTab(tab){
   analysisState.activeTab=tab;$$('.matchAnalysisTabs button').forEach(b=>b.classList.toggle('active',b.dataset.analysisTab===tab));
-  const map={summary:'#analysisSummaryTab',players:'#analysisPlayersTab',zones:'#analysisZonesTab',evolution:'#analysisEvolutionTab'};
-  Object.entries(map).forEach(([key,sel])=>$(sel).classList.toggle('hidden',key!==tab));if(tab==='evolution')renderAnalysisEvolution();
+  const map={summary:'#analysisSummaryTab',players:'#analysisPlayersTab',zones:'#analysisZonesTab'};
+  Object.entries(map).forEach(([key,sel])=>$(sel).classList.toggle('hidden',key!==tab));
 }
-function renderMatchAnalysis(){const events=analysisState.events||[];renderAnalysisSummary(events);renderAnalysisPlayers(events);renderAnalysisZonesAndContexts(events);renderAnalysisEvolution();}
+function renderMatchAnalysis(){const events=analysisState.events||[];renderAnalysisSummary(events);renderAnalysisPlayers(events);renderAnalysisZonesAndContexts(events);}
 
 function analysisSummaryContextGroups(events){
   const definitions=[
@@ -4526,7 +4536,7 @@ function analysisSummaryContextHtml(label,stats,type){
     analysisDefensePointsMetricHtml(stats),
     analysisMetricHtml('Fautes d’attaque de l’adversaire',stats.opponentFaults),
     analysisMetricHtml('Ballons défendus par nous',stats.defended),
-    analysisMetricHtml('Taux de défense réussie',analysisPctLabel(stats.defended,stats.total))
+    analysisMetricHtml('Taux d’attaque de l’adversaire',analysisOpponentAttackPctLabel(stats))
   ];
   return `<div class="analysisSummaryContext"><div class="analysisSummaryContextTitle">${escapeHtml(label)}</div><div class="analysisMetricGrid">${values.join('')}</div></div>`;
 }
@@ -4540,28 +4550,29 @@ function analysisCombinedBreakdownHtml(events){
   const contexts=contextDefs.map(c=>({...c,events:events.filter(c.test)}));
   const other=events.filter(e=>!known.has(e.family));
   if(other.length)contexts.push({key:'other',label:'Autres contextes',events:other});
+  const rateMetric=(label,value,kind)=>`<div class="analysisMetric ${kind==='own'?'analysisMetricRateOwn':'analysisMetricRateOpponent'}"><div class="label">${escapeHtml(label)}</div><div class="value">${escapeHtml(value)}</div></div>`;
+  const placeholder=()=>'<div class="analysisMetric analysisOpponentComparePlaceholder" aria-hidden="true"><div class="label">—</div><div class="value">—</div></div>';
   const body=contexts.filter(c=>c.events.length).map(context=>{
     const attackEvents=context.events.filter(e=>analysisSemanticType(e)==='attack');
     const defenseEvents=context.events.filter(e=>analysisSemanticType(e)==='defense');
-    const attackBody=attackEvents.length
-      ?`<div class="analysisMetricGrid">${[
-        analysisMetricHtml('Attaques',analysisStats(attackEvents).attack.total),
-        analysisAttackPointsMetricHtml(analysisStats(attackEvents).attack),
-        analysisMetricHtml('Fautes d’attaque',analysisStats(attackEvents).attack.faults),
-        analysisMetricHtml('Ballons défendus par l’adversaire',analysisStats(attackEvents).attack.defended),
-        analysisMetricHtml('Taux de point marqué',analysisPctLabel(analysisStats(attackEvents).attack.points,analysisStats(attackEvents).attack.total))
-      ].join('')}</div>`
-      :'<div class="analysisEmpty">Aucune attaque enregistrée dans ce contexte.</div>';
-    const defenseBody=defenseEvents.length
-      ?`<div class="analysisMetricGrid">${[
-        analysisMetricHtml('Situations défensives',analysisStats(defenseEvents).defense.total),
-        analysisDefensePointsMetricHtml(analysisStats(defenseEvents).defense),
-        analysisMetricHtml('Fautes d’attaque de l’adversaire',analysisStats(defenseEvents).defense.opponentFaults),
-        analysisMetricHtml('Ballons défendus par nous',analysisStats(defenseEvents).defense.defended),
-        analysisMetricHtml('Taux de défense réussie',analysisPctLabel(analysisStats(defenseEvents).defense.defended,analysisStats(defenseEvents).defense.total))
-      ].join('')}</div>`
-      :'<div class="analysisEmpty">Aucune défense enregistrée dans ce contexte.</div>';
-    return `<div class="analysisSummaryContext"><div class="analysisSummaryContextTitle">${escapeHtml(context.label)}</div><div class="analysisSubtle" style="font-weight:800;margin:0 0 6px">Attaque</div>${attackBody}<div class="analysisSubtle" style="font-weight:800;margin:10px 0 6px">Défense</div>${defenseBody}</div>`;
+    const attackStats=analysisStats(attackEvents).attack;
+    const defenseStats=analysisStats(defenseEvents).defense;
+    const attackMetrics=attackEvents.length?[
+      analysisMetricHtml('Attaques',attackStats.total),
+      analysisAttackPointsMetricHtml(attackStats),
+      analysisMetricHtml('Fautes d’attaque',attackStats.faults),
+      analysisMetricHtml('Ballons défendus par l’adversaire',attackStats.defended),
+      rateMetric('Taux de point marqué',analysisPctLabel(attackStats.points,attackStats.total),'own')
+    ]:Array.from({length:5},placeholder);
+    const defenseMetrics=defenseEvents.length?[
+      analysisMetricHtml('Situations défensives',defenseStats.total),
+      analysisDefensePointsMetricHtml(defenseStats),
+      analysisMetricHtml('Fautes d’attaque de l’adversaire',defenseStats.opponentFaults),
+      analysisMetricHtml('Ballons défendus par nous',defenseStats.defended),
+      rateMetric('Taux d’attaque de l’adversaire',analysisOpponentAttackPctLabel(defenseStats),'opponent')
+    ]:Array.from({length:5},placeholder);
+    const paired=attackMetrics.map((metric,i)=>metric+defenseMetrics[i]).join('');
+    return `<div class="analysisSummaryContext"><div class="analysisSummaryContextTitle">${escapeHtml(context.label)}</div><div class="analysisOpponentCompareGrid"><div class="analysisOpponentCompareTitle">Attaque</div><div class="analysisOpponentCompareTitle">Défense</div>${paired}</div></div>`;
   }).join('');
   return body||'<div class="analysisEmpty">Aucune donnée enregistrée.</div>';
 }
@@ -4586,6 +4597,8 @@ function analysisOpponentBreakdownHtml(events){
     {key:'remise',label:'Remise en jeu',test:e=>e.family==='remise'},
     {key:'gel',label:'Gel',test:e=>e.family==='gel'}
   ];
+  const rateMetric=(label,value,kind)=>`<div class="analysisMetric ${kind==='own'?'analysisMetricRateOwn':'analysisMetricRateOpponent'}"><div class="label">${escapeHtml(label)}</div><div class="value">${escapeHtml(value)}</div></div>`;
+  const placeholder=()=>'<div class="analysisMetric analysisOpponentComparePlaceholder" aria-hidden="true"><div class="label">—</div><div class="value">—</div></div>';
   return groups.map(group=>{
     const known=new Set(contextDefs.map(c=>c.key));
     const contexts=contextDefs.map(c=>({...c,events:group.events.filter(c.test)}));
@@ -4594,25 +4607,24 @@ function analysisOpponentBreakdownHtml(events){
     const body=contexts.filter(c=>c.events.length).map(context=>{
       const attackEvents=context.events.filter(e=>analysisSemanticType(e)==='attack');
       const defenseEvents=context.events.filter(e=>analysisSemanticType(e)==='defense');
-      const attackBody=attackEvents.length
-        ?`<div class="analysisMetricGrid">${[
-          analysisMetricHtml('Attaques',analysisStats(attackEvents).attack.total),
-          analysisAttackPointsMetricHtml(analysisStats(attackEvents).attack),
-          analysisMetricHtml('Fautes d’attaque',analysisStats(attackEvents).attack.faults),
-          analysisMetricHtml('Ballons défendus par l’adversaire',analysisStats(attackEvents).attack.defended),
-          analysisMetricHtml('Taux de point marqué',analysisPctLabel(analysisStats(attackEvents).attack.points,analysisStats(attackEvents).attack.total))
-        ].join('')}</div>`
-        :'<div class="analysisEmpty">Aucune attaque enregistrée dans ce contexte.</div>';
-      const defenseBody=defenseEvents.length
-        ?`<div class="analysisMetricGrid">${[
-          analysisMetricHtml('Situations défensives',analysisStats(defenseEvents).defense.total),
-          analysisDefensePointsMetricHtml(analysisStats(defenseEvents).defense),
-          analysisMetricHtml('Fautes d’attaque de l’adversaire',analysisStats(defenseEvents).defense.opponentFaults),
-          analysisMetricHtml('Ballons défendus par nous',analysisStats(defenseEvents).defense.defended),
-          analysisMetricHtml('Taux de défense réussie',analysisPctLabel(analysisStats(defenseEvents).defense.defended,analysisStats(defenseEvents).defense.total))
-        ].join('')}</div>`
-        :'<div class="analysisEmpty">Aucune défense enregistrée dans ce contexte.</div>';
-      return `<div class="analysisSummaryContext"><div class="analysisSummaryContextTitle">${escapeHtml(context.label)}</div><div class="analysisSubtle" style="font-weight:800;margin:0 0 6px">Attaque</div>${attackBody}<div class="analysisSubtle" style="font-weight:800;margin:10px 0 6px">Défense</div>${defenseBody}</div>`;
+      const attackStats=analysisStats(attackEvents).attack;
+      const defenseStats=analysisStats(defenseEvents).defense;
+      const attackMetrics=attackEvents.length?[
+        analysisMetricHtml('Attaques',attackStats.total),
+        analysisAttackPointsMetricHtml(attackStats),
+        analysisMetricHtml('Fautes d’attaque',attackStats.faults),
+        analysisMetricHtml('Ballons défendus par l’adversaire',attackStats.defended),
+        rateMetric('Taux de point marqué',analysisPctLabel(attackStats.points,attackStats.total),'own')
+      ]:Array.from({length:5},placeholder);
+      const defenseMetrics=defenseEvents.length?[
+        analysisMetricHtml('Situations défensives',defenseStats.total),
+        analysisDefensePointsMetricHtml(defenseStats),
+        analysisMetricHtml('Fautes d’attaque de l’adversaire',defenseStats.opponentFaults),
+        analysisMetricHtml('Ballons défendus par nous',defenseStats.defended),
+        rateMetric('Taux d’attaque de l’adversaire',analysisOpponentAttackPctLabel(defenseStats),'opponent')
+      ]:Array.from({length:5},placeholder);
+      const paired=attackMetrics.map((metric,i)=>metric+defenseMetrics[i]).join('');
+      return `<div class="analysisSummaryContext"><div class="analysisSummaryContextTitle">${escapeHtml(context.label)}</div><div class="analysisOpponentCompareGrid"><div class="analysisOpponentCompareTitle">Attaque</div><div class="analysisOpponentCompareTitle">Défense</div>${paired}</div></div>`;
     }).join('');
     return `<div class="analysisOpponentCard"><div class="analysisOpponentTitle">${escapeHtml(group.label)}</div>${body||'<div class="analysisEmpty">Aucune donnée pour cette équipe.</div>'}</div>`;
   }).join('');
@@ -4627,7 +4639,7 @@ function renderAnalysisSummary(events){
   const maxPct=100;
   $('#analysisPeriodChart').innerHTML=per.length?per.map(x=>{
     const pointRate=analysisPct(x.attack.points,x.attack.total)||0;
-    const defenseRate=analysisPct(x.defense.defended,x.defense.total)||0;
+    const defenseRate=analysisPct(x.defense.points,x.defense.total)||0;
     const attackFaultRate=analysisPct(x.attack.faults,x.attack.total)||0;
     const pointHeight=Math.max(2,Math.round(120*pointRate/maxPct));
     const defenseHeight=Math.max(2,Math.round(120*defenseRate/maxPct));
@@ -4635,7 +4647,7 @@ function renderAnalysisSummary(events){
     return `<div class="analysisPeriodCol" title="${escapeAttr(x.period)}">
       <div class="analysisPeriodBars">
         <div class="analysisPeriodBar attack" style="height:${pointHeight}px" title="Taux de point marqué ${pointRate}%"></div>
-        <div class="analysisPeriodBar defense" style="height:${defenseHeight}px" title="Taux de défense réussie ${defenseRate}%"></div>
+        <div class="analysisPeriodBar defense" style="height:${defenseHeight}px" title="Taux d’attaque de l’adversaire ${defenseRate}%"></div>
         <div class="analysisPeriodBar attackFault" style="height:${attackFaultHeight}px" title="Taux de faute d’attaque ${attackFaultRate}%"></div>
       </div>
       <div class="analysisPeriodLabel">${escapeHtml(x.period)}</div>
@@ -4643,11 +4655,11 @@ function renderAnalysisSummary(events){
   }).join(''):'<div class="analysisEmpty">Aucune période enregistrée.</div>';
 
   $('#analysisPeriodTable').innerHTML=`<thead><tr>
-    <th>Période</th><th>Taux d’attaque</th><th>Taux de défense</th><th>Taux de fautes d’attaque</th>
+    <th>Période</th><th>Taux d’attaque</th><th>Taux d’attaque adverse</th><th>Taux de fautes d’attaque</th>
   </tr></thead><tbody>${per.map(x=>`<tr>
     <td>${escapeHtml(x.period)}</td>
     <td>${analysisRateHtml(x.attack.points,x.attack.total)}</td>
-    <td>${analysisRateHtml(x.defense.defended,x.defense.total)}</td>
+    <td>${analysisOpponentAttackRateHtml(x.defense)}</td>
     <td>${analysisRateHtml(x.attack.faults,x.attack.total)}</td>
   </tr>`).join('')||'<tr><td colspan="4">Aucune donnée.</td></tr>'}</tbody>`;
 }
@@ -4722,18 +4734,19 @@ function renderAnalysisZonesAndContexts(events){
   const defenseGroups={};
   defenses.forEach(e=>{
     const name=analysisDefenseZoneGroup(e.zone);
-    defenseGroups[name]??={name,total:0,defended:0,escaped:0,illegal:0};
+    defenseGroups[name]??={name,total:0,defended:0,escaped:0,illegal:0,opponentFaults:0};
     const x=defenseGroups[name],o=analysisOutcome(e);x.total++;
     if(o==='Ballon défendu')x.defended++;
     else if(o==='Échappé')x.escaped++;
     else if(o==='Défensive illégale')x.illegal++;
+    else if(o==='Faute de l’adversaire')x.opponentFaults++;
   });
   const defenseRows=['R / RE','EE / reste','Non précisée'].filter(k=>defenseGroups[k]).map(k=>defenseGroups[k]);
   $('#analysisDefenseZonesTable').innerHTML=`<thead><tr>
-    <th>Zone</th><th>Situations déf.</th><th>Défendues</th><th>Échappés</th><th>Fautes déf.</th><th>Taux déf.</th>
+    <th>Zone</th><th>Situations déf.</th><th>Défendues</th><th>Fautes adv.</th><th>Échappés</th><th>Déf. ill.</th><th>Taux adv.</th>
   </tr></thead><tbody>${defenseRows.map(x=>`<tr>
-    <td>${escapeHtml(x.name)}</td><td>${x.total}</td><td>${x.defended}</td><td>${x.escaped}</td><td>${x.illegal}</td><td>${analysisRateHtml(x.defended,x.total)}</td>
-  </tr>`).join('')||'<tr><td colspan="6">Aucune défense.</td></tr>'}</tbody>`;
+    <td>${escapeHtml(x.name)}</td><td>${x.total}</td><td>${x.defended}</td><td>${x.opponentFaults}</td><td>${x.escaped}</td><td>${x.illegal}</td><td>${analysisRateHtml(x.defended+x.opponentFaults,x.total)}</td>
+  </tr>`).join('')||'<tr><td colspan="7">Aucune défense.</td></tr>'}</tbody>`;
 
   const contextDefinitions=[
     {key:'centre',label:'Jeu au centre',test:e=>analysisContextKey(e)==='centre'},
@@ -4747,7 +4760,7 @@ function renderAnalysisZonesAndContexts(events){
         <div>Attaques<b>${st.attack.total}</b></div>
         <div>Taux points<b>${escapeHtml(analysisPctLabel(st.attack.points,st.attack.total))}</b></div>
         <div>Défenses<b>${st.defense.total}</b></div>
-        <div>Taux défense<b>${escapeHtml(analysisPctLabel(st.defense.defended,st.defense.total))}</b></div>
+        <div>Taux adv.<b>${escapeHtml(analysisOpponentAttackPctLabel(st.defense))}</b></div>
       </div>
     </div>`;
   }).join('');
@@ -4766,11 +4779,11 @@ function renderAnalysisZonesAndContexts(events){
     {key:'remise_coin',label:'Coin',events:events.filter(e=>analysisContextKey(e)==='remise_coin')}
   ].map(x=>({...x,...analysisStats(x.events)}));
   $('#analysisRestartTable').innerHTML=`<thead><tr>
-    <th>Position</th><th>Att.</th><th>Pts</th><th>Taux pts</th><th>Déf.</th><th>Réussies</th><th>Échappés</th><th>Taux déf.</th>
+    <th>Position</th><th>Att.</th><th>Pts</th><th>Taux pts</th><th>Déf.</th><th>Pts adv.</th><th>Ballons déf.</th><th>Taux adv.</th>
   </tr></thead><tbody>${restartRows.map(x=>`<tr>
     <td>${escapeHtml(x.label)}</td>
     <td>${x.attack.total}</td><td>${x.attack.points}</td><td>${analysisRateHtml(x.attack.points,x.attack.total)}</td>
-    <td>${x.defense.total}</td><td>${x.defense.defended}</td><td>${x.defense.escaped}</td><td>${analysisRateHtml(x.defense.defended,x.defense.total)}</td>
+    <td>${x.defense.total}</td><td>${analysisDefenseSuccesses(x.defense)}</td><td>${x.defense.escaped}</td><td>${analysisOpponentAttackRateHtml(x.defense)}</td>
   </tr>`).join('')}</tbody>`;
 }
 
@@ -4795,10 +4808,10 @@ function renderAnalysisEvolution(){
   $('#analysisEvolutionHint').textContent=player?`Évolution de ${player} ${unit==='match'?'match par match':'période par période'}. Les défenses sont comptées comme participations, sans taux individuel artificiel.`:`Évolution de l’équipe ${unit==='match'?'match par match':'période par période'}.`;
   if(!segments.length){chart.innerHTML='<div class="analysisEmpty">Aucune donnée d’évolution.</div>';table.innerHTML='<tbody><tr><td>Aucune donnée.</td></tr></tbody>';return}
   if(!player){
-    $('#analysisEvolutionChartTitle').textContent=unit==='match'?'Évolution match par match':'Évolution par période';$('#analysisEvolutionLegend').innerHTML='<span>Taux de point marqué</span><span class="defense">Taux de défense réussie</span>';
+    $('#analysisEvolutionChartTitle').textContent=unit==='match'?'Évolution match par match':'Évolution par période';$('#analysisEvolutionLegend').innerHTML='<span>Taux de point marqué</span><span class="defense">Taux d’attaque de l’adversaire</span>';
     const rows=segments.map(seg=>({seg,...analysisStats(seg.events)}));
-    chart.innerHTML=rows.map(x=>{const pa=analysisPct(x.attack.points,x.attack.total)||0,pd=analysisPct(x.defense.defended,x.defense.total)||0;return `<div class="analysisEvolutionCol"><div class="analysisEvolutionBars"><div class="analysisEvolutionBar attack" style="height:${Math.max(2,Math.round(125*pa/100))}px" title="Attaque ${pa}%"></div><div class="analysisEvolutionBar defense" style="height:${Math.max(2,Math.round(125*pd/100))}px" title="Défense ${pd}%"></div></div><div class="analysisEvolutionLabel">${escapeHtml(x.seg.label)}</div><div class="analysisEvolutionValue">${pa}% / ${pd}%</div></div>`}).join('');
-    table.innerHTML=`<thead><tr><th>${unit==='match'?'Match':'Période'}</th><th>Att.</th><th>Pts</th><th>Fautes</th><th>Taux pts</th><th>Déf.</th><th>Réussies</th><th>Échappés</th><th>Taux déf.</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${escapeHtml(x.seg.label)}</td><td>${x.attack.total}</td><td>${x.attack.points}</td><td>${x.attack.faults}</td><td>${analysisRateHtml(x.attack.points,x.attack.total)}</td><td>${x.defense.total}</td><td>${x.defense.defended}</td><td>${x.defense.escaped}</td><td>${analysisRateHtml(x.defense.defended,x.defense.total)}</td></tr>`).join('')}</tbody>`;
+    chart.innerHTML=rows.map(x=>{const pa=analysisPct(x.attack.points,x.attack.total)||0,pd=analysisPct(analysisDefenseSuccesses(x.defense),x.defense.total)||0;return `<div class="analysisEvolutionCol"><div class="analysisEvolutionBars"><div class="analysisEvolutionBar attack" style="height:${Math.max(2,Math.round(125*pa/100))}px" title="Attaque ${pa}%"></div><div class="analysisEvolutionBar defense" style="height:${Math.max(2,Math.round(125*pd/100))}px" title="Défense ${pd}%"></div></div><div class="analysisEvolutionLabel">${escapeHtml(x.seg.label)}</div><div class="analysisEvolutionValue">${pa}% / ${pd}%</div></div>`}).join('');
+    table.innerHTML=`<thead><tr><th>${unit==='match'?'Match':'Période'}</th><th>Att.</th><th>Pts</th><th>Fautes</th><th>Taux pts</th><th>Déf.</th><th>Réussies</th><th>Échappés</th><th>Taux adv.</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${escapeHtml(x.seg.label)}</td><td>${x.attack.total}</td><td>${x.attack.points}</td><td>${x.attack.faults}</td><td>${analysisRateHtml(x.attack.points,x.attack.total)}</td><td>${x.defense.total}</td><td>${analysisDefenseSuccesses(x.defense)}</td><td>${x.defense.escaped}</td><td>${analysisOpponentAttackRateHtml(x.defense)}</td></tr>`).join('')}</tbody>`;
   }else{
     $('#analysisEvolutionChartTitle').textContent=`Évolution · ${player}`;$('#analysisEvolutionLegend').innerHTML='<span>Taux de point marqué</span><span class="defense">Participations défensives</span>';
     const rows=segments.map(seg=>({seg,...analysisPlayerSegmentStats(seg.events,player)})),maxPart=Math.max(1,...rows.map(x=>x.defense.participations));
