@@ -713,9 +713,6 @@ button:active{transform:scale(.985)}
   grid-template-columns:repeat(2,minmax(0,1fr));
   grid-auto-rows:auto;
 }
-#popup.fieldMode.centerDefenseCompact:not(.centerAttackMode) #resultOptions button[data-result="Défensive illégale"]{
-  grid-column:1 / -1;
-}
 #popup.fieldMode.centerDefenseCompact:not(.centerAttackMode) #resultOptions button{
   min-height:27px;
   height:auto;
@@ -782,9 +779,6 @@ button:active{transform:scale(.985)}
 #popup.fieldMode.centerDefenseCompact:not(.centerAttackMode) #resultOptions{
   grid-template-columns:repeat(2,minmax(0,1fr));
   gap:2px;
-}
-#popup.fieldMode.centerDefenseCompact:not(.centerAttackMode) #resultOptions button[data-result="Défensive illégale"]{
-  grid-column:1 / -1;
 }
 
 /* Attribution / attaquants sous le schéma */
@@ -989,7 +983,7 @@ button:active{transform:scale(.985)}
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V3.3 Préliminaire — Bibliothèque en ligne</div></div>
+   <div><h1>Kinball Coach</h1><div class="sub">V3.3 Préliminaire — Bibliothèque en ligne · correctifs</div></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -2947,11 +2941,14 @@ function buildOutcomeButtons(){
     add('BALLON DÉFENDU','Ballon défendu');
     add('ÉCHAPPÉ','Échappé');
     add('DÉFENSIVE ILLÉGALE','Défensive illégale');
+    if(family==='centre'||family==='remise') add('FAUTE DE L’ADVERSAIRE','Faute de l’adversaire');
     if(isCenterDefense()){
       const defended=$('#resultOptions button[data-result="Ballon défendu"]');
       const illegal=$('#resultOptions button[data-result="Défensive illégale"]');
+      const opponentFault=$('#resultOptions button[data-result="Faute de l’adversaire"]');
       if(defended)defended.innerHTML='BALLON<br>DÉFENDU';
       if(illegal)illegal.innerHTML='DÉFENSIVE<br>ILLÉGALE';
+      if(opponentFault)opponentFault.innerHTML='FAUTE DE<br>L’ADVERSAIRE';
     }
   }
 }
@@ -2984,6 +2981,21 @@ function handleOutcome(value,button){
     }
     $('#moveStep').classList.add('hidden');$('#whoStep').classList.remove('hidden');
     configureWhoUI();
+    updatePopupSaveVisibility();
+    return
+  }
+  if(actionType==='Défense'&&value==='Faute de l’adversaire'){
+    pending='Défense · Faute de l’adversaire';
+    faultType='';zone='';movement=null;who='';whoMany=[];
+    $$('#centerDefenseMap .sector').forEach(x=>x.classList.remove('selected'));
+    if(isCenterDefense()){
+      $('#centerDefenseMapStep').classList.remove('hidden');
+      $('#zoneStep').classList.add('hidden');
+    }else{
+      configureZoneUI(false);
+    }
+    $('#moveStep').classList.add('hidden');
+    $('#whoStep').classList.add('hidden');
     updatePopupSaveVisibility();
     return
   }
@@ -3158,13 +3170,14 @@ $('#savePopup').onclick=async()=>{
   try{
     setCloud('Enregistrement…',true);
     const isDefenseFault=actionType==='Défense'&&actionResult==='Défensive illégale';
+    const isOpponentFault=actionType==='Défense'&&actionResult==='Faute de l’adversaire';
     const base={
       videoPosition:currentVideoPosition(),period:$('#period').value,context,family,
       restartLocation:restartLocation||null,opponentTeam:opponentTeam||null,action:isDefenseFault?'Faute':pending,
       faultType:isDefenseFault?'Défensive illégale':null,
-      zone:(isDefenseFault||family==='gel')?null:(zone||null),movement:isDefenseFault?null:(movement||null),
+      zone:(isDefenseFault||isOpponentFault||family==='gel')?null:(zone||null),movement:(isDefenseFault||isOpponentFault)?null:(movement||null),
       player:actionType==='Défense'?null:(who||null),
-      attributedPlayers:actionType==='Défense'?[...whoMany]:[],
+      attributedPlayers:(actionType==='Défense'&&!isOpponentFault)?[...whoMany]:[],
       activePlayers:[...state.activePlayers],createdAt:new Date().toISOString()
     };
     const isEdit=!!editingId;
@@ -3260,6 +3273,8 @@ function editEvent(id){
   if(e.action.includes('Point marqué'))actionResult='Point marqué';
   else if(e.action.includes('Ballon défendu'))actionResult='Ballon défendu';
   else if(e.action.includes('Échappé'))actionResult='Échappé';
+  else if(e.action.includes('Défensive illégale'))actionResult='Défensive illégale';
+  else if(e.action.includes('Faute de l’adversaire'))actionResult='Faute de l’adversaire';
   else actionResult='';
   zone=family==='gel'?'':(({E1:'A1',E2:'P',E3:'A2'}[e.zone])||e.zone||'');movement=e.movement||'Non';who=e.player||'';whoMany=actionType==='Défense'?[...(e.attributedPlayers||((e.player)?[e.player]:[]))]:[];opponentTeam=e.opponentTeam||'';
   $('#popupTitle').textContent='Modifier · '+actionType;
@@ -3269,7 +3284,18 @@ function editEvent(id){
   $$('#restartLocationOptions button').forEach(b=>b.classList.toggle('choice',b.dataset.restart===restartLocation));
   buildOutcomeButtons();
   $$('#resultOptions button').forEach(b=>b.classList.toggle('choice',b.dataset.result===actionResult));
-  $('#resultStep').classList.remove('hidden');$('#moveStep').classList.remove('hidden');configureZoneUI(family!=='gel');$('#whoStep').classList.remove('hidden');$('#savePopup').disabled=false;
+  $('#resultStep').classList.remove('hidden');
+  if(actionType==='Défense'&&actionResult==='Faute de l’adversaire'){
+    $('#moveStep').classList.add('hidden');
+    configureZoneUI(false);
+    $('#whoStep').classList.add('hidden');
+    if(isCenterDefense()) $('#centerDefenseMapStep').classList.remove('hidden');
+  }else{
+    $('#moveStep').classList.remove('hidden');
+    configureZoneUI(family!=='gel');
+    $('#whoStep').classList.remove('hidden');
+  }
+  $('#savePopup').disabled=false;
   $$('#zoneOptions button').forEach(b=>b.classList.toggle('choice',(b.dataset.zone||'')===zone));
   $$('#moveOptions button').forEach(b=>b.classList.toggle('choice',(b.dataset.move||'')===movement));
   configureWhoUI();
