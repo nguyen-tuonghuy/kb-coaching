@@ -1046,6 +1046,7 @@ button:active{transform:scale(.985)}
      <div class="field"><label>Mot de passe</label><input id="authPassword" type="password" autocomplete="current-password" placeholder="Votre mot de passe"></div>
     </div>
     <button class="primary" id="login" style="width:100%;margin-top:12px">Se connecter</button>
+    <button class="ghost" id="forgotPassword" type="button" style="width:100%;margin-top:8px">Mot de passe oublié ?</button>
    </div>
 
    <div style="padding:14px;border:1px solid var(--line);border-radius:14px">
@@ -1615,6 +1616,7 @@ button:active{transform:scale(.985)}
   </div>
   <div class="field"><label>Prénom</label><input id="profileFirstName" autocomplete="given-name" placeholder="ex. Tuong-Huy"></div>
   <div class="authStatus" id="profileStatus"></div>
+  <button class="ghost" type="button" id="openChangePassword" style="width:100%;margin-top:12px">Changer mon mot de passe</button>
   <div class="row" style="margin-top:14px">
    <button class="ghost" style="flex:1" id="cancelProfile">Annuler</button>
    <button class="primary" style="flex:2" id="saveProfile">Enregistrer</button>
@@ -1651,6 +1653,51 @@ button:active{transform:scale(.985)}
  </div>
 </div>
 
+<div class="popupBackdrop hidden" id="forgotPasswordPopup">
+ <div class="sheet" style="max-width:520px">
+  <div class="sheetTop">
+   <div>
+    <h2>Mot de passe oublié</h2>
+    <div class="meta">Nous t’enverrons un lien pour choisir un nouveau mot de passe.</div>
+   </div>
+   <button class="closePopup" id="closeForgotPasswordPopup" aria-label="Fermer">×</button>
+  </div>
+  <div class="field">
+   <label>Email</label>
+   <input id="forgotPasswordEmail" type="email" autocomplete="email" placeholder="vous@exemple.fr">
+  </div>
+  <div class="authStatus" id="forgotPasswordStatus"></div>
+  <div class="row" style="margin-top:14px">
+   <button class="ghost" style="flex:1" id="cancelForgotPassword">Annuler</button>
+   <button class="primary" style="flex:2" id="sendResetPassword">Envoyer le lien</button>
+  </div>
+ </div>
+</div>
+
+<div class="popupBackdrop hidden" id="resetPasswordPopup">
+ <div class="sheet" style="max-width:520px">
+  <div class="sheetTop">
+   <div>
+    <h2>Nouveau mot de passe</h2>
+    <div class="meta" id="resetPasswordMeta">Choisis le nouveau mot de passe de ton compte.</div>
+   </div>
+   <button class="closePopup" id="closeResetPasswordPopup" aria-label="Fermer">×</button>
+  </div>
+  <div class="field" style="margin-bottom:12px">
+   <label>Nouveau mot de passe</label>
+   <input id="newPassword" type="password" autocomplete="new-password" placeholder="Nouveau mot de passe">
+  </div>
+  <div class="field">
+   <label>Confirmer le nouveau mot de passe</label>
+   <input id="confirmNewPassword" type="password" autocomplete="new-password" placeholder="Confirme le mot de passe">
+  </div>
+  <div class="authStatus" id="resetPasswordStatus"></div>
+  <div class="row" style="margin-top:14px">
+   <button class="ghost" style="flex:1" id="cancelResetPassword">Annuler</button>
+   <button class="primary" style="flex:2" id="saveNewPassword">Enregistrer</button>
+  </div>
+ </div>
+</div>
 
 
 <div class="popupBackdrop hidden" id="exerciseEditPopup">
@@ -1874,6 +1921,7 @@ button:active{transform:scale(.985)}
 const KEY='kinball_coach_cloud_v200';
 const SUPABASE_URL='https://chrbzchthloxowlzdvpe.supabase.co';
 const SUPABASE_KEY='sb_publishable_4pQGJ5DSzMRBuHLrAUb30g_MGZVYvEY';
+const AUTH_REDIRECT_URL='https://nguyen-tuonghuy.github.io/kb-coaching/';
 if(!window.supabase){
   document.body.innerHTML='<div style="padding:24px;font-family:sans-serif;color:white;background:#111;min-height:100vh"><h2>Erreur de chargement</h2><p>La bibliothèque Supabase ne s’est pas chargée. Recharge la page avec une connexion Internet active.</p></div>';
   throw new Error('Supabase library failed to load');
@@ -2025,18 +2073,23 @@ async function initAuth(){
   $('#matchGroup').value=groupState.groups[0]?.id||'';
   if($('#matchGroup').value) loadMatchGroupPlayers($('#matchGroup').value).catch(e=>handleError('match group',e));
   if($('#trainingDate')) $('#trainingDate').value=isoToFrInput(today());
+  const hashParams=new URLSearchParams(location.hash.replace(/^#/,'')||'');
+  const queryParams=new URLSearchParams(location.search||'');
+  const recoveryLink=hashParams.get('type')==='recovery'||queryParams.get('type')==='recovery';
   const {data:{session}}=await db.auth.getSession();
   if(session?.user){
     try{await initAuthenticated(session.user)}catch(e){handleError('initAuthenticated',e)}
+    if(recoveryLink) openResetPasswordPopup(true);
   }else{
     $('#authPanel').classList.remove('hidden');
     $('#setup').classList.add('hidden');
     setCloud('Non connecté',false);
   }
-  db.auth.onAuthStateChange(async (_event,session)=>{
+  db.auth.onAuthStateChange(async (event,session)=>{
     if(session?.user && (!currentUser || currentUser.id!==session.user.id)){
       try{await initAuthenticated(session.user)}catch(e){handleError('auth change',e)}
     }
+    if(event==='PASSWORD_RECOVERY') openResetPasswordPopup(true);
   });
 }
 
@@ -2083,7 +2136,7 @@ $('#confirmSignup').onclick=async()=>{
   signupMessage('Création du compte…');
   const {data,error}=await db.auth.signUp({
     email,password,
-    options:{emailRedirectTo:location.origin,data:{first_name:firstName}}
+    options:{emailRedirectTo:AUTH_REDIRECT_URL,data:{first_name:firstName}}
   });
   $('#signupPassword').value='';
   if(error){signupMessage(error.message,true);return}
@@ -2097,6 +2150,79 @@ $('#confirmSignup').onclick=async()=>{
     signupMessage('Compte créé. Confirme ton adresse e-mail puis reviens te connecter.');
   }
 };
+const forgotPasswordMessage=(text,error=false)=>{
+  const el=$('#forgotPasswordStatus');
+  el.textContent=text||'';
+  el.className='authStatus '+(error?'cloudErr':'cloudOk');
+};
+function openForgotPasswordPopup(){
+  $('#forgotPasswordEmail').value=$('#authEmail').value.trim();
+  forgotPasswordMessage('');
+  $('#forgotPasswordPopup').classList.remove('hidden');
+  resetPopupScroll('#forgotPasswordPopup');
+  setTimeout(()=>$('#forgotPasswordEmail').focus(),0);
+}
+function closeForgotPasswordPopup(){
+  $('#forgotPasswordPopup').classList.add('hidden');
+  forgotPasswordMessage('');
+}
+$('#forgotPassword').onclick=openForgotPasswordPopup;
+$('#cancelForgotPassword').onclick=closeForgotPasswordPopup;
+$('#closeForgotPasswordPopup').onclick=closeForgotPasswordPopup;
+$('#forgotPasswordPopup').onclick=e=>{if(e.target===$('#forgotPasswordPopup'))closeForgotPasswordPopup()};
+$('#sendResetPassword').onclick=async()=>{
+  const email=$('#forgotPasswordEmail').value.trim();
+  if(!email){forgotPasswordMessage('Saisis ton adresse e-mail.',true);return}
+  forgotPasswordMessage('Envoi du lien…');
+  const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo:AUTH_REDIRECT_URL});
+  if(error){forgotPasswordMessage(error.message,true);return}
+  forgotPasswordMessage('Si cette adresse correspond à un compte, un e-mail de réinitialisation vient d’être envoyé.');
+};
+
+let resetPasswordFromRecovery=false;
+const resetPasswordMessage=(text,error=false)=>{
+  const el=$('#resetPasswordStatus');
+  el.textContent=text||'';
+  el.className='authStatus '+(error?'cloudErr':'cloudOk');
+};
+function openResetPasswordPopup(fromRecovery=false){
+  resetPasswordFromRecovery=!!fromRecovery;
+  $('#newPassword').value='';
+  $('#confirmNewPassword').value='';
+  $('#resetPasswordMeta').textContent=fromRecovery
+    ? 'Le lien de récupération est valide. Choisis maintenant un nouveau mot de passe.'
+    : 'Choisis le nouveau mot de passe de ton compte.';
+  resetPasswordMessage('');
+  $('#resetPasswordPopup').classList.remove('hidden');
+  resetPopupScroll('#resetPasswordPopup');
+  setTimeout(()=>$('#newPassword').focus(),0);
+}
+function closeResetPasswordPopup(){
+  $('#newPassword').value='';
+  $('#confirmNewPassword').value='';
+  $('#resetPasswordPopup').classList.add('hidden');
+  resetPasswordMessage('');
+}
+$('#openChangePassword').onclick=()=>openResetPasswordPopup(false);
+$('#cancelResetPassword').onclick=closeResetPasswordPopup;
+$('#closeResetPasswordPopup').onclick=closeResetPasswordPopup;
+$('#resetPasswordPopup').onclick=e=>{if(e.target===$('#resetPasswordPopup'))closeResetPasswordPopup()};
+$('#saveNewPassword').onclick=async()=>{
+  const password=$('#newPassword').value;
+  const confirmation=$('#confirmNewPassword').value;
+  if(!password){resetPasswordMessage('Choisis un nouveau mot de passe.',true);return}
+  if(password.length<6){resetPasswordMessage('Le mot de passe doit contenir au moins 6 caractères.',true);return}
+  if(password!==confirmation){resetPasswordMessage('Les deux mots de passe ne correspondent pas.',true);return}
+  resetPasswordMessage('Enregistrement…');
+  const {error}=await db.auth.updateUser({password});
+  if(error){resetPasswordMessage(error.message,true);return}
+  resetPasswordMessage('Mot de passe modifié ✓');
+  if(resetPasswordFromRecovery){
+    history.replaceState(null,'',AUTH_REDIRECT_URL);
+  }
+  setTimeout(closeResetPasswordPopup,900);
+};
+
 $('#homeBtn').onclick=showAppHome;
 $('#profileBtn').onclick=openProfilePopup;
 $('#closeProfilePopup').onclick=(ev)=>{ev.preventDefault();ev.stopPropagation();closeProfilePopup();};
