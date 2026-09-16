@@ -895,6 +895,10 @@ button:active{transform:scale(.985)}
 .analysisContextStats div{font-size:11px;color:var(--muted)}
 .analysisContextStats b{display:block;color:inherit;font-size:16px;margin-top:2px}
 .analysisScopeNote{padding:8px 10px;border:1px dashed var(--line);border-radius:10px;margin-top:8px;font-size:11px;color:var(--muted)}
+.analysisSummaryContext{grid-column:1/-1;margin-top:3px}
+.analysisSummaryContext:first-child{margin-top:0}
+.analysisSummaryContextTitle{font-size:13px;font-weight:800;margin:0 0 7px;color:var(--text)}
+.analysisSummaryContext .analysisMetricGrid{margin:0}
 @media(min-width:700px){
   .analysisMetricGrid{grid-template-columns:repeat(4,minmax(0,1fr))}
   .analysisContextGrid{grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -4429,23 +4433,46 @@ function setAnalysisTab(tab){
 }
 function renderMatchAnalysis(){const events=analysisState.events||[];renderAnalysisSummary(events);renderAnalysisPlayers(events);renderAnalysisZonesAndContexts(events);renderAnalysisEvolution();}
 
+function analysisSummaryContextGroups(events){
+  const definitions=[
+    {key:'centre',label:'Centre en jeu',test:e=>e.family==='centre'},
+    {key:'remise',label:'Remise en jeu',test:e=>e.family==='remise'},
+    {key:'gel',label:'Gel',test:e=>e.family==='gel'}
+  ];
+  const known=new Set(['centre','remise','gel']);
+  const groups=definitions.map(d=>({...d,events:events.filter(d.test)}));
+  const other=events.filter(e=>!known.has(e.family));
+  if(other.length)groups.push({key:'other',label:'Autres contextes',events:other});
+  return groups.filter(g=>g.events.length);
+}
+function analysisSummaryContextHtml(label,stats,type){
+  const values=type==='attack'?[
+    analysisMetricHtml('Attaques',stats.total),
+    analysisMetricHtml('Points marqués',stats.points),
+    analysisMetricHtml('Fautes d’attaque',stats.faults),
+    analysisMetricHtml('Ballons défendus',stats.defended),
+    analysisMetricHtml('Défensives illégales adverses',stats.illegal),
+    analysisMetricHtml('Taux de point marqué',analysisPctLabel(stats.points,stats.total))
+  ]:[
+    analysisMetricHtml('Défenses',stats.total),
+    analysisMetricHtml('Ballons défendus',stats.defended),
+    analysisMetricHtml('Échappés',stats.escaped),
+    analysisMetricHtml('Défensives illégales',stats.illegal),
+    analysisMetricHtml('Taux de défense réussie',analysisPctLabel(stats.defended,stats.total))
+  ];
+  return `<div class="analysisSummaryContext"><div class="analysisSummaryContextTitle">${escapeHtml(label)}</div><div class="analysisMetricGrid">${values.join('')}</div></div>`;
+}
 function renderAnalysisSummary(events){
-  const {attack,defense}=analysisStats(events);
-  $('#analysisAttackMetrics').innerHTML=[
-    analysisMetricHtml('Attaques',attack.total),
-    analysisMetricHtml('Points marqués',attack.points),
-    analysisMetricHtml('Fautes d’attaque',attack.faults),
-    analysisMetricHtml('Ballons défendus',attack.defended),
-    analysisMetricHtml('Défensives illégales adverses',attack.illegal),
-    analysisMetricHtml('Taux de point marqué',analysisPctLabel(attack.points,attack.total))
-  ].join('');
-  $('#analysisDefenseMetrics').innerHTML=[
-    analysisMetricHtml('Défenses',defense.total),
-    analysisMetricHtml('Ballons défendus',defense.defended),
-    analysisMetricHtml('Échappés',defense.escaped),
-    analysisMetricHtml('Défensives illégales',defense.illegal),
-    analysisMetricHtml('Taux de défense réussie',analysisPctLabel(defense.defended,defense.total))
-  ].join('');
+  const attackEvents=events.filter(e=>analysisSemanticType(e)==='attack');
+  const defenseEvents=events.filter(e=>analysisSemanticType(e)==='defense');
+  const attackGroups=analysisSummaryContextGroups(attackEvents);
+  const defenseGroups=analysisSummaryContextGroups(defenseEvents);
+  $('#analysisAttackMetrics').innerHTML=attackGroups.length
+    ?attackGroups.map(g=>analysisSummaryContextHtml(g.label,analysisStats(g.events).attack,'attack')).join('')
+    :'<div class="analysisEmpty" style="grid-column:1/-1">Aucune attaque enregistrée.</div>';
+  $('#analysisDefenseMetrics').innerHTML=defenseGroups.length
+    ?defenseGroups.map(g=>analysisSummaryContextHtml(g.label,analysisStats(g.events).defense,'defense')).join('')
+    :'<div class="analysisEmpty" style="grid-column:1/-1">Aucune défense enregistrée.</div>';
 
   const periods=[...new Set(events.map(e=>e.period||'Non précisée'))].sort(analysisPeriodSort);
   const per=periods.map(period=>({period,...analysisStats(events.filter(e=>(e.period||'Non précisée')===period))}));
