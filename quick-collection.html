@@ -12,8 +12,8 @@ h1,h2,h3,p{margin:0}.sub,.small{font-size:12px;color:var(--muted)}.panel{backgro
 .row{display:flex;gap:9px;flex-wrap:wrap}.field{flex:1 1 180px}label{display:block;font-size:13px;color:var(--muted);margin-bottom:5px}
 input,select,button{font:inherit}input,select{width:100%;padding:12px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:12px}
 button{border:0;border-radius:14px;padding:12px 11px;background:var(--panel2);color:var(--text);font-weight:750;cursor:pointer}button:active{transform:scale(.985)}button:disabled{opacity:.45;cursor:not-allowed}.primary{background:var(--accent)}.ghost{background:transparent;border:1px solid var(--line)}.good{background:var(--good)}.bad{background:var(--bad)}.hidden{display:none!important}
-.videoWrap{aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden;margin-top:12px}.videoWrap iframe,.videoWrap>div{width:100%;height:100%}
-.speedRow{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.speedBtn.active{background:var(--accent)}
+.videoSticky{margin-top:12px}.videoWrap{aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden}.videoWrap iframe,.videoWrap>div{width:100%;height:100%}
+.transportRow{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.transportRow .ghost{flex:1 1 90px}.speedDetails{margin-top:8px;border:1px solid var(--line);border-radius:12px;background:var(--panel2)}.speedDetails summary{display:none;cursor:pointer;padding:10px 12px;font-weight:750}.speedRow{display:flex;gap:7px;flex-wrap:wrap;padding:0}.speedBtn.active{background:var(--accent)}.speedDetails[open] .speedRow{padding:8px 0 0}
 .shortcutGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}.shortcutBtn{min-height:68px;border:1px solid var(--line);text-align:left}.shortcutBtn.active{background:var(--accent);border-color:#78a2ff}.shortcutKey{display:inline-block;min-width:28px;padding:4px 7px;border-radius:8px;background:rgba(255,255,255,.1);margin-right:6px;text-align:center}
 .outcomeGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px}.outcomeBtn{min-height:62px}.outcomeBtn.point{background:#215b3b}.outcomeBtn.defended{background:#294b73}.outcomeBtn.fault{background:#703838}
 .statusBox{padding:12px;border-radius:12px;background:var(--panel2);margin-top:10px}.pending{font-size:18px;font-weight:800}.flash{animation:flash .35s ease}@keyframes flash{0%{outline:3px solid #fff}100%{outline:0 solid transparent}}
@@ -21,12 +21,31 @@ button{border:0;border-radius:14px;padding:12px 11px;background:var(--panel2);co
 .tableWrap{overflow:auto;margin-top:10px}table{width:100%;border-collapse:collapse;min-width:630px;font-size:12px}th,td{padding:8px;border-bottom:1px solid var(--line);text-align:right}th:first-child,td:first-child{text-align:left}th{color:var(--muted)}
 .lastLine{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}.authStatus{font-size:13px;min-height:18px;margin-top:8px}.ok{color:#7ddc9f}.err{color:#ff8d8d}
 @media(max-width:720px){.shortcutGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.outcomeGrid{grid-template-columns:1fr}.app{padding-bottom:24px}}
+@media(max-width:640px){
+  .app{padding:8px 8px 22px}
+  #collectorPanel{padding:10px;overflow:visible}
+  #collectorPanel>.row:first-child{margin-bottom:4px}
+  .videoSticky{position:sticky;top:0;z-index:40;background:var(--panel);padding:4px 0 8px;margin:0 -2px 6px;box-shadow:0 10px 18px rgba(0,0,0,.35)}
+  .videoWrap{border-radius:10px}
+  .transportRow{margin-top:7px}
+  .transportRow .ghost{padding:10px 8px;min-height:42px}
+  .speedDetails{margin-top:7px}
+  .speedDetails summary{display:block}
+  .speedDetails .speedRow{padding:0 8px 8px}
+  .speedDetails:not([open]) .speedRow,.speedDetails:not([open]) #speedStatus{display:none}
+  .shortcutKey,.keyboardOnly{display:none!important}
+  .shortcutBtn{min-height:58px;text-align:center;padding:10px 7px}
+  .outcomeBtn{min-height:56px}
+  .statusBox{padding:9px;margin-top:8px}
+  .pending{font-size:15px}
+  .top .sub{font-size:11px}
+}
 </style>
 </head>
 <body>
 <div class="app">
   <div class="top">
-    <div><h1>⚡ Collecte rapide</h1><div class="sub">Dataset partagé · attaques seulement · 1–4 puis S / D / F</div></div>
+    <div><h1>⚡ Collecte rapide</h1><div class="sub">Dataset partagé · attaques seulement<span class="keyboardOnly"> · 1–4 puis S / D / F</span></div></div>
     <button class="ghost" id="backHome">← Kinball Coach</button>
   </div>
 
@@ -60,12 +79,19 @@ button{border:0;border-radius:14px;padding:12px 11px;background:var(--panel2);co
       <button class="ghost" id="changeSession">Changer de session</button>
     </div>
 
-    <div class="videoWrap"><div id="player"></div></div>
-    <div class="speedRow">
-      <button class="speedBtn" data-speed="1">1×</button><button class="speedBtn" data-speed="1.25">1,25×</button><button class="speedBtn active" data-speed="1.5">1,5×</button><button class="speedBtn" data-speed="2">2×</button>
-      <button class="ghost" id="back5">−5 s</button><button class="ghost" id="togglePlay">▶ / ⏸</button><button class="ghost" id="forward5">+5 s</button>
+    <div class="videoSticky">
+      <div class="videoWrap"><div id="player"></div></div>
+      <div class="transportRow">
+        <button class="ghost" id="back5">−5 s</button><button class="ghost" id="togglePlay">▶ / ⏸</button><button class="ghost" id="forward5">+5 s</button>
+      </div>
+      <details class="speedDetails" id="speedDetails" open>
+        <summary>Vitesse <span aria-hidden="true">▾</span></summary>
+        <div class="speedRow">
+          <button class="speedBtn" data-speed="1">1×</button><button class="speedBtn" data-speed="1.25">1,25×</button><button class="speedBtn active" data-speed="1.5">1,5×</button><button class="speedBtn" data-speed="2">2×</button>
+        </div>
+        <div class="small" id="speedStatus" style="padding:0 8px 8px"></div>
+      </details>
     </div>
-    <div class="small" id="speedStatus" style="margin-top:6px"></div>
 
     <div class="small" style="margin-top:8px">Centre / ligne / coin = position de départ de l’attaque ou de la remise en jeu.</div>
 
@@ -123,6 +149,11 @@ function youtubeId(raw){
 }
 function formatTime(seconds){const s=Math.max(0,Math.floor(Number(seconds)||0)),m=Math.floor(s/60);return `${m}:${String(s%60).padStart(2,'0')}`}
 function isTyping(){const e=document.activeElement;return e&&['INPUT','SELECT','TEXTAREA'].includes(e.tagName)}
+function isPhoneLayout(){return window.matchMedia('(max-width:640px)').matches}
+function pendingIdleText(){return isPhoneLayout()?'Choisis une situation':'Appuie sur 1, 2, 3 ou 4'}
+function pendingOutcomeText(context){return CONTEXT_LABELS[context]+' → '+(isPhoneLayout()?'choisis une issue':'choisis S / D / F')}
+function syncMobileUi(){const d=$('#speedDetails');if(d){if(isPhoneLayout())d.removeAttribute('open');else d.setAttribute('open','')}if(!pendingContext&&$('#pendingText'))$('#pendingText').textContent=pendingIdleText()}
+window.addEventListener('resize',()=>{if(!pendingContext&&$('#pendingText'))$('#pendingText').textContent=pendingIdleText()})
 function currentTime(){try{return playerReady?Number(player.getCurrentTime()||0):0}catch{return 0}}
 function applySpeed(rate){
   preferredSpeed=Number(rate);
@@ -136,8 +167,8 @@ function applySpeed(rate){
   const st=$('#speedStatus');
   if(st) st.textContent=`Vitesse : ${String(chosen).replace('.',',')}×`;
 }
-function selectContext(context){pendingContext=context; $$('.shortcutBtn').forEach(b=>b.classList.toggle('active',b.dataset.context===context)); $('#pendingText').textContent=CONTEXT_LABELS[context]+' → choisis S / D / F'}
-function clearContext(){pendingContext=''; $$('.shortcutBtn').forEach(b=>b.classList.remove('active')); $('#pendingText').textContent='Appuie sur 1, 2, 3 ou 4'}
+function selectContext(context){pendingContext=context; $$('.shortcutBtn').forEach(b=>b.classList.toggle('active',b.dataset.context===context)); $('#pendingText').textContent=pendingOutcomeText(context)}
+function clearContext(){pendingContext=''; $$('.shortcutBtn').forEach(b=>b.classList.remove('active')); $('#pendingText').textContent=pendingIdleText()}
 function renderStats(){
   const contexts=['game_center','restart_center','restart_line','restart_corner'];
   const counts={}; contexts.forEach(c=>counts[c]={point:0,defended:0,attack_fault:0,total:0});
@@ -171,7 +202,7 @@ async function createSession(){
   const {data,error}=await db.from('quick_collection_sessions').insert(payload).select('*').single(); if(error){setStatus($('#sessionStatus'),error.message,true);return} currentSession=data; samples=[];lastOwnSampleId=null;clearContext();showCollector();renderStats();loadSessions().catch(()=>{});
 }
 async function saveOutcome(outcome){
-  if(!currentSession)return; if(!pendingContext){$('#pendingBox').classList.remove('flash');void $('#pendingBox').offsetWidth;$('#pendingBox').classList.add('flash');setStatus($('#saveStatus'),'Choisis d’abord 1, 2, 3 ou 4.',true);return}
+  if(!currentSession)return; if(!pendingContext){$('#pendingBox').classList.remove('flash');void $('#pendingBox').offsetWidth;$('#pendingBox').classList.add('flash');setStatus($('#saveStatus'),isPhoneLayout()?'Choisis d’abord une situation.':'Choisis d’abord 1, 2, 3 ou 4.',true);return}
   const context=pendingContext,time=currentTime(); clearContext(); setStatus($('#saveStatus'),'Enregistrement…');
   const payload={session_id:currentSession.id,video_time_seconds:Math.round(time*10)/10,attack_context:context,outcome,created_by:currentUser.id};
   const {data,error}=await db.from('quick_attack_samples').insert(payload).select('*').single(); if(error){setStatus($('#saveStatus'),error.message,true);selectContext(context);return}
@@ -190,6 +221,7 @@ $('#changeSession').onclick=()=>{$('#collectorPanel').classList.add('hidden');$(
 $$('.shortcutBtn').forEach(b=>b.onclick=()=>selectContext(b.dataset.context)); $$('.outcomeBtn').forEach(b=>b.onclick=()=>saveOutcome(b.dataset.outcome)); $$('.speedBtn').forEach(b=>b.onclick=()=>applySpeed(b.dataset.speed));
 $('#back5').onclick=()=>seek(-5);$('#forward5').onclick=()=>seek(5);$('#togglePlay').onclick=togglePlay;$('#undoLast').onclick=undoLast;
 window.addEventListener('keydown',e=>{if(isTyping())return; const k=e.key.toLowerCase(); if(['1','2','3','4','s','d','f',' ','arrowleft','arrowright','backspace'].includes(k))e.preventDefault(); if(k==='1')selectContext('game_center');else if(k==='2')selectContext('restart_center');else if(k==='3')selectContext('restart_line');else if(k==='4')selectContext('restart_corner');else if(k==='s')saveOutcome('point');else if(k==='d')saveOutcome('defended');else if(k==='f')saveOutcome('attack_fault');else if(k===' ')togglePlay();else if(k==='arrowleft')seek(-5);else if(k==='arrowright')seek(5);else if(k==='backspace')undoLast()});
+syncMobileUi();
 (async()=>{try{const {data:{session}}=await db.auth.getSession();if(!session?.user){location.href='./';return}currentUser=session.user;await loadWorkspace();await loadSessions();setStatus($('#sessionStatus'),'Prêt · collecte partagée du workspace.')}catch(e){setStatus($('#sessionStatus'),e.message||String(e),true)}})();
 </script>
 </body>
