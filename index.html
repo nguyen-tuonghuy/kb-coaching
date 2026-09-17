@@ -87,6 +87,27 @@ button:active{transform:scale(.985)}
 .statsDomainTabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:14px 0 12px}
 .statsDomainTab{border:1px solid var(--line);min-height:46px}
 .statsDomainTab.active{background:var(--accent);border-color:#78a2ff}
+.matchCaptureMode{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.matchCaptureMode button{border:1px solid var(--line)}
+.matchCaptureMode button.active{background:var(--accent);border-color:#78a2ff}
+.matchVideoPanel{margin-bottom:12px}
+.matchVideoSticky{position:relative}
+.matchVideoWrap{aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden}
+.matchVideoWrap iframe,.matchVideoWrap>div{width:100%;height:100%}
+.matchVideoTransport{display:flex;gap:7px;margin-top:8px}
+.matchVideoTransport button{flex:1}
+.matchVideoSpeed{margin-top:8px;border:1px solid var(--line);border-radius:12px;background:var(--panel2)}
+.matchVideoSpeed summary{display:none;cursor:pointer;padding:10px 12px;font-weight:750}
+.matchVideoSpeedRow{display:flex;gap:7px;flex-wrap:wrap;padding:8px 0 0}
+.matchVideoSpeedBtn.active{background:var(--accent)}
+@media(max-width:640px){
+  .matchVideoSticky{position:sticky;top:0;z-index:45;background:var(--bg);padding:6px 0 8px;box-shadow:0 10px 18px rgba(0,0,0,.35)}
+  .matchVideoWrap{border-radius:10px}
+  .matchVideoSpeed summary{display:block}
+  .matchVideoSpeed:not([open]) .matchVideoSpeedRow,.matchVideoSpeed:not([open]) #matchVideoSpeedStatus{display:none}
+  .matchVideoSpeedRow{padding:0 8px 8px}
+}
+
 .statsMatchGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .statsMatchCard{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px}
 .statsMatchCard strong{display:block;font-size:21px;margin-top:2px}
@@ -1588,6 +1609,22 @@ button:active{transform:scale(.985)}
     <div class="roster" id="rosterChecks"></div>
    </div>
    <div id="matchGroupHint" class="small" style="margin-top:9px">Choisis d’abord un groupe. L’effectif se gère dans le volet Groupes.</div>
+
+   <div style="margin-top:14px">
+    <label>Mode de prise de notes</label>
+    <div class="matchCaptureMode" id="matchCaptureMode">
+      <button type="button" class="active" data-capture-mode="live">🏟️ En direct</button>
+      <button type="button" data-capture-mode="video">🎥 Depuis une vidéo</button>
+    </div>
+    <div class="small" style="margin-top:6px">Le mode vidéo ajoute un lecteur YouTube intégré ; la saisie détaillée reste identique.</div>
+   </div>
+
+   <div class="field hidden" id="matchYoutubeWrap" style="margin-top:10px">
+    <label>URL YouTube</label>
+    <input id="matchYoutubeUrl" placeholder="https://www.youtube.com/watch?v=…">
+    <div class="small" style="margin-top:5px">La position vidéo sera enregistrée automatiquement à chaque action.</div>
+   </div>
+
    <div class="row" style="margin-top:10px">
     <div class="field"><label>Période</label><select id="startPeriod"><option>P1</option><option>P2</option><option>P3</option><option>P4</option><option>P5</option><option>P6</option><option>P7</option><option>P8</option><option>P9</option><option>P10</option></select></div>
    </div>
@@ -1596,21 +1633,47 @@ button:active{transform:scale(.985)}
 
  <div id="live" class="hidden">
 
+  <section class="panel matchVideoPanel hidden" id="matchVideoPanel">
+    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div><h2 style="font-size:18px">🎥 Analyse vidéo</h2><div class="small" id="matchVideoMeta">Position enregistrée automatiquement à chaque action</div></div>
+      <button class="ghost" id="matchVideoOpenYoutube" type="button">Ouvrir sur YouTube</button>
+    </div>
+    <div class="matchVideoSticky">
+      <div class="matchVideoWrap"><div id="matchVideoPlayer"></div></div>
+      <div class="matchVideoTransport">
+        <button class="ghost" id="matchVideoBack5" type="button">−5 s</button>
+        <button class="ghost" id="matchVideoTogglePlay" type="button">▶ / ⏸</button>
+        <button class="ghost" id="matchVideoForward5" type="button">+5 s</button>
+      </div>
+      <details class="matchVideoSpeed" id="matchVideoSpeedDetails" open>
+        <summary>Vitesse <span aria-hidden="true">▾</span></summary>
+        <div class="matchVideoSpeedRow">
+          <button class="matchVideoSpeedBtn" data-speed="1" type="button">1×</button>
+          <button class="matchVideoSpeedBtn" data-speed="1.25" type="button">1,25×</button>
+          <button class="matchVideoSpeedBtn active" data-speed="1.5" type="button">1,5×</button>
+          <button class="matchVideoSpeedBtn" data-speed="2" type="button">2×</button>
+        </div>
+        <div class="small" id="matchVideoSpeedStatus" style="padding:0 8px 8px"></div>
+      </details>
+    </div>
+  </section>
+
   <section class="panel">
     <div class="row" style="justify-content:flex-end;margin-bottom:8px">
       <button class="ghost" id="liveBackHome">← Accueil</button>
     </div>
     <div class="row">
       <div class="field">
-        <label>Position vidéo — facultatif</label>
+        <label>Position vidéo</label>
         <input id="videoPosition" placeholder="ex. 12:43">
+        <div class="small" id="videoPositionHint" style="margin-top:5px">Facultatif en mode direct.</div>
       </div>
       <div class="field">
         <label>Période</label>
         <select id="period"><option>P1</option><option>P2</option><option>P3</option><option>P4</option><option>P5</option><option>P6</option><option>P7</option><option>P8</option><option>P9</option><option>P10</option></select>
       </div>
     </div>
-    <div class="note" style="margin-top:8px">Tu peux laisser la position vidéo vide et ne la renseigner que pour certaines actions utiles à retrouver.</div>
+    <div class="note" style="margin-top:8px" id="videoPositionNote">En mode direct, tu peux laisser la position vidéo vide et ne la renseigner que pour certaines actions utiles à retrouver.</div>
   </section>
 
   <section class="panel">
@@ -1999,6 +2062,7 @@ button:active{transform:scale(.985)}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://www.youtube.com/iframe_api"></script>
 <script>
 const KEY='kinball_coach_cloud_v200';
 const SUPABASE_URL='https://chrbzchthloxowlzdvpe.supabase.co';
@@ -2012,8 +2076,10 @@ const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
 let state={
   matchName:'',matchTypeId:null,teamName:'',opponentTeams:[],opponentTeamIds:{},matchDate:'',players:[],activePlayers:[],events:[],
-  currentMatchId:null,currentTeamId:null,workspaceId:null,playerIds:{},defenseRolesByPeriod:{}
+  currentMatchId:null,currentTeamId:null,workspaceId:null,playerIds:{},defenseRolesByPeriod:{},
+  captureMode:'live',youtubeUrl:'',youtubeVideoId:''
 };
+let matchVideoPlayer=null,matchVideoPlayerReady=false,matchVideoWantedId='',matchVideoPreferredSpeed=1.5;
 let context='jeu_centre', pending=null, zone='', movement='', who='', whoMany=[], faultType='', faultWho='', editingId=null, opponentTeam='';
 let family='centre',actionType='Attaque',actionResult='',restartLocation='';
 let currentUser=null;
@@ -2024,6 +2090,95 @@ function escapeHtml(v){
 }
 const escapeAttr=escapeHtml;
 const today=()=>new Date().toISOString().slice(0,10);
+
+function matchYoutubeId(raw){
+  const value=(raw||'').trim();
+  if(/^[\w-]{11}$/.test(value))return value;
+  try{
+    const u=new URL(value);
+    if(u.hostname==='youtu.be')return u.pathname.split('/').filter(Boolean)[0]||'';
+    if(u.searchParams.get('v'))return u.searchParams.get('v');
+    const parts=u.pathname.split('/').filter(Boolean);
+    const i=parts.findIndex(x=>['embed','shorts','live'].includes(x));
+    return i>=0?parts[i+1]||'':'';
+  }catch{return ''}
+}
+function formatMatchVideoTime(seconds){
+  const n=Math.max(0,Number(seconds)||0),s=Math.floor(n),m=Math.floor(s/60),h=Math.floor(m/60);
+  const mm=h?String(m%60).padStart(2,'0'):String(m),ss=String(s%60).padStart(2,'0');
+  return h?`${h}:${mm}:${ss}`:`${mm}:${ss}`;
+}
+function setMatchCaptureMode(mode){
+  state.captureMode=mode==='video'?'video':'live';
+  $$('#matchCaptureMode [data-capture-mode]').forEach(b=>b.classList.toggle('active',b.dataset.captureMode===state.captureMode));
+  $('#matchYoutubeWrap')?.classList.toggle('hidden',state.captureMode!=='video');
+}
+function syncMatchVideoUi(){
+  const videoMode=state.captureMode==='video'&&!!state.youtubeVideoId;
+  $('#matchVideoPanel')?.classList.toggle('hidden',!videoMode);
+  if($('#videoPositionHint'))$('#videoPositionHint').textContent=videoMode?'Mise à jour automatiquement depuis le lecteur ; tu peux la corriger manuellement.':'Facultatif en mode direct.';
+  if($('#videoPositionNote'))$('#videoPositionNote').textContent=videoMode?'La position courante du lecteur est enregistrée automatiquement au moment où tu valides chaque action.':'En mode direct, tu peux laisser la position vidéo vide et ne la renseigner que pour certaines actions utiles à retrouver.';
+  const details=$('#matchVideoSpeedDetails');
+  if(details){
+    if(window.matchMedia('(max-width:640px)').matches)details.removeAttribute('open');
+    else details.setAttribute('open','');
+  }
+}
+function createMatchVideoPlayer(){
+  if(matchVideoPlayer||!window.YT||!YT.Player)return;
+  matchVideoPlayer=new YT.Player('matchVideoPlayer',{
+    videoId:matchVideoWantedId,
+    playerVars:{playsinline:1,rel:0},
+    events:{
+      onReady:()=>{matchVideoPlayerReady=true;if(matchVideoWantedId)matchVideoPlayer.cueVideoById(matchVideoWantedId);applyMatchVideoSpeed(matchVideoPreferredSpeed)},
+      onStateChange:()=>syncMatchVideoPositionInput(),
+      onPlaybackRateChange:()=>syncMatchVideoSpeedButtons()
+    }
+  });
+}
+function initOrLoadMatchVideo(){
+  syncMatchVideoUi();
+  if(state.captureMode!=='video'||!state.youtubeVideoId)return;
+  matchVideoWantedId=state.youtubeVideoId;
+  if(matchVideoPlayerReady&&matchVideoPlayer){
+    try{matchVideoPlayer.cueVideoById(matchVideoWantedId);applyMatchVideoSpeed(matchVideoPreferredSpeed)}catch{}
+  }else if(window.YT&&YT.Player){createMatchVideoPlayer()}
+}
+window.onYouTubeIframeAPIReady=function(){createMatchVideoPlayer()};
+function syncMatchVideoPositionInput(){
+  if(state.captureMode!=='video'||!matchVideoPlayerReady||!matchVideoPlayer)return;
+  try{$('#videoPosition').value=formatMatchVideoTime(matchVideoPlayer.getCurrentTime())}catch{}
+}
+function matchVideoSeek(delta){
+  if(!matchVideoPlayerReady||!matchVideoPlayer)return;
+  try{const t=Math.max(0,(matchVideoPlayer.getCurrentTime()||0)+delta);matchVideoPlayer.seekTo(t,true);syncMatchVideoPositionInput()}catch{}
+}
+function applyMatchVideoSpeed(rate){
+  matchVideoPreferredSpeed=Number(rate)||1;
+  let chosen=matchVideoPreferredSpeed;
+  if(matchVideoPlayerReady&&matchVideoPlayer){
+    try{
+      const rates=matchVideoPlayer.getAvailablePlaybackRates?.()||[1,1.25,1.5,2];
+      if(!rates.includes(chosen))chosen=rates.reduce((a,b)=>Math.abs(b-matchVideoPreferredSpeed)<Math.abs(a-matchVideoPreferredSpeed)?b:a,rates[0]||1);
+      matchVideoPlayer.setPlaybackRate(chosen);
+    }catch{}
+  }
+  $$('.matchVideoSpeedBtn').forEach(b=>b.classList.toggle('active',Number(b.dataset.speed)===chosen));
+  if($('#matchVideoSpeedStatus'))$('#matchVideoSpeedStatus').textContent=`Vitesse : ${String(chosen).replace('.',',')}×`;
+}
+function syncMatchVideoSpeedButtons(){
+  if(!matchVideoPlayerReady||!matchVideoPlayer)return;
+  let rate=matchVideoPreferredSpeed;try{rate=matchVideoPlayer.getPlaybackRate()}catch{}
+  $$('.matchVideoSpeedBtn').forEach(b=>b.classList.toggle('active',Number(b.dataset.speed)===Number(rate)));
+  if($('#matchVideoSpeedStatus'))$('#matchVideoSpeedStatus').textContent=`Vitesse : ${String(rate).replace('.',',')}×`;
+}
+function currentMatchVideoPosition(){
+  if(state.captureMode==='video'&&matchVideoPlayerReady&&matchVideoPlayer){
+    try{const v=formatMatchVideoTime(matchVideoPlayer.getCurrentTime());$('#videoPosition').value=v;return v}catch{}
+  }
+  return ($('#videoPosition').value||'').trim()||null;
+}
+
 const setCloud=(text,ok=true)=>{
   $('#cloudStatus').textContent=text;
   $('#cloudDot').classList.toggle('online',ok);
@@ -2782,6 +2937,9 @@ function resetForNewMatch(){
   state.playerIds={};
   state.playerRolePreferences={};
   state.defenseRolesByPeriod={};
+  state.captureMode='live';
+  state.youtubeUrl='';
+  state.youtubeVideoId='';
 
   $('#matchName').value='Match';
   if($('#matchType'))$('#matchType').value='';
@@ -2793,6 +2951,9 @@ function resetForNewMatch(){
   $('#rosterWrap').classList.add('hidden');
   if($('#recentMatches')) $('#recentMatches').value='';
   $('#videoPosition').value='';
+  if($('#matchYoutubeUrl'))$('#matchYoutubeUrl').value='';
+  setMatchCaptureMode('live');
+  syncMatchVideoUi();
   $('#period').value='P1';
   $('#startPeriod').value='P1';
 
@@ -2826,6 +2987,10 @@ async function start(){
     if(state.opponentTeams.some(x=>!x)){alert('Renseigne le nom des 3 équipes du match.');return}
     if(new Set([state.teamName,...state.opponentTeams].map(x=>x.toLowerCase())).size!==3){alert('Les 3 équipes doivent avoir des noms différents.');return}
     state.matchDate=frInputToIso($('#matchDate').value||isoToFrInput(today()));
+    state.captureMode=state.captureMode==='video'?'video':'live';
+    state.youtubeUrl=state.captureMode==='video'?($('#matchYoutubeUrl').value||'').trim():'';
+    state.youtubeVideoId=state.captureMode==='video'?matchYoutubeId(state.youtubeUrl):'';
+    if(state.captureMode==='video'&&!state.youtubeVideoId){alert('Renseigne une URL YouTube valide pour le mode vidéo.');return}
     const groupId=$('#matchGroup').value;
     if(!groupId){alert('Choisis le groupe suivi.');return}
     if(groupState.matchPlayers.length<4){alert('Le groupe doit contenir au moins 4 joueurs.');return}
@@ -2858,6 +3023,8 @@ async function start(){
       match_type_id:state.matchTypeId,
       label:state.matchName,
       played_on:state.matchDate,
+      capture_mode:state.captureMode,
+      youtube_url:state.youtubeUrl||null,
       status:'draft'
     }).select('id').single();
     if(error) throw error;
@@ -2881,6 +3048,7 @@ async function start(){
     $('#setup').classList.add('hidden');
     $('#live').classList.remove('hidden');
     $('#footer')?.classList.remove('hidden');
+    initOrLoadMatchVideo();
     saveLocal();renderPlayers();render();
     await refreshRecentMatches();
     setCloud('Synchronisé',true);
@@ -2896,7 +3064,7 @@ function labelContext(c){
   return c;
 }
 function currentVideoPosition(){
-  return ($('#videoPosition').value||'').trim() || null;
+  return currentMatchVideoPosition();
 }
 function dbActionType(e){
   if(e.action==='Faute') return 'faute';
@@ -2976,7 +3144,7 @@ async function loadMatch(matchId){
   try{
     setCloud('Chargement…',true);
     const [{data:m,error:me},{data:players,error:pe},{data:events,error:ee}] = await Promise.all([
-      db.from('matches').select('id,label,played_on,group_id,team_id,match_type_id,opponent_team_1_id,opponent_team_2_id,followed_team:teams!matches_team_id_fkey(name)').eq('id',matchId).single(),
+      db.from('matches').select('id,label,played_on,group_id,team_id,match_type_id,opponent_team_1_id,opponent_team_2_id,capture_mode,youtube_url,followed_team:teams!matches_team_id_fkey(name)').eq('id',matchId).single(),
       Promise.resolve({data:[],error:null}),
       db.from('match_events').select('*').eq('match_id',matchId).order('sequence_no',{ascending:true})
     ]);
@@ -3000,6 +3168,9 @@ async function loadMatch(matchId){
     state.opponentTeams=[m.opponent_team_1_id,m.opponent_team_2_id].map(id=>opponentById[id]||'').filter(Boolean);
     state.opponentTeamIds=Object.fromEntries(opponentRows.map(t=>[t.name,t.id]));
     state.matchDate=m.played_on||'';
+    state.captureMode=m.capture_mode==='video'?'video':'live';
+    state.youtubeUrl=m.youtube_url||'';
+    state.youtubeVideoId=state.captureMode==='video'?matchYoutubeId(state.youtubeUrl):'';
     state.playerIds={};
     const idToName={};
 
@@ -3072,9 +3243,12 @@ async function loadMatch(matchId){
     $('#opponentTeam1').value=state.opponentTeams[0]||'';
     $('#opponentTeam2').value=state.opponentTeams[1]||'';
     $('#matchDate').value=isoToFrInput(state.matchDate||today());
+    setMatchCaptureMode(state.captureMode);
+    if($('#matchYoutubeUrl'))$('#matchYoutubeUrl').value=state.youtubeUrl||'';
     if(m.group_id){$('#matchGroup').value=m.group_id;await loadMatchGroupPlayers(m.group_id);}
     $('#setup').classList.add('hidden');
     $('#live').classList.remove('hidden');
+    initOrLoadMatchVideo();
     $('#footer')?.classList.remove('hidden');
     renderPlayers();render();saveLocal();
     setCloud('Synchronisé',true);
@@ -3475,6 +3649,26 @@ $('#newMatchTop').onclick=()=>{
   if(state.events.length && !confirm('Commencer un nouveau match ? Le match actuel restera enregistré dans la base.')) return;
   openMatchModule().catch(e=>handleError('new match',e));
 };
+$$('#matchCaptureMode [data-capture-mode]').forEach(b=>b.onclick=()=>setMatchCaptureMode(b.dataset.captureMode));
+if($('#matchYoutubeUrl'))$('#matchYoutubeUrl').oninput=()=>{
+  if(state.captureMode==='video'){
+    state.youtubeUrl=$('#matchYoutubeUrl').value.trim();
+    state.youtubeVideoId=matchYoutubeId(state.youtubeUrl);
+  }
+};
+if($('#matchVideoBack5'))$('#matchVideoBack5').onclick=()=>matchVideoSeek(-5);
+if($('#matchVideoForward5'))$('#matchVideoForward5').onclick=()=>matchVideoSeek(5);
+if($('#matchVideoTogglePlay'))$('#matchVideoTogglePlay').onclick=()=>{
+  if(!matchVideoPlayerReady||!matchVideoPlayer)return;
+  try{
+    if(matchVideoPlayer.getPlayerState()===YT.PlayerState.PLAYING)matchVideoPlayer.pauseVideo();
+    else matchVideoPlayer.playVideo();
+  }catch{}
+};
+$$('.matchVideoSpeedBtn').forEach(b=>b.onclick=()=>applyMatchVideoSpeed(Number(b.dataset.speed)));
+if($('#matchVideoOpenYoutube'))$('#matchVideoOpenYoutube').onclick=()=>{if(state.youtubeUrl)window.open(state.youtubeUrl,'_blank','noopener')};
+window.addEventListener('resize',syncMatchVideoUi);
+
 $('#start').onclick=()=>{
   if($('#rosterWrap').classList.contains('hidden')) buildChecks();
   const checked=$$('#rosterChecks input:checked');
@@ -4356,10 +4550,11 @@ function renderMatchLibrary(){
     const opponents=[m.opponent1?.name,m.opponent2?.name].filter(Boolean).join(' / ');
     const type=m.match_type?.name||'Sans type';
     const n=matchActionCount(m);
+    const videoBadge=m.capture_mode==='video'&&m.youtube_url?' · 🎥 vidéo':'';
     card.innerHTML=`<div class="matchLibraryMain">
       <div class="matchLibraryInfo">
         <div class="matchLibraryTitle">${statsEscape(formatDateShort(m.played_on)||'Date ?')} · ${statsEscape(m.label)}</div>
-        <div class="matchLibraryMeta">${statsEscape(type)}${m.match_type&&!m.match_type.active?'<span class="matchTypeArchived">archivé</span>':''} · ${statsEscape(m.group?.name||m.followed_team?.name||'Groupe')}${opponents?' · vs '+statsEscape(opponents):''} · ${n} action${n>1?'s':''}</div>
+        <div class="matchLibraryMeta">${statsEscape(type)}${m.match_type&&!m.match_type.active?'<span class="matchTypeArchived">archivé</span>':''} · ${statsEscape(m.group?.name||m.followed_team?.name||'Groupe')}${opponents?' · vs '+statsEscape(opponents):''}${videoBadge} · ${n} action${n>1?'s':''}</div>
       </div>
       <div class="matchLibraryActions">
         <button class="primary" data-analyze="${m.id}">Analyser</button>
