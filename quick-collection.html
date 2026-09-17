@@ -26,7 +26,7 @@ button{border:0;border-radius:14px;padding:12px 11px;background:var(--panel2);co
 <body>
 <div class="app">
   <div class="top">
-    <div><h1>⚡ Collecte rapide</h1><div class="sub">Dataset partagé · attaques seulement · 1–4 puis P / D / F</div></div>
+    <div><h1>⚡ Collecte rapide</h1><div class="sub">Dataset partagé · attaques seulement · 1–4 puis S / D / F</div></div>
     <button class="ghost" id="backHome">← Kinball Coach</button>
   </div>
 
@@ -34,7 +34,7 @@ button{border:0;border-radius:14px;padding:12px 11px;background:var(--panel2);co
     <h2 style="font-size:19px;margin-bottom:10px">Session vidéo</h2>
     <div class="row">
       <div class="field" style="flex-basis:340px"><label>URL YouTube</label><input id="youtubeUrl" placeholder="https://www.youtube.com/watch?v=…"></div>
-      <div class="field"><label>Population</label><select id="sex"><option value="H">Hommes</option><option value="F">Femmes</option><option value="Mixte">Mixte</option></select></div>
+      <div class="field"><label>Population</label><select id="sex"><option value="H">Hommes</option><option value="F">Femmes</option></select></div>
       <div class="field"><label>Catégorie</label><select id="category"><option value="Senior">Senior</option><option value="U18">U18</option><option value="U15">U15</option><option value="U12">U12</option><option value="Autre">Autre</option></select></div>
     </div>
     <div class="row" style="margin-top:9px">
@@ -62,9 +62,10 @@ button{border:0;border-radius:14px;padding:12px 11px;background:var(--panel2);co
 
     <div class="videoWrap"><div id="player"></div></div>
     <div class="speedRow">
-      <button class="speedBtn" data-speed="1">1×</button><button class="speedBtn" data-speed="1.25">1,25×</button><button class="speedBtn active" data-speed="1.5">1,5×</button><button class="speedBtn" data-speed="2">2×</button>
+      <button class="speedBtn" data-speed="1">1×</button><button class="speedBtn" data-speed="1.25">1,25×</button><button class="speedBtn active" data-speed="1.5">1,5×</button><button class="speedBtn" data-speed="2">2×</button><button class="speedBtn" data-speed="2.5">2,5×</button>
       <button class="ghost" id="back3">−3 s</button><button class="ghost" id="togglePlay">▶ / ⏸</button><button class="ghost" id="forward3">+3 s</button>
     </div>
+    <div class="small" id="speedStatus" style="margin-top:6px"></div>
 
     <div class="statusBox" id="pendingBox">
       <div class="small">Contexte sélectionné</div>
@@ -79,7 +80,7 @@ button{border:0;border-radius:14px;padding:12px 11px;background:var(--panel2);co
     </div>
 
     <div class="outcomeGrid">
-      <button class="outcomeBtn point" data-outcome="point"><span class="shortcutKey">P</span>Point marqué</button>
+      <button class="outcomeBtn point" data-outcome="point"><span class="shortcutKey">S</span>Point marqué</button>
       <button class="outcomeBtn defended" data-outcome="defended"><span class="shortcutKey">D</span>Point défendu</button>
       <button class="outcomeBtn fault" data-outcome="attack_fault"><span class="shortcutKey">F</span>Faute d’attaque</button>
     </div>
@@ -121,8 +122,19 @@ function youtubeId(raw){
 function formatTime(seconds){const s=Math.max(0,Math.floor(Number(seconds)||0)),m=Math.floor(s/60);return `${m}:${String(s%60).padStart(2,'0')}`}
 function isTyping(){const e=document.activeElement;return e&&['INPUT','SELECT','TEXTAREA'].includes(e.tagName)}
 function currentTime(){try{return playerReady?Number(player.getCurrentTime()||0):0}catch{return 0}}
-function applySpeed(rate){preferredSpeed=Number(rate); if(playerReady){const rates=player.getAvailablePlaybackRates?.()||[1]; let chosen=preferredSpeed; if(!rates.includes(chosen)){chosen=rates.reduce((a,b)=>Math.abs(b-preferredSpeed)<Math.abs(a-preferredSpeed)?b:a,rates[0]||1)} player.setPlaybackRate(chosen)} $$('.speedBtn').forEach(b=>b.classList.toggle('active',Number(b.dataset.speed)===preferredSpeed))}
-function selectContext(context){pendingContext=context; $$('.shortcutBtn').forEach(b=>b.classList.toggle('active',b.dataset.context===context)); $('#pendingText').textContent=CONTEXT_LABELS[context]+' → choisis P / D / F'}
+function applySpeed(rate){
+  preferredSpeed=Number(rate);
+  let chosen=preferredSpeed;
+  if(playerReady){
+    const rates=player.getAvailablePlaybackRates?.()||[1];
+    if(!rates.includes(chosen)) chosen=rates.reduce((a,b)=>Math.abs(b-preferredSpeed)<Math.abs(a-preferredSpeed)?b:a,rates[0]||1);
+    player.setPlaybackRate(chosen);
+  }
+  $$('.speedBtn').forEach(b=>b.classList.toggle('active',Number(b.dataset.speed)===chosen));
+  const st=$('#speedStatus');
+  if(st) st.textContent=chosen===preferredSpeed?`Vitesse : ${String(chosen).replace('.',',')}×`:`2,5× non disponible sur cette vidéo · vitesse appliquée : ${String(chosen).replace('.',',')}×`;
+}
+function selectContext(context){pendingContext=context; $$('.shortcutBtn').forEach(b=>b.classList.toggle('active',b.dataset.context===context)); $('#pendingText').textContent=CONTEXT_LABELS[context]+' → choisis S / D / F'}
 function clearContext(){pendingContext=''; $$('.shortcutBtn').forEach(b=>b.classList.remove('active')); $('#pendingText').textContent='Appuie sur 1, 2, 3 ou 4'}
 function renderStats(){
   const contexts=['game_center','restart_center','restart_line','restart_corner'];
@@ -149,7 +161,7 @@ function showCollector(){
   $('#sessionPanel').classList.add('hidden'); $('#collectorPanel').classList.remove('hidden'); $('#activeTitle').textContent=currentSession.label||'Collecte rapide'; $('#activeMeta').textContent=`${currentSession.sex} · ${currentSession.category||'Catégorie non précisée'}${currentSession.competition_level?' · '+currentSession.competition_level:''} · vidéo ${currentSession.youtube_video_id}`; wantedVideoId=currentSession.youtube_video_id; if(playerReady)loadVideo();
 }
 function loadVideo(){if(!playerReady||!wantedVideoId)return; player.cueVideoById(wantedVideoId); setTimeout(()=>applySpeed(preferredSpeed),500)}
-window.onYouTubeIframeAPIReady=function(){player=new YT.Player('player',{width:'100%',height:'100%',videoId:wantedVideoId||'',playerVars:{playsinline:1,controls:1,disablekb:1,origin:location.origin},events:{onReady:()=>{playerReady=true;if(wantedVideoId)loadVideo()},onPlaybackRateChange:e=>{$$('.speedBtn').forEach(b=>b.classList.toggle('active',Number(b.dataset.speed)===Number(e.data)))}}})};
+window.onYouTubeIframeAPIReady=function(){player=new YT.Player('player',{width:'100%',height:'100%',videoId:wantedVideoId||'',playerVars:{playsinline:1,controls:1,disablekb:1,origin:location.origin},events:{onReady:()=>{playerReady=true;if(wantedVideoId)loadVideo()},onPlaybackRateChange:e=>{const actual=Number(e.data);$$('.speedBtn').forEach(b=>b.classList.toggle('active',Number(b.dataset.speed)===actual));const st=$('#speedStatus');if(st)st.textContent=`Vitesse : ${String(actual).replace('.',',')}×`;}}})};
 async function createSession(){
   const url=$('#youtubeUrl').value.trim(),id=youtubeId(url); if(!id){setStatus($('#sessionStatus'),'URL YouTube non reconnue.',true);return}
   setStatus($('#sessionStatus'),'Création…');
@@ -175,7 +187,7 @@ $('#openExisting').onclick=async()=>{const o=$('#existingSessions').selectedOpti
 $('#changeSession').onclick=()=>{$('#collectorPanel').classList.add('hidden');$('#sessionPanel').classList.remove('hidden');clearContext();};
 $$('.shortcutBtn').forEach(b=>b.onclick=()=>selectContext(b.dataset.context)); $$('.outcomeBtn').forEach(b=>b.onclick=()=>saveOutcome(b.dataset.outcome)); $$('.speedBtn').forEach(b=>b.onclick=()=>applySpeed(b.dataset.speed));
 $('#back3').onclick=()=>seek(-3);$('#forward3').onclick=()=>seek(3);$('#togglePlay').onclick=togglePlay;$('#undoLast').onclick=undoLast;
-window.addEventListener('keydown',e=>{if(isTyping())return; const k=e.key.toLowerCase(); if(['1','2','3','4','p','d','f',' ','arrowleft','arrowright','backspace'].includes(k))e.preventDefault(); if(k==='1')selectContext('game_center');else if(k==='2')selectContext('restart_center');else if(k==='3')selectContext('restart_line');else if(k==='4')selectContext('restart_corner');else if(k==='p')saveOutcome('point');else if(k==='d')saveOutcome('defended');else if(k==='f')saveOutcome('attack_fault');else if(k===' ')togglePlay();else if(k==='arrowleft')seek(-3);else if(k==='arrowright')seek(3);else if(k==='backspace')undoLast()});
+window.addEventListener('keydown',e=>{if(isTyping())return; const k=e.key.toLowerCase(); if(['1','2','3','4','s','d','f',' ','arrowleft','arrowright','backspace'].includes(k))e.preventDefault(); if(k==='1')selectContext('game_center');else if(k==='2')selectContext('restart_center');else if(k==='3')selectContext('restart_line');else if(k==='4')selectContext('restart_corner');else if(k==='s')saveOutcome('point');else if(k==='d')saveOutcome('defended');else if(k==='f')saveOutcome('attack_fault');else if(k===' ')togglePlay();else if(k==='arrowleft')seek(-3);else if(k==='arrowright')seek(3);else if(k==='backspace')undoLast()});
 (async()=>{try{const {data:{session}}=await db.auth.getSession();if(!session?.user){location.href='./';return}currentUser=session.user;await loadWorkspace();await loadSessions();setStatus($('#sessionStatus'),'Prêt · collecte partagée du workspace.')}catch(e){setStatus($('#sessionStatus'),e.message||String(e),true)}})();
 </script>
 </body>
