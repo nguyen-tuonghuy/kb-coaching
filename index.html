@@ -922,6 +922,14 @@ button:active{transform:scale(.985)}
 .analysisMetricRateOpponent{background:rgba(125,220,159,.12);border-color:rgba(125,220,159,.45)}
 .analysisMetricRateOpponent .label,.analysisMetricRateOpponent .value{color:#9fe8b9}
 .analysisOpponentComparePlaceholder{visibility:hidden}
+.analysisImpactPositive{color:#8ee3aa;font-weight:800}
+.analysisImpactNegative{color:#ff9b9b;font-weight:800}
+.analysisImpactNeutral{color:var(--text);font-weight:800}
+.analysisReferenceGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.analysisReferenceCard{border:1px solid var(--line);border-radius:11px;padding:9px;background:rgba(255,255,255,.018)}
+.analysisReferenceCard strong{display:block;font-size:12px;margin-bottom:5px}
+.analysisReferenceCard .small{line-height:1.45}
+@media(max-width:720px){.analysisReferenceGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){
   .analysisOpponentCompareGrid{gap:6px}
   .analysisOpponentCompareGrid>.analysisMetric{padding:8px}
@@ -1454,6 +1462,22 @@ button:active{transform:scale(.985)}
    <div id="analysisPlayersTab" class="matchAnalysisSection hidden">
     <div class="analysisSubtle" style="margin-bottom:9px">
       Les actions collectives ou non attribuées restent séparées. En défense, une action attribuée à plusieurs joueurs compte comme une participation pour chacun, sans fractionnement.
+    </div>
+    <div class="analysisBlock">
+      <div class="row" style="justify-content:space-between;align-items:end;gap:10px">
+        <div>
+          <h3 style="margin-bottom:4px">Référentiel offensif</h3>
+          <div class="analysisSubtle">Calculé automatiquement à partir des collectes rapides et des issues attaque/défense des matchs détaillés.</div>
+        </div>
+        <div class="field" style="max-width:190px">
+          <label>Population</label>
+          <select id="analysisPopulation">
+            <option value="H">Hommes</option>
+            <option value="F">Femmes</option>
+          </select>
+        </div>
+      </div>
+      <div id="analysisOffensiveReference" style="margin-top:10px"></div>
     </div>
     <div id="analysisPlayersByOpponent"></div>
    </div>
@@ -4424,7 +4448,9 @@ let analysisState={
   matches:[],
   events:[],
   players:[],
-  activeTab:'summary'
+  activeTab:'summary',
+  population:'H',
+  offensiveReference:null
 };
 
 function analysisSemanticType(e){
@@ -4549,6 +4575,183 @@ function analysisDefenseZoneGroup(zone){
   return 'Non précisée';
 }
 
+
+const OFFENSIVE_CONTEXTS=[
+  {key:'game_center',label:'Jeu courant · centre'},
+  {key:'restart_center',label:'Remise · centre'},
+  {key:'restart_line',label:'Remise · ligne'},
+  {key:'restart_corner',label:'Remise · coin'}
+];
+
+function inferAnalysisPopulation(){
+  const text=(analysisState.matches||[]).map(m=>m.group?.name||'').join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  if(/\b(feminin|feminine|femmes|femme|edf f)\b/.test(text))return 'F';
+  return 'H';
+}
+function groupPopulationFromName(name){
+  const t=String(name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  if(/\b(feminin|feminine|femmes|femme|edf f)\b/.test(t))return 'F';
+  if(/\b(hommes|homme|masculin|masculine|edf h)\b/.test(t))return 'H';
+  return null;
+}
+function offensiveContextFromEvent(e){
+  if(e.family==='centre')return 'game_center';
+  if(e.family!=='remise')return null;
+  if(e.restart_location==='centre')return 'restart_center';
+  if(e.restart_location==='ligne')return 'restart_line';
+  if(e.restart_location==='coin')return 'restart_corner';
+  return null;
+}
+function emptyOffensiveCounts(){
+  return Object.fromEntries(OFFENSIVE_CONTEXTS.map(c=>[c.key,{point:0,defended:0,attack_fault:0,total:0}]));
+}
+function addOffensiveObservation(counts,context,outcome){
+  const x=counts[context];
+  if(!x||!['point','defended','attack_fault'].includes(outcome))return false;
+  x[outcome]++;x.total++;return true;
+}
+function detailedEventToOffensiveObservation(e){
+  const context=offensiveContextFromEvent(e);
+  if(!context)return null;
+  if(e.action_type==='attaque'){
+    if(['Point marqué','Défensive illégale'].includes(e.result))return {context,outcome:'point'};
+    if(e.result==='Ballon défendu')return {context,outcome:'defended'};
+    if(e.result==='Faute attaque')return {context,outcome:'attack_fault'};
+    return null;
+  }
+  if(e.action_type==='faute'&&e.fault_type!=='Défensive illégale'){
+    return {context,outcome:'attack_fault'};
+  }
+  if(e.action_type==='defense'){
+    if(e.result==='Ballon défendu')return {context,outcome:'defended'};
+    if(e.result==='Échappé'||e.result==='Défensive illégale')return {context,outcome:'point'};
+    if(e.result==='Faute de l’adversaire')return {context,outcome:'attack_fault'};
+  }
+  if(e.action_type==='faute'&&e.fault_type==='Défensive illégale'){
+    return {context,outcome:'point'};
+  }
+  return null;
+}
+async function loadOffensiveReference(population){
+  const counts=emptyOffensiveCounts();
+  let quickCount=0,detailedCount=0;
+
+  const {data:sessions,error:se}=await db.from('quick_collection_sessions')
+    .select('id').eq('sex',population);
+  if(se)throw se;
+  const sessionIds=(sessions||[]).map(s=>s.id);
+  if(sessionIds.length){
+    const {data:samples,error:qe}=await db.from('quick_attack_samples')
+      .select('attack_context,outcome').in('session_id',sessionIds);
+    if(qe)throw qe;
+    (samples||[]).forEach(s=>{
+      if(addOffensiveObservation(counts,s.attack_context,s.outcome))quickCount++;
+    });
+  }
+
+  if(!groupState.groups.length)await fetchMyGroups();
+  const groupIds=groupState.groups.filter(g=>groupPopulationFromName(g.name)===population).map(g=>g.id);
+  if(groupIds.length){
+    const {data:matches,error:me}=await db.from('matches').select('id').in('group_id',groupIds);
+    if(me)throw me;
+    const matchIds=(matches||[]).map(m=>m.id);
+    if(matchIds.length){
+      const {data:events,error:ee}=await db.from('match_events')
+        .select('family,restart_location,action_type,result,fault_type').in('match_id',matchIds);
+      if(ee)throw ee;
+      (events||[]).forEach(e=>{
+        const obs=detailedEventToOffensiveObservation(e);
+        if(obs&&addOffensiveObservation(counts,obs.context,obs.outcome))detailedCount++;
+      });
+    }
+  }
+
+  const contexts={};
+  OFFENSIVE_CONTEXTS.forEach(c=>{
+    const x=counts[c.key];
+    contexts[c.key]={
+      ...x,
+      p:x.total?x.point/x.total:0,
+      q:x.total?x.attack_fault/x.total:0,
+      mu:x.total?(x.point-2*x.attack_fault)/x.total:0
+    };
+  });
+  return {population,contexts,total:quickCount+detailedCount,quickCount,detailedCount};
+}
+function renderOffensiveReference(){
+  const box=$('#analysisOffensiveReference');if(!box)return;
+  const ref=analysisState.offensiveReference;
+  if(!ref){box.innerHTML='<div class="analysisEmpty">Référentiel indisponible.</div>';return}
+  box.innerHTML=`<div class="analysisReferenceGrid">${OFFENSIVE_CONTEXTS.map(c=>{
+    const x=ref.contexts[c.key];
+    return `<div class="analysisReferenceCard">
+      <strong>${escapeHtml(c.label)}</strong>
+      <div class="small">Point : ${x.total?Math.round(1000*x.p)/10+' %':'—'} · Faute : ${x.total?Math.round(1000*x.q)/10+' %':'—'}</div>
+      <div class="small">Valeur attendue μ : ${x.total?(Math.round(1000*x.mu)/1000).toFixed(3):'—'}</div>
+      <div class="small">N = ${x.total}</div>
+    </div>`;
+  }).join('')}</div>
+  <div class="analysisSubtle" style="margin-top:8px">Population ${ref.population==='H'?'Hommes':'Femmes'} · ${ref.total} observations : ${ref.quickCount} collecte rapide + ${ref.detailedCount} issues des matchs détaillés. Centre / ligne / coin désignent la position de départ.</div>`;
+}
+function offensiveActualValue(outcome){
+  if(outcome==='Point marqué'||outcome==='Défensive illégale')return 1;
+  if(outcome==='Ballon défendu')return 0;
+  if(outcome==='Faute attaque')return -2;
+  return null;
+}
+function playerOffensiveImpact(events,playerName){
+  const ref=analysisState.offensiveReference;
+  const out={name:playerName,total:0,points:0,defended:0,faults:0,expectedPoints:0,expectedFaults:0,actualValue:0,expectedValue:0,impact:0,impact100:null};
+  if(!ref)return out;
+  events.forEach(e=>{
+    if(analysisSemanticType(e)!=='attack')return;
+    const people=analysisEventPeople(e);
+    if(people.length!==1||people[0]!==playerName)return;
+    const context=offensiveContextFromEvent(e);
+    const r=ref.contexts[context];
+    if(!context||!r||!r.total)return;
+    const outcome=analysisOutcome(e);
+    const value=offensiveActualValue(outcome);
+    if(value==null)return;
+    out.total++;
+    if(outcome==='Point marqué'||outcome==='Défensive illégale')out.points++;
+    else if(outcome==='Ballon défendu')out.defended++;
+    else if(outcome==='Faute attaque')out.faults++;
+    out.expectedPoints+=r.p;
+    out.expectedFaults+=r.q;
+    out.actualValue+=value;
+    out.expectedValue+=r.mu;
+  });
+  out.impact=out.actualValue-out.expectedValue;
+  out.impact100=out.total?100*out.impact/out.total:null;
+  return out;
+}
+function signed1(v){
+  if(v==null||!Number.isFinite(v))return '—';
+  const rounded=Math.round(v*10)/10;
+  return `${rounded>0?'+':''}${rounded.toFixed(1).replace('.',',')}`;
+}
+function impactClass(v){
+  if(v>0.05)return 'analysisImpactPositive';
+  if(v<-0.05)return 'analysisImpactNegative';
+  return 'analysisImpactNeutral';
+}
+function renderOffensiveImpactTable(events,allPlayers){
+  const rows=allPlayers.map(name=>playerOffensiveImpact(events,name));
+  return `<div class="analysisSubsectionTitle">Impact offensif ajusté au contexte</div>
+  <div class="analysisSubtle" style="margin-bottom:7px">Valeur réelle : +1 point · 0 ballon défendu · −2 faute. Impact = valeur réelle − valeur attendue selon la position de départ. Les actions sans frappeur attribué ne sont pas affectées à un joueur.</div>
+  <div class="analysisTableWrap"><table class="analysisTable"><thead><tr>
+    <th>Joueur</th><th>Att.</th><th>Pts réels</th><th>Pts attendus</th><th>Fautes</th><th>Fautes att.</th><th>Impact</th><th>Impact /100</th>
+  </tr></thead><tbody>${rows.map(x=>`<tr>
+    <td>${escapeHtml(x.name)}${x.total>0&&x.total<20?' <span class="small">· échantillon limité</span>':''}</td>
+    <td>${x.total}</td><td>${x.points}</td><td>${x.total?(Math.round(x.expectedPoints*10)/10).toFixed(1).replace('.',','):'—'}</td>
+    <td>${x.faults}</td><td>${x.total?(Math.round(x.expectedFaults*10)/10).toFixed(1).replace('.',','):'—'}</td>
+    <td class="${impactClass(x.impact)}">${x.total?signed1(x.impact):'—'}</td>
+    <td class="${impactClass(x.impact100||0)}">${x.total?signed1(x.impact100):'—'}</td>
+  </tr>`).join('')}</tbody></table></div>`;
+}
+
+
 async function loadMatchAnalysisDataset(matchIds){
   const unique=[...new Set((matchIds||[]).filter(Boolean))];
   if(!unique.length)throw new Error('Aucun match à analyser.');
@@ -4632,7 +4835,16 @@ async function openMatchAnalysisIds(matchIds){
   setCloud('Analyse…',true);
   const dataset=await loadMatchAnalysisDataset(matchIds);
   analysisState={...analysisState,...dataset,activeTab:'summary'};
-  renderMatchAnalysisHeader();populateAnalysisEvolutionPlayers();setAnalysisTab('summary');renderMatchAnalysis();
+  analysisState.population=inferAnalysisPopulation();
+  const populationSelect=$('#analysisPopulation');
+  if(populationSelect)populationSelect.value=analysisState.population;
+  try{
+    analysisState.offensiveReference=await loadOffensiveReference(analysisState.population);
+  }catch(e){
+    console.error('offensive reference',e);
+    analysisState.offensiveReference=null;
+  }
+  renderMatchAnalysisHeader();populateAnalysisEvolutionPlayers();setAnalysisTab('summary');renderMatchAnalysis();renderOffensiveReference();
   hideMainModules();setMatchHeaderMode(false);$('#matchAnalysis').classList.remove('hidden');setCloud('Synchronisé',true);window.scrollTo({top:0,behavior:'instant'});
 }
 
@@ -4895,7 +5107,8 @@ function renderAnalysisPlayers(events){
     const scopeAttacks=scope.events.filter(e=>analysisSemanticType(e)==='attack');
     const scopeDefenses=scope.events.filter(e=>analysisSemanticType(e)==='defense');
     return `<div class="analysisBlock"><h3>${escapeHtml(scope.label)}</h3>
-      <div class="analysisSubtle" style="font-weight:800;margin:0 0 6px">Attaque par joueur</div>
+      ${renderOffensiveImpactTable(scopeAttacks,allPlayers)}
+      <div class="analysisSubtle" style="font-weight:800;margin:14px 0 6px">Détail de l’attaque par joueur</div>
       ${renderAttackTable('Jeu au centre',buildAttackRows(scopeAttacks.filter(e=>e.family==='centre')))}
       ${renderAttackTable('Remise en jeu',buildAttackRows(scopeAttacks.filter(e=>e.family==='remise')))}
       <div class="analysisSubsectionTitle">Implication défensive</div>
@@ -6065,6 +6278,20 @@ $('#groupAnalysisRun').onclick=()=>runGroupedAnalysis().catch(e=>handleError('an
 $('#matchReadBack').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
 $('#matchAnalysisBack').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
 $$('.matchAnalysisTabs button').forEach(b=>b.onclick=()=>setAnalysisTab(b.dataset.analysisTab));
+{ const analysisPopulation=$('#analysisPopulation'); if(analysisPopulation) analysisPopulation.onchange=async()=>{
+  analysisState.population=analysisPopulation.value;
+  setCloud('Référentiel…',true);
+  try{
+    analysisState.offensiveReference=await loadOffensiveReference(analysisState.population);
+    renderOffensiveReference();
+    renderAnalysisPlayers(analysisState.events||[]);
+    setCloud('Synchronisé',true);
+  }catch(e){
+    analysisState.offensiveReference=null;
+    renderOffensiveReference();
+    handleError('offensive reference',e);
+  }
+}; }
 { const analysisEvolutionPlayer=$('#analysisEvolutionPlayer'); if(analysisEvolutionPlayer) analysisEvolutionPlayer.onchange=renderAnalysisEvolution; }
 $('#matchReadResume').onclick=()=>{const id=matchLibraryState.currentReadId;if(id)loadMatch(id)};
 $('#matchReadDelete').onclick=async()=>{

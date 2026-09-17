@@ -49,7 +49,7 @@ button{border:0;border-radius:14px;padding:12px 11px;background:var(--panel2);co
     <div style="border-top:1px solid var(--line);margin:14px 0 10px"></div>
     <div class="row" style="align-items:end">
       <div class="field"><label>Ou reprendre une session partagée</label><select id="existingSessions"><option value="">— Sessions récentes —</option></select></div>
-      <button class="ghost" id="refreshSessions">Actualiser</button>
+      <button class="ghost" id="refreshSessions">Actualiser les sessions</button>
       <button class="ghost" id="openExisting" disabled>Ouvrir</button>
     </div>
   </section>
@@ -62,10 +62,12 @@ button{border:0;border-radius:14px;padding:12px 11px;background:var(--panel2);co
 
     <div class="videoWrap"><div id="player"></div></div>
     <div class="speedRow">
-      <button class="speedBtn" data-speed="1">1×</button><button class="speedBtn" data-speed="1.25">1,25×</button><button class="speedBtn active" data-speed="1.5">1,5×</button><button class="speedBtn" data-speed="2">2×</button><button class="speedBtn" data-speed="2.5">2,5×</button>
-      <button class="ghost" id="back3">−3 s</button><button class="ghost" id="togglePlay">▶ / ⏸</button><button class="ghost" id="forward3">+3 s</button>
+      <button class="speedBtn" data-speed="1">1×</button><button class="speedBtn" data-speed="1.25">1,25×</button><button class="speedBtn active" data-speed="1.5">1,5×</button><button class="speedBtn" data-speed="2">2×</button>
+      <button class="ghost" id="back5">−5 s</button><button class="ghost" id="togglePlay">▶ / ⏸</button><button class="ghost" id="forward5">+5 s</button>
     </div>
     <div class="small" id="speedStatus" style="margin-top:6px"></div>
+
+    <div class="small" style="margin-top:8px">Centre / ligne / coin = position de départ de l’attaque ou de la remise en jeu.</div>
 
     <div class="statusBox" id="pendingBox">
       <div class="small">Contexte sélectionné</div>
@@ -132,7 +134,7 @@ function applySpeed(rate){
   }
   $$('.speedBtn').forEach(b=>b.classList.toggle('active',Number(b.dataset.speed)===chosen));
   const st=$('#speedStatus');
-  if(st) st.textContent=chosen===preferredSpeed?`Vitesse : ${String(chosen).replace('.',',')}×`:`2,5× non disponible sur cette vidéo · vitesse appliquée : ${String(chosen).replace('.',',')}×`;
+  if(st) st.textContent=`Vitesse : ${String(chosen).replace('.',',')}×`;
 }
 function selectContext(context){pendingContext=context; $$('.shortcutBtn').forEach(b=>b.classList.toggle('active',b.dataset.context===context)); $('#pendingText').textContent=CONTEXT_LABELS[context]+' → choisis S / D / F'}
 function clearContext(){pendingContext=''; $$('.shortcutBtn').forEach(b=>b.classList.remove('active')); $('#pendingText').textContent='Appuie sur 1, 2, 3 ou 4'}
@@ -186,8 +188,8 @@ $('#existingSessions').onchange=()=>$('#openExisting').disabled=!$('#existingSes
 $('#openExisting').onclick=async()=>{const o=$('#existingSessions').selectedOptions[0];if(!o?.value)return;currentSession=JSON.parse(o.dataset.session);clearContext();showCollector();try{await loadSamples()}catch(e){setStatus($('#saveStatus'),e.message,true)}};
 $('#changeSession').onclick=()=>{$('#collectorPanel').classList.add('hidden');$('#sessionPanel').classList.remove('hidden');clearContext();};
 $$('.shortcutBtn').forEach(b=>b.onclick=()=>selectContext(b.dataset.context)); $$('.outcomeBtn').forEach(b=>b.onclick=()=>saveOutcome(b.dataset.outcome)); $$('.speedBtn').forEach(b=>b.onclick=()=>applySpeed(b.dataset.speed));
-$('#back3').onclick=()=>seek(-3);$('#forward3').onclick=()=>seek(3);$('#togglePlay').onclick=togglePlay;$('#undoLast').onclick=undoLast;
-window.addEventListener('keydown',e=>{if(isTyping())return; const k=e.key.toLowerCase(); if(['1','2','3','4','s','d','f',' ','arrowleft','arrowright','backspace'].includes(k))e.preventDefault(); if(k==='1')selectContext('game_center');else if(k==='2')selectContext('restart_center');else if(k==='3')selectContext('restart_line');else if(k==='4')selectContext('restart_corner');else if(k==='s')saveOutcome('point');else if(k==='d')saveOutcome('defended');else if(k==='f')saveOutcome('attack_fault');else if(k===' ')togglePlay();else if(k==='arrowleft')seek(-3);else if(k==='arrowright')seek(3);else if(k==='backspace')undoLast()});
+$('#back5').onclick=()=>seek(-5);$('#forward5').onclick=()=>seek(5);$('#togglePlay').onclick=togglePlay;$('#undoLast').onclick=undoLast;
+window.addEventListener('keydown',e=>{if(isTyping())return; const k=e.key.toLowerCase(); if(['1','2','3','4','s','d','f',' ','arrowleft','arrowright','backspace'].includes(k))e.preventDefault(); if(k==='1')selectContext('game_center');else if(k==='2')selectContext('restart_center');else if(k==='3')selectContext('restart_line');else if(k==='4')selectContext('restart_corner');else if(k==='s')saveOutcome('point');else if(k==='d')saveOutcome('defended');else if(k==='f')saveOutcome('attack_fault');else if(k===' ')togglePlay();else if(k==='arrowleft')seek(-5);else if(k==='arrowright')seek(5);else if(k==='backspace')undoLast()});
 (async()=>{try{const {data:{session}}=await db.auth.getSession();if(!session?.user){location.href='./';return}currentUser=session.user;await loadWorkspace();await loadSessions();setStatus($('#sessionStatus'),'Prêt · collecte partagée du workspace.')}catch(e){setStatus($('#sessionStatus'),e.message||String(e),true)}})();
 </script>
 </body>
