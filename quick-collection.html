@@ -20,6 +20,19 @@ button{border:0;border-radius:14px;padding:12px 11px;background:var(--panel2);co
 .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}.metric{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px}.metric strong{display:block;font-size:22px}.metric span{font-size:11px;color:var(--muted)}
 .tableWrap{overflow:auto;margin-top:10px}table{width:100%;border-collapse:collapse;min-width:630px;font-size:12px}th,td{padding:8px;border-bottom:1px solid var(--line);text-align:right}th:first-child,td:first-child{text-align:left}th{color:var(--muted)}
 .lastLine{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}.authStatus{font-size:13px;min-height:18px;margin-top:8px}.ok{color:#7ddc9f}.err{color:#ff8d8d}
+
+@media(max-width:1100px){
+  .videoSticky{
+    position:sticky;
+    top:0;
+    z-index:40;
+    background:var(--panel);
+    padding:4px 0 8px;
+    margin:0 -2px 6px;
+    box-shadow:0 10px 18px rgba(0,0,0,.35);
+  }
+}
+
 @media(max-width:720px){.shortcutGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.outcomeGrid{grid-template-columns:1fr}.app{padding-bottom:24px}}
 @media(max-width:640px){
   .app{padding:8px 8px 22px}
