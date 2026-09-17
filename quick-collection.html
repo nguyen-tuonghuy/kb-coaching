@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kinball Coach — Collecte rapide</title>
+<style>
+:root{--bg:#0f1115;--panel:#171a21;--panel2:#20242d;--text:#f5f7fa;--muted:#aab1bc;--accent:#3d7bfd;--good:#218a50;--bad:#bd4141;--warn:#d29a29;--line:#2e3440}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:16px system-ui,-apple-system,Segoe UI,sans-serif}
+.app{max-width:1050px;margin:auto;padding:14px 14px 40px}.top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+h1,h2,h3,p{margin:0}.sub,.small{font-size:12px;color:var(--muted)}.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:12px}
+.row{display:flex;gap:9px;flex-wrap:wrap}.field{flex:1 1 180px}label{display:block;font-size:13px;color:var(--muted);margin-bottom:5px}
+input,select,button{font:inherit}input,select{width:100%;padding:12px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:12px}
+button{border:0;border-radius:14px;padding:12px 11px;background:var(--panel2);color:var(--text);font-weight:750;cursor:pointer}button:active{transform:scale(.985)}button:disabled{opacity:.45;cursor:not-allowed}.primary{background:var(--accent)}.ghost{background:transparent;border:1px solid var(--line)}.good{background:var(--good)}.bad{background:var(--bad)}.hidden{display:none!important}
+.videoWrap{aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden;margin-top:12px}.videoWrap iframe,.videoWrap>div{width:100%;height:100%}
+.speedRow{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.speedBtn.active{background:var(--accent)}
+.shortcutGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}.shortcutBtn{min-height:68px;border:1px solid var(--line);text-align:left}.shortcutBtn.active{background:var(--accent);border-color:#78a2ff}.shortcutKey{display:inline-block;min-width:28px;padding:4px 7px;border-radius:8px;background:rgba(255,255,255,.1);margin-right:6px;text-align:center}
+.outcomeGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px}.outcomeBtn{min-height:62px}.outcomeBtn.point{background:#215b3b}.outcomeBtn.defended{background:#294b73}.outcomeBtn.fault{background:#703838}
+.statusBox{padding:12px;border-radius:12px;background:var(--panel2);margin-top:10px}.pending{font-size:18px;font-weight:800}.flash{animation:flash .35s ease}@keyframes flash{0%{outline:3px solid #fff}100%{outline:0 solid transparent}}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}.metric{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px}.metric strong{display:block;font-size:22px}.metric span{font-size:11px;color:var(--muted)}
+.tableWrap{overflow:auto;margin-top:10px}table{width:100%;border-collapse:collapse;min-width:630px;font-size:12px}th,td{padding:8px;border-bottom:1px solid var(--line);text-align:right}th:first-child,td:first-child{text-align:left}th{color:var(--muted)}
+.lastLine{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}.authStatus{font-size:13px;min-height:18px;margin-top:8px}.ok{color:#7ddc9f}.err{color:#ff8d8d}
+@media(max-width:720px){.shortcutGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.outcomeGrid{grid-template-columns:1fr}.app{padding-bottom:24px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div><h1>⚡ Collecte rapide</h1><div class="sub">Dataset partagé · attaques seulement · 1–4 puis P / D / F</div></div>
+    <button class="ghost" id="backHome">← Kinball Coach</button>
+  </div>
+
+  <section class="panel" id="sessionPanel">
+    <h2 style="font-size:19px;margin-bottom:10px">Session vidéo</h2>
+    <div class="row">
+      <div class="field" style="flex-basis:340px"><label>URL YouTube</label><input id="youtubeUrl" placeholder="https://www.youtube.com/watch?v=…"></div>
+      <div class="field"><label>Population</label><select id="sex"><option value="H">Hommes</option><option value="F">Femmes</option><option value="Mixte">Mixte</option></select></div>
+      <div class="field"><label>Catégorie</label><select id="category"><option value="Senior">Senior</option><option value="U18">U18</option><option value="U15">U15</option><option value="U12">U12</option><option value="Autre">Autre</option></select></div>
+    </div>
+    <div class="row" style="margin-top:9px">
+      <div class="field"><label>Niveau (facultatif)</label><select id="level"><option value="">— Non précisé —</option><option value="International">International</option><option value="National">National</option><option value="Régional">Régional</option><option value="Départemental">Départemental</option><option value="Autre">Autre</option></select></div>
+      <div class="field"><label>Nom / compétition (facultatif)</label><input id="label" placeholder="Ex. EDF H — France / Belgique"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="primary" id="createSession" style="flex:1">Créer et ouvrir la session</button>
+    </div>
+    <div class="authStatus" id="sessionStatus"></div>
+
+    <div style="border-top:1px solid var(--line);margin:14px 0 10px"></div>
+    <div class="row" style="align-items:end">
+      <div class="field"><label>Ou reprendre une session partagée</label><select id="existingSessions"><option value="">— Sessions récentes —</option></select></div>
+      <button class="ghost" id="refreshSessions">Actualiser</button>
+      <button class="ghost" id="openExisting" disabled>Ouvrir</button>
+    </div>
+  </section>
+
+  <section class="panel hidden" id="collectorPanel">
+    <div class="row" style="justify-content:space-between;align-items:flex-start">
+      <div><h2 id="activeTitle" style="font-size:19px">Collecte</h2><div class="small" id="activeMeta"></div></div>
+      <button class="ghost" id="changeSession">Changer de session</button>
+    </div>
+
+    <div class="videoWrap"><div id="player"></div></div>
+    <div class="speedRow">
+      <button class="speedBtn" data-speed="1">1×</button><button class="speedBtn" data-speed="1.25">1,25×</button><button class="speedBtn active" data-speed="1.5">1,5×</button><button class="speedBtn" data-speed="2">2×</button>
+      <button class="ghost" id="back3">−3 s</button><button class="ghost" id="togglePlay">▶ / ⏸</button><button class="ghost" id="forward3">+3 s</button>
+    </div>
+
+    <div class="statusBox" id="pendingBox">
+      <div class="small">Contexte sélectionné</div>
+      <div class="pending" id="pendingText">Appuie sur 1, 2, 3 ou 4</div>
+    </div>
+
+    <div class="shortcutGrid">
+      <button class="shortcutBtn" data-context="game_center"><span class="shortcutKey">1</span>Jeu courant<br><strong>Centre</strong></button>
+      <button class="shortcutBtn" data-context="restart_center"><span class="shortcutKey">2</span>Remise<br><strong>Centre</strong></button>
+      <button class="shortcutBtn" data-context="restart_line"><span class="shortcutKey">3</span>Remise<br><strong>Ligne</strong></button>
+      <button class="shortcutBtn" data-context="restart_corner"><span class="shortcutKey">4</span>Remise<br><strong>Coin</strong></button>
+    </div>
+
+    <div class="outcomeGrid">
+      <button class="outcomeBtn point" data-outcome="point"><span class="shortcutKey">P</span>Point marqué</button>
+      <button class="outcomeBtn defended" data-outcome="defended"><span class="shortcutKey">D</span>Point défendu</button>
+      <button class="outcomeBtn fault" data-outcome="attack_fault"><span class="shortcutKey">F</span>Faute d’attaque</button>
+    </div>
+
+    <div class="statusBox">
+      <div class="lastLine"><div><div class="small">Dernière saisie</div><strong id="lastSample">—</strong></div><button class="ghost" id="undoLast" disabled>⌫ Annuler ma dernière saisie</button></div>
+      <div class="authStatus" id="saveStatus"></div>
+    </div>
+
+    <div class="metrics">
+      <div class="metric"><strong id="countGame">0</strong><span>Jeu centre</span></div>
+      <div class="metric"><strong id="countRestartCenter">0</strong><span>Remise centre</span></div>
+      <div class="metric"><strong id="countRestartLine">0</strong><span>Remise ligne</span></div>
+      <div class="metric"><strong id="countRestartCorner">0</strong><span>Remise coin</span></div>
+    </div>
+
+    <div class="tableWrap"><table><thead><tr><th>Contexte</th><th>Point</th><th>Défendu</th><th>Faute</th><th>Total</th><th>% point</th></tr></thead><tbody id="statsBody"></tbody></table></div>
+    <div class="small" style="margin-top:8px">Les compteurs comprennent les annotations de tous les entraîneurs ayant accès au workspace.</div>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+const SUPABASE_URL='https://chrbzchthloxowlzdvpe.supabase.co';
+const SUPABASE_KEY='sb_publishable_4pQGJ5DSzMRBuHLrAUb30g_MGZVYvEY';
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const CONTEXT_LABELS={game_center:'Jeu courant · centre',restart_center:'Remise · centre',restart_line:'Remise · ligne',restart_corner:'Remise · coin'};
+const OUTCOME_LABELS={point:'Point marqué',defended:'Point défendu',attack_fault:'Faute d’attaque'};
+let currentUser=null, workspaceId=null, currentSession=null, samples=[], pendingContext='', lastOwnSampleId=null;
+let player=null, playerReady=false, wantedVideoId='', preferredSpeed=1.5;
+
+function setStatus(el,text,error=false){el.textContent=text||'';el.className='authStatus '+(error?'err':'ok')}
+function youtubeId(raw){
+  const value=(raw||'').trim(); if(/^[\w-]{11}$/.test(value)) return value;
+  try{const u=new URL(value); if(u.hostname==='youtu.be') return u.pathname.split('/').filter(Boolean)[0]||''; if(u.searchParams.get('v')) return u.searchParams.get('v'); const parts=u.pathname.split('/').filter(Boolean); const i=parts.findIndex(x=>['embed','shorts','live'].includes(x)); return i>=0?parts[i+1]||'':''}catch{return ''}
+}
+function formatTime(seconds){const s=Math.max(0,Math.floor(Number(seconds)||0)),m=Math.floor(s/60);return `${m}:${String(s%60).padStart(2,'0')}`}
+function isTyping(){const e=document.activeElement;return e&&['INPUT','SELECT','TEXTAREA'].includes(e.tagName)}
+function currentTime(){try{return playerReady?Number(player.getCurrentTime()||0):0}catch{return 0}}
+function applySpeed(rate){preferredSpeed=Number(rate); if(playerReady){const rates=player.getAvailablePlaybackRates?.()||[1]; let chosen=preferredSpeed; if(!rates.includes(chosen)){chosen=rates.reduce((a,b)=>Math.abs(b-preferredSpeed)<Math.abs(a-preferredSpeed)?b:a,rates[0]||1)} player.setPlaybackRate(chosen)} $$('.speedBtn').forEach(b=>b.classList.toggle('active',Number(b.dataset.speed)===preferredSpeed))}
+function selectContext(context){pendingContext=context; $$('.shortcutBtn').forEach(b=>b.classList.toggle('active',b.dataset.context===context)); $('#pendingText').textContent=CONTEXT_LABELS[context]+' → choisis P / D / F'}
+function clearContext(){pendingContext=''; $$('.shortcutBtn').forEach(b=>b.classList.remove('active')); $('#pendingText').textContent='Appuie sur 1, 2, 3 ou 4'}
+function renderStats(){
+  const contexts=['game_center','restart_center','restart_line','restart_corner'];
+  const counts={}; contexts.forEach(c=>counts[c]={point:0,defended:0,attack_fault:0,total:0});
+  samples.forEach(s=>{if(counts[s.attack_context]){counts[s.attack_context][s.outcome]=(counts[s.attack_context][s.outcome]||0)+1;counts[s.attack_context].total++}});
+  $('#countGame').textContent=counts.game_center.total; $('#countRestartCenter').textContent=counts.restart_center.total; $('#countRestartLine').textContent=counts.restart_line.total; $('#countRestartCorner').textContent=counts.restart_corner.total;
+  $('#statsBody').innerHTML=contexts.map(c=>{const x=counts[c],rate=x.total?`${Math.round(1000*x.point/x.total)/10} %`:'—';return `<tr><td>${CONTEXT_LABELS[c]}</td><td>${x.point}</td><td>${x.defended}</td><td>${x.attack_fault}</td><td><strong>${x.total}</strong></td><td>${rate}</td></tr>`}).join('');
+  const last=samples[samples.length-1]; $('#lastSample').textContent=last?`${formatTime(last.video_time_seconds)} · ${CONTEXT_LABELS[last.attack_context]} → ${OUTCOME_LABELS[last.outcome]}`:'—';
+  $('#undoLast').disabled=!lastOwnSampleId;
+}
+async function loadWorkspace(){
+  const {data,error}=await db.from('workspace_members').select('workspace_id').eq('user_id',currentUser.id).limit(1); if(error)throw error; if(!data?.length)throw new Error('Aucun workspace associé à ce compte.'); workspaceId=data[0].workspace_id;
+}
+async function loadSessions(){
+  const {data,error}=await db.from('quick_collection_sessions').select('*').eq('workspace_id',workspaceId).order('created_at',{ascending:false}).limit(60); if(error)throw error;
+  const sel=$('#existingSessions'); sel.innerHTML='<option value="">— Sessions récentes —</option>';
+  (data||[]).forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=`${s.sex} · ${s.label||s.youtube_video_id}${s.category?' · '+s.category:''}${s.competition_level?' · '+s.competition_level:''}`;o.dataset.session=JSON.stringify(s);sel.append(o)});
+  $('#openExisting').disabled=!sel.value;
+}
+async function loadSamples(){
+  if(!currentSession)return; const {data,error}=await db.from('quick_attack_samples').select('*').eq('session_id',currentSession.id).order('created_at',{ascending:true}); if(error)throw error; samples=data||[]; const mine=[...samples].reverse().find(s=>s.created_by===currentUser.id); lastOwnSampleId=mine?.id||null; renderStats();
+}
+function showCollector(){
+  $('#sessionPanel').classList.add('hidden'); $('#collectorPanel').classList.remove('hidden'); $('#activeTitle').textContent=currentSession.label||'Collecte rapide'; $('#activeMeta').textContent=`${currentSession.sex} · ${currentSession.category||'Catégorie non précisée'}${currentSession.competition_level?' · '+currentSession.competition_level:''} · vidéo ${currentSession.youtube_video_id}`; wantedVideoId=currentSession.youtube_video_id; if(playerReady)loadVideo();
+}
+function loadVideo(){if(!playerReady||!wantedVideoId)return; player.cueVideoById(wantedVideoId); setTimeout(()=>applySpeed(preferredSpeed),500)}
+window.onYouTubeIframeAPIReady=function(){player=new YT.Player('player',{width:'100%',height:'100%',videoId:wantedVideoId||'',playerVars:{playsinline:1,controls:1,disablekb:1,origin:location.origin},events:{onReady:()=>{playerReady=true;if(wantedVideoId)loadVideo()},onPlaybackRateChange:e=>{$$('.speedBtn').forEach(b=>b.classList.toggle('active',Number(b.dataset.speed)===Number(e.data)))}}})};
+async function createSession(){
+  const url=$('#youtubeUrl').value.trim(),id=youtubeId(url); if(!id){setStatus($('#sessionStatus'),'URL YouTube non reconnue.',true);return}
+  setStatus($('#sessionStatus'),'Création…');
+  const payload={workspace_id:workspaceId,youtube_video_id:id,youtube_url:url,label:$('#label').value.trim()||null,sex:$('#sex').value,category:$('#category').value||null,competition_level:$('#level').value||null,created_by:currentUser.id};
+  const {data,error}=await db.from('quick_collection_sessions').insert(payload).select('*').single(); if(error){setStatus($('#sessionStatus'),error.message,true);return} currentSession=data; samples=[];lastOwnSampleId=null;clearContext();showCollector();renderStats();loadSessions().catch(()=>{});
+}
+async function saveOutcome(outcome){
+  if(!currentSession)return; if(!pendingContext){$('#pendingBox').classList.remove('flash');void $('#pendingBox').offsetWidth;$('#pendingBox').classList.add('flash');setStatus($('#saveStatus'),'Choisis d’abord 1, 2, 3 ou 4.',true);return}
+  const context=pendingContext,time=currentTime(); clearContext(); setStatus($('#saveStatus'),'Enregistrement…');
+  const payload={session_id:currentSession.id,video_time_seconds:Math.round(time*10)/10,attack_context:context,outcome,created_by:currentUser.id};
+  const {data,error}=await db.from('quick_attack_samples').insert(payload).select('*').single(); if(error){setStatus($('#saveStatus'),error.message,true);selectContext(context);return}
+  samples.push(data); lastOwnSampleId=data.id; renderStats(); setStatus($('#saveStatus'),`${formatTime(time)} · ${CONTEXT_LABELS[context]} → ${OUTCOME_LABELS[outcome]}`);
+}
+async function undoLast(){
+  if(!lastOwnSampleId)return; const id=lastOwnSampleId; const {error}=await db.from('quick_attack_samples').delete().eq('id',id); if(error){setStatus($('#saveStatus'),error.message,true);return} samples=samples.filter(s=>s.id!==id); const mine=[...samples].reverse().find(s=>s.created_by===currentUser.id); lastOwnSampleId=mine?.id||null; renderStats(); setStatus($('#saveStatus'),'Dernière saisie annulée.');
+}
+function seek(delta){if(!playerReady)return;player.seekTo(Math.max(0,currentTime()+delta),true)}
+function togglePlay(){if(!playerReady)return;const st=player.getPlayerState(); if(st===YT.PlayerState.PLAYING)player.pauseVideo();else player.playVideo()}
+
+$('#backHome').onclick=()=>location.href='./'; $('#createSession').onclick=createSession; $('#refreshSessions').onclick=()=>loadSessions().catch(e=>setStatus($('#sessionStatus'),e.message,true));
+$('#existingSessions').onchange=()=>$('#openExisting').disabled=!$('#existingSessions').value;
+$('#openExisting').onclick=async()=>{const o=$('#existingSessions').selectedOptions[0];if(!o?.value)return;currentSession=JSON.parse(o.dataset.session);clearContext();showCollector();try{await loadSamples()}catch(e){setStatus($('#saveStatus'),e.message,true)}};
+$('#changeSession').onclick=()=>{$('#collectorPanel').classList.add('hidden');$('#sessionPanel').classList.remove('hidden');clearContext();};
+$$('.shortcutBtn').forEach(b=>b.onclick=()=>selectContext(b.dataset.context)); $$('.outcomeBtn').forEach(b=>b.onclick=()=>saveOutcome(b.dataset.outcome)); $$('.speedBtn').forEach(b=>b.onclick=()=>applySpeed(b.dataset.speed));
+$('#back3').onclick=()=>seek(-3);$('#forward3').onclick=()=>seek(3);$('#togglePlay').onclick=togglePlay;$('#undoLast').onclick=undoLast;
+window.addEventListener('keydown',e=>{if(isTyping())return; const k=e.key.toLowerCase(); if(['1','2','3','4','p','d','f',' ','arrowleft','arrowright','backspace'].includes(k))e.preventDefault(); if(k==='1')selectContext('game_center');else if(k==='2')selectContext('restart_center');else if(k==='3')selectContext('restart_line');else if(k==='4')selectContext('restart_corner');else if(k==='p')saveOutcome('point');else if(k==='d')saveOutcome('defended');else if(k==='f')saveOutcome('attack_fault');else if(k===' ')togglePlay();else if(k==='arrowleft')seek(-3);else if(k==='arrowright')seek(3);else if(k==='backspace')undoLast()});
+(async()=>{try{const {data:{session}}=await db.auth.getSession();if(!session?.user){location.href='./';return}currentUser=session.user;await loadWorkspace();await loadSessions();setStatus($('#sessionStatus'),'Prêt · collecte partagée du workspace.')}catch(e){setStatus($('#sessionStatus'),e.message||String(e),true)}})();
+</script>
+</body>
+</html>
