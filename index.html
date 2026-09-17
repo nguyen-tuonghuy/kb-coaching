@@ -4456,8 +4456,10 @@ function analysisPct(n,d){
   return d?Math.round(100*n/d):null;
 }
 function analysisPctLabel(n,d){
-  const p=analysisPct(n,d);
-  return p==null?'—':p+' %';
+  const numerator=Number(n)||0;
+  const denominator=Number(d)||0;
+  const p=analysisPct(numerator,denominator);
+  return `${p==null?'—':p+' %'} (${numerator}/${denominator})`;
 }
 function analysisPeriodSort(a,b){
   const na=parseInt(String(a).replace(/\D/g,''),10);
@@ -4466,9 +4468,11 @@ function analysisPeriodSort(a,b){
   return String(a).localeCompare(String(b),'fr');
 }
 function analysisRateHtml(n,d){
-  const p=analysisPct(n,d);
+  const numerator=Number(n)||0;
+  const denominator=Number(d)||0;
+  const p=analysisPct(numerator,denominator);
   const width=p==null?0:Math.max(0,Math.min(100,p));
-  return `<div class="analysisRateBar"><span>${p==null?'—':p+' %'}</span><div class="analysisRateTrack"><div class="analysisRateFill" style="width:${width}%"></div></div></div>`;
+  return `<div class="analysisRateBar"><span>${p==null?'—':p+' %'} (${numerator}/${denominator})</span><div class="analysisRateTrack"><div class="analysisRateFill" style="width:${width}%"></div></div></div>`;
 }
 function analysisMetricHtml(label,value){
   return `<div class="analysisMetric"><div class="label">${escapeHtml(label)}</div><div class="value">${escapeHtml(value)}</div></div>`;
@@ -4770,9 +4774,9 @@ function analysisPeriodChartHtml(events,periods){
     const attackFaultHeight=Math.max(2,Math.round(120*attackFaultRate/maxPct));
     return `<div class="analysisPeriodCol" title="${escapeAttr(x.period)}">
       <div class="analysisPeriodBars">
-        <div class="analysisPeriodBar attack" style="height:${pointHeight}px" title="Taux de point marqué ${pointRate}%"></div>
-        <div class="analysisPeriodBar defense" style="height:${defenseHeight}px" title="Taux d’attaque de l’adversaire ${defenseRate}%"></div>
-        <div class="analysisPeriodBar attackFault" style="height:${attackFaultHeight}px" title="Taux de faute d’attaque ${attackFaultRate}%"></div>
+        <div class="analysisPeriodBar attack" style="height:${pointHeight}px" title="Taux de point marqué ${pointRate}% (${x.attack.points}/${x.attack.total})"></div>
+        <div class="analysisPeriodBar defense" style="height:${defenseHeight}px" title="Taux d’attaque de l’adversaire ${defenseRate}% (${x.defense.points}/${x.defense.total})"></div>
+        <div class="analysisPeriodBar attackFault" style="height:${attackFaultHeight}px" title="Taux de faute d’attaque ${attackFaultRate}% (${x.attack.faults}/${x.attack.total})"></div>
       </div>
       <div class="analysisPeriodLabel">${escapeHtml(x.period)}</div>
     </div>`;
@@ -6047,7 +6051,7 @@ $('#groupAnalysisRun').onclick=()=>runGroupedAnalysis().catch(e=>handleError('an
 $('#matchReadBack').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
 $('#matchAnalysisBack').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
 $$('.matchAnalysisTabs button').forEach(b=>b.onclick=()=>setAnalysisTab(b.dataset.analysisTab));
-$('#analysisEvolutionPlayer').onchange=renderAnalysisEvolution;
+{ const analysisEvolutionPlayer=$('#analysisEvolutionPlayer'); if(analysisEvolutionPlayer) analysisEvolutionPlayer.onchange=renderAnalysisEvolution; }
 $('#matchReadResume').onclick=()=>{const id=matchLibraryState.currentReadId;if(id)loadMatch(id)};
 $('#matchReadDelete').onclick=async()=>{
   const id=matchLibraryState.currentReadId;
