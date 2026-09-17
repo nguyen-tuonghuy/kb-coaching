@@ -2600,10 +2600,17 @@ function configureWhoUI(){
     renderCenterDefenseResponsibility();
   }else{
     buildWho('#whoOptions');
-    $('#whoTitle').textContent=isCenterAttack()?'Attaquant':(actionType==='Défense'?'Attribution — plusieurs joueurs possibles':'Attribution — facultatif');
+    const requiresAttackPlayer=attackOutcomeRequiresPlayer();
+    $('#whoTitle').textContent=requiresAttackPlayer?'Frappeur — obligatoire':(isCenterAttack()?'Attaquant':(actionType==='Défense'?'Attribution — plusieurs joueurs possibles':'Attribution — facultatif'));
+    const collectiveBtn=$('#whoOptions button[data-who=""]');
+    if(collectiveBtn&&requiresAttackPlayer){
+      collectiveBtn.disabled=true;
+      collectiveBtn.title='Un frappeur doit être sélectionné pour un point marqué ou un ballon défendu.';
+      collectiveBtn.classList.remove('choice');
+    }
     $$('#whoOptions button').forEach(b=>{
       const name=b.dataset.who||'';
-      b.classList.toggle('choice',actionType==='Défense'?(name?whoMany.includes(name):whoMany.length===0):name===who);
+      b.classList.toggle('choice',actionType==='Défense'?(name?whoMany.includes(name):whoMany.length===0):(!requiresAttackPlayer&&name===who)||(requiresAttackPlayer&&!!name&&name===who));
       b.onclick=()=>{
         if(actionType==='Défense'){
           if(!name){
@@ -2616,10 +2623,12 @@ function configureWhoUI(){
             b.classList.toggle('choice',whoMany.includes(name));
           }
         }else{
+          if(requiresAttackPlayer&&!name)return;
           who=name;
           $$('#whoOptions button').forEach(x=>x.classList.remove('choice'));
           b.classList.add('choice');
         }
+        updatePopupSaveVisibility();
       };
     });
   }
@@ -3157,11 +3166,15 @@ function buildOpponentOptions(){
   });
   $('#opponentTitle').textContent=actionType==='Attaque'?'Équipe attaquée':'Équipe attaquante';
 }
+function attackOutcomeRequiresPlayer(){
+  return actionType==='Attaque'&&['Point marqué','Ballon défendu'].includes(actionResult);
+}
 function missingActionFields(){
   const missing=[];
   if(!opponentTeam) missing.push(actionType==='Attaque'?'équipe attaquée':'équipe attaquante');
   if(family==='remise'&&!restartLocation) missing.push('position de la remise en jeu');
   if(!pending) missing.push('issue de l’action');
+  if(attackOutcomeRequiresPlayer()&&!who) missing.push('frappeur');
   return missing;
 }
 function updatePopupSaveVisibility(){
