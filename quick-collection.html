@@ -126,7 +126,7 @@ button{border:0;border-radius:14px;padding:12px 11px;background:var(--panel2);co
     </div>
 
     <div class="tableWrap"><table><thead><tr><th>Contexte</th><th>Point</th><th>Défendu</th><th>Faute</th><th>Total</th><th>% point</th></tr></thead><tbody id="statsBody"></tbody></table></div>
-    <div class="small" style="margin-top:8px">Les compteurs comprennent les annotations de tous les entraîneurs ayant accès au workspace.</div>
+    <div class="small" style="margin-top:8px">Les compteurs comprennent toutes les annotations de cette session, quel que soit le workspace de l’entraîneur.</div>
   </section>
 </div>
 
@@ -182,7 +182,9 @@ async function loadWorkspace(){
   const {data,error}=await db.from('workspace_members').select('workspace_id').eq('user_id',currentUser.id).limit(1); if(error)throw error; if(!data?.length)throw new Error('Aucun workspace associé à ce compte.'); workspaceId=data[0].workspace_id;
 }
 async function loadSessions(){
-  const {data,error}=await db.from('quick_collection_sessions').select('*').eq('workspace_id',workspaceId).order('created_at',{ascending:false}).limit(60); if(error)throw error;
+  // Dataset mutualisé : toutes les sessions de collecte rapide visibles
+  // par les utilisateurs authentifiés, indépendamment du workspace d'origine.
+  const {data,error}=await db.from('quick_collection_sessions').select('*').order('created_at',{ascending:false}).limit(100); if(error)throw error;
   const sel=$('#existingSessions'); sel.innerHTML='<option value="">— Sessions récentes —</option>';
   (data||[]).forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=`${s.sex} · ${s.label||s.youtube_video_id}${s.category?' · '+s.category:''}${s.competition_level?' · '+s.competition_level:''}`;o.dataset.session=JSON.stringify(s);sel.append(o)});
   $('#openExisting').disabled=!sel.value;
@@ -222,7 +224,7 @@ $$('.shortcutBtn').forEach(b=>b.onclick=()=>selectContext(b.dataset.context)); $
 $('#back5').onclick=()=>seek(-5);$('#forward5').onclick=()=>seek(5);$('#togglePlay').onclick=togglePlay;$('#undoLast').onclick=undoLast;
 window.addEventListener('keydown',e=>{if(isTyping())return; const k=e.key.toLowerCase(); if(['1','2','3','4','s','d','f',' ','arrowleft','arrowright','backspace'].includes(k))e.preventDefault(); if(k==='1')selectContext('game_center');else if(k==='2')selectContext('restart_center');else if(k==='3')selectContext('restart_line');else if(k==='4')selectContext('restart_corner');else if(k==='s')saveOutcome('point');else if(k==='d')saveOutcome('defended');else if(k==='f')saveOutcome('attack_fault');else if(k===' ')togglePlay();else if(k==='arrowleft')seek(-5);else if(k==='arrowright')seek(5);else if(k==='backspace')undoLast()});
 syncMobileUi();
-(async()=>{try{const {data:{session}}=await db.auth.getSession();if(!session?.user){location.href='./';return}currentUser=session.user;await loadWorkspace();await loadSessions();setStatus($('#sessionStatus'),'Prêt · collecte partagée du workspace.')}catch(e){setStatus($('#sessionStatus'),e.message||String(e),true)}})();
+(async()=>{try{const {data:{session}}=await db.auth.getSession();if(!session?.user){location.href='./';return}currentUser=session.user;await loadWorkspace();await loadSessions();setStatus($('#sessionStatus'),'Prêt · collecte rapide mutualisée H / F.')}catch(e){setStatus($('#sessionStatus'),e.message||String(e),true)}})();
 </script>
 </body>
 </html>
