@@ -84,6 +84,14 @@ button:active{transform:scale(.985)}
 @media(max-width:520px){.moduleGrid{grid-template-columns:1fr}.miniGrid{grid-template-columns:1fr}}
 
 .statsTabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+.statsDomainTabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:14px 0 12px}
+.statsDomainTab{border:1px solid var(--line);min-height:46px}
+.statsDomainTab.active{background:var(--accent);border-color:#78a2ff}
+.statsMatchGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.statsMatchCard{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px}
+.statsMatchCard strong{display:block;font-size:21px;margin-top:2px}
+@media(max-width:760px){.statsDomainTabs{grid-template-columns:repeat(2,minmax(0,1fr))}.statsMatchGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
 .statsTab.active{background:var(--accent)}
 .statsMetrics{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin:10px 0 14px}
 .statsMetric{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:12px}
@@ -1078,7 +1086,7 @@ button:active{transform:scale(.985)}
     <button class="moduleCard" type="button" onclick="window.location.href='quick-collection.html'"><strong>⚡ Collecte rapide</strong><span>Dépouillement vidéo YouTube · dataset partagé H / F</span></button>
     <button class="moduleCard" id="openGroupsModule"><strong>👥 Groupes</strong><span>Effectifs et entraîneurs partageant les mêmes données</span></button>
     <button class="moduleCard" id="openSettingsModule"><strong>⚙️ Paramètres</strong><span>Catégories d’exercices · Types de match</span></button>
-    <button class="moduleCard" id="openStatsModule"><strong>📊 Statistiques</strong><span>Dashboard d’entraînement : groupe, joueurs, exercices et classements</span></button>
+    <button class="moduleCard" id="openStatsModule"><strong>📊 Statistiques</strong><span>Entraînements, matchs, référentiel offensif et impact joueurs</span></button>
     <button class="moduleCard hidden" id="openAdminModule"><strong>🛡️ Administration</strong><span>Voir tous les groupes et leurs entraîneurs</span></button>
    </div>
  </section>
@@ -1298,61 +1306,110 @@ button:active{transform:scale(.985)}
 
  <section class="panel hidden" id="statsHome">
    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
-    <div><h2 style="font-size:20px">Statistiques d’entraînement</h2><div class="small">Dashboard du groupe, des joueurs et des exercices</div></div>
+    <div><h2 style="font-size:20px">📊 Statistiques</h2><div class="small">Centre d’analyse : entraînements, matchs et performance offensive</div></div>
     <button class="ghost" id="statsBackHome">← Accueil</button>
    </div>
 
    <div class="field">
-    <label>Groupe</label>
+    <label>Groupe <span class="small">(utilisé pour entraînements, matchs et joueurs)</span></label>
     <select id="statsGroup"><option value="">— Choisir un groupe —</option></select>
    </div>
 
-   <div class="statsTabs">
-    <button class="statsTab active" data-stats-tab="group">Groupe</button>
-    <button class="statsTab" data-stats-tab="player">Joueur</button>
-    <button class="statsTab" data-stats-tab="exercise">Exercice</button>
+   <div class="statsDomainTabs">
+    <button class="statsDomainTab active" data-stats-domain="training">Entraînements</button>
+    <button class="statsDomainTab" data-stats-domain="matches">Matchs</button>
+    <button class="statsDomainTab" data-stats-domain="reference">Référentiel offensif</button>
+    <button class="statsDomainTab" data-stats-domain="impact">Impact joueurs</button>
    </div>
 
    <div id="statsStatus" class="small" style="margin-bottom:10px"></div>
 
-   <div id="statsGroupView">
-    <div class="statsMetrics" id="statsGroupMetrics"></div>
-    <h3 style="font-size:16px;margin:12px 0 8px">Exercices les plus utilisés</h3>
-    <div id="statsTopExercises"></div>
-    <h3 style="font-size:16px;margin:16px 0 8px">Répartition par catégorie</h3>
-    <div id="statsCategoryDistribution"></div>
+   <div id="statsTrainingDomain">
+    <div class="statsTabs">
+     <button class="statsTab active" data-stats-tab="group">Groupe</button>
+     <button class="statsTab" data-stats-tab="player">Joueur</button>
+     <button class="statsTab" data-stats-tab="exercise">Exercice</button>
+    </div>
+
+    <div id="statsGroupView">
+     <div class="statsMetrics" id="statsGroupMetrics"></div>
+     <h3 style="font-size:16px;margin:12px 0 8px">Exercices les plus utilisés</h3>
+     <div id="statsTopExercises"></div>
+     <h3 style="font-size:16px;margin:16px 0 8px">Répartition par catégorie</h3>
+     <div id="statsCategoryDistribution"></div>
+    </div>
+
+    <div id="statsPlayerView" class="hidden">
+     <div class="row">
+      <div class="field"><label>Joueur</label><select id="statsPlayer"><option value="">— Choisir —</option></select></div>
+      <div class="field"><label>Exercice</label><select id="statsPlayerExercise"><option value="">— Choisir —</option></select></div>
+     </div>
+     <div class="statsMetrics" id="statsPlayerMetrics"></div>
+     <div id="statsPlayerExerciseSummary"></div>
+     <div id="statsPlayerEvolution"></div>
+    </div>
+
+    <div id="statsExerciseView" class="hidden">
+     <div class="row">
+      <div class="field"><label>Exercice</label><select id="statsExercise"><option value="">— Choisir —</option></select></div>
+      <div class="field hidden" id="statsExerciseFocusWrap">
+       <label>Focus</label>
+       <select id="statsExerciseFocus"><option value="attaque">Attaque</option><option value="defense">Défense</option></select>
+      </div>
+     </div>
+     <div class="statsMetrics" id="statsExerciseMetrics"></div>
+     <div id="statsExerciseEvolution"></div>
+
+     <div class="row" style="justify-content:space-between;align-items:center;margin:18px 0 8px">
+      <h3 style="font-size:16px">Leaderboard</h3>
+      <div class="row" style="gap:6px">
+       <button class="ghost statsLeaderboardMode active" data-leader-mode="recent">Récent</button>
+       <button class="ghost statsLeaderboardMode" data-leader-mode="global">Global</button>
+      </div>
+     </div>
+     <div class="small" id="statsLeaderboardHint" style="margin-bottom:8px"></div>
+     <div id="statsLeaderboard"></div>
+    </div>
    </div>
 
-   <div id="statsPlayerView" class="hidden">
-    <div class="row">
-     <div class="field"><label>Joueur</label><select id="statsPlayer"><option value="">— Choisir —</option></select></div>
-     <div class="field"><label>Exercice</label><select id="statsPlayerExercise"><option value="">— Choisir —</option></select></div>
+   <div id="statsMatchesDomain" class="hidden">
+    <div class="analysisBlock">
+     <h3>Statistiques de matchs du groupe</h3>
+     <div class="analysisSubtle">Agrégation de tous les matchs enregistrés dans le groupe sélectionné.</div>
+     <div id="statsMatchSummary" style="margin-top:10px"></div>
     </div>
-    <div class="statsMetrics" id="statsPlayerMetrics"></div>
-    <div id="statsPlayerExerciseSummary"></div>
-    <div id="statsPlayerEvolution"></div>
    </div>
 
-   <div id="statsExerciseView" class="hidden">
-    <div class="row">
-     <div class="field"><label>Exercice</label><select id="statsExercise"><option value="">— Choisir —</option></select></div>
-     <div class="field hidden" id="statsExerciseFocusWrap">
-      <label>Focus</label>
-      <select id="statsExerciseFocus"><option value="attaque">Attaque</option><option value="defense">Défense</option></select>
+   <div id="statsReferenceDomain" class="hidden">
+    <div class="analysisBlock">
+     <div class="row" style="justify-content:space-between;align-items:end;gap:10px">
+      <div>
+       <h3>Référentiel offensif global</h3>
+       <div class="analysisSubtle">Quick Collection + issues exploitables des matchs détaillés. Les populations Hommes et Femmes sont toujours séparées.</div>
+      </div>
+      <div class="field" style="max-width:190px">
+       <label>Population</label>
+       <select id="statsReferencePopulation"><option value="H">Hommes</option><option value="F">Femmes</option></select>
+      </div>
      </div>
+     <div id="statsReferenceContent" style="margin-top:10px"></div>
     </div>
-    <div class="statsMetrics" id="statsExerciseMetrics"></div>
-    <div id="statsExerciseEvolution"></div>
+   </div>
 
-    <div class="row" style="justify-content:space-between;align-items:center;margin:18px 0 8px">
-     <h3 style="font-size:16px">Leaderboard</h3>
-     <div class="row" style="gap:6px">
-      <button class="ghost statsLeaderboardMode active" data-leader-mode="recent">Récent</button>
-      <button class="ghost statsLeaderboardMode" data-leader-mode="global">Global</button>
+   <div id="statsImpactDomain" class="hidden">
+    <div class="analysisBlock">
+     <div class="row" style="justify-content:space-between;align-items:end;gap:10px">
+      <div>
+       <h3>Impact offensif des joueurs</h3>
+       <div class="analysisSubtle">Comparaison de chaque joueur à la valeur offensive attendue dans les mêmes contextes de départ.</div>
+      </div>
+      <div class="field" style="max-width:190px">
+       <label>Référentiel</label>
+       <select id="statsImpactPopulation"><option value="H">Hommes</option><option value="F">Femmes</option></select>
+      </div>
      </div>
+     <div id="statsImpactContent" style="margin-top:10px"></div>
     </div>
-    <div class="small" id="statsLeaderboardHint" style="margin-bottom:8px"></div>
-    <div id="statsLeaderboard"></div>
    </div>
  </section>
 
@@ -3802,7 +3859,7 @@ $('#matchTypeCreateForm').onsubmit=event=>{
 let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{}};
 let groupState={groups:[],currentGroupId:null,currentPlayers:[],matchPlayers:[],profiles:{}};
 let adminState={isAdmin:false,groups:[]};
-let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',leaderMode:'recent'};
+let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,reference:null,impactReference:null};
 
 
 
@@ -6227,16 +6284,139 @@ function renderStatsLeaderboard(rows,ex){
   if(!entries.length){leader.innerHTML='<div class="statsEmpty">Pas encore assez de données pour établir un classement.</div>';return}
   leader.innerHTML=entries.slice(0,10).map((x,i)=>`<div class="leaderRow"><div class="leaderRank">${i+1}</div><div><strong>${statsEscape(x.name)}</strong><div class="small">${x.volume} ${ex.measurement_type==='success_attempts'?'tentative'+(x.volume>1?'s':''):'résultat'+(x.volume>1?'s':'')}</div></div><strong>${statsEscape(x.display)}</strong></div>`).join('');
 }
+
+function switchStatsDomain(domain){
+  statsState.domain=domain;
+  $$('.statsDomainTab').forEach(b=>b.classList.toggle('active',b.dataset.statsDomain===domain));
+  $('#statsTrainingDomain').classList.toggle('hidden',domain!=='training');
+  $('#statsMatchesDomain').classList.toggle('hidden',domain!=='matches');
+  $('#statsReferenceDomain').classList.toggle('hidden',domain!=='reference');
+  $('#statsImpactDomain').classList.toggle('hidden',domain!=='impact');
+  if(domain==='matches')loadStatsMatches().catch(e=>{handleError('stats matches',e);$('#statsMatchSummary').innerHTML=`<div class="statsEmpty">${escapeHtml(e.message||String(e))}</div>`});
+  if(domain==='reference')loadStatsReference().catch(e=>{handleError('stats reference',e);$('#statsReferenceContent').innerHTML=`<div class="statsEmpty">${escapeHtml(e.message||String(e))}</div>`});
+  if(domain==='impact')loadStatsImpact().catch(e=>{handleError('stats impact',e);$('#statsImpactContent').innerHTML=`<div class="statsEmpty">${escapeHtml(e.message||String(e))}</div>`});
+}
+async function statsGroupMatchDataset(){
+  const groupId=$('#statsGroup').value;
+  if(!groupId)return {matchIds:[],matches:[],events:[],players:[]};
+  const {data,error}=await db.from('matches').select('id').eq('group_id',groupId).order('played_on',{ascending:true});
+  if(error)throw error;
+  const ids=(data||[]).map(m=>m.id);
+  if(!ids.length)return {matchIds:[],matches:[],events:[],players:[]};
+  return await loadMatchAnalysisDataset(ids);
+}
+function statsOutcomeCounts(events,mode){
+  const counts=emptyOffensiveCounts();
+  let usable=0;
+  (events||[]).forEach(e=>{
+    let obs=null;
+    if(mode==='attack'){
+      if(e.action_type!=='attaque'&&e.action_type!=='faute')return;
+      obs=detailedEventToOffensiveObservation(e);
+    }else{
+      if(e.action_type!=='defense')return;
+      obs=detailedEventToOffensiveObservation(e);
+    }
+    if(!obs)return;
+    addOffensiveObservation(counts,obs.context,obs.outcome);usable++;
+  });
+  return {counts,usable};
+}
+function statsContextTable(counts,title){
+  const rows=OFFENSIVE_CONTEXTS.map(c=>{
+    const x=counts[c.key]||{point:0,defended:0,attack_fault:0,total:0};
+    const rate=x.total?Math.round(1000*x.point/x.total)/10:null;
+    return `<tr><td>${escapeHtml(c.label)}</td><td>${x.point}</td><td>${x.defended}</td><td>${x.attack_fault}</td><td>${x.total}</td><td>${rate==null?'—':String(rate).replace('.',',')+' %'}</td></tr>`;
+  }).join('');
+  return `<div class="analysisSubsectionTitle">${escapeHtml(title)}</div><div class="analysisTableWrap"><table class="analysisTable"><thead><tr><th>Contexte</th><th>Points</th><th>Défendus</th><th>Fautes</th><th>N</th><th>Taux point</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+async function loadStatsMatches(){
+  const box=$('#statsMatchSummary');
+  const groupId=$('#statsGroup').value;
+  if(!groupId){box.innerHTML='<div class="statsEmpty">Choisis un groupe.</div>';return}
+  box.innerHTML='<div class="statsEmpty">Chargement…</div>';
+  const ds=await statsGroupMatchDataset();
+  statsState.matchDataset=ds;
+  if(!ds.matchIds.length){box.innerHTML='<div class="statsEmpty">Aucun match enregistré dans ce groupe.</div>';return}
+  const attacks=statsOutcomeCounts(ds.events,'attack');
+  const adverse=statsOutcomeCounts(ds.events,'defense');
+  const attackTotals=Object.values(attacks.counts).reduce((a,x)=>({point:a.point+x.point,defended:a.defended+x.defended,attack_fault:a.attack_fault+x.attack_fault,total:a.total+x.total}),{point:0,defended:0,attack_fault:0,total:0});
+  const pointRate=attackTotals.total?Math.round(1000*attackTotals.point/attackTotals.total)/10:null;
+  const faultRate=attackTotals.total?Math.round(1000*attackTotals.attack_fault/attackTotals.total)/10:null;
+  box.innerHTML=`<div class="statsMatchGrid">
+    <div class="statsMatchCard"><span class="small">Matchs</span><strong>${ds.matchIds.length}</strong></div>
+    <div class="statsMatchCard"><span class="small">Attaques exploitables</span><strong>${attackTotals.total}</strong></div>
+    <div class="statsMatchCard"><span class="small">Taux de point</span><strong>${pointRate==null?'—':String(pointRate).replace('.',',')+' %'}</strong></div>
+    <div class="statsMatchCard"><span class="small">Taux de faute</span><strong>${faultRate==null?'—':String(faultRate).replace('.',',')+' %'}</strong></div>
+   </div>
+   ${statsContextTable(attacks.counts,'Attaque de l’équipe suivie')}
+   ${statsContextTable(adverse.counts,'Attaque adverse observée via notre défense')}
+   <div class="analysisSubtle" style="margin-top:8px">Centre / ligne / coin correspondent à la position de départ de l’attaque ou de la remise en jeu.</div>`;
+}
+function statsReferenceHtml(ref){
+  if(!ref)return '<div class="statsEmpty">Référentiel indisponible.</div>';
+  const rows=OFFENSIVE_CONTEXTS.map(c=>{
+    const x=ref.contexts[c.key];
+    const pct=v=>x.total?`${String(Math.round(1000*v)/10).replace('.',',')} %`:'—';
+    return `<tr><td>${escapeHtml(c.label)}</td><td>${x.point}</td><td>${x.defended}</td><td>${x.attack_fault}</td><td>${x.total}</td><td>${pct(x.p)}</td><td>${pct(x.q)}</td><td>${x.total?(Math.round(1000*x.mu)/1000).toFixed(3).replace('.',','):'—'}</td></tr>`;
+  }).join('');
+  return `<div class="statsMatchGrid">
+    <div class="statsMatchCard"><span class="small">Population</span><strong>${ref.population==='H'?'Hommes':'Femmes'}</strong></div>
+    <div class="statsMatchCard"><span class="small">Observations</span><strong>${ref.total}</strong></div>
+    <div class="statsMatchCard"><span class="small">Quick Collection</span><strong>${ref.quickCount}</strong></div>
+    <div class="statsMatchCard"><span class="small">Matchs détaillés</span><strong>${ref.detailedCount}</strong></div>
+   </div>
+   <div class="analysisTableWrap" style="margin-top:10px"><table class="analysisTable"><thead><tr><th>Contexte</th><th>Points</th><th>Défendus</th><th>Fautes</th><th>N</th><th>% point</th><th>% faute</th><th>μ = p − 2q</th></tr></thead><tbody>${rows}</tbody></table></div>
+   <div class="analysisSubtle" style="margin-top:8px">Le référentiel est recalculé depuis les données disponibles. Hommes et Femmes ne sont jamais mélangés.</div>`;
+}
+async function loadStatsReference(){
+  const pop=$('#statsReferencePopulation').value||'H';
+  const box=$('#statsReferenceContent');box.innerHTML='<div class="statsEmpty">Calcul du référentiel…</div>';
+  statsState.reference=await loadOffensiveReference(pop);
+  box.innerHTML=statsReferenceHtml(statsState.reference);
+}
+async function loadStatsImpact(){
+  const groupId=$('#statsGroup').value;
+  const box=$('#statsImpactContent');
+  if(!groupId){box.innerHTML='<div class="statsEmpty">Choisis un groupe.</div>';return}
+  box.innerHTML='<div class="statsEmpty">Calcul de l’impact offensif…</div>';
+  const ds=await statsGroupMatchDataset();
+  if(!ds.matchIds.length){box.innerHTML='<div class="statsEmpty">Aucun match enregistré dans ce groupe.</div>';return}
+  const pop=$('#statsImpactPopulation').value||'H';
+  const ref=await loadOffensiveReference(pop);
+  statsState.impactReference=ref;
+  const previousRef=analysisState.offensiveReference;
+  analysisState.offensiveReference=ref;
+  const names=(ds.players||[]).filter(Boolean);
+  const rows=names.map(name=>playerOffensiveImpact(ds.events,name));
+  analysisState.offensiveReference=previousRef;
+  rows.sort((a,b)=>(b.impact100??-Infinity)-(a.impact100??-Infinity));
+  const body=rows.map(x=>`<tr>
+    <td>${escapeHtml(x.name)}${x.total>0&&x.total<20?' <span class="small">· échantillon limité</span>':''}</td>
+    <td>${x.total}</td><td>${x.points}</td><td>${x.total?(Math.round(x.expectedPoints*10)/10).toFixed(1).replace('.',','):'—'}</td>
+    <td>${x.faults}</td><td>${x.total?(Math.round(x.expectedFaults*10)/10).toFixed(1).replace('.',','):'—'}</td>
+    <td class="${impactClass(x.impact)}">${x.total?signed1(x.impact):'—'}</td>
+    <td class="${impactClass(x.impact100||0)}">${x.total?signed1(x.impact100):'—'}</td>
+   </tr>`).join('');
+  box.innerHTML=`<div class="analysisSubtle" style="margin-bottom:8px">Référentiel ${pop==='H'?'Hommes':'Femmes'} · valeur d’une attaque : +1 point, 0 ballon défendu, −2 faute. Impact = valeur réelle − valeur attendue selon le contexte de départ.</div>
+   <div class="analysisTableWrap"><table class="analysisTable"><thead><tr><th>Joueur</th><th>Att.</th><th>Pts</th><th>Pts att.</th><th>Fautes</th><th>Fautes att.</th><th>Impact</th><th>Impact /100</th></tr></thead><tbody>${body||'<tr><td colspan="8">Aucune attaque attribuée.</td></tr>'}</tbody></table></div>`;
+}
+
 async function openStatsModule(){
   try{
     await fetchMyGroups();
     hideMainModules();setMatchHeaderMode(false);
     $('#statsHome').classList.remove('hidden');
     $('#statsGroup').value=groupState.groups[0]?.id||'';
-    statsState.tab='group';statsState.leaderMode='recent';
+    statsState.tab='group';statsState.domain='training';statsState.leaderMode='recent';
     $$('.statsLeaderboardMode').forEach(b=>b.classList.toggle('active',b.dataset.leaderMode==='recent'));
     switchStatsTab('group');
+    switchStatsDomain('training');
     await loadStatsData($('#statsGroup').value);
+    const group=groupState.groups.find(g=>g.id===$('#statsGroup').value);
+    const pop=groupPopulationFromName(group?.name)||'H';
+    $('#statsReferencePopulation').value=pop;
+    $('#statsImpactPopulation').value=pop;
     window.scrollTo({top:0,behavior:'instant'});
   }catch(e){handleError('stats',e);$('#statsStatus').textContent=e.message||String(e)}
 }
@@ -6389,8 +6569,21 @@ $('#historyPlayer').onchange=()=>loadPlayerHistory($('#historyPlayer').value).ca
 
 $('#openStatsModule').onclick=()=>openStatsModule();
 $('#statsBackHome').onclick=showAppHome;
-$('#statsGroup').onchange=()=>loadStatsData($('#statsGroup').value).catch(e=>{handleError('stats group',e);$('#statsStatus').textContent=e.message||String(e)});
+$('#statsGroup').onchange=async()=>{
+  try{
+    await loadStatsData($('#statsGroup').value);
+    const group=groupState.groups.find(g=>g.id===$('#statsGroup').value);
+    const pop=groupPopulationFromName(group?.name)||'H';
+    $('#statsReferencePopulation').value=pop;
+    $('#statsImpactPopulation').value=pop;
+    if(statsState.domain==='matches')await loadStatsMatches();
+    if(statsState.domain==='impact')await loadStatsImpact();
+  }catch(e){handleError('stats group',e);$('#statsStatus').textContent=e.message||String(e)}
+};
+$$('.statsDomainTab').forEach(b=>b.onclick=()=>switchStatsDomain(b.dataset.statsDomain));
 $$('.statsTab').forEach(b=>b.onclick=()=>switchStatsTab(b.dataset.statsTab));
+$('#statsReferencePopulation').onchange=()=>loadStatsReference().catch(e=>handleError('stats reference population',e));
+$('#statsImpactPopulation').onchange=()=>loadStatsImpact().catch(e=>handleError('stats impact population',e));
 $('#statsPlayer').onchange=()=>{populateStatsPlayerExercises();renderStatsPlayer()};
 $('#statsPlayerExercise').onchange=renderStatsPlayer;
 $('#statsExercise').onchange=renderStatsExercise;
