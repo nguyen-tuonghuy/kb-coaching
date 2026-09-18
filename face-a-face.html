@@ -55,7 +55,7 @@ button{border:0;border-radius:12px;padding:11px 13px;background:var(--panel2);co
   <div class="row" style="justify-content:space-between;margin-bottom:12px">
     <div>
       <h1 style="font-size:23px">⚔️ Face-à-face offensif</h1>
-      <div class="small">Comparaison détaillée Nous / adversaire, contexte par contexte.</div>
+      <div class="small">Comparaison détaillée Nous / adversaire, centrée sur les écarts au référentiel et la performance offensive.</div>
     </div>
     <div class="row">
       <button class="helpBtn" id="helpBtn" type="button">?</button>
@@ -89,9 +89,8 @@ button{border:0;border-radius:12px;padding:11px 13px;background:var(--panel2);co
       <div class="helpItem"><strong>Δ point</strong>Écart au taux de point du référentiel.<div class="formula">Δ point = observé − référence</div></div>
       <div class="helpItem"><strong>% faute</strong>Part des attaques terminées par une faute.</div>
       <div class="helpItem"><strong>Δ faute</strong>Écart au taux de faute du référentiel. Positif = davantage de fautes.</div>
-      <div class="helpItem"><strong>μ</strong>Valeur moyenne d’une attaque.<div class="formula">μ = P(point) − 2 × P(faute)</div></div>
-      <div class="helpItem"><strong>Δ μ</strong>Écart entre μ observé et μ de référence.</div>
-      <div class="helpItem"><strong>Performance /100</strong>Performance offensive ramenée à 100 attaques.<div class="formula">100 × (valeur réelle − valeur attendue) / N</div></div>
+      <div class="helpItem"><strong>Performance offensive /100</strong>Indicateur principal : il compare ce qui a réellement été produit à ce qu’on pouvait attendre dans les mêmes situations d’attaque. Un point vaut +1, un ballon défendu 0 et une faute −2.<div class="formula">Perf. /100 = 100 × (valeur réelle − valeur attendue) / N</div></div>
+      <div class="helpItem"><strong>Calcul interne (μ)</strong>μ est une valeur technique utilisée pour calculer la valeur attendue de chaque attaque selon son contexte. Elle n’est pas affichée dans le face-à-face car la Performance /100 en est une traduction plus directement interprétable.<div class="formula">μ = P(point) − 2 × P(faute)</div></div>
       <div class="helpItem"><strong>Fiabilité</strong>N&lt;5 : score masqué. 5–15 : échantillon limité. &gt;15 : affichage normal.</div>
       <div class="helpItem"><strong>Attaque adverse</strong>Reconstituée depuis notre défense : défendu → 0, échappé/défensive illégale → +1, faute adverse → −2.</div>
       <div class="helpItem"><strong>Périmètre</strong>« Cumul » regroupe tous les matchs contre l’adversaire sélectionné. Tu peux aussi choisir un match précis pour voir uniquement ce face-à-face.</div>
@@ -148,7 +147,6 @@ function observation(e){
 }
 function pct(v){return v==null||!Number.isFinite(v)?'—':`${String(Math.round(v*1000)/10).replace('.',',')} %`}
 function signedPct(v){if(v==null||!Number.isFinite(v))return '—';const n=Math.round(v*1000)/10;return `${n>0?'+':''}${String(n).replace('.',',')} pt`}
-function signed3(v){if(v==null||!Number.isFinite(v))return '—';const n=Math.round(v*1000)/1000;return `${n>0?'+':''}${n.toFixed(3).replace('.',',')}`}
 function signed1(v){if(v==null||!Number.isFinite(v))return '—';const n=Math.round(v*10)/10;return `${n>0?'+':''}${n.toFixed(1).replace('.',',')}`}
 function valueClass(v){return !Number.isFinite(v)||v===0?'':v>0?'good':'bad'}
 function faultClass(v){return !Number.isFinite(v)||v===0?'':v<0?'good':'bad'}
@@ -325,11 +323,9 @@ function renderCountry(country){
       metricRow('Δ point',signedPct(a.dp),signedPct(b.dp),valueClass(a.dp),valueClass(b.dp)),
       metricRow('% faute',pct(a.q),pct(b.q)),
       metricRow('Δ faute',signedPct(a.dq),signedPct(b.dq),faultClass(a.dq),faultClass(b.dq)),
-      metricRow('μ',a.mu==null?'—':a.mu.toFixed(3).replace('.',','),b.mu==null?'—':b.mu.toFixed(3).replace('.',',')),
-      metricRow('Δ μ',signed3(a.dmu),signed3(b.dmu),valueClass(a.dmu),valueClass(b.dmu)),
       metricRow('Performance /100',perfDisplay(a.perf100,a.n),perfDisplay(b.perf100,b.n))
     ].join('');
-    return `<div class="context"><div class="contextHead"><strong>${c.label}</strong><div class="reference">Réf. : point ${pct(ref.p)} · faute ${pct(ref.q)} · μ ${ref.mu.toFixed(3).replace('.',',')}</div></div><div class="faceoffRows">${rows}</div></div>`;
+    return `<div class="context"><div class="contextHead"><strong>${c.label}</strong><div class="reference">Réf. : point ${pct(ref.p)} · faute ${pct(ref.q)}</div></div><div class="faceoffRows">${rows}</div></div>`;
   }).join('');
   $('#content').innerHTML=`
     <div class="row" style="justify-content:space-between;margin-bottom:8px">
