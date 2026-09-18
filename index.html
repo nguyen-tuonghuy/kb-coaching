@@ -1352,7 +1352,7 @@ button:active{transform:scale(.985)}
     <button class="statsDomainTab active" data-stats-domain="training">Entraînements</button>
     <button class="statsDomainTab" data-stats-domain="matches">Matchs</button>
     <button class="statsDomainTab" data-stats-domain="reference">Référentiel offensif</button>
-    <button class="statsDomainTab" data-stats-domain="impact">Impact joueurs</button>
+    <button class="statsDomainTab" data-stats-domain="impact">Performance offensive joueurs</button>
    </div>
 
    <div id="statsStatus" class="small" style="margin-bottom:10px"></div>
@@ -1433,7 +1433,7 @@ button:active{transform:scale(.985)}
     <div class="analysisBlock">
      <div class="row" style="justify-content:space-between;align-items:end;gap:10px">
       <div>
-       <h3>Impact offensif des joueurs</h3>
+       <h3>Performance offensive des joueurs</h3>
        <div class="analysisSubtle">Comparaison de chaque joueur à la valeur offensive attendue dans les mêmes contextes de départ.</div>
       </div>
       <div class="field" style="max-width:190px">
@@ -5002,10 +5002,10 @@ function impactClass(v){
 }
 function renderOffensiveImpactTable(events,allPlayers){
   const rows=allPlayers.map(name=>playerOffensiveImpact(events,name));
-  return `<div class="analysisSubsectionTitle">Impact offensif ajusté au contexte</div>
-  <div class="analysisSubtle" style="margin-bottom:7px">Valeur réelle : +1 point · 0 ballon défendu · −2 faute. Impact = valeur réelle − valeur attendue selon la position de départ. Les actions sans frappeur attribué ne sont pas affectées à un joueur.</div>
+  return `<div class="analysisSubsectionTitle">Performance offensive ajusté au contexte</div>
+  <div class="analysisSubtle" style="margin-bottom:7px">Valeur réelle : +1 point · 0 ballon défendu · −2 faute. Performance offensive = valeur réelle − valeur attendue selon la position de départ. Les actions sans frappeur attribué ne sont pas affectées à un joueur.</div>
   <div class="analysisTableWrap"><table class="analysisTable"><thead><tr>
-    <th>Joueur</th><th>Att.</th><th>Pts réels</th><th>Pts attendus</th><th>Fautes</th><th>Fautes att.</th><th>Impact</th><th>Impact /100</th>
+    <th>Joueur</th><th>Att.</th><th>Pts réels</th><th>Pts attendus</th><th>Fautes</th><th>Fautes att.</th><th>Performance offensive</th><th>Performance /100</th>
   </tr></thead><tbody>${rows.map(x=>`<tr>
     <td>${escapeHtml(x.name)}${x.total>0&&x.total<20?' <span class="small">· échantillon limité</span>':''}</td>
     <td>${x.total}</td><td>${x.points}</td><td>${x.total?(Math.round(x.expectedPoints*10)/10).toFixed(1).replace('.',','):'—'}</td>
@@ -6624,6 +6624,78 @@ function statsOneVsOneHtml(events,reference,population){
     ${missingOpponent?`<div class="analysisSubtle" style="margin-top:8px">${missingOpponent} attaque${missingOpponent>1?'s':''} exploitable${missingOpponent>1?'s':''} exclue${missingOpponent>1?'s':''} du tableau car le pays attaqué n’est pas renseigné.</div>`:''}`;
 }
 
+
+function teamOffensivePerformance(events,reference){
+  let attacks=0,points=0,faults=0,realValue=0,expectedValue=0,expectedPoints=0,expectedFaults=0;
+  const byContext={};
+  OFFENSIVE_CONTEXTS.forEach(c=>byContext[c.key]={attacks:0,points:0,faults:0,realValue:0,expectedValue:0,expectedPoints:0,expectedFaults:0});
+
+  (events||[]).forEach(e=>{
+    if(e.action_type!=='attaque'&&e.action_type!=='faute')return;
+    const obs=detailedEventToOffensiveObservation(e);
+    if(!obs)return;
+    const ref=reference?.contexts?.[obs.context];
+    if(!ref||!ref.total)return;
+
+    const v=obs.outcome==='point'?1:(obs.outcome==='attack_fault'?-2:0);
+    const c=byContext[obs.context];
+    attacks++; c.attacks++;
+    if(obs.outcome==='point'){points++;c.points++}
+    if(obs.outcome==='attack_fault'){faults++;c.faults++}
+    realValue+=v;c.realValue+=v;
+    expectedValue+=ref.mu;c.expectedValue+=ref.mu;
+    expectedPoints+=ref.p;c.expectedPoints+=ref.p;
+    expectedFaults+=ref.q;c.expectedFaults+=ref.q;
+  });
+
+  const impact=realValue-expectedValue;
+  const impact100=attacks?100*impact/attacks:null;
+  return {attacks,points,faults,realValue,expectedValue,expectedPoints,expectedFaults,impact,impact100,byContext};
+}
+function teamOffensivePerformanceHtml(perf,population){
+  if(!perf||!perf.attacks)return '<div class="statsEmpty">Pas assez d’attaques exploitables pour calculer la performance offensive de l’équipe.</div>';
+  const cls=impactClass(perf.impact100||0);
+  const rows=OFFENSIVE_CONTEXTS.map(c=>{
+    const x=perf.byContext[c.key];
+    if(!x.attacks)return `<tr><td>${escapeHtml(c.label)}</td><td>0</td><td colspan="5">—</td></tr>`;
+    const impact=x.realValue-x.expectedValue;
+    const impact100=100*impact/x.attacks;
+    return `<tr>
+      <td>${escapeHtml(c.label)}</td>
+      <td>${x.attacks}</td>
+      <td>${x.points}</td>
+      <td>${(Math.round(x.expectedPoints*10)/10).toFixed(1).replace('.',',')}</td>
+      <td>${x.faults}</td>
+      <td>${(Math.round(x.expectedFaults*10)/10).toFixed(1).replace('.',',')}</td>
+      <td class="${impactClass(impact100)}">${signed1(impact100)}</td>
+    </tr>`;
+  }).join('');
+
+  return `<div class="analysisBlock" style="margin-top:14px">
+    <div class="analysisSubsectionTitle" style="margin-bottom:8px">Performance offensive de l’équipe</div>
+    <div class="analysisSubtle" style="margin-bottom:10px">
+      Comparaison au référentiel ${population==='H'?'Hommes':'Femmes'} dans les mêmes contextes de départ.
+      Valeur d’une attaque : +1 point, 0 ballon défendu, −2 faute.
+    </div>
+    <div class="statsMatchGrid">
+      <div class="statsMatchCard"><span class="small">Attaques</span><strong>${perf.attacks}</strong></div>
+      <div class="statsMatchCard"><span class="small">Valeur réelle</span><strong>${signed1(perf.realValue)}</strong></div>
+      <div class="statsMatchCard"><span class="small">Valeur attendue</span><strong>${signed1(perf.expectedValue)}</strong></div>
+      <div class="statsMatchCard"><span class="small">Performance offensive /100</span><strong class="${cls}">${signed1(perf.impact100)}</strong></div>
+    </div>
+    <div class="analysisTableWrap" style="margin-top:10px">
+      <table class="analysisTable">
+        <thead><tr><th>Contexte</th><th>Att.</th><th>Pts</th><th>Pts att.</th><th>Fautes</th><th>Fautes att.</th><th>Perf. /100</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div class="analysisSubtle" style="margin-top:8px">
+      Un score de 0 signifie que l’équipe produit exactement la valeur offensive attendue compte tenu de ses situations d’attaque.
+      Un score positif indique une performance supérieure à cette référence ; un score négatif, inférieure.
+    </div>
+  </div>`;
+}
+
 async function loadStatsMatches(){
   const box=$('#statsMatchSummary');
   const groupId=$('#statsGroup').value;
@@ -6638,6 +6710,7 @@ async function loadStatsMatches(){
   const population=groupPopulationFromName(group?.name)||'H';
   let offensiveReference=null;
   try{offensiveReference=await loadOffensiveReference(population)}catch(e){console.error('stats 1v1 reference',e)}
+  const teamPerformance=teamOffensivePerformance(ds.events,offensiveReference);
   const attackTotals=Object.values(attacks.counts).reduce((a,x)=>({point:a.point+x.point,defended:a.defended+x.defended,attack_fault:a.attack_fault+x.attack_fault,total:a.total+x.total}),{point:0,defended:0,attack_fault:0,total:0});
   const pointRate=attackTotals.total?Math.round(1000*attackTotals.point/attackTotals.total)/10:null;
   const faultRate=attackTotals.total?Math.round(1000*attackTotals.attack_fault/attackTotals.total)/10:null;
@@ -6647,6 +6720,7 @@ async function loadStatsMatches(){
     <div class="statsMatchCard"><span class="small">Taux de point</span><strong>${pointRate==null?'—':String(pointRate).replace('.',',')+' %'}</strong></div>
     <div class="statsMatchCard"><span class="small">Taux de faute</span><strong>${faultRate==null?'—':String(faultRate).replace('.',',')+' %'}</strong></div>
    </div>
+   ${teamOffensivePerformanceHtml(teamPerformance,population)}
    ${statsContextTable(attacks.counts,'Attaque de l’équipe suivie')}
    ${statsContextTable(adverse.counts,'Attaque adverse observée via notre défense')}
    ${statsOneVsOneHtml(ds.events,offensiveReference,population)}
@@ -6678,7 +6752,7 @@ async function loadStatsImpact(){
   const groupId=$('#statsGroup').value;
   const box=$('#statsImpactContent');
   if(!groupId){box.innerHTML='<div class="statsEmpty">Choisis un groupe.</div>';return}
-  box.innerHTML='<div class="statsEmpty">Calcul de l’impact offensif…</div>';
+  box.innerHTML='<div class="statsEmpty">Calcul de l’performance offensive…</div>';
   const ds=await statsGroupMatchDataset();
   if(!ds.matchIds.length){box.innerHTML='<div class="statsEmpty">Aucun match enregistré dans ce groupe.</div>';return}
   const pop=$('#statsImpactPopulation').value||'H';
@@ -6697,8 +6771,8 @@ async function loadStatsImpact(){
     <td class="${impactClass(x.impact)}">${x.total?signed1(x.impact):'—'}</td>
     <td class="${impactClass(x.impact100||0)}">${x.total?signed1(x.impact100):'—'}</td>
    </tr>`).join('');
-  box.innerHTML=`<div class="analysisSubtle" style="margin-bottom:8px">Référentiel ${pop==='H'?'Hommes':'Femmes'} · valeur d’une attaque : +1 point, 0 ballon défendu, −2 faute. Impact = valeur réelle − valeur attendue selon le contexte de départ.</div>
-   <div class="analysisTableWrap"><table class="analysisTable"><thead><tr><th>Joueur</th><th>Att.</th><th>Pts</th><th>Pts att.</th><th>Fautes</th><th>Fautes att.</th><th>Impact</th><th>Impact /100</th></tr></thead><tbody>${body||'<tr><td colspan="8">Aucune attaque attribuée.</td></tr>'}</tbody></table></div>`;
+  box.innerHTML=`<div class="analysisSubtle" style="margin-bottom:8px">Référentiel ${pop==='H'?'Hommes':'Femmes'} · valeur d’une attaque : +1 point, 0 ballon défendu, −2 faute. Performance offensive = valeur réelle − valeur attendue selon le contexte de départ.</div>
+   <div class="analysisTableWrap"><table class="analysisTable"><thead><tr><th>Joueur</th><th>Att.</th><th>Pts</th><th>Pts att.</th><th>Fautes</th><th>Fautes att.</th><th>Performance offensive</th><th>Performance /100</th></tr></thead><tbody>${body||'<tr><td colspan="8">Aucune attaque attribuée.</td></tr>'}</tbody></table></div>`;
 }
 
 async function openStatsModule(){
