@@ -62,6 +62,12 @@ button:active{transform:scale(.985)}
 .closePopup{width:42px;height:42px;padding:0;border-radius:999px;font-size:22px;line-height:1;background:var(--panel2);border:1px solid var(--line)}
 .meta{font-size:13px;color:var(--muted);margin-bottom:12px}
 .step{margin-top:14px}
+.popupPeriodField{max-width:170px}
+.popupPeriodField select{padding:9px 10px}
+@media(max-width:640px){
+  .popupPeriodField{max-width:145px}
+  .popupPeriodField select{padding:8px 9px}
+}
 .step h3{font-size:14px;color:var(--muted);margin:0 0 8px}
 .options,.faultgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .options button,.faultgrid button{min-height:51px}
@@ -2116,6 +2122,11 @@ button:active{transform:scale(.985)}
     <button class="closePopup" id="closeMainPopup" aria-label="Fermer">×</button>
    </div>
 
+   <div class="field popupPeriodField" style="margin-top:8px">
+    <label>Période</label>
+    <select id="popupPeriod"><option>P1</option><option>P2</option><option>P3</option><option>P4</option><option>P5</option><option>P6</option><option>P7</option><option>P8</option><option>P9</option><option>P10</option></select>
+   </div>
+
    <div class="step" id="opponentStep">
     <h3 id="opponentTitle">Équipe concernée</h3>
     <div class="options" id="opponentOptions"></div>
@@ -2209,6 +2220,11 @@ button:active{transform:scale(.985)}
     </div>
     <button class="closePopup" id="closeFaultPopup" aria-label="Fermer">×</button>
    </div>
+   <div class="field popupPeriodField" style="margin-top:8px">
+    <label>Période</label>
+    <select id="faultPeriod"><option>P1</option><option>P2</option><option>P3</option><option>P4</option><option>P5</option><option>P6</option><option>P7</option><option>P8</option><option>P9</option><option>P10</option></select>
+   </div>
+
    <div class="step">
     <h3 id="faultOpponentTitle">Équipe attaquée</h3>
     <div class="options" id="faultOpponentOptions"></div>
@@ -3659,6 +3675,7 @@ function openActionPopup(selectedFamily,selectedActionType){
   $('#popup').classList.toggle('fieldMode',family==='centre');
   context=family==='centre'?'centre':(family==='gel'?'gel':'remise_centre');
   pending=null;actionResult='';zone='';movement='Non';who='';whoMany=[];opponentTeam='';editingId=null;
+  if($('#popupPeriod'))$('#popupPeriod').value=$('#period').value||'P1';
   $('#popupTitle').textContent=actionType+(family==='centre'?' au centre':family==='gel'?' Gel':' sur remise en jeu');
   $('#popupMeta').textContent=(currentVideoPosition()?'Vidéo '+currentVideoPosition()+' · ':'')+$('#period').value;
   if(family==='centre'){
@@ -3704,6 +3721,7 @@ function buildFaultOpponentOptions(){
 }
 function openFaultPopup(){
   faultType='';faultWho='';
+  if($('#faultPeriod'))$('#faultPeriod').value=$('#period').value||'P1';
   const vp=currentVideoPosition();
   $('#faultMeta').textContent='Faute d’attaque · '+labelContext(context)+(vp?' · vidéo '+vp:'')+' · '+$('#period').value;
   buildFaultOpponentOptions();
@@ -3805,7 +3823,7 @@ $('#savePopup').onclick=async()=>{
     const isDefenseFault=actionType==='Défense'&&actionResult==='Défensive illégale';
     const isOpponentFault=actionType==='Défense'&&actionResult==='Faute de l’adversaire';
     const base={
-      videoPosition:currentVideoPosition(),period:$('#period').value,context,family,
+      videoPosition:currentVideoPosition(),period:($('#popupPeriod')?.value||$('#period').value||'P1'),context,family,
       restartLocation:restartLocation||null,opponentTeam:opponentTeam||null,action:isDefenseFault?'Faute':pending,
       faultType:isDefenseFault?'Défensive illégale':null,
       zone:(isDefenseFault||isOpponentFault||family==='gel')?null:(zone||null),movement:(isDefenseFault||isOpponentFault)?null:(movement||null),
@@ -3824,6 +3842,17 @@ $('#savePopup').onclick=async()=>{
     editingId=null;$('#popup').classList.add('hidden');$$('.entryAction').forEach(x=>x.classList.remove('selected'));render();setCloud('Synchronisé',true);
   }catch(e){handleError('save event',e)}
 };
+if($('#popupPeriod'))$('#popupPeriod').onchange=()=>{
+  const p=$('#popupPeriod').value||'P1';
+  const vp=($('#videoPosition').value||'').trim();
+  $('#popupMeta').textContent=(editingId?labelContext(context):'')+(editingId&&vp?' · vidéo '+vp:'')+(editingId?' · ':'')+p;
+};
+if($('#faultPeriod'))$('#faultPeriod').onchange=()=>{
+  const p=$('#faultPeriod').value||'P1';
+  const vp=($('#videoPosition').value||'').trim();
+  $('#faultMeta').textContent=(actionType==='Défense'?'Défensive illégale':'Faute d’attaque')+' · '+labelContext(context)+(vp?' · vidéo '+vp:'')+' · '+p;
+};
+
 $('#saveFault').onclick=async()=>{
   if(!opponentTeam){
     alert(actionType==='Défense'?'Choisis l’équipe attaquante.':'Choisis l’équipe attaquée.');
@@ -3833,7 +3862,7 @@ $('#saveFault').onclick=async()=>{
   try{
     setCloud('Enregistrement…',true);
     const base={
-      videoPosition:currentVideoPosition(),period:$('#period').value,context,family,
+      videoPosition:currentVideoPosition(),period:($('#faultPeriod')?.value||$('#period').value||'P1'),context,family,
       restartLocation:restartLocation||null,opponentTeam:opponentTeam||null,action:'Faute',zone:null,movement:null,
       player:faultWho||null,attributedPlayers:[],faultType,activePlayers:[...state.activePlayers],createdAt:new Date().toISOString()
     };
@@ -3908,7 +3937,9 @@ function editEvent(id){
   editingId=id;context=e.context||'centre';
   family=e.family||(context.startsWith('remise_')?'remise':'centre');
   restartLocation=e.restartLocation||(context.startsWith('remise_')?context.replace('remise_',''):'');
-  $('#period').value=e.period||'P1';$('#videoPosition').value=e.videoPosition||'';
+  if($('#popupPeriod'))$('#popupPeriod').value=e.period||'P1';
+  if($('#faultPeriod'))$('#faultPeriod').value=e.period||'P1';
+  $('#videoPosition').value=e.videoPosition||'';
   if(e.action==='Faute'){
     faultType=e.faultType||'';faultWho=e.player||'';opponentTeam=e.opponentTeam||'';
     actionType=faultType==='Défensive illégale'?'Défense':'Attaque';
