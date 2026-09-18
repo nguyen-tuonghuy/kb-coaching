@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kinball Coach — Face-à-face</title>
+<style>
+:root{--bg:#0f1115;--panel:#171a21;--panel2:#20242d;--text:#f5f7fa;--muted:#aab1bc;--accent:#3d7bfd;--good:#58d68d;--bad:#ff7b7b;--warn:#e2b84b;--line:#2e3440}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px system-ui,-apple-system,Segoe UI,sans-serif}
+.app{max-width:1050px;margin:auto;padding:14px 14px 40px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:12px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+h1,h2,h3,p{margin:0}
+.small{font-size:12px;color:var(--muted)}
+.field{flex:1 1 220px}
+label{display:block;color:var(--muted);font-size:13px;margin-bottom:5px}
+select,button{font:inherit}
+select{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--text)}
+button{border:0;border-radius:12px;padding:11px 13px;background:var(--panel2);color:var(--text);font-weight:750;cursor:pointer}
+.primary{background:var(--accent)}
+.ghost{border:1px solid var(--line);background:transparent}
+.good{color:var(--good)!important}.bad{color:var(--bad)!important}
+.status{padding:10px 12px;background:var(--panel2);border-radius:12px;margin-top:10px}
+.faceoffTitle{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px;padding:10px 12px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;font-weight:850}
+.faceoffTitle .left{text-align:left}.faceoffTitle .mid{text-align:center;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}.faceoffTitle .right{text-align:right}
+.faceoffRows{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.faceoffRow{display:grid;grid-template-columns:minmax(0,1fr) minmax(115px,.8fr) minmax(0,1fr);align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line)}
+.faceoffRow:last-child{border-bottom:0}
+.faceoffValue{font-weight:800}.faceoffValue.left{text-align:left}.faceoffValue.right{text-align:right}
+.faceoffMetric{text-align:center;color:var(--muted);font-size:12px;font-weight:750}
+.context{border:1px solid var(--line);border-radius:14px;padding:10px;background:rgba(255,255,255,.018);margin-top:10px}
+.contextHead{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:8px}
+.contextHead strong{font-size:14px}.reference{text-align:right;font-size:11px;color:var(--muted);line-height:1.35}
+.helpBtn{width:34px;height:34px;min-width:34px;padding:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);background:var(--panel2);font-weight:900;font-size:18px}
+.helpBackdrop{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:15px}
+.hidden{display:none!important}
+.helpModal{width:min(820px,96vw);max-height:90vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px}
+.helpGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:12px}
+.helpItem{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px}
+.helpItem strong{display:block;margin-bottom:4px}
+.formula{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:rgba(255,255,255,.06);padding:6px 8px;border-radius:8px;margin-top:5px}
+.sampleWarn{color:var(--warn);font-size:11px;font-weight:600}
+@media(max-width:640px){
+  .app{padding:8px 8px 24px}
+  .faceoffRow{grid-template-columns:minmax(0,1fr) 92px minmax(0,1fr);padding:8px}
+  .faceoffValue{font-size:13px}.faceoffMetric{font-size:11px}
+  .contextHead{display:block}.reference{text-align:left;margin-top:4px}
+  .helpGrid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="row" style="justify-content:space-between;margin-bottom:12px">
+    <div>
+      <h1 style="font-size:23px">⚔️ Face-à-face offensif</h1>
+      <div class="small">Comparaison détaillée Nous / adversaire, contexte par contexte.</div>
+    </div>
+    <div class="row">
+      <button class="helpBtn" id="helpBtn" type="button">?</button>
+      <button class="ghost" id="backBtn" type="button">← Statistiques</button>
+    </div>
+  </div>
+
+  <section class="panel">
+    <div class="row">
+      <div class="field"><label>Groupe</label><select id="groupSelect"><option value="">— Choisir un groupe —</option></select></div>
+      <div class="field"><label>Adversaire</label><select id="countrySelect"><option value="">— Choisir un adversaire —</option></select></div>
+      <div class="field"><label>Périmètre</label><select id="matchScopeSelect" disabled><option value="all">Tous les matchs</option></select></div>
+    </div>
+    <div id="status" class="status small">Chargement…</div>
+  </section>
+
+  <section class="panel" id="content">
+    <div class="small">Choisis un groupe et un adversaire.</div>
+  </section>
+</div>
+
+<div class="helpBackdrop hidden" id="helpBackdrop">
+  <div class="helpModal">
+    <div class="row" style="justify-content:space-between">
+      <div><h2 style="font-size:19px">Comprendre le face-à-face</h2><div class="small">Les deux équipes sont évaluées avec le même référentiel empirique H/F.</div></div>
+      <button class="ghost" id="helpClose" type="button">×</button>
+    </div>
+    <div class="helpGrid">
+      <div class="helpItem"><strong>N</strong>Nombre d’attaques exploitables dans ce contexte.</div>
+      <div class="helpItem"><strong>% point</strong>Part des attaques terminées par un point.</div>
+      <div class="helpItem"><strong>Δ point</strong>Écart au taux de point du référentiel.<div class="formula">Δ point = observé − référence</div></div>
+      <div class="helpItem"><strong>% faute</strong>Part des attaques terminées par une faute.</div>
+      <div class="helpItem"><strong>Δ faute</strong>Écart au taux de faute du référentiel. Positif = davantage de fautes.</div>
+      <div class="helpItem"><strong>μ</strong>Valeur moyenne d’une attaque.<div class="formula">μ = P(point) − 2 × P(faute)</div></div>
+      <div class="helpItem"><strong>Δ μ</strong>Écart entre μ observé et μ de référence.</div>
+      <div class="helpItem"><strong>Performance /100</strong>Performance offensive ramenée à 100 attaques.<div class="formula">100 × (valeur réelle − valeur attendue) / N</div></div>
+      <div class="helpItem"><strong>Fiabilité</strong>N&lt;5 : score masqué. 5–15 : échantillon limité. &gt;15 : affichage normal.</div>
+      <div class="helpItem"><strong>Attaque adverse</strong>Reconstituée depuis notre défense : défendu → 0, échappé/défensive illégale → +1, faute adverse → −2.</div>
+      <div class="helpItem"><strong>Périmètre</strong>« Cumul » regroupe tous les matchs contre l’adversaire sélectionné. Tu peux aussi choisir un match précis pour voir uniquement ce face-à-face.</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL='https://chrbzchthloxowlzdvpe.supabase.co';
+const SUPABASE_KEY='sb_publishable_4pQGJ5DSzMRBuHLrAUb30g_MGZVYvEY';
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=s=>document.querySelector(s);
+const OFFENSIVE_CONTEXTS=[
+  {key:'game_center',label:'Jeu courant · centre'},
+  {key:'restart_center',label:'Remise · centre'},
+  {key:'restart_line',label:'Remise · ligne'},
+  {key:'restart_corner',label:'Remise · coin'}
+];
+let currentUser=null,groups=[],events=[],reference=null,population='H';
+
+function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function emptyCounts(){return Object.fromEntries(OFFENSIVE_CONTEXTS.map(c=>[c.key,{point:0,defended:0,attack_fault:0,total:0}]))}
+function addObs(counts,context,outcome){const x=counts[context];if(!x||!['point','defended','attack_fault'].includes(outcome))return false;x[outcome]++;x.total++;return true}
+function groupPopulation(name){
+  const t=String(name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  if(/\b(feminin|feminine|femmes|femme|edf f)\b/.test(t))return 'F';
+  if(/\b(hommes|homme|masculin|masculine|edf h)\b/.test(t))return 'H';
+  return null;
+}
+function contextFromEvent(e){
+  if(e.family==='centre')return 'game_center';
+  if(e.family!=='remise')return null;
+  if(e.restart_location==='centre')return 'restart_center';
+  if(e.restart_location==='ligne')return 'restart_line';
+  if(e.restart_location==='coin')return 'restart_corner';
+  return null;
+}
+function observation(e){
+  const context=contextFromEvent(e);if(!context)return null;
+  if(e.action_type==='attaque'){
+    if(['Point marqué','Défensive illégale'].includes(e.result))return {context,outcome:'point'};
+    if(e.result==='Ballon défendu')return {context,outcome:'defended'};
+    if(e.result==='Faute attaque')return {context,outcome:'attack_fault'};
+  }
+  if(e.action_type==='faute'&&e.fault_type!=='Défensive illégale')return {context,outcome:'attack_fault'};
+  if(e.action_type==='defense'){
+    if(e.result==='Ballon défendu')return {context,outcome:'defended'};
+    if(e.result==='Échappé'||e.result==='Défensive illégale')return {context,outcome:'point'};
+    if(e.result==='Faute de l’adversaire')return {context,outcome:'attack_fault'};
+  }
+  if(e.action_type==='faute'&&e.fault_type==='Défensive illégale')return {context,outcome:'point'};
+  return null;
+}
+function pct(v){return v==null||!Number.isFinite(v)?'—':`${String(Math.round(v*1000)/10).replace('.',',')} %`}
+function signedPct(v){if(v==null||!Number.isFinite(v))return '—';const n=Math.round(v*1000)/10;return `${n>0?'+':''}${String(n).replace('.',',')} pt`}
+function signed3(v){if(v==null||!Number.isFinite(v))return '—';const n=Math.round(v*1000)/1000;return `${n>0?'+':''}${n.toFixed(3).replace('.',',')}`}
+function signed1(v){if(v==null||!Number.isFinite(v))return '—';const n=Math.round(v*10)/10;return `${n>0?'+':''}${n.toFixed(1).replace('.',',')}`}
+function valueClass(v){return !Number.isFinite(v)||v===0?'':v>0?'good':'bad'}
+function faultClass(v){return !Number.isFinite(v)||v===0?'':v<0?'good':'bad'}
+function perfDisplay(value,n){
+  if(!n||value==null||!Number.isFinite(value))return '—';
+  if(n<5)return '<span class="sampleWarn">—<br>Échantillon insuffisant</span>';
+  const valueHtml=`<span class="${valueClass(value)}">${signed1(value)}</span>`;
+  return n<=15?`${valueHtml}<br><span class="sampleWarn">Échantillon limité</span>`:valueHtml;
+}
+async function fetchGroups(){
+  const {data,error}=await db.from('coaching_group_coaches')
+    .select('group:coaching_groups!coaching_group_coaches_group_id_fkey(id,name)')
+    .eq('user_id',currentUser.id);
+  if(error)throw error;
+  groups=(data||[]).map(x=>x.group).filter(Boolean);
+  $('#groupSelect').innerHTML='<option value="">— Choisir un groupe —</option>'+groups.map(g=>`<option value="${g.id}">${escapeHtml(g.name)}</option>`).join('');
+}
+async function loadReference(pop){
+  const counts=emptyCounts();
+  let quickCount=0,detailedCount=0;
+  const {data:sessions,error:se}=await db.from('quick_collection_sessions').select('id').eq('sex',pop);
+  if(se)throw se;
+  const ids=(sessions||[]).map(x=>x.id);
+  if(ids.length){
+    const {data:samples,error}=await db.from('quick_attack_samples').select('attack_context,outcome').in('session_id',ids);
+    if(error)throw error;
+    (samples||[]).forEach(x=>{if(addObs(counts,x.attack_context,x.outcome))quickCount++});
+  }
+  const groupIds=groups.filter(g=>groupPopulation(g.name)===pop).map(g=>g.id);
+  if(groupIds.length){
+    const {data:matches,error}=await db.from('matches').select('id').in('group_id',groupIds);
+    if(error)throw error;
+    const mids=(matches||[]).map(x=>x.id);
+    if(mids.length){
+      const {data:ev,error:ee}=await db.from('match_events').select('family,restart_location,action_type,result,fault_type').in('match_id',mids);
+      if(ee)throw ee;
+      (ev||[]).forEach(e=>{const o=observation(e);if(o&&addObs(counts,o.context,o.outcome))detailedCount++});
+    }
+  }
+  const contexts={};
+  OFFENSIVE_CONTEXTS.forEach(c=>{
+    const x=counts[c.key];
+    contexts[c.key]={...x,p:x.total?x.point/x.total:0,q:x.total?x.attack_fault/x.total:0,mu:x.total?(x.point-2*x.attack_fault)/x.total:0};
+  });
+  return {population:pop,contexts,total:quickCount+detailedCount};
+}
+async function loadGroupData(groupId){
+  $('#status').textContent='Chargement des matchs…';
+  const group=groups.find(g=>g.id===groupId);
+  population=groupPopulation(group?.name)||'H';
+  const {data:matches,error:me}=await db.from('matches')
+    .select('id,label,played_on,opponent_team_1_id,opponent_team_2_id,opponent1:teams!matches_opponent_team_1_id_fkey(id,name),opponent2:teams!matches_opponent_team_2_id_fkey(id,name)')
+    .eq('group_id',groupId);
+  if(me)throw me;
+  const mids=(matches||[]).map(m=>m.id);
+  events=[];
+  if(mids.length){
+    const {data:ev,error:ee}=await db.from('match_events').select('*').in('match_id',mids).order('sequence_no',{ascending:true});
+    if(ee)throw ee;
+    const map=Object.fromEntries((matches||[]).map(m=>[m.id,m]));
+    events=(ev||[]).map(e=>{
+      const m=map[e.match_id];
+      let opponent_name=null;
+      if(e.opponent_team_id&&m){
+        if(e.opponent_team_id===m.opponent_team_1_id||e.opponent_team_id===m.opponent1?.id)opponent_name=m.opponent1?.name||null;
+        else if(e.opponent_team_id===m.opponent_team_2_id||e.opponent_team_id===m.opponent2?.id)opponent_name=m.opponent2?.name||null;
+      }
+      return {...e,
+        opponent_name,
+        match_label:m?.label||'Match',
+        match_date:m?.played_on||'',
+        match_id:e.match_id
+      };
+    });
+  }
+  reference=await loadReference(population);
+  const countries=[...new Set(events.map(e=>(e.opponent_name||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
+  $('#countrySelect').innerHTML='<option value="">— Choisir un adversaire —</option>'+countries.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  $('#matchScopeSelect').innerHTML='<option value="all">Tous les matchs</option>';
+  $('#matchScopeSelect').disabled=true;
+  $('#status').textContent=`${mids.length} match${mids.length>1?'s':''} · référentiel ${population==='H'?'Hommes':'Femmes'} · ${reference.total} observations de référence.`;
+  $('#content').innerHTML='<div class="small">Choisis un adversaire pour afficher le face-à-face.</div>';
+}
+
+function formatDateFr(iso){
+  if(!iso)return '';
+  const m=String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m?`${m[3]}/${m[2]}/${m[1]}`:iso;
+}
+function matchesForCountry(country){
+  const byId=new Map();
+  events.filter(e=>(e.opponent_name||'').trim()===country).forEach(e=>{
+    if(!byId.has(e.match_id)){
+      byId.set(e.match_id,{
+        id:e.match_id,
+        label:e.match_label||'Match',
+        date:e.match_date||''
+      });
+    }
+  });
+  return [...byId.values()].sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(a.label||'').localeCompare(b.label||'','fr'));
+}
+function populateMatchScope(country){
+  const sel=$('#matchScopeSelect');
+  if(!country){
+    sel.innerHTML='<option value="all">Tous les matchs</option>';
+    sel.disabled=true;
+    return;
+  }
+  const ms=matchesForCountry(country);
+  sel.disabled=false;
+  sel.innerHTML=`<option value="all">Cumul — ${ms.length} match${ms.length>1?'s':''}</option>`+
+    ms.map((m,i)=>{
+      const date=formatDateFr(m.date);
+      const label=[date,m.label].filter(Boolean).join(' · ')||`Match ${i+1}`;
+      return `<option value="${m.id}">${escapeHtml(label)}</option>`;
+    }).join('');
+}
+function scopedEvents(country){
+  const scope=$('#matchScopeSelect').value||'all';
+  return events.filter(e=>(e.opponent_name||'').trim()===country && (scope==='all'||e.match_id===scope));
+}
+function currentScopeLabel(country){
+  const scope=$('#matchScopeSelect').value||'all';
+  if(scope==='all'){
+    const n=matchesForCountry(country).length;
+    return `Cumul de ${n} match${n>1?'s':''}`;
+  }
+  const opt=$('#matchScopeSelect').selectedOptions?.[0];
+  return opt?.textContent||'Match sélectionné';
+}
+
+function performance(sourceEvents,mode){
+  const byContext={};
+  OFFENSIVE_CONTEXTS.forEach(c=>byContext[c.key]={attacks:0,points:0,faults:0,realValue:0,expectedValue:0});
+  let attacks=0,realValue=0,expectedValue=0;
+  sourceEvents.forEach(e=>{
+    if(mode==='ours' && !['attaque','faute'].includes(e.action_type))return;
+    if(mode==='theirs' && e.action_type!=='defense')return;
+    const o=observation(e);if(!o)return;
+    const ref=reference?.contexts?.[o.context];if(!ref||!ref.total)return;
+    const v=o.outcome==='point'?1:o.outcome==='attack_fault'?-2:0;
+    const x=byContext[o.context];x.attacks++;attacks++;
+    if(o.outcome==='point')x.points++;
+    if(o.outcome==='attack_fault')x.faults++;
+    x.realValue+=v;realValue+=v;x.expectedValue+=ref.mu;expectedValue+=ref.mu;
+  });
+  const perf=realValue-expectedValue;
+  return {byContext,attacks,realValue,expectedValue,performance:perf,performance100:attacks?100*perf/attacks:null};
+}
+function metricRow(label,left,right,leftClass='',rightClass=''){
+  return `<div class="faceoffRow"><div class="faceoffValue left ${leftClass}">${left}</div><div class="faceoffMetric">${label}</div><div class="faceoffValue right ${rightClass}">${right}</div></div>`;
+}
+function renderCountry(country){
+  const selected=scopedEvents(country);
+  const ours=performance(selected,'ours'),theirs=performance(selected,'theirs');
+  const scopeLabel=currentScopeLabel(country);
+  const overall=[
+    metricRow('Attaques',ours.attacks,theirs.attacks),
+    metricRow('Valeur réelle',signed1(ours.realValue),signed1(theirs.realValue)),
+    metricRow('Valeur attendue',signed1(ours.expectedValue),signed1(theirs.expectedValue)),
+    metricRow('Performance /100',perfDisplay(ours.performance100,ours.attacks),perfDisplay(theirs.performance100,theirs.attacks))
+  ].join('');
+  const contexts=OFFENSIVE_CONTEXTS.map(c=>{
+    const ref=reference.contexts[c.key];
+    const side=x=>{
+      const p=x.attacks?x.points/x.attacks:null,q=x.attacks?x.faults/x.attacks:null,mu=x.attacks?p-2*q:null;
+      return {n:x.attacks,p,q,mu,dp:p==null?null:p-ref.p,dq:q==null?null:q-ref.q,dmu:mu==null?null:mu-ref.mu,perf100:mu==null?null:100*(mu-ref.mu)};
+    };
+    const a=side(ours.byContext[c.key]),b=side(theirs.byContext[c.key]);
+    const rows=[
+      metricRow('N',a.n,b.n),
+      metricRow('% point',pct(a.p),pct(b.p)),
+      metricRow('Δ point',signedPct(a.dp),signedPct(b.dp),valueClass(a.dp),valueClass(b.dp)),
+      metricRow('% faute',pct(a.q),pct(b.q)),
+      metricRow('Δ faute',signedPct(a.dq),signedPct(b.dq),faultClass(a.dq),faultClass(b.dq)),
+      metricRow('μ',a.mu==null?'—':a.mu.toFixed(3).replace('.',','),b.mu==null?'—':b.mu.toFixed(3).replace('.',',')),
+      metricRow('Δ μ',signed3(a.dmu),signed3(b.dmu),valueClass(a.dmu),valueClass(b.dmu)),
+      metricRow('Performance /100',perfDisplay(a.perf100,a.n),perfDisplay(b.perf100,b.n))
+    ].join('');
+    return `<div class="context"><div class="contextHead"><strong>${c.label}</strong><div class="reference">Réf. : point ${pct(ref.p)} · faute ${pct(ref.q)} · μ ${ref.mu.toFixed(3).replace('.',',')}</div></div><div class="faceoffRows">${rows}</div></div>`;
+  }).join('');
+  $('#content').innerHTML=`
+    <div class="row" style="justify-content:space-between;margin-bottom:8px">
+      <div class="small">${escapeHtml(scopeLabel)}</div>
+      <div class="small">${selected.length} action${selected.length>1?'s':''} exploitables/collectées dans ce périmètre</div>
+    </div>
+    <div class="faceoffTitle"><div class="left">Nous</div><div class="mid">comparaison</div><div class="right">${escapeHtml(country)}</div></div>
+    <div class="faceoffRows" style="margin-top:10px">${overall}</div>${contexts}`;
+}
+
+async function init(){
+  const {data:{user},error}=await db.auth.getUser();
+  if(error)throw error;
+  if(!user){
+    $('#status').textContent='Tu dois être connecté à Kinball Coach pour accéder à cette page.';
+    return;
+  }
+  currentUser=user;
+  await fetchGroups();
+  const params=new URLSearchParams(location.search);
+  const requested=params.get('group');
+  const initial=(requested&&groups.some(g=>g.id===requested))?requested:(groups[0]?.id||'');
+  if(initial){$('#groupSelect').value=initial;await loadGroupData(initial)}
+  else $('#status').textContent='Aucun groupe disponible.';
+}
+$('#groupSelect').onchange=()=>loadGroupData($('#groupSelect').value).catch(e=>$('#status').textContent=e.message||String(e));
+$('#countrySelect').onchange=()=>{
+  const c=$('#countrySelect').value;
+  populateMatchScope(c);
+  if(c)renderCountry(c);
+  else $('#content').innerHTML='<div class="small">Choisis un adversaire pour afficher le face-à-face.</div>';
+};
+$('#matchScopeSelect').onchange=()=>{
+  const c=$('#countrySelect').value;
+  if(c)renderCountry(c);
+};
+$('#backBtn').onclick=()=>window.location.href='index.html';
+$('#helpBtn').onclick=()=>$('#helpBackdrop').classList.remove('hidden');
+$('#helpClose').onclick=()=>$('#helpBackdrop').classList.add('hidden');
+$('#helpBackdrop').onclick=e=>{if(e.target===$('#helpBackdrop'))$('#helpBackdrop').classList.add('hidden')};
+document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#helpBackdrop').classList.add('hidden')});
+init().catch(e=>$('#status').textContent=e.message||String(e));
+</script>
+</body>
+</html>
