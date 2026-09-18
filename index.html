@@ -123,6 +123,40 @@ button:active{transform:scale(.985)}
 .statsMatchGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .statsMatchCard{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px}
 .statsMatchCard strong{display:block;font-size:21px;margin-top:2px}
+.statsHelpBtn{
+  width:34px;height:34px;min-width:34px;padding:0;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);background:var(--panel2);font-weight:900;font-size:18px
+}
+.statsHelpBtn:hover{background:var(--accent)}
+.statsHelpBackdrop{
+  position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.72);
+  display:flex;align-items:center;justify-content:center;padding:18px
+}
+.statsHelpModal{
+  width:min(920px,96vw);max-height:90vh;overflow:auto;
+  background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px;
+  box-shadow:0 24px 70px rgba(0,0,0,.55)
+}
+.statsHelpModalHeader{
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+  position:sticky;top:-18px;background:var(--panel);padding:4px 0 10px;z-index:2
+}
+.statsHelpClose{width:38px;height:38px;min-width:38px;padding:0;border-radius:50%;font-size:20px}
+.statsHelpGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.statsHelpItem{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px}
+.statsHelpItem strong{display:block;margin-bottom:4px}
+.statsHelpFormula{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  background:rgba(255,255,255,.06);padding:7px 8px;border-radius:8px;margin-top:5px;overflow:auto
+}
+@media(max-width:700px){
+  .statsHelpGrid{grid-template-columns:1fr}
+  .statsHelpBackdrop{padding:8px}
+  .statsHelpModal{padding:12px;max-height:94vh}
+  .statsHelpModalHeader{top:-12px}
+}
+
 @media(max-width:760px){.statsDomainTabs{grid-template-columns:repeat(2,minmax(0,1fr))}.statsMatchGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 .statsTab.active{background:var(--accent)}
@@ -1340,7 +1374,10 @@ button:active{transform:scale(.985)}
  <section class="panel hidden" id="statsHome">
    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
     <div><h2 style="font-size:20px">📊 Statistiques</h2><div class="small">Centre d’analyse : entraînements, matchs et performance offensive</div></div>
-    <button class="ghost" id="statsBackHome">← Accueil</button>
+    <div class="row" style="gap:8px">
+      <button class="statsHelpBtn" id="statsHelpBtn" type="button" title="Aide sur les statistiques" aria-label="Aide sur les statistiques">?</button>
+      <button class="ghost" id="statsBackHome">← Accueil</button>
+    </div>
    </div>
 
    <div class="field">
@@ -6626,13 +6663,7 @@ function statsOneVsOneHtml(events,reference,population){
   }).join('');
 
   return `<div class="analysisSubsectionTitle" style="margin-top:18px">Performance offensive 1v1 par pays</div>
-    <div class="analysisSubtle" style="margin-bottom:8px">
-      Comparaison de nos attaques dirigées contre chaque pays au référentiel ${population==='H'?'Hommes':'Femmes'}.
-      Δ point positif = davantage de points que la moyenne empirique ; Δ faute positif = davantage de fautes.
-      Δ μ positif = meilleure valeur offensive globale, avec μ = P(point) − 2×P(faute).
-      La performance offensive /100 est le même indicateur que pour l’équipe et les joueurs : 100 × (valeur réelle − valeur attendue) / nombre d’attaques.
-      Elle est masquée sous 5 attaques et signalée comme limitée entre 5 et 15. Au-delà de 15 attaques, elle est affichée normalement.
-    </div>
+    <div class="analysisSubtle" style="margin-bottom:8px">Comparaison au référentiel ${population==='H'?'Hommes':'Femmes'} · voir ? pour les définitions.</div>
     ${sections}
     ${missingOpponent?`<div class="analysisSubtle" style="margin-top:8px">${missingOpponent} attaque${missingOpponent>1?'s':''} exploitable${missingOpponent>1?'s':''} exclue${missingOpponent>1?'s':''} du tableau car le pays attaqué n’est pas renseigné.</div>`:''}`;
 }
@@ -6698,10 +6729,7 @@ function teamOffensivePerformanceHtml(perf,population){
 
   return `<div class="analysisBlock" style="margin-top:14px">
     <div class="analysisSubsectionTitle" style="margin-bottom:8px">Performance offensive de l’équipe</div>
-    <div class="analysisSubtle" style="margin-bottom:10px">
-      Comparaison au référentiel ${population==='H'?'Hommes':'Femmes'} dans les mêmes contextes de départ.
-      Valeur d’une attaque : +1 point, 0 ballon défendu, −2 faute.
-    </div>
+    <div class="analysisSubtle" style="margin-bottom:10px">Référentiel ${population==='H'?'Hommes':'Femmes'} · mêmes contextes de départ · voir ? pour les définitions.</div>
     <div class="statsMatchGrid">
       <div class="statsMatchCard"><span class="small">Attaques</span><strong>${perf.attacks}</strong></div>
       <div class="statsMatchCard"><span class="small">Valeur réelle</span><strong>${signed1(perf.realValue)}</strong></div>
@@ -6714,12 +6742,7 @@ function teamOffensivePerformanceHtml(perf,population){
         <tbody>${rows}</tbody>
       </table>
     </div>
-    <div class="analysisSubtle" style="margin-top:8px">
-      Un score de 0 signifie que l’équipe produit exactement la valeur offensive attendue compte tenu de ses situations d’attaque.
-      Un score positif indique une performance supérieure à cette référence ; un score négatif, inférieure.
-      Les scores /100 ne sont pas affichés pour un contexte avec moins de 5 attaques, car une seule action peut alors produire un écart artificiellement énorme.
-      Entre 5 et 15 attaques, le score reste affiché mais signalé comme échantillon limité. Au-delà de 15 attaques, il est affiché normalement.
-    </div>
+
   </div>`;
 }
 
@@ -6767,7 +6790,7 @@ function statsReferenceHtml(ref){
     <div class="statsMatchCard"><span class="small">Matchs détaillés</span><strong>${ref.detailedCount}</strong></div>
    </div>
    <div class="analysisTableWrap" style="margin-top:10px"><table class="analysisTable"><thead><tr><th>Contexte</th><th>Points</th><th>Défendus</th><th>Fautes</th><th>N</th><th>% point</th><th>% faute</th><th>μ = p − 2q</th></tr></thead><tbody>${rows}</tbody></table></div>
-   <div class="analysisSubtle" style="margin-top:8px">Le référentiel est recalculé depuis les données disponibles. Hommes et Femmes ne sont jamais mélangés.</div>`;
+   <div class="analysisSubtle" style="margin-top:8px">Référentiel recalculé depuis les données disponibles · H/F séparés.</div>`;
 }
 async function loadStatsReference(){
   const pop=$('#statsReferencePopulation').value||'H';
@@ -6969,6 +6992,10 @@ $('#historyPlayer').onchange=()=>loadPlayerHistory($('#historyPlayer').value).ca
 
 $('#openStatsModule').onclick=()=>openStatsModule();
 $('#statsBackHome').onclick=showAppHome;
+if($('#statsHelpBtn'))$('#statsHelpBtn').onclick=()=>$('#statsHelpBackdrop').classList.remove('hidden');
+if($('#statsHelpClose'))$('#statsHelpClose').onclick=()=>$('#statsHelpBackdrop').classList.add('hidden');
+if($('#statsHelpBackdrop'))$('#statsHelpBackdrop').onclick=e=>{if(e.target===$('#statsHelpBackdrop'))$('#statsHelpBackdrop').classList.add('hidden')};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#statsHelpBackdrop')&&!$('#statsHelpBackdrop').classList.contains('hidden'))$('#statsHelpBackdrop').classList.add('hidden')});
 $('#statsGroup').onchange=async()=>{
   try{
     await loadStatsData($('#statsGroup').value);
@@ -7025,5 +7052,43 @@ function render(){
 render();
 initAuth().catch(e=>handleError('initAuth',e));
 </script>
+
+<div class="statsHelpBackdrop hidden" id="statsHelpBackdrop">
+  <div class="statsHelpModal" role="dialog" aria-modal="true" aria-labelledby="statsHelpTitle">
+    <div class="statsHelpModalHeader">
+      <div>
+        <h2 id="statsHelpTitle" style="font-size:20px">Comprendre les statistiques</h2>
+        <div class="small">Définitions utilisées dans Matchs, Référentiel offensif, 1v1 et Performance offensive.</div>
+      </div>
+      <button class="ghost statsHelpClose" id="statsHelpClose" type="button" aria-label="Fermer">×</button>
+    </div>
+
+    <div class="statsHelpGrid">
+      <div class="statsHelpItem"><strong>N / Att.</strong>Nombre d’attaques exploitables dans le calcul. Plus N est grand, plus l’indicateur est stable.</div>
+      <div class="statsHelpItem"><strong>Pts</strong>Nombre de points réellement marqués sur les attaques observées.</div>
+      <div class="statsHelpItem"><strong>Pts att.</strong>Nombre de points attendus d’après le référentiel empirique, compte tenu du contexte de chaque attaque.</div>
+      <div class="statsHelpItem"><strong>Fautes</strong>Nombre de fautes d’attaque réellement commises.</div>
+      <div class="statsHelpItem"><strong>Fautes att.</strong>Nombre de fautes attendues d’après le référentiel empirique dans les mêmes contextes.</div>
+      <div class="statsHelpItem"><strong>% point</strong>Proportion d’attaques qui se terminent par un point marqué.<div class="statsHelpFormula">% point = points / attaques</div></div>
+      <div class="statsHelpItem"><strong>% faute</strong>Proportion d’attaques qui se terminent par une faute d’attaque.<div class="statsHelpFormula">% faute = fautes / attaques</div></div>
+      <div class="statsHelpItem"><strong>Réf.</strong>Valeur moyenne observée dans le référentiel empirique Hommes ou Femmes pour le même contexte de départ.</div>
+      <div class="statsHelpItem"><strong>Δ point</strong>Écart entre notre taux de point et le taux de point de référence.<div class="statsHelpFormula">Δ point = % point observé − % point référence</div></div>
+      <div class="statsHelpItem"><strong>Δ faute</strong>Écart entre notre taux de faute et le taux de faute de référence. Un Δ faute positif signifie plus de fautes que la moyenne.<div class="statsHelpFormula">Δ faute = % faute observé − % faute référence</div></div>
+      <div class="statsHelpItem"><strong>μ</strong>Valeur offensive moyenne d’une attaque. Un point vaut +1, un ballon défendu 0 et une faute −2.<div class="statsHelpFormula">μ = P(point) − 2 × P(faute)</div></div>
+      <div class="statsHelpItem"><strong>μ réf.</strong>Valeur offensive moyenne attendue dans le référentiel pour le même contexte.</div>
+      <div class="statsHelpItem"><strong>Δ μ</strong>Écart entre la valeur offensive observée et la valeur de référence.<div class="statsHelpFormula">Δ μ = μ observé − μ référence</div></div>
+      <div class="statsHelpItem"><strong>Valeur réelle</strong>Somme de la valeur de toutes les attaques : +1 par point, 0 par ballon défendu, −2 par faute.</div>
+      <div class="statsHelpItem"><strong>Valeur attendue</strong>Somme des valeurs moyennes μ attendues pour chacun des contextes dans lesquels les attaques ont été réalisées.</div>
+      <div class="statsHelpItem"><strong>Performance offensive</strong>Différence entre ce qui a réellement été produit et ce qui était attendu dans les mêmes contextes.<div class="statsHelpFormula">Performance offensive = valeur réelle − valeur attendue</div></div>
+      <div class="statsHelpItem"><strong>Performance /100</strong>Performance offensive ramenée à 100 attaques pour faciliter les comparaisons.<div class="statsHelpFormula">Perf. /100 = 100 × performance offensive / N</div></div>
+      <div class="statsHelpItem"><strong>Fiabilité de l’échantillon</strong>N &lt; 5 : score /100 masqué. De 5 à 15 : score affiché avec avertissement. Au-delà de 15 : affichage normal.</div>
+      <div class="statsHelpItem"><strong>Jeu courant · centre</strong>Attaque réalisée en jeu courant depuis le centre.</div>
+      <div class="statsHelpItem"><strong>Remise · centre / ligne / coin</strong>Le terme indique la position de départ de la remise en jeu, et non la direction de la frappe.</div>
+      <div class="statsHelpItem"><strong>1v1 par pays</strong>Les attaques sont regroupées selon le pays explicitement attaqué. Les actions sans pays renseigné sont exclues de cette comparaison.</div>
+      <div class="statsHelpItem"><strong>Référentiel H / F</strong>Les moyennes Hommes et Femmes sont calculées séparément à partir de Quick Collection et des matchs détaillés exploitables.</div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
