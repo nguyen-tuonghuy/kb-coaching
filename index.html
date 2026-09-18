@@ -146,6 +146,41 @@ button:active{transform:scale(.985)}
 .statsHelpGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .statsHelpItem{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px}
 .statsHelpItem strong{display:block;margin-bottom:4px}
+
+.faceoffWrap{display:grid;gap:10px;margin-top:10px}
+.faceoffTitle{
+  display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  align-items:center;gap:10px;padding:10px 12px;background:var(--panel2);
+  border:1px solid var(--line);border-radius:12px;font-weight:850
+}
+.faceoffTitle .left{text-align:left}
+.faceoffTitle .mid{text-align:center;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.faceoffTitle .right{text-align:right}
+.faceoffRows{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.faceoffRow{
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(115px,.8fr) minmax(0,1fr);
+  align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line)
+}
+.faceoffRow:last-child{border-bottom:0}
+.faceoffValue{font-weight:800;font-size:14px}
+.faceoffValue.left{text-align:left}
+.faceoffValue.right{text-align:right}
+.faceoffMetric{text-align:center;color:var(--muted);font-size:12px;font-weight:750}
+.faceoffContext{
+  border:1px solid var(--line);border-radius:14px;padding:10px;background:rgba(255,255,255,.018)
+}
+.faceoffContextHead{
+  display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:8px
+}
+.faceoffContextHead strong{font-size:14px}
+.faceoffReference{text-align:right;font-size:11px;color:var(--muted);line-height:1.35}
+@media(max-width:640px){
+  .faceoffRow{grid-template-columns:minmax(0,1fr) 92px minmax(0,1fr);padding:8px}
+  .faceoffValue{font-size:13px}
+  .faceoffMetric{font-size:11px}
+  .faceoffContextHead{display:block}
+  .faceoffReference{text-align:left;margin-top:4px}
+}
 .statsHelpFormula{
   font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   background:rgba(255,255,255,.06);padding:7px 8px;border-radius:8px;margin-top:5px;overflow:auto
@@ -6725,75 +6760,17 @@ function statsOneVsOneByOpponent(events,reference){
   return {groups,eventGroups,missingOpponent};
 }
 function statsOneVsOneHtml(events,reference,population){
-  if(!reference)return '<div class="statsEmpty">Référentiel offensif indisponible.</div>';
-  const {groups,eventGroups,missingOpponent}=statsOneVsOneByOpponent(events,reference);
-  const adverseByCountry=statsOpponentDefenseEventsByCountry(events);
-  const names=Array.from(new Set([...Object.keys(groups),...Object.keys(adverseByCountry.groups)])).sort((a,b)=>a.localeCompare(b,'fr'));
-  if(!names.length)return '<div class="statsEmpty">Aucune attaque avec pays/adversaire renseigné dans ces matchs.</div>';
-
-  const sections=names.map(name=>{
-    const counts=groups[name]||emptyOffensiveCounts();
-    const total=Object.values(counts).reduce((n,x)=>n+(x.total||0),0);
-    const perf=teamOffensivePerformance(eventGroups[name]||[],reference);
-    const perfDisplay=offensivePerf100Display(perf.impact100,perf.attacks);
-    const adversePerf=opponentOffensivePerformance(adverseByCountry.groups[name]||[],reference);
-    const adversePerfDisplay=offensivePerf100Display(adversePerf.performance100,adversePerf.attacks);
-    const rows=OFFENSIVE_CONTEXTS.map(c=>{
-      const x=counts[c.key]||{point:0,defended:0,attack_fault:0,total:0};
-      const ref=reference.contexts?.[c.key]||{p:0,q:0,mu:0,total:0};
-      const p=x.total?x.point/x.total:null;
-      const q=x.total?x.attack_fault/x.total:null;
-      const mu=x.total?p-2*q:null;
-      return `<tr>
-        <td>${escapeHtml(c.label)}</td>
-        <td>${x.total}</td>
-        <td>${statsPct1(p)}</td>
-        <td>${ref.total?statsPct1(ref.p):'—'}</td>
-        <td class="${impactClass((p??ref.p)-ref.p)}">${p==null||!ref.total?'—':statsSignedPct1(p-ref.p)}</td>
-        <td>${statsPct1(q)}</td>
-        <td>${ref.total?statsPct1(ref.q):'—'}</td>
-        <td class="${impactClass(ref.q-(q??ref.q))}">${q==null||!ref.total?'—':statsSignedPct1(q-ref.q)}</td>
-        <td>${mu==null?'—':mu.toFixed(3).replace('.',',')}</td>
-        <td>${ref.total?ref.mu.toFixed(3).replace('.',','):'—'}</td>
-        <td class="${impactClass((mu??ref.mu)-ref.mu)}">${mu==null||!ref.total?'—':statsSigned3(mu-ref.mu)}</td>
-        <td>${mu==null||!ref.total?'—':offensivePerf100Display(100*(mu-ref.mu),x.total)}</td>
-      </tr>`;
-    }).join('');
-    return `<div class="analysisBlock" style="margin-top:12px">
-      <div class="row" style="justify-content:space-between;align-items:center;gap:8px">
-        <div class="analysisSubsectionTitle" style="margin:0">vs ${escapeHtml(name)}</div>
-        <div class="small">${total} attaque${total>1?'s':''} exploitables</div>
+  const countries=[...new Set((events||[]).map(e=>(e.opponent_name||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
+  if(!countries.length)return '<div class="statsEmpty">Aucun adversaire renseigné pour afficher un face-à-face.</div>';
+  return `<div class="analysisBlock" style="margin-top:16px">
+    <div class="row" style="justify-content:space-between;align-items:center;gap:10px">
+      <div>
+        <div class="analysisSubsectionTitle" style="margin:0">Face-à-face par pays</div>
+        <div class="analysisSubtle" style="margin-top:4px">${countries.length} adversaire${countries.length>1?'s':''} disponible${countries.length>1?'s':''} · analyse détaillée sur une page dédiée.</div>
       </div>
-      <div class="statsMatchGrid" style="margin-top:8px">
-        <div class="statsMatchCard"><span class="small">Nos attaques</span><strong>${perf.attacks}</strong></div>
-        <div class="statsMatchCard"><span class="small">Notre valeur réelle</span><strong>${signed1(perf.realValue)}</strong></div>
-        <div class="statsMatchCard"><span class="small">Notre valeur attendue</span><strong>${signed1(perf.expectedValue)}</strong></div>
-        <div class="statsMatchCard"><span class="small">Notre performance /100</span><strong>${perfDisplay}</strong></div>
-      </div>
-      <div class="statsMatchGrid" style="margin-top:8px">
-        <div class="statsMatchCard"><span class="small">Leurs attaques contre nous</span><strong>${adversePerf.attacks}</strong></div>
-        <div class="statsMatchCard"><span class="small">Leur valeur réelle</span><strong>${signed1(adversePerf.realValue)}</strong></div>
-        <div class="statsMatchCard"><span class="small">Leur valeur attendue</span><strong>${signed1(adversePerf.expectedValue)}</strong></div>
-        <div class="statsMatchCard"><span class="small">Leur performance /100</span><strong>${adversePerfDisplay}</strong></div>
-      </div>
-      <div class="analysisTableWrap" style="margin-top:8px">
-        <table class="analysisTable">
-          <thead><tr>
-            <th>Contexte</th><th>N</th>
-            <th>% point</th><th>Réf.</th><th>Δ point</th>
-            <th>% faute</th><th>Réf.</th><th>Δ faute</th>
-            <th>μ</th><th>μ réf.</th><th>Δ μ</th><th>Perf. /100</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
-    </div>`;
-  }).join('');
-
-  return `<div class="analysisSubsectionTitle" style="margin-top:18px">Performance offensive 1v1 par pays</div>
-    <div class="analysisSubtle" style="margin-bottom:8px">Comparaison au référentiel ${population==='H'?'Hommes':'Femmes'} · voir ? pour les définitions.</div>
-    ${sections}
-    ${missingOpponent?`<div class="analysisSubtle" style="margin-top:8px">${missingOpponent} attaque${missingOpponent>1?'s':''} exploitable${missingOpponent>1?'s':''} exclue${missingOpponent>1?'s':''} du tableau car le pays attaqué n’est pas renseigné.</div>`:''}`;
+      <button class="primary" type="button" onclick="openDetailedFaceoff()">Voir le face-à-face détaillé →</button>
+    </div>
+  </div>`;
 }
 
 
@@ -6872,6 +6849,12 @@ function teamOffensivePerformanceHtml(perf,population){
     </div>
 
   </div>`;
+}
+
+function openDetailedFaceoff(){
+  const groupId=$('#statsGroup')?.value||'';
+  const url='face-a-face.html'+(groupId?`?group=${encodeURIComponent(groupId)}`:'');
+  window.location.href=url;
 }
 
 async function loadStatsMatches(){
