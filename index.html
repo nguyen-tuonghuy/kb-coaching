@@ -2110,6 +2110,44 @@ button:active{transform:scale(.985)}
  </div>
 </div>
 
+<div class="statsHelpBackdrop hidden" id="statsHelpBackdrop">
+  <div class="statsHelpModal" role="dialog" aria-modal="true" aria-labelledby="statsHelpTitle">
+    <div class="statsHelpModalHeader">
+      <div>
+        <h2 id="statsHelpTitle" style="font-size:20px">Comprendre les statistiques</h2>
+        <div class="small">Définitions utilisées dans Matchs, Référentiel offensif, 1v1 et Performance offensive.</div>
+      </div>
+      <button class="ghost statsHelpClose" id="statsHelpClose" type="button" aria-label="Fermer">×</button>
+    </div>
+
+    <div class="statsHelpGrid">
+      <div class="statsHelpItem"><strong>N / Att.</strong>Nombre d’attaques exploitables dans le calcul. Plus N est grand, plus l’indicateur est stable.</div>
+      <div class="statsHelpItem"><strong>Pts</strong>Nombre de points réellement marqués sur les attaques observées.</div>
+      <div class="statsHelpItem"><strong>Pts att.</strong>Nombre de points attendus d’après le référentiel empirique, compte tenu du contexte de chaque attaque.</div>
+      <div class="statsHelpItem"><strong>Fautes</strong>Nombre de fautes d’attaque réellement commises.</div>
+      <div class="statsHelpItem"><strong>Fautes att.</strong>Nombre de fautes attendues d’après le référentiel empirique dans les mêmes contextes.</div>
+      <div class="statsHelpItem"><strong>% point</strong>Proportion d’attaques qui se terminent par un point marqué.<div class="statsHelpFormula">% point = points / attaques</div></div>
+      <div class="statsHelpItem"><strong>% faute</strong>Proportion d’attaques qui se terminent par une faute d’attaque.<div class="statsHelpFormula">% faute = fautes / attaques</div></div>
+      <div class="statsHelpItem"><strong>Réf.</strong>Valeur moyenne observée dans le référentiel empirique Hommes ou Femmes pour le même contexte de départ.</div>
+      <div class="statsHelpItem"><strong>Δ point</strong>Écart entre notre taux de point et le taux de point de référence.<div class="statsHelpFormula">Δ point = % point observé − % point référence</div></div>
+      <div class="statsHelpItem"><strong>Δ faute</strong>Écart entre notre taux de faute et le taux de faute de référence. Un Δ faute positif signifie plus de fautes que la moyenne.<div class="statsHelpFormula">Δ faute = % faute observé − % faute référence</div></div>
+      <div class="statsHelpItem"><strong>μ</strong>Valeur offensive moyenne d’une attaque. Un point vaut +1, un ballon défendu 0 et une faute −2.<div class="statsHelpFormula">μ = P(point) − 2 × P(faute)</div></div>
+      <div class="statsHelpItem"><strong>μ réf.</strong>Valeur offensive moyenne attendue dans le référentiel pour le même contexte.</div>
+      <div class="statsHelpItem"><strong>Δ μ</strong>Écart entre la valeur offensive observée et la valeur de référence.<div class="statsHelpFormula">Δ μ = μ observé − μ référence</div></div>
+      <div class="statsHelpItem"><strong>Valeur réelle</strong>Somme de la valeur de toutes les attaques : +1 par point, 0 par ballon défendu, −2 par faute.</div>
+      <div class="statsHelpItem"><strong>Valeur attendue</strong>Somme des valeurs moyennes μ attendues pour chacun des contextes dans lesquels les attaques ont été réalisées.</div>
+      <div class="statsHelpItem"><strong>Performance offensive</strong>Différence entre ce qui a réellement été produit et ce qui était attendu dans les mêmes contextes.<div class="statsHelpFormula">Performance offensive = valeur réelle − valeur attendue</div></div>
+      <div class="statsHelpItem"><strong>Performance /100</strong>Performance offensive ramenée à 100 attaques pour faciliter les comparaisons.<div class="statsHelpFormula">Perf. /100 = 100 × performance offensive / N</div></div>
+      <div class="statsHelpItem"><strong>Fiabilité de l’échantillon</strong>N &lt; 5 : score /100 masqué. De 5 à 15 : score affiché avec avertissement. Au-delà de 15 : affichage normal.</div>
+      <div class="statsHelpItem"><strong>Jeu courant · centre</strong>Attaque réalisée en jeu courant depuis le centre.</div>
+      <div class="statsHelpItem"><strong>Remise · centre / ligne / coin</strong>Le terme indique la position de départ de la remise en jeu, et non la direction de la frappe.</div>
+      <div class="statsHelpItem"><strong>1v1 par pays</strong>Les attaques sont regroupées selon le pays explicitement attaqué. Les actions sans pays renseigné sont exclues de cette comparaison.</div>
+      <div class="statsHelpItem"><strong>Référentiel H / F</strong>Les moyennes Hommes et Femmes sont calculées séparément à partir de Quick Collection et des matchs détaillés exploitables.</div>
+    </div>
+  </div>
+</div>
+
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://www.youtube.com/iframe_api"></script>
 <script>
@@ -6992,10 +7030,16 @@ $('#historyPlayer').onchange=()=>loadPlayerHistory($('#historyPlayer').value).ca
 
 $('#openStatsModule').onclick=()=>openStatsModule();
 $('#statsBackHome').onclick=showAppHome;
-if($('#statsHelpBtn'))$('#statsHelpBtn').onclick=()=>$('#statsHelpBackdrop').classList.remove('hidden');
-if($('#statsHelpClose'))$('#statsHelpClose').onclick=()=>$('#statsHelpBackdrop').classList.add('hidden');
-if($('#statsHelpBackdrop'))$('#statsHelpBackdrop').onclick=e=>{if(e.target===$('#statsHelpBackdrop'))$('#statsHelpBackdrop').classList.add('hidden')};
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#statsHelpBackdrop')&&!$('#statsHelpBackdrop').classList.contains('hidden'))$('#statsHelpBackdrop').classList.add('hidden')});
+if($('#statsHelpBtn'))$('#statsHelpBtn').onclick=()=>$('#statsHelpBackdrop')?.classList.remove('hidden');
+document.addEventListener('click',e=>{
+  const backdrop=$('#statsHelpBackdrop');
+  if(!backdrop)return;
+  if(e.target?.id==='statsHelpClose'||e.target===backdrop)backdrop.classList.add('hidden');
+});
+document.addEventListener('keydown',e=>{
+  const backdrop=$('#statsHelpBackdrop');
+  if(e.key==='Escape'&&backdrop&&!backdrop.classList.contains('hidden'))backdrop.classList.add('hidden');
+});
 $('#statsGroup').onchange=async()=>{
   try{
     await loadStatsData($('#statsGroup').value);
@@ -7052,43 +7096,6 @@ function render(){
 render();
 initAuth().catch(e=>handleError('initAuth',e));
 </script>
-
-<div class="statsHelpBackdrop hidden" id="statsHelpBackdrop">
-  <div class="statsHelpModal" role="dialog" aria-modal="true" aria-labelledby="statsHelpTitle">
-    <div class="statsHelpModalHeader">
-      <div>
-        <h2 id="statsHelpTitle" style="font-size:20px">Comprendre les statistiques</h2>
-        <div class="small">Définitions utilisées dans Matchs, Référentiel offensif, 1v1 et Performance offensive.</div>
-      </div>
-      <button class="ghost statsHelpClose" id="statsHelpClose" type="button" aria-label="Fermer">×</button>
-    </div>
-
-    <div class="statsHelpGrid">
-      <div class="statsHelpItem"><strong>N / Att.</strong>Nombre d’attaques exploitables dans le calcul. Plus N est grand, plus l’indicateur est stable.</div>
-      <div class="statsHelpItem"><strong>Pts</strong>Nombre de points réellement marqués sur les attaques observées.</div>
-      <div class="statsHelpItem"><strong>Pts att.</strong>Nombre de points attendus d’après le référentiel empirique, compte tenu du contexte de chaque attaque.</div>
-      <div class="statsHelpItem"><strong>Fautes</strong>Nombre de fautes d’attaque réellement commises.</div>
-      <div class="statsHelpItem"><strong>Fautes att.</strong>Nombre de fautes attendues d’après le référentiel empirique dans les mêmes contextes.</div>
-      <div class="statsHelpItem"><strong>% point</strong>Proportion d’attaques qui se terminent par un point marqué.<div class="statsHelpFormula">% point = points / attaques</div></div>
-      <div class="statsHelpItem"><strong>% faute</strong>Proportion d’attaques qui se terminent par une faute d’attaque.<div class="statsHelpFormula">% faute = fautes / attaques</div></div>
-      <div class="statsHelpItem"><strong>Réf.</strong>Valeur moyenne observée dans le référentiel empirique Hommes ou Femmes pour le même contexte de départ.</div>
-      <div class="statsHelpItem"><strong>Δ point</strong>Écart entre notre taux de point et le taux de point de référence.<div class="statsHelpFormula">Δ point = % point observé − % point référence</div></div>
-      <div class="statsHelpItem"><strong>Δ faute</strong>Écart entre notre taux de faute et le taux de faute de référence. Un Δ faute positif signifie plus de fautes que la moyenne.<div class="statsHelpFormula">Δ faute = % faute observé − % faute référence</div></div>
-      <div class="statsHelpItem"><strong>μ</strong>Valeur offensive moyenne d’une attaque. Un point vaut +1, un ballon défendu 0 et une faute −2.<div class="statsHelpFormula">μ = P(point) − 2 × P(faute)</div></div>
-      <div class="statsHelpItem"><strong>μ réf.</strong>Valeur offensive moyenne attendue dans le référentiel pour le même contexte.</div>
-      <div class="statsHelpItem"><strong>Δ μ</strong>Écart entre la valeur offensive observée et la valeur de référence.<div class="statsHelpFormula">Δ μ = μ observé − μ référence</div></div>
-      <div class="statsHelpItem"><strong>Valeur réelle</strong>Somme de la valeur de toutes les attaques : +1 par point, 0 par ballon défendu, −2 par faute.</div>
-      <div class="statsHelpItem"><strong>Valeur attendue</strong>Somme des valeurs moyennes μ attendues pour chacun des contextes dans lesquels les attaques ont été réalisées.</div>
-      <div class="statsHelpItem"><strong>Performance offensive</strong>Différence entre ce qui a réellement été produit et ce qui était attendu dans les mêmes contextes.<div class="statsHelpFormula">Performance offensive = valeur réelle − valeur attendue</div></div>
-      <div class="statsHelpItem"><strong>Performance /100</strong>Performance offensive ramenée à 100 attaques pour faciliter les comparaisons.<div class="statsHelpFormula">Perf. /100 = 100 × performance offensive / N</div></div>
-      <div class="statsHelpItem"><strong>Fiabilité de l’échantillon</strong>N &lt; 5 : score /100 masqué. De 5 à 15 : score affiché avec avertissement. Au-delà de 15 : affichage normal.</div>
-      <div class="statsHelpItem"><strong>Jeu courant · centre</strong>Attaque réalisée en jeu courant depuis le centre.</div>
-      <div class="statsHelpItem"><strong>Remise · centre / ligne / coin</strong>Le terme indique la position de départ de la remise en jeu, et non la direction de la frappe.</div>
-      <div class="statsHelpItem"><strong>1v1 par pays</strong>Les attaques sont regroupées selon le pays explicitement attaqué. Les actions sans pays renseigné sont exclues de cette comparaison.</div>
-      <div class="statsHelpItem"><strong>Référentiel H / F</strong>Les moyennes Hommes et Femmes sont calculées séparément à partir de Quick Collection et des matchs détaillés exploitables.</div>
-    </div>
-  </div>
-</div>
 
 </body>
 </html>
