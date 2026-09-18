@@ -138,7 +138,7 @@ button{border:0;border-radius:14px;padding:12px 11px;background:var(--panel2);co
       <div class="metric"><strong id="countRestartCorner">0</strong><span>Remise coin</span></div>
     </div>
 
-    <div class="tableWrap"><table><thead><tr><th>Contexte</th><th>Point</th><th>Défendu</th><th>Faute</th><th>Total</th><th>% point</th></tr></thead><tbody id="statsBody"></tbody></table></div>
+    <div class="tableWrap"><table><thead><tr><th>Contexte</th><th>Point</th><th>Défendu</th><th>Faute</th><th>Total</th><th>% point</th><th>% faute</th></tr></thead><tbody id="statsBody"></tbody></table></div>
     <div class="small" style="margin-top:8px">Les compteurs comprennent toutes les annotations de cette session, quel que soit le workspace de l’entraîneur.</div>
   </section>
 </div>
@@ -187,7 +187,12 @@ function renderStats(){
   const counts={}; contexts.forEach(c=>counts[c]={point:0,defended:0,attack_fault:0,total:0});
   samples.forEach(s=>{if(counts[s.attack_context]){counts[s.attack_context][s.outcome]=(counts[s.attack_context][s.outcome]||0)+1;counts[s.attack_context].total++}});
   $('#countGame').textContent=counts.game_center.total; $('#countRestartCenter').textContent=counts.restart_center.total; $('#countRestartLine').textContent=counts.restart_line.total; $('#countRestartCorner').textContent=counts.restart_corner.total;
-  $('#statsBody').innerHTML=contexts.map(c=>{const x=counts[c],rate=x.total?`${Math.round(1000*x.point/x.total)/10} %`:'—';return `<tr><td>${CONTEXT_LABELS[c]}</td><td>${x.point}</td><td>${x.defended}</td><td>${x.attack_fault}</td><td><strong>${x.total}</strong></td><td>${rate}</td></tr>`}).join('');
+  $('#statsBody').innerHTML=contexts.map(c=>{
+    const x=counts[c];
+    const pointRate=x.total?`${Math.round(1000*x.point/x.total)/10} %`:'—';
+    const faultRate=x.total?`${Math.round(1000*x.attack_fault/x.total)/10} %`:'—';
+    return `<tr><td>${CONTEXT_LABELS[c]}</td><td>${x.point}</td><td>${x.defended}</td><td>${x.attack_fault}</td><td><strong>${x.total}</strong></td><td>${pointRate}</td><td>${faultRate}</td></tr>`;
+  }).join('');
   const last=samples[samples.length-1]; $('#lastSample').textContent=last?`${formatTime(last.video_time_seconds)} · ${CONTEXT_LABELS[last.attack_context]} → ${OUTCOME_LABELS[last.outcome]}`:'—';
   $('#undoLast').disabled=!lastOwnSampleId;
 }
