@@ -6553,7 +6553,7 @@ function statsSigned3(v){
   return `${n>0?'+':''}${n.toFixed(3).replace('.',',')}`;
 }
 function statsOneVsOneByOpponent(events,reference){
-  const groups={};
+  const groups={},eventGroups={};
   let missingOpponent=0;
   (events||[]).forEach(e=>{
     if(e.action_type!=='attaque'&&e.action_type!=='faute')return;
@@ -6562,19 +6562,23 @@ function statsOneVsOneByOpponent(events,reference){
     const opponent=(e.opponent_name||'').trim();
     if(!opponent){missingOpponent++;return}
     if(!groups[opponent])groups[opponent]=emptyOffensiveCounts();
+    if(!eventGroups[opponent])eventGroups[opponent]=[];
     addOffensiveObservation(groups[opponent],obs.context,obs.outcome);
+    eventGroups[opponent].push(e);
   });
-  return {groups,missingOpponent};
+  return {groups,eventGroups,missingOpponent};
 }
 function statsOneVsOneHtml(events,reference,population){
   if(!reference)return '<div class="statsEmpty">Référentiel offensif indisponible.</div>';
-  const {groups,missingOpponent}=statsOneVsOneByOpponent(events,reference);
+  const {groups,eventGroups,missingOpponent}=statsOneVsOneByOpponent(events,reference);
   const names=Object.keys(groups).sort((a,b)=>a.localeCompare(b,'fr'));
   if(!names.length)return '<div class="statsEmpty">Aucune attaque avec pays/adversaire renseigné dans ces matchs.</div>';
 
   const sections=names.map(name=>{
     const counts=groups[name];
     const total=Object.values(counts).reduce((n,x)=>n+(x.total||0),0);
+    const perf=teamOffensivePerformance(eventGroups[name]||[],reference);
+    const perfDisplay=offensivePerf100Display(perf.impact100,perf.attacks);
     const rows=OFFENSIVE_CONTEXTS.map(c=>{
       const x=counts[c.key]||{point:0,defended:0,attack_fault:0,total:0};
       const ref=reference.contexts?.[c.key]||{p:0,q:0,mu:0,total:0};
@@ -6593,6 +6597,7 @@ function statsOneVsOneHtml(events,reference,population){
         <td>${mu==null?'—':mu.toFixed(3).replace('.',',')}</td>
         <td>${ref.total?ref.mu.toFixed(3).replace('.',','):'—'}</td>
         <td class="${impactClass((mu??ref.mu)-ref.mu)}">${mu==null||!ref.total?'—':statsSigned3(mu-ref.mu)}</td>
+        <td>${mu==null||!ref.total?'—':offensivePerf100Display(100*(mu-ref.mu),x.total)}</td>
       </tr>`;
     }).join('');
     return `<div class="analysisBlock" style="margin-top:12px">
@@ -6600,13 +6605,19 @@ function statsOneVsOneHtml(events,reference,population){
         <div class="analysisSubsectionTitle" style="margin:0">vs ${escapeHtml(name)}</div>
         <div class="small">${total} attaque${total>1?'s':''} exploitables</div>
       </div>
+      <div class="statsMatchGrid" style="margin-top:8px">
+        <div class="statsMatchCard"><span class="small">Attaques</span><strong>${perf.attacks}</strong></div>
+        <div class="statsMatchCard"><span class="small">Valeur réelle</span><strong>${signed1(perf.realValue)}</strong></div>
+        <div class="statsMatchCard"><span class="small">Valeur attendue</span><strong>${signed1(perf.expectedValue)}</strong></div>
+        <div class="statsMatchCard"><span class="small">Performance offensive /100</span><strong>${perfDisplay}</strong></div>
+      </div>
       <div class="analysisTableWrap" style="margin-top:8px">
         <table class="analysisTable">
           <thead><tr>
             <th>Contexte</th><th>N</th>
             <th>% point</th><th>Réf.</th><th>Δ point</th>
             <th>% faute</th><th>Réf.</th><th>Δ faute</th>
-            <th>μ</th><th>μ réf.</th><th>Δ μ</th>
+            <th>μ</th><th>μ réf.</th><th>Δ μ</th><th>Perf. /100</th>
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>
@@ -6619,6 +6630,8 @@ function statsOneVsOneHtml(events,reference,population){
       Comparaison de nos attaques dirigées contre chaque pays au référentiel ${population==='H'?'Hommes':'Femmes'}.
       Δ point positif = davantage de points que la moyenne empirique ; Δ faute positif = davantage de fautes.
       Δ μ positif = meilleure valeur offensive globale, avec μ = P(point) − 2×P(faute).
+      La performance offensive /100 est le même indicateur que pour l’équipe et les joueurs : 100 × (valeur réelle − valeur attendue) / nombre d’attaques.
+      Elle est masquée sous 5 attaques et signalée comme limitée entre 5 et 15. Au-delà de 15 attaques, elle est affichée normalement.
     </div>
     ${sections}
     ${missingOpponent?`<div class="analysisSubtle" style="margin-top:8px">${missingOpponent} attaque${missingOpponent>1?'s':''} exploitable${missingOpponent>1?'s':''} exclue${missingOpponent>1?'s':''} du tableau car le pays attaqué n’est pas renseigné.</div>`:''}`;
@@ -6652,6 +6665,18 @@ function teamOffensivePerformance(events,reference){
   const impact100=attacks?100*impact/attacks:null;
   return {attacks,points,faults,realValue,expectedValue,expectedPoints,expectedFaults,impact,impact100,byContext};
 }
+
+function offensiveSampleLabel(n){
+  if(n<5)return {level:'too_small',html:'<span class="small" style="color:var(--warn)">Échantillon insuffisant (N&lt;5)</span>'};
+  if(n<=15)return {level:'limited',html:'<span class="small" style="color:var(--warn)">Échantillon limité</span>'};
+  return {level:'ok',html:''};
+}
+function offensivePerf100Display(value,n){
+  const q=offensiveSampleLabel(n);
+  if(q.level==='too_small')return `<span class="small">—</span><br>${q.html}`;
+  return `<span class="${impactClass(value||0)}">${signed1(value)}</span>${q.html?`<br>${q.html}`:''}`;
+}
+
 function teamOffensivePerformanceHtml(perf,population){
   if(!perf||!perf.attacks)return '<div class="statsEmpty">Pas assez d’attaques exploitables pour calculer la performance offensive de l’équipe.</div>';
   const cls=impactClass(perf.impact100||0);
@@ -6667,7 +6692,7 @@ function teamOffensivePerformanceHtml(perf,population){
       <td>${(Math.round(x.expectedPoints*10)/10).toFixed(1).replace('.',',')}</td>
       <td>${x.faults}</td>
       <td>${(Math.round(x.expectedFaults*10)/10).toFixed(1).replace('.',',')}</td>
-      <td class="${impactClass(impact100)}">${signed1(impact100)}</td>
+      <td>${offensivePerf100Display(impact100,x.attacks)}</td>
     </tr>`;
   }).join('');
 
@@ -6692,6 +6717,8 @@ function teamOffensivePerformanceHtml(perf,population){
     <div class="analysisSubtle" style="margin-top:8px">
       Un score de 0 signifie que l’équipe produit exactement la valeur offensive attendue compte tenu de ses situations d’attaque.
       Un score positif indique une performance supérieure à cette référence ; un score négatif, inférieure.
+      Les scores /100 ne sont pas affichés pour un contexte avec moins de 5 attaques, car une seule action peut alors produire un écart artificiellement énorme.
+      Entre 5 et 15 attaques, le score reste affiché mais signalé comme échantillon limité. Au-delà de 15 attaques, il est affiché normalement.
     </div>
   </div>`;
 }
