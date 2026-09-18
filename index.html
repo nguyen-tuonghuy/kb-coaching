@@ -2142,6 +2142,7 @@ button:active{transform:scale(.985)}
       <div class="statsHelpItem"><strong>Jeu courant · centre</strong>Attaque réalisée en jeu courant depuis le centre.</div>
       <div class="statsHelpItem"><strong>Remise · centre / ligne / coin</strong>Le terme indique la position de départ de la remise en jeu, et non la direction de la frappe.</div>
       <div class="statsHelpItem"><strong>1v1 par pays</strong>Les attaques sont regroupées selon le pays explicitement attaqué. Les actions sans pays renseigné sont exclues de cette comparaison.</div>
+      <div class="statsHelpItem"><strong>Performance offensive adverse</strong>Reconstituée à partir de nos actions défensives : ballon défendu = attaque adverse défendue ; échappé ou défensive illégale de notre part = point adverse ; faute de l’adversaire = faute d’attaque adverse.</div>
       <div class="statsHelpItem"><strong>Référentiel H / F</strong>Les moyennes Hommes et Femmes sont calculées séparément à partir de Quick Collection et des matchs détaillés exploitables.</div>
     </div>
   </div>
@@ -6627,6 +6628,86 @@ function statsSigned3(v){
   const n=Math.round(v*1000)/1000;
   return `${n>0?'+':''}${n.toFixed(3).replace('.',',')}`;
 }
+
+function opponentOffensivePerformance(events,reference){
+  let attacks=0,points=0,faults=0,realValue=0,expectedValue=0,expectedPoints=0,expectedFaults=0;
+  const byContext={};
+  OFFENSIVE_CONTEXTS.forEach(c=>byContext[c.key]={attacks:0,points:0,faults:0,realValue:0,expectedValue:0,expectedPoints:0,expectedFaults:0});
+
+  (events||[]).forEach(e=>{
+    if(e.action_type!=='defense')return;
+    const obs=detailedEventToOffensiveObservation(e);
+    if(!obs)return;
+    const ref=reference?.contexts?.[obs.context];
+    if(!ref||!ref.total)return;
+
+    const v=obs.outcome==='point'?1:(obs.outcome==='attack_fault'?-2:0);
+    const c=byContext[obs.context];
+    attacks++; c.attacks++;
+    if(obs.outcome==='point'){points++;c.points++}
+    if(obs.outcome==='attack_fault'){faults++;c.faults++}
+    realValue+=v;c.realValue+=v;
+    expectedValue+=ref.mu;c.expectedValue+=ref.mu;
+    expectedPoints+=ref.p;c.expectedPoints+=ref.p;
+    expectedFaults+=ref.q;c.expectedFaults+=ref.q;
+  });
+
+  const performance=realValue-expectedValue;
+  const performance100=attacks?100*performance/attacks:null;
+  return {attacks,points,faults,realValue,expectedValue,expectedPoints,expectedFaults,performance,performance100,byContext};
+}
+
+function opponentOffensivePerformanceHtml(perf,population,title='Performance offensive adverse'){
+  if(!perf||!perf.attacks)return '<div class="statsEmpty">Pas assez d’attaques adverses exploitables pour calculer la performance offensive adverse.</div>';
+  const rows=OFFENSIVE_CONTEXTS.map(c=>{
+    const x=perf.byContext[c.key];
+    if(!x.attacks)return `<tr><td>${escapeHtml(c.label)}</td><td>0</td><td colspan="5">—</td></tr>`;
+    const performance=x.realValue-x.expectedValue;
+    const performance100=100*performance/x.attacks;
+    return `<tr>
+      <td>${escapeHtml(c.label)}</td>
+      <td>${x.attacks}</td>
+      <td>${x.points}</td>
+      <td>${(Math.round(x.expectedPoints*10)/10).toFixed(1).replace('.',',')}</td>
+      <td>${x.faults}</td>
+      <td>${(Math.round(x.expectedFaults*10)/10).toFixed(1).replace('.',',')}</td>
+      <td>${offensivePerf100Display(performance100,x.attacks)}</td>
+    </tr>`;
+  }).join('');
+
+  return `<div class="analysisBlock" style="margin-top:14px">
+    <div class="analysisSubsectionTitle" style="margin-bottom:8px">${escapeHtml(title)}</div>
+    <div class="analysisSubtle" style="margin-bottom:10px">Référentiel ${population==='H'?'Hommes':'Femmes'} · attaques adverses reconstituées depuis nos actions défensives · voir ? pour les définitions.</div>
+    <div class="statsMatchGrid">
+      <div class="statsMatchCard"><span class="small">Attaques adverses</span><strong>${perf.attacks}</strong></div>
+      <div class="statsMatchCard"><span class="small">Valeur réelle adverse</span><strong>${signed1(perf.realValue)}</strong></div>
+      <div class="statsMatchCard"><span class="small">Valeur attendue</span><strong>${signed1(perf.expectedValue)}</strong></div>
+      <div class="statsMatchCard"><span class="small">Performance offensive /100</span><strong>${offensivePerf100Display(perf.performance100,perf.attacks)}</strong></div>
+    </div>
+    <div class="analysisTableWrap" style="margin-top:10px">
+      <table class="analysisTable">
+        <thead><tr><th>Contexte</th><th>Att.</th><th>Pts</th><th>Pts att.</th><th>Fautes</th><th>Fautes att.</th><th>Perf. /100</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function statsOpponentDefenseEventsByCountry(events){
+  const groups={};
+  let missingOpponent=0;
+  (events||[]).forEach(e=>{
+    if(e.action_type!=='defense')return;
+    const obs=detailedEventToOffensiveObservation(e);
+    if(!obs)return;
+    const opponent=(e.opponent_name||'').trim();
+    if(!opponent){missingOpponent++;return}
+    if(!groups[opponent])groups[opponent]=[];
+    groups[opponent].push(e);
+  });
+  return {groups,missingOpponent};
+}
+
 function statsOneVsOneByOpponent(events,reference){
   const groups={},eventGroups={};
   let missingOpponent=0;
@@ -6646,14 +6727,17 @@ function statsOneVsOneByOpponent(events,reference){
 function statsOneVsOneHtml(events,reference,population){
   if(!reference)return '<div class="statsEmpty">Référentiel offensif indisponible.</div>';
   const {groups,eventGroups,missingOpponent}=statsOneVsOneByOpponent(events,reference);
-  const names=Object.keys(groups).sort((a,b)=>a.localeCompare(b,'fr'));
+  const adverseByCountry=statsOpponentDefenseEventsByCountry(events);
+  const names=Array.from(new Set([...Object.keys(groups),...Object.keys(adverseByCountry.groups)])).sort((a,b)=>a.localeCompare(b,'fr'));
   if(!names.length)return '<div class="statsEmpty">Aucune attaque avec pays/adversaire renseigné dans ces matchs.</div>';
 
   const sections=names.map(name=>{
-    const counts=groups[name];
+    const counts=groups[name]||emptyOffensiveCounts();
     const total=Object.values(counts).reduce((n,x)=>n+(x.total||0),0);
     const perf=teamOffensivePerformance(eventGroups[name]||[],reference);
     const perfDisplay=offensivePerf100Display(perf.impact100,perf.attacks);
+    const adversePerf=opponentOffensivePerformance(adverseByCountry.groups[name]||[],reference);
+    const adversePerfDisplay=offensivePerf100Display(adversePerf.performance100,adversePerf.attacks);
     const rows=OFFENSIVE_CONTEXTS.map(c=>{
       const x=counts[c.key]||{point:0,defended:0,attack_fault:0,total:0};
       const ref=reference.contexts?.[c.key]||{p:0,q:0,mu:0,total:0};
@@ -6681,10 +6765,16 @@ function statsOneVsOneHtml(events,reference,population){
         <div class="small">${total} attaque${total>1?'s':''} exploitables</div>
       </div>
       <div class="statsMatchGrid" style="margin-top:8px">
-        <div class="statsMatchCard"><span class="small">Attaques</span><strong>${perf.attacks}</strong></div>
-        <div class="statsMatchCard"><span class="small">Valeur réelle</span><strong>${signed1(perf.realValue)}</strong></div>
-        <div class="statsMatchCard"><span class="small">Valeur attendue</span><strong>${signed1(perf.expectedValue)}</strong></div>
-        <div class="statsMatchCard"><span class="small">Performance offensive /100</span><strong>${perfDisplay}</strong></div>
+        <div class="statsMatchCard"><span class="small">Nos attaques</span><strong>${perf.attacks}</strong></div>
+        <div class="statsMatchCard"><span class="small">Notre valeur réelle</span><strong>${signed1(perf.realValue)}</strong></div>
+        <div class="statsMatchCard"><span class="small">Notre valeur attendue</span><strong>${signed1(perf.expectedValue)}</strong></div>
+        <div class="statsMatchCard"><span class="small">Notre performance /100</span><strong>${perfDisplay}</strong></div>
+      </div>
+      <div class="statsMatchGrid" style="margin-top:8px">
+        <div class="statsMatchCard"><span class="small">Leurs attaques contre nous</span><strong>${adversePerf.attacks}</strong></div>
+        <div class="statsMatchCard"><span class="small">Leur valeur réelle</span><strong>${signed1(adversePerf.realValue)}</strong></div>
+        <div class="statsMatchCard"><span class="small">Leur valeur attendue</span><strong>${signed1(adversePerf.expectedValue)}</strong></div>
+        <div class="statsMatchCard"><span class="small">Leur performance /100</span><strong>${adversePerfDisplay}</strong></div>
       </div>
       <div class="analysisTableWrap" style="margin-top:8px">
         <table class="analysisTable">
@@ -6799,6 +6889,7 @@ async function loadStatsMatches(){
   let offensiveReference=null;
   try{offensiveReference=await loadOffensiveReference(population)}catch(e){console.error('stats 1v1 reference',e)}
   const teamPerformance=teamOffensivePerformance(ds.events,offensiveReference);
+  const opponentPerformance=opponentOffensivePerformance(ds.events,offensiveReference);
   const attackTotals=Object.values(attacks.counts).reduce((a,x)=>({point:a.point+x.point,defended:a.defended+x.defended,attack_fault:a.attack_fault+x.attack_fault,total:a.total+x.total}),{point:0,defended:0,attack_fault:0,total:0});
   const pointRate=attackTotals.total?Math.round(1000*attackTotals.point/attackTotals.total)/10:null;
   const faultRate=attackTotals.total?Math.round(1000*attackTotals.attack_fault/attackTotals.total)/10:null;
@@ -6809,6 +6900,7 @@ async function loadStatsMatches(){
     <div class="statsMatchCard"><span class="small">Taux de faute</span><strong>${faultRate==null?'—':String(faultRate).replace('.',',')+' %'}</strong></div>
    </div>
    ${teamOffensivePerformanceHtml(teamPerformance,population)}
+   ${opponentOffensivePerformanceHtml(opponentPerformance,population,'Performance offensive de nos adversaires contre nous')}
    ${statsContextTable(attacks.counts,'Attaque de l’équipe suivie')}
    ${statsContextTable(adverse.counts,'Attaque adverse observée via notre défense')}
    ${statsOneVsOneHtml(ds.events,offensiveReference,population)}
