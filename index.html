@@ -1603,14 +1603,28 @@ button:active{transform:scale(.985)}
      <div class="row" style="justify-content:space-between;align-items:end;gap:10px">
       <div>
        <h3>Performance offensive des joueurs</h3>
-       <div class="analysisSubtle">Comparaison de chaque joueur à la valeur offensive attendue dans les mêmes contextes de départ.</div>
+       <div class="analysisSubtle">Choisis un match, ou plusieurs matchs pour construire un cumul spécifique.</div>
       </div>
       <div class="field" style="max-width:190px">
        <label>Référentiel</label>
        <select id="statsImpactPopulation"><option value="H">Hommes</option><option value="F">Femmes</option></select>
       </div>
      </div>
-     <div id="statsImpactContent" style="margin-top:10px"></div>
+
+     <div class="statsMatchSelectionBar">
+      <div class="small" id="statsImpactMatchSelectionStatus"></div>
+      <div class="row" style="gap:6px">
+       <button class="ghost" id="statsImpactLatest" type="button">Dernier match</button>
+       <button class="ghost" id="statsImpactClear" type="button">Effacer la sélection</button>
+      </div>
+     </div>
+     <div class="statsMatchFilterBar">
+      <input id="statsImpactMatchSearch" type="search" placeholder="Rechercher un match, adversaire, compétition…">
+      <select id="statsImpactMatchTypeFilter"><option value="">Toutes les compétitions</option></select>
+     </div>
+     <div id="statsImpactMatchSelector" class="statsMatchSelector"></div>
+
+     <div id="statsImpactContent" style="margin-top:14px"></div>
     </div>
    </div>
  </section>
@@ -4296,7 +4310,7 @@ $('#matchTypeCreateForm').onsubmit=event=>{
 let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{}};
 let groupState={groups:[],currentGroupId:null,currentPlayers:[],matchPlayers:[],profiles:{}};
 let adminState={isAdmin:false,groups:[]};
-let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',reference:null,impactReference:null};
+let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',reference:null,impactReference:null};
 
 
 
@@ -7142,21 +7156,90 @@ async function statsGroupMatchDataset(){
   return await loadMatchAnalysisDataset(ids);
 }
 
-async function loadStatsImpact(){
+function renderStatsImpactMatchSelector(){
+  const list=statsState.impactMatchList||[];
+  const selected=new Set(statsState.impactMatchSelection||[]);
+  const box=$('#statsImpactMatchSelector');
+  const status=$('#statsImpactMatchSelectionStatus');
+  if(!box||!status)return;
+
+  const search=(statsState.impactMatchSearch||'').trim().toLowerCase();
+  const typeFilter=statsState.impactMatchTypeFilter||'';
+
+  if(!list.length){
+    box.innerHTML='';
+    status.textContent='';
+    return;
+  }
+
+  const visible=list.filter(m=>{
+    const hay=[
+      m.label,
+      m.match_type?.name,
+      m.opponent1?.name,
+      m.opponent2?.name,
+      m.played_on
+    ].filter(Boolean).join(' ').toLowerCase();
+    const matchSearch=!search||hay.includes(search);
+    const matchType=!typeFilter||(m.match_type?.name||'')===typeFilter;
+    return matchSearch&&matchType;
+  });
+
+  box.innerHTML=visible.length
+    ? visible.slice().reverse().map(m=>{
+        const l=statsMatchDisplayLabel(m);
+        return `<label class="statsMatchChoice">
+          <input type="checkbox" data-impact-match-id="${m.id}" ${selected.has(m.id)?'checked':''}>
+          <span><strong>${escapeHtml(l.title)}</strong><span class="small">${escapeHtml(l.meta)}</span></span>
+        </label>`;
+      }).join('')
+    : '<div class="statsEmpty" style="grid-column:1/-1">Aucun match ne correspond aux filtres.</div>';
+
+  const hiddenSelected=[...selected].filter(id=>!visible.some(m=>m.id===id)).length;
+  status.textContent=`${selected.size} match${selected.size>1?'s':''} sélectionné${selected.size>1?'s':''}${hiddenSelected?` · ${hiddenSelected} masqué${hiddenSelected>1?'s':''} par les filtres`:''}`;
+
+  box.querySelectorAll('input[data-impact-match-id]').forEach(input=>{
+    input.onchange=()=>{
+      const id=input.dataset.impactMatchId;
+      const set=new Set(statsState.impactMatchSelection||[]);
+      if(input.checked)set.add(id); else set.delete(id);
+      statsState.impactMatchSelection=[...set];
+      renderStatsImpactMatchSelector();
+      renderStatsImpactSelection().catch(e=>{
+        handleError('stats impact selection',e);
+        $('#statsImpactContent').innerHTML=`<div class="statsEmpty">${escapeHtml(e.message||String(e))}</div>`;
+      });
+    };
+  });
+}
+
+async function renderStatsImpactSelection(){
   const groupId=$('#statsGroup').value;
   const box=$('#statsImpactContent');
   if(!groupId){box.innerHTML='<div class="statsEmpty">Choisis un groupe.</div>';return}
+
+  const selected=(statsState.impactMatchSelection||[])
+    .filter(id=>(statsState.impactMatchList||[]).some(m=>m.id===id));
+
+  if(!selected.length){
+    box.innerHTML='<div class="statsEmpty">Sélectionne au moins un match. Tu peux en cocher plusieurs pour construire un cumul.</div>';
+    return;
+  }
+
   box.innerHTML='<div class="statsEmpty">Calcul de la performance offensive…</div>';
-  const ds=await statsGroupMatchDataset();
-  if(!ds.matchIds.length){box.innerHTML='<div class="statsEmpty">Aucun match enregistré dans ce groupe.</div>';return}
+  const ds=await loadMatchAnalysisDataset(selected);
+  if(!ds.matchIds.length){box.innerHTML='<div class="statsEmpty">Aucun match exploitable.</div>';return}
+
   const pop=$('#statsImpactPopulation').value||'H';
   const ref=await loadOffensiveReference(pop);
   statsState.impactReference=ref;
+
   const previousRef=analysisState.offensiveReference;
   analysisState.offensiveReference=ref;
   const names=(ds.players||[]).filter(Boolean);
   const rows=names.map(name=>playerOffensiveImpact(ds.events,name));
   analysisState.offensiveReference=previousRef;
+
   rows.sort((a,b)=>(b.impact100??-Infinity)-(a.impact100??-Infinity));
   const body=rows.map(x=>`<tr>
     <td>${escapeHtml(x.name)}${x.total>0&&x.total<20?' <span class="small">· échantillon limité</span>':''}</td>
@@ -7165,8 +7248,67 @@ async function loadStatsImpact(){
     <td class="${impactClass(x.impact)}">${x.total?signed1(x.impact):'—'}</td>
     <td class="${impactClass(x.impact100||0)}">${x.total?signed1(x.impact100):'—'}</td>
    </tr>`).join('');
-  box.innerHTML=`<div class="analysisSubtle" style="margin-bottom:8px">Référentiel ${pop==='H'?'Hommes':'Femmes'} · valeur d’une attaque : +1 point, 0 ballon défendu, −2 faute. Performance offensive = valeur réelle − valeur attendue selon le contexte de départ.</div>
-   <div class="analysisTableWrap"><table class="analysisTable"><thead><tr><th>Joueur</th><th>Att.</th><th>Pts</th><th>Pts att.</th><th>Fautes</th><th>Fautes att.</th><th>Performance offensive</th><th>Performance /100</th></tr></thead><tbody>${body||'<tr><td colspan="8">Aucune attaque attribuée.</td></tr>'}</tbody></table></div>`;
+
+  box.innerHTML=`<div class="analysisSubtle" style="margin-bottom:8px">
+      ${selected.length===1?'Match sélectionné':`Cumul de ${selected.length} matchs sélectionnés`} ·
+      Référentiel ${pop==='H'?'Hommes':'Femmes'} ·
+      valeur d’une attaque : +1 point, 0 ballon défendu, −2 faute.
+      Les actions laissées en collectif ne sont pas attribuées à un joueur.
+    </div>
+    <div class="analysisTableWrap"><table class="analysisTable"><thead><tr>
+      <th>Joueur</th><th>Att.</th><th>Pts</th><th>Pts att.</th><th>Fautes</th><th>Fautes att.</th><th>Performance offensive</th><th>Performance /100</th>
+    </tr></thead><tbody>${body||'<tr><td colspan="8">Aucune attaque attribuée.</td></tr>'}</tbody></table></div>`;
+}
+
+async function loadStatsImpact(){
+  const groupId=$('#statsGroup').value;
+  const box=$('#statsImpactContent');
+  if(!groupId){
+    statsState.impactMatchList=[];
+    statsState.impactMatchSelection=[];
+    renderStatsImpactMatchSelector();
+    box.innerHTML='<div class="statsEmpty">Choisis un groupe.</div>';
+    return;
+  }
+
+  const list=await statsGroupMatchList();
+  statsState.impactMatchList=list;
+
+  const typeSelect=$('#statsImpactMatchTypeFilter');
+  const types=[...new Set(list.map(m=>m.match_type?.name).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
+  if(typeSelect){
+    typeSelect.innerHTML='<option value="">Toutes les compétitions</option>'+types.map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+    typeSelect.value=types.includes(statsState.impactMatchTypeFilter)?statsState.impactMatchTypeFilter:'';
+    statsState.impactMatchTypeFilter=typeSelect.value;
+  }
+
+  if(!list.length){
+    statsState.impactMatchSelection=[];
+    statsState.impactMatchSelectionGroupId=groupId;
+    renderStatsImpactMatchSelector();
+    box.innerHTML='<div class="statsEmpty">Aucun match enregistré dans ce groupe.</div>';
+    return;
+  }
+
+  const validIds=new Set(list.map(m=>m.id));
+  const groupChanged=statsState.impactMatchSelectionGroupId!==groupId;
+  if(groupChanged){
+    statsState.impactMatchSearch='';
+    statsState.impactMatchTypeFilter='';
+    if($('#statsImpactMatchSearch'))$('#statsImpactMatchSearch').value='';
+    if($('#statsImpactMatchTypeFilter'))$('#statsImpactMatchTypeFilter').value='';
+  }
+
+  let selected=(statsState.impactMatchSelection||[]).filter(id=>validIds.has(id));
+  if(groupChanged||!selected.length){
+    const latest=list[list.length-1];
+    selected=latest?[latest.id]:[];
+  }
+
+  statsState.impactMatchSelection=selected;
+  statsState.impactMatchSelectionGroupId=groupId;
+  renderStatsImpactMatchSelector();
+  await renderStatsImpactSelection();
 }
 
 async function openStatsModule(){
@@ -7380,7 +7522,27 @@ $('#statsGroup').onchange=async()=>{
 $$('.statsDomainTab').forEach(b=>b.onclick=()=>switchStatsDomain(b.dataset.statsDomain));
 $$('.statsTab').forEach(b=>b.onclick=()=>switchStatsTab(b.dataset.statsTab));
 $('#statsReferencePopulation').onchange=()=>loadStatsReference().catch(e=>handleError('stats reference population',e));
-$('#statsImpactPopulation').onchange=()=>loadStatsImpact().catch(e=>handleError('stats impact population',e));
+$('#statsImpactPopulation').onchange=()=>renderStatsImpactSelection().catch(e=>handleError('stats impact population',e));
+if($('#statsImpactLatest'))$('#statsImpactLatest').onclick=()=>{
+  const list=statsState.impactMatchList||[];
+  const latest=list[list.length-1];
+  statsState.impactMatchSelection=latest?[latest.id]:[];
+  renderStatsImpactMatchSelector();
+  renderStatsImpactSelection().catch(e=>handleError('stats impact latest',e));
+};
+if($('#statsImpactClear'))$('#statsImpactClear').onclick=()=>{
+  statsState.impactMatchSelection=[];
+  renderStatsImpactMatchSelector();
+  renderStatsImpactSelection().catch(e=>handleError('stats impact clear',e));
+};
+if($('#statsImpactMatchSearch'))$('#statsImpactMatchSearch').oninput=e=>{
+  statsState.impactMatchSearch=e.target.value||'';
+  renderStatsImpactMatchSelector();
+};
+if($('#statsImpactMatchTypeFilter'))$('#statsImpactMatchTypeFilter').onchange=e=>{
+  statsState.impactMatchTypeFilter=e.target.value||'';
+  renderStatsImpactMatchSelector();
+};
 $('#statsPlayer').onchange=()=>{populateStatsPlayerExercises();renderStatsPlayer()};
 $('#statsPlayerExercise').onchange=renderStatsPlayer;
 $('#statsExercise').onchange=renderStatsExercise;
