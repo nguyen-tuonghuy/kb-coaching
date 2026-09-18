@@ -123,6 +123,24 @@ button:active{transform:scale(.985)}
 .statsMatchGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .statsMatchCard{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px}
 .statsMatchCard strong{display:block;font-size:21px;margin-top:2px}
+
+.statsMatchSelector{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  gap:8px;margin-top:10px
+}
+.statsMatchChoice{
+  display:flex;align-items:flex-start;gap:9px;padding:10px 11px;
+  border:1px solid var(--line);border-radius:12px;background:var(--panel2);
+  cursor:pointer
+}
+.statsMatchChoice input{margin-top:3px;flex:0 0 auto}
+.statsMatchChoice strong{display:block;font-size:13px}
+.statsMatchChoice .small{margin-top:2px}
+.statsMatchChoice:has(input:checked){outline:2px solid var(--accent);outline-offset:-2px}
+.statsMatchSelectionBar{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  flex-wrap:wrap;margin-top:10px
+}
 .statsHelpBtn{
   width:34px;height:34px;min-width:34px;padding:0;border-radius:50%;
   display:inline-flex;align-items:center;justify-content:center;
@@ -1479,9 +1497,17 @@ button:active{transform:scale(.985)}
 
    <div id="statsMatchesDomain" class="hidden">
     <div class="analysisBlock">
-     <h3>Statistiques de matchs du groupe</h3>
-     <div class="analysisSubtle">Agrégation de tous les matchs enregistrés dans le groupe sélectionné.</div>
-     <div id="statsMatchSummary" style="margin-top:10px"></div>
+     <h3>Statistiques de matchs</h3>
+     <div class="analysisSubtle">Un match est analysé par défaut. Coche plusieurs matchs uniquement lorsque tu veux construire un cumul spécifique.</div>
+     <div class="statsMatchSelectionBar">
+      <div class="small" id="statsMatchSelectionStatus"></div>
+      <div class="row" style="gap:6px">
+       <button class="ghost" id="statsMatchLatest" type="button">Dernier match</button>
+       <button class="ghost" id="statsMatchClear" type="button">Effacer la sélection</button>
+      </div>
+     </div>
+     <div id="statsMatchSelector" class="statsMatchSelector"></div>
+     <div id="statsMatchSummary" style="margin-top:14px"></div>
     </div>
    </div>
 
@@ -4176,7 +4202,7 @@ $('#matchTypeCreateForm').onsubmit=event=>{
 let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{}};
 let groupState={groups:[],currentGroupId:null,currentPlayers:[],matchPlayers:[],profiles:{}};
 let adminState={isAdmin:false,groups:[]};
-let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,reference:null,impactReference:null};
+let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,reference:null,impactReference:null};
 
 
 
@@ -6614,14 +6640,50 @@ function switchStatsDomain(domain){
   if(domain==='reference')loadStatsReference().catch(e=>{handleError('stats reference',e);$('#statsReferenceContent').innerHTML=`<div class="statsEmpty">${escapeHtml(e.message||String(e))}</div>`});
   if(domain==='impact')loadStatsImpact().catch(e=>{handleError('stats impact',e);$('#statsImpactContent').innerHTML=`<div class="statsEmpty">${escapeHtml(e.message||String(e))}</div>`});
 }
-async function statsGroupMatchDataset(){
+async function statsGroupMatchList(){
   const groupId=$('#statsGroup').value;
-  if(!groupId)return {matchIds:[],matches:[],events:[],players:[]};
-  const {data,error}=await db.from('matches').select('id').eq('group_id',groupId).order('played_on',{ascending:true});
+  if(!groupId)return [];
+  const {data,error}=await db.from('matches')
+    .select('id,label,played_on,match_type:match_types!matches_match_type_id_fkey(name),opponent1:teams!matches_opponent_team_1_id_fkey(name),opponent2:teams!matches_opponent_team_2_id_fkey(name)')
+    .eq('group_id',groupId)
+    .order('played_on',{ascending:true});
   if(error)throw error;
-  const ids=(data||[]).map(m=>m.id);
-  if(!ids.length)return {matchIds:[],matches:[],events:[],players:[]};
-  return await loadMatchAnalysisDataset(ids);
+  return data||[];
+}
+
+function statsMatchDisplayLabel(m){
+  const date=m.played_on?new Date(`${m.played_on}T12:00:00`).toLocaleDateString('fr-FR'):'Date inconnue';
+  return {title:m.label||m.match_type?.name||'Match',meta:[date,m.opponent1?.name,m.opponent2?.name].filter(Boolean).join(' · ')};
+}
+
+function renderStatsMatchSelector(){
+  const list=statsState.matchList||[];
+  const selected=new Set(statsState.matchSelection||[]);
+  const box=$('#statsMatchSelector');
+  const status=$('#statsMatchSelectionStatus');
+  if(!list.length){
+    box.innerHTML='';
+    status.textContent='';
+    return;
+  }
+  box.innerHTML=list.slice().reverse().map(m=>{
+    const l=statsMatchDisplayLabel(m);
+    return `<label class="statsMatchChoice">
+      <input type="checkbox" data-stats-match-id="${m.id}" ${selected.has(m.id)?'checked':''}>
+      <span><strong>${escapeHtml(l.title)}</strong><span class="small">${escapeHtml(l.meta)}</span></span>
+    </label>`;
+  }).join('');
+  status.textContent=`${selected.size} match${selected.size>1?'s':''} sélectionné${selected.size>1?'s':''}`;
+  box.querySelectorAll('input[data-stats-match-id]').forEach(input=>{
+    input.onchange=()=>{
+      const id=input.dataset.statsMatchId;
+      const set=new Set(statsState.matchSelection||[]);
+      if(input.checked)set.add(id); else set.delete(id);
+      statsState.matchSelection=[...set];
+      renderStatsMatchSelector();
+      renderStatsMatchesSelection().catch(e=>{handleError('stats matches selection',e);$('#statsMatchSummary').innerHTML=`<div class="statsEmpty">${escapeHtml(e.message||String(e))}</div>`});
+    };
+  });
 }
 function statsOutcomeCounts(events,mode){
   const counts=emptyOffensiveCounts();
@@ -6857,14 +6919,21 @@ function openDetailedFaceoff(){
   window.location.href=url;
 }
 
-async function loadStatsMatches(){
+async function renderStatsMatchesSelection(){
   const box=$('#statsMatchSummary');
   const groupId=$('#statsGroup').value;
+  const selected=(statsState.matchSelection||[]).filter(id=>(statsState.matchList||[]).some(m=>m.id===id));
   if(!groupId){box.innerHTML='<div class="statsEmpty">Choisis un groupe.</div>';return}
+  if(!selected.length){
+    statsState.matchDataset=null;
+    box.innerHTML='<div class="statsEmpty">Sélectionne au moins un match. Tu peux en cocher plusieurs pour construire un cumul.</div>';
+    return;
+  }
+
   box.innerHTML='<div class="statsEmpty">Chargement…</div>';
-  const ds=await statsGroupMatchDataset();
+  const ds=await loadMatchAnalysisDataset(selected);
   statsState.matchDataset=ds;
-  if(!ds.matchIds.length){box.innerHTML='<div class="statsEmpty">Aucun match enregistré dans ce groupe.</div>';return}
+
   const attacks=statsOutcomeCounts(ds.events,'attack');
   const adverse=statsOutcomeCounts(ds.events,'defense');
   const group=groupState.groups.find(g=>g.id===groupId);
@@ -6876,8 +6945,10 @@ async function loadStatsMatches(){
   const attackTotals=Object.values(attacks.counts).reduce((a,x)=>({point:a.point+x.point,defended:a.defended+x.defended,attack_fault:a.attack_fault+x.attack_fault,total:a.total+x.total}),{point:0,defended:0,attack_fault:0,total:0});
   const pointRate=attackTotals.total?Math.round(1000*attackTotals.point/attackTotals.total)/10:null;
   const faultRate=attackTotals.total?Math.round(1000*attackTotals.attack_fault/attackTotals.total)/10:null;
-  box.innerHTML=`<div class="statsMatchGrid">
-    <div class="statsMatchCard"><span class="small">Matchs</span><strong>${ds.matchIds.length}</strong></div>
+
+  box.innerHTML=`<div class="analysisSubtle" style="margin-bottom:8px">${selected.length===1?'Analyse du match sélectionné':`Cumul construit sur ${selected.length} matchs sélectionnés`}.</div>
+   <div class="statsMatchGrid">
+    <div class="statsMatchCard"><span class="small">Matchs inclus</span><strong>${selected.length}</strong></div>
     <div class="statsMatchCard"><span class="small">Attaques exploitables</span><strong>${attackTotals.total}</strong></div>
     <div class="statsMatchCard"><span class="small">Taux de point</span><strong>${pointRate==null?'—':String(pointRate).replace('.',',')+' %'}</strong></div>
     <div class="statsMatchCard"><span class="small">Taux de faute</span><strong>${faultRate==null?'—':String(faultRate).replace('.',',')+' %'}</strong></div>
@@ -6888,6 +6959,43 @@ async function loadStatsMatches(){
    ${statsContextTable(adverse.counts,'Attaque adverse observée via notre défense')}
    ${statsOneVsOneHtml(ds.events,offensiveReference,population)}
    <div class="analysisSubtle" style="margin-top:8px">Centre / ligne / coin correspondent à la position de départ de l’attaque ou de la remise en jeu.</div>`;
+}
+
+async function loadStatsMatches(){
+  const box=$('#statsMatchSummary');
+  const groupId=$('#statsGroup').value;
+  if(!groupId){
+    statsState.matchList=[];
+    statsState.matchSelection=[];
+    renderStatsMatchSelector();
+    box.innerHTML='<div class="statsEmpty">Choisis un groupe.</div>';
+    return;
+  }
+
+  const list=await statsGroupMatchList();
+  statsState.matchList=list;
+
+  if(!list.length){
+    statsState.matchSelection=[];
+    statsState.matchSelectionGroupId=groupId;
+    renderStatsMatchSelector();
+    box.innerHTML='<div class="statsEmpty">Aucun match enregistré dans ce groupe.</div>';
+    return;
+  }
+
+  const validIds=new Set(list.map(m=>m.id));
+  const groupChanged=statsState.matchSelectionGroupId!==groupId;
+  let selected=(statsState.matchSelection||[]).filter(id=>validIds.has(id));
+
+  if(groupChanged||!selected.length){
+    const latest=list[list.length-1];
+    selected=latest?[latest.id]:[];
+  }
+
+  statsState.matchSelection=selected;
+  statsState.matchSelectionGroupId=groupId;
+  renderStatsMatchSelector();
+  await renderStatsMatchesSelection();
 }
 function statsReferenceHtml(ref){
   if(!ref)return '<div class="statsEmpty">Référentiel indisponible.</div>';
@@ -7105,6 +7213,18 @@ $('#historyPlayer').onchange=()=>loadPlayerHistory($('#historyPlayer').value).ca
 
 $('#openStatsModule').onclick=()=>openStatsModule();
 $('#statsBackHome').onclick=showAppHome;
+if($('#statsMatchLatest'))$('#statsMatchLatest').onclick=()=>{
+  const list=statsState.matchList||[];
+  const latest=list[list.length-1];
+  statsState.matchSelection=latest?[latest.id]:[];
+  renderStatsMatchSelector();
+  renderStatsMatchesSelection().catch(e=>handleError('stats latest match',e));
+};
+if($('#statsMatchClear'))$('#statsMatchClear').onclick=()=>{
+  statsState.matchSelection=[];
+  renderStatsMatchSelector();
+  renderStatsMatchesSelection().catch(e=>handleError('stats clear matches',e));
+};
 if($('#statsHelpBtn'))$('#statsHelpBtn').onclick=()=>$('#statsHelpBackdrop')?.classList.remove('hidden');
 document.addEventListener('click',e=>{
   const backdrop=$('#statsHelpBackdrop');
