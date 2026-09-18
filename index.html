@@ -6532,11 +6532,98 @@ function statsOutcomeCounts(events,mode){
 function statsContextTable(counts,title){
   const rows=OFFENSIVE_CONTEXTS.map(c=>{
     const x=counts[c.key]||{point:0,defended:0,attack_fault:0,total:0};
-    const rate=x.total?Math.round(1000*x.point/x.total)/10:null;
-    return `<tr><td>${escapeHtml(c.label)}</td><td>${x.point}</td><td>${x.defended}</td><td>${x.attack_fault}</td><td>${x.total}</td><td>${rate==null?'—':String(rate).replace('.',',')+' %'}</td></tr>`;
+    const pointRate=x.total?Math.round(1000*x.point/x.total)/10:null;
+    const faultRate=x.total?Math.round(1000*x.attack_fault/x.total)/10:null;
+    return `<tr><td>${escapeHtml(c.label)}</td><td>${x.point}</td><td>${x.defended}</td><td>${x.attack_fault}</td><td>${x.total}</td><td>${pointRate==null?'—':String(pointRate).replace('.',',')+' %'}</td><td>${faultRate==null?'—':String(faultRate).replace('.',',')+' %'}</td></tr>`;
   }).join('');
-  return `<div class="analysisSubsectionTitle">${escapeHtml(title)}</div><div class="analysisTableWrap"><table class="analysisTable"><thead><tr><th>Contexte</th><th>Points</th><th>Défendus</th><th>Fautes</th><th>N</th><th>Taux point</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  return `<div class="analysisSubsectionTitle">${escapeHtml(title)}</div><div class="analysisTableWrap"><table class="analysisTable"><thead><tr><th>Contexte</th><th>Points</th><th>Défendus</th><th>Fautes</th><th>N</th><th>% point</th><th>% faute</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
+
+function statsPct1(v){
+  return v==null||!Number.isFinite(v)?'—':`${String(Math.round(v*1000)/10).replace('.',',')} %`;
+}
+function statsSignedPct1(v){
+  if(v==null||!Number.isFinite(v))return '—';
+  const n=Math.round(v*1000)/10;
+  return `${n>0?'+':''}${String(n).replace('.',',')} pt`;
+}
+function statsSigned3(v){
+  if(v==null||!Number.isFinite(v))return '—';
+  const n=Math.round(v*1000)/1000;
+  return `${n>0?'+':''}${n.toFixed(3).replace('.',',')}`;
+}
+function statsOneVsOneByOpponent(events,reference){
+  const groups={};
+  let missingOpponent=0;
+  (events||[]).forEach(e=>{
+    if(e.action_type!=='attaque'&&e.action_type!=='faute')return;
+    const obs=detailedEventToOffensiveObservation(e);
+    if(!obs)return;
+    const opponent=(e.opponent_name||'').trim();
+    if(!opponent){missingOpponent++;return}
+    if(!groups[opponent])groups[opponent]=emptyOffensiveCounts();
+    addOffensiveObservation(groups[opponent],obs.context,obs.outcome);
+  });
+  return {groups,missingOpponent};
+}
+function statsOneVsOneHtml(events,reference,population){
+  if(!reference)return '<div class="statsEmpty">Référentiel offensif indisponible.</div>';
+  const {groups,missingOpponent}=statsOneVsOneByOpponent(events,reference);
+  const names=Object.keys(groups).sort((a,b)=>a.localeCompare(b,'fr'));
+  if(!names.length)return '<div class="statsEmpty">Aucune attaque avec pays/adversaire renseigné dans ces matchs.</div>';
+
+  const sections=names.map(name=>{
+    const counts=groups[name];
+    const total=Object.values(counts).reduce((n,x)=>n+(x.total||0),0);
+    const rows=OFFENSIVE_CONTEXTS.map(c=>{
+      const x=counts[c.key]||{point:0,defended:0,attack_fault:0,total:0};
+      const ref=reference.contexts?.[c.key]||{p:0,q:0,mu:0,total:0};
+      const p=x.total?x.point/x.total:null;
+      const q=x.total?x.attack_fault/x.total:null;
+      const mu=x.total?p-2*q:null;
+      return `<tr>
+        <td>${escapeHtml(c.label)}</td>
+        <td>${x.total}</td>
+        <td>${statsPct1(p)}</td>
+        <td>${ref.total?statsPct1(ref.p):'—'}</td>
+        <td class="${impactClass((p??ref.p)-ref.p)}">${p==null||!ref.total?'—':statsSignedPct1(p-ref.p)}</td>
+        <td>${statsPct1(q)}</td>
+        <td>${ref.total?statsPct1(ref.q):'—'}</td>
+        <td class="${impactClass(ref.q-(q??ref.q))}">${q==null||!ref.total?'—':statsSignedPct1(q-ref.q)}</td>
+        <td>${mu==null?'—':mu.toFixed(3).replace('.',',')}</td>
+        <td>${ref.total?ref.mu.toFixed(3).replace('.',','):'—'}</td>
+        <td class="${impactClass((mu??ref.mu)-ref.mu)}">${mu==null||!ref.total?'—':statsSigned3(mu-ref.mu)}</td>
+      </tr>`;
+    }).join('');
+    return `<div class="analysisBlock" style="margin-top:12px">
+      <div class="row" style="justify-content:space-between;align-items:center;gap:8px">
+        <div class="analysisSubsectionTitle" style="margin:0">vs ${escapeHtml(name)}</div>
+        <div class="small">${total} attaque${total>1?'s':''} exploitables</div>
+      </div>
+      <div class="analysisTableWrap" style="margin-top:8px">
+        <table class="analysisTable">
+          <thead><tr>
+            <th>Contexte</th><th>N</th>
+            <th>% point</th><th>Réf.</th><th>Δ point</th>
+            <th>% faute</th><th>Réf.</th><th>Δ faute</th>
+            <th>μ</th><th>μ réf.</th><th>Δ μ</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div class="analysisSubsectionTitle" style="margin-top:18px">Performance offensive 1v1 par pays</div>
+    <div class="analysisSubtle" style="margin-bottom:8px">
+      Comparaison de nos attaques dirigées contre chaque pays au référentiel ${population==='H'?'Hommes':'Femmes'}.
+      Δ point positif = davantage de points que la moyenne empirique ; Δ faute positif = davantage de fautes.
+      Δ μ positif = meilleure valeur offensive globale, avec μ = P(point) − 2×P(faute).
+    </div>
+    ${sections}
+    ${missingOpponent?`<div class="analysisSubtle" style="margin-top:8px">${missingOpponent} attaque${missingOpponent>1?'s':''} exploitable${missingOpponent>1?'s':''} exclue${missingOpponent>1?'s':''} du tableau car le pays attaqué n’est pas renseigné.</div>`:''}`;
+}
+
 async function loadStatsMatches(){
   const box=$('#statsMatchSummary');
   const groupId=$('#statsGroup').value;
@@ -6547,6 +6634,10 @@ async function loadStatsMatches(){
   if(!ds.matchIds.length){box.innerHTML='<div class="statsEmpty">Aucun match enregistré dans ce groupe.</div>';return}
   const attacks=statsOutcomeCounts(ds.events,'attack');
   const adverse=statsOutcomeCounts(ds.events,'defense');
+  const group=groupState.groups.find(g=>g.id===groupId);
+  const population=groupPopulationFromName(group?.name)||'H';
+  let offensiveReference=null;
+  try{offensiveReference=await loadOffensiveReference(population)}catch(e){console.error('stats 1v1 reference',e)}
   const attackTotals=Object.values(attacks.counts).reduce((a,x)=>({point:a.point+x.point,defended:a.defended+x.defended,attack_fault:a.attack_fault+x.attack_fault,total:a.total+x.total}),{point:0,defended:0,attack_fault:0,total:0});
   const pointRate=attackTotals.total?Math.round(1000*attackTotals.point/attackTotals.total)/10:null;
   const faultRate=attackTotals.total?Math.round(1000*attackTotals.attack_fault/attackTotals.total)/10:null;
@@ -6558,6 +6649,7 @@ async function loadStatsMatches(){
    </div>
    ${statsContextTable(attacks.counts,'Attaque de l’équipe suivie')}
    ${statsContextTable(adverse.counts,'Attaque adverse observée via notre défense')}
+   ${statsOneVsOneHtml(ds.events,offensiveReference,population)}
    <div class="analysisSubtle" style="margin-top:8px">Centre / ligne / coin correspondent à la position de départ de l’attaque ou de la remise en jeu.</div>`;
 }
 function statsReferenceHtml(ref){
