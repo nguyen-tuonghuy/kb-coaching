@@ -34,8 +34,29 @@ button:active{transform:scale(.985)}
 .tab.active{background:var(--accent)}
 .actiongrid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
 .actiongrid button{min-height:68px;font-size:16px}
-.popupBackdrop{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;justify-content:center;padding:12px;z-index:10}
-.sheet{width:min(900px,100%);background:#161a21;border:1px solid var(--line);border-radius:22px 22px 14px 14px;padding:14px;max-height:88vh;overflow:auto}
+.popupBackdrop{
+  position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;
+  align-items:flex-end;justify-content:center;
+  padding:12px max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));
+  z-index:10
+}
+.sheet{
+  width:min(900px,100%);background:#161a21;border:1px solid var(--line);
+  border-radius:22px 22px 14px 14px;padding:14px;
+  max-height:calc(100dvh - 24px);
+  overflow:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+}
+#popup .popupActionBar{
+  position:sticky;
+  bottom:0;
+  z-index:8;
+  margin:14px -14px -14px!important;
+  padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+  background:linear-gradient(to bottom,rgba(22,26,33,.92),#161a21 22%);
+  border-top:1px solid var(--line);
+}
 .sheet h2{font-size:19px;margin-bottom:4px}
 .sheetTop{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;position:sticky;top:-14px;background:#161a21;padding:14px 0 8px;z-index:2}
 .closePopup{width:42px;height:42px;padding:0;border-radius:999px;font-size:22px;line-height:1;background:var(--panel2);border:1px solid var(--line)}
@@ -57,6 +78,15 @@ button:active{transform:scale(.985)}
 .note{font-size:12px;line-height:1.4;color:var(--muted)}
 .roster{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .check{display:flex;gap:8px;align-items:center;background:var(--panel2);padding:9px;border-radius:12px}.check input{width:auto}
+@media(max-width:640px){
+  .popupBackdrop{padding:6px max(6px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-left))}
+  .sheet{max-height:calc(100dvh - 12px);padding:12px}
+  #popup .popupActionBar{
+    margin:12px -12px -12px!important;
+    padding:9px 12px calc(12px + env(safe-area-inset-bottom));
+  }
+  #popup .popupActionBar button{min-height:48px}
+}
 @media(min-width:650px){
  .players,.roster{grid-template-columns:repeat(4,1fr)}
  .tabs{grid-template-columns:repeat(5,1fr)}
@@ -3022,12 +3052,11 @@ function configureWhoUI(){
   }else{
     buildWho('#whoOptions');
     const requiresAttackPlayer=attackOutcomeRequiresPlayer();
-    $('#whoTitle').textContent=requiresAttackPlayer?'Frappeur — obligatoire':(isCenterAttack()?'Attaquant':(actionType==='Défense'?'Attribution — plusieurs joueurs possibles':'Attribution — facultatif'));
+    $('#whoTitle').textContent=actionType==='Attaque'?'Frappeur — facultatif':(isCenterAttack()?'Attaquant':(actionType==='Défense'?'Attribution — plusieurs joueurs possibles':'Attribution — facultatif'));
     const collectiveBtn=$('#whoOptions button[data-who=""]');
-    if(collectiveBtn&&requiresAttackPlayer){
-      collectiveBtn.disabled=true;
-      collectiveBtn.title='Un frappeur doit être sélectionné pour un point marqué ou un ballon défendu.';
-      collectiveBtn.classList.remove('choice');
+    if(collectiveBtn){
+      collectiveBtn.disabled=false;
+      collectiveBtn.title='Laisser collectif si le frappeur n’est pas identifié.';
     }
     $$('#whoOptions button').forEach(b=>{
       const name=b.dataset.who||'';
@@ -3044,7 +3073,6 @@ function configureWhoUI(){
             b.classList.toggle('choice',whoMany.includes(name));
           }
         }else{
-          if(requiresAttackPlayer&&!name)return;
           who=name;
           $$('#whoOptions button').forEach(x=>x.classList.remove('choice'));
           b.classList.add('choice');
@@ -3607,7 +3635,7 @@ function buildOpponentOptions(){
   $('#opponentTitle').textContent=actionType==='Attaque'?'Équipe attaquée':'Équipe attaquante';
 }
 function attackOutcomeRequiresPlayer(){
-  return actionType==='Attaque'&&['Point marqué','Ballon défendu'].includes(actionResult);
+  return false;
 }
 function missingActionFields(){
   const missing=[];
@@ -5159,7 +5187,7 @@ function impactClass(v){
 function renderOffensiveImpactTable(events,allPlayers){
   const rows=allPlayers.map(name=>playerOffensiveImpact(events,name));
   return `<div class="analysisSubsectionTitle">Performance offensive ajusté au contexte</div>
-  <div class="analysisSubtle" style="margin-bottom:7px">Valeur réelle : +1 point · 0 ballon défendu · −2 faute. Performance offensive = valeur réelle − valeur attendue selon la position de départ. Les actions sans frappeur attribué ne sont pas affectées à un joueur.</div>
+  <div class="analysisSubtle" style="margin-bottom:7px">Valeur réelle : +1 point · 0 ballon défendu · −2 faute. Performance offensive = valeur réelle − valeur attendue selon la position de départ. Les actions laissées en collectif ne sont pas affectées à un joueur.</div>
   <div class="analysisTableWrap"><table class="analysisTable"><thead><tr>
     <th>Joueur</th><th>Att.</th><th>Pts réels</th><th>Pts attendus</th><th>Fautes</th><th>Fautes att.</th><th>Performance offensive</th><th>Performance /100</th>
   </tr></thead><tbody>${rows.map(x=>`<tr>
