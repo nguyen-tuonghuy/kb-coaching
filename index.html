@@ -7074,11 +7074,20 @@ async function loadStatsReference(){
   statsState.reference=await loadOffensiveReference(pop);
   box.innerHTML=statsReferenceHtml(statsState.reference);
 }
+async function statsGroupMatchDataset(){
+  const groupId=$('#statsGroup').value;
+  if(!groupId)return {matchIds:[],matches:[],events:[],players:[]};
+  const list=await statsGroupMatchList();
+  const ids=(list||[]).map(m=>m.id);
+  if(!ids.length)return {matchIds:[],matches:[],events:[],players:[]};
+  return await loadMatchAnalysisDataset(ids);
+}
+
 async function loadStatsImpact(){
   const groupId=$('#statsGroup').value;
   const box=$('#statsImpactContent');
   if(!groupId){box.innerHTML='<div class="statsEmpty">Choisis un groupe.</div>';return}
-  box.innerHTML='<div class="statsEmpty">Calcul de l’performance offensive…</div>';
+  box.innerHTML='<div class="statsEmpty">Calcul de la performance offensive…</div>';
   const ds=await statsGroupMatchDataset();
   if(!ds.matchIds.length){box.innerHTML='<div class="statsEmpty">Aucun match enregistré dans ce groupe.</div>';return}
   const pop=$('#statsImpactPopulation').value||'H';
