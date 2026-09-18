@@ -5072,35 +5072,19 @@ async function loadOffensiveReference(population){
   const counts=emptyOffensiveCounts();
   let quickCount=0,detailedCount=0;
 
-  const {data:sessions,error:se}=await db.from('quick_collection_sessions')
-    .select('id').eq('sex',population);
-  if(se)throw se;
-  const sessionIds=(sessions||[]).map(s=>s.id);
-  if(sessionIds.length){
-    const {data:samples,error:qe}=await db.from('quick_attack_samples')
-      .select('attack_context,outcome').in('session_id',sessionIds);
-    if(qe)throw qe;
-    (samples||[]).forEach(s=>{
-      if(addOffensiveObservation(counts,s.attack_context,s.outcome))quickCount++;
-    });
-  }
+  const {data,error}=await db.rpc('get_global_offensive_reference',{p_population:population});
+  if(error)throw error;
 
-  if(!groupState.groups.length)await fetchMyGroups();
-  const groupIds=groupState.groups.filter(g=>groupPopulationFromName(g.name)===population).map(g=>g.id);
-  if(groupIds.length){
-    const {data:matches,error:me}=await db.from('matches').select('id').in('group_id',groupIds);
-    if(me)throw me;
-    const matchIds=(matches||[]).map(m=>m.id);
-    if(matchIds.length){
-      const {data:events,error:ee}=await db.from('match_events')
-        .select('family,restart_location,action_type,result,fault_type').in('match_id',matchIds);
-      if(ee)throw ee;
-      (events||[]).forEach(e=>{
-        const obs=detailedEventToOffensiveObservation(e);
-        if(obs&&addOffensiveObservation(counts,obs.context,obs.outcome))detailedCount++;
-      });
-    }
-  }
+  (data||[]).forEach(row=>{
+    const n=Number(row.n)||0;
+    const context=row.attack_context;
+    const outcome=row.outcome;
+    if(!counts[context]||!['point','defended','attack_fault'].includes(outcome)||!n)return;
+    counts[context][outcome]+=n;
+    counts[context].total+=n;
+    if(row.source==='quick')quickCount+=n;
+    else if(row.source==='detailed')detailedCount+=n;
+  });
 
   const contexts={};
   OFFENSIVE_CONTEXTS.forEach(c=>{

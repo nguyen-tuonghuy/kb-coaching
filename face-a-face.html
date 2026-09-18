@@ -167,31 +167,32 @@ async function fetchGroups(){
 async function loadReference(pop){
   const counts=emptyCounts();
   let quickCount=0,detailedCount=0;
-  const {data:sessions,error:se}=await db.from('quick_collection_sessions').select('id').eq('sex',pop);
-  if(se)throw se;
-  const ids=(sessions||[]).map(x=>x.id);
-  if(ids.length){
-    const {data:samples,error}=await db.from('quick_attack_samples').select('attack_context,outcome').in('session_id',ids);
-    if(error)throw error;
-    (samples||[]).forEach(x=>{if(addObs(counts,x.attack_context,x.outcome))quickCount++});
-  }
-  const groupIds=groups.filter(g=>groupPopulation(g.name)===pop).map(g=>g.id);
-  if(groupIds.length){
-    const {data:matches,error}=await db.from('matches').select('id').in('group_id',groupIds);
-    if(error)throw error;
-    const mids=(matches||[]).map(x=>x.id);
-    if(mids.length){
-      const {data:ev,error:ee}=await db.from('match_events').select('family,restart_location,action_type,result,fault_type').in('match_id',mids);
-      if(ee)throw ee;
-      (ev||[]).forEach(e=>{const o=observation(e);if(o&&addObs(counts,o.context,o.outcome))detailedCount++});
-    }
-  }
+
+  const {data,error}=await db.rpc('get_global_offensive_reference',{p_population:pop});
+  if(error)throw error;
+
+  (data||[]).forEach(row=>{
+    const n=Number(row.n)||0;
+    const context=row.attack_context;
+    const outcome=row.outcome;
+    if(!counts[context]||!['point','defended','attack_fault'].includes(outcome)||!n)return;
+    counts[context][outcome]+=n;
+    counts[context].total+=n;
+    if(row.source==='quick')quickCount+=n;
+    else if(row.source==='detailed')detailedCount+=n;
+  });
+
   const contexts={};
   OFFENSIVE_CONTEXTS.forEach(c=>{
     const x=counts[c.key];
-    contexts[c.key]={...x,p:x.total?x.point/x.total:0,q:x.total?x.attack_fault/x.total:0,mu:x.total?(x.point-2*x.attack_fault)/x.total:0};
+    contexts[c.key]={
+      ...x,
+      p:x.total?x.point/x.total:0,
+      q:x.total?x.attack_fault/x.total:0,
+      mu:x.total?(x.point-2*x.attack_fault)/x.total:0
+    };
   });
-  return {population:pop,contexts,total:quickCount+detailedCount};
+  return {population:pop,contexts,total:quickCount+detailedCount,quickCount,detailedCount};
 }
 async function loadGroupData(groupId){
   $('#status').textContent='Chargement des matchs…';
