@@ -126,7 +126,23 @@ button:active{transform:scale(.985)}
 
 .statsMatchSelector{
   display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
-  gap:8px;margin-top:10px
+  gap:8px;margin-top:8px;
+  max-height:330px;
+  overflow-y:auto;
+  padding-right:4px;
+}
+.statsMatchFilterBar{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(180px,260px);
+  gap:8px;
+  margin-top:10px;
+}
+.statsMatchFilterBar input,.statsMatchFilterBar select{
+  width:100%;
+}
+@media(max-width:700px){
+  .statsMatchFilterBar{grid-template-columns:1fr}
+  .statsMatchSelector{max-height:300px}
 }
 .statsMatchChoice{
   display:flex;align-items:flex-start;gap:9px;padding:10px 11px;
@@ -1520,6 +1536,10 @@ button:active{transform:scale(.985)}
        <button class="ghost" id="statsMatchLatest" type="button">Dernier match</button>
        <button class="ghost" id="statsMatchClear" type="button">Effacer la sélection</button>
       </div>
+     </div>
+     <div class="statsMatchFilterBar">
+      <input id="statsMatchSearch" type="search" placeholder="Rechercher un match, adversaire, compétition…">
+      <select id="statsMatchTypeFilter"><option value="">Toutes les compétitions</option></select>
      </div>
      <div id="statsMatchSelector" class="statsMatchSelector"></div>
      <div id="statsMatchSummary" style="margin-top:14px"></div>
@@ -4217,7 +4237,7 @@ $('#matchTypeCreateForm').onsubmit=event=>{
 let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{}};
 let groupState={groups:[],currentGroupId:null,currentPlayers:[],matchPlayers:[],profiles:{}};
 let adminState={isAdmin:false,groups:[]};
-let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,reference:null,impactReference:null};
+let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',reference:null,impactReference:null};
 
 
 
@@ -6676,19 +6696,41 @@ function renderStatsMatchSelector(){
   const selected=new Set(statsState.matchSelection||[]);
   const box=$('#statsMatchSelector');
   const status=$('#statsMatchSelectionStatus');
+  const search=(statsState.matchSearch||'').trim().toLowerCase();
+  const typeFilter=statsState.matchTypeFilter||'';
+
   if(!list.length){
     box.innerHTML='';
     status.textContent='';
     return;
   }
-  box.innerHTML=list.slice().reverse().map(m=>{
-    const l=statsMatchDisplayLabel(m);
-    return `<label class="statsMatchChoice">
-      <input type="checkbox" data-stats-match-id="${m.id}" ${selected.has(m.id)?'checked':''}>
-      <span><strong>${escapeHtml(l.title)}</strong><span class="small">${escapeHtml(l.meta)}</span></span>
-    </label>`;
-  }).join('');
-  status.textContent=`${selected.size} match${selected.size>1?'s':''} sélectionné${selected.size>1?'s':''}`;
+
+  const visible=list.filter(m=>{
+    const hay=[
+      m.label,
+      m.match_type?.name,
+      m.opponent1?.name,
+      m.opponent2?.name,
+      m.played_on
+    ].filter(Boolean).join(' ').toLowerCase();
+    const matchSearch=!search||hay.includes(search);
+    const matchType=!typeFilter||(m.match_type?.name||'')===typeFilter;
+    return matchSearch&&matchType;
+  });
+
+  box.innerHTML=visible.length
+    ? visible.slice().reverse().map(m=>{
+        const l=statsMatchDisplayLabel(m);
+        return `<label class="statsMatchChoice">
+          <input type="checkbox" data-stats-match-id="${m.id}" ${selected.has(m.id)?'checked':''}>
+          <span><strong>${escapeHtml(l.title)}</strong><span class="small">${escapeHtml(l.meta)}</span></span>
+        </label>`;
+      }).join('')
+    : '<div class="statsEmpty" style="grid-column:1/-1">Aucun match ne correspond aux filtres.</div>';
+
+  const hiddenSelected=[...selected].filter(id=>!visible.some(m=>m.id===id)).length;
+  status.textContent=`${selected.size} match${selected.size>1?'s':''} sélectionné${selected.size>1?'s':''}${hiddenSelected?` · ${hiddenSelected} masqué${hiddenSelected>1?'s':''} par les filtres`:''}`;
+
   box.querySelectorAll('input[data-stats-match-id]').forEach(input=>{
     input.onchange=()=>{
       const id=input.dataset.statsMatchId;
@@ -6990,6 +7032,14 @@ async function loadStatsMatches(){
   const list=await statsGroupMatchList();
   statsState.matchList=list;
 
+  const typeSelect=$('#statsMatchTypeFilter');
+  const types=[...new Set(list.map(m=>m.match_type?.name).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
+  if(typeSelect){
+    typeSelect.innerHTML='<option value="">Toutes les compétitions</option>'+types.map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+    typeSelect.value=types.includes(statsState.matchTypeFilter)?statsState.matchTypeFilter:'';
+    statsState.matchTypeFilter=typeSelect.value;
+  }
+
   if(!list.length){
     statsState.matchSelection=[];
     statsState.matchSelectionGroupId=groupId;
@@ -7000,6 +7050,12 @@ async function loadStatsMatches(){
 
   const validIds=new Set(list.map(m=>m.id));
   const groupChanged=statsState.matchSelectionGroupId!==groupId;
+  if(groupChanged){
+    statsState.matchSearch='';
+    statsState.matchTypeFilter='';
+    if($('#statsMatchSearch'))$('#statsMatchSearch').value='';
+    if($('#statsMatchTypeFilter'))$('#statsMatchTypeFilter').value='';
+  }
   let selected=(statsState.matchSelection||[]).filter(id=>validIds.has(id));
 
   if(groupChanged||!selected.length){
@@ -7239,6 +7295,14 @@ if($('#statsMatchClear'))$('#statsMatchClear').onclick=()=>{
   statsState.matchSelection=[];
   renderStatsMatchSelector();
   renderStatsMatchesSelection().catch(e=>handleError('stats clear matches',e));
+};
+if($('#statsMatchSearch'))$('#statsMatchSearch').oninput=e=>{
+  statsState.matchSearch=e.target.value||'';
+  renderStatsMatchSelector();
+};
+if($('#statsMatchTypeFilter'))$('#statsMatchTypeFilter').onchange=e=>{
+  statsState.matchTypeFilter=e.target.value||'';
+  renderStatsMatchSelector();
 };
 if($('#statsHelpBtn'))$('#statsHelpBtn').onclick=()=>$('#statsHelpBackdrop')?.classList.remove('hidden');
 document.addEventListener('click',e=>{
