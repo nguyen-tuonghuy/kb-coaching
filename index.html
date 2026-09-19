@@ -1462,17 +1462,23 @@ button:active{transform:scale(.985)}
 .actionDetailPanel{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
 .actionDetailPanel>.sheet{width:100%;max-width:none;max-height:none;overflow:visible;padding:12px;background:#141820;border-radius:14px}
 .actionDetailPanel .sheetTop{position:static;top:auto;padding:0 0 8px;background:transparent}
-.actionDetailHeader{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(120px,160px);align-items:end!important;gap:12px}
+.actionDetailHeader{display:block!important}
+.actionDetailTitle .meta:empty{display:none}
 .actionDetailTitle{min-width:0}
 .actionDetailTitle .meta{margin:3px 0 0}
 .actionDetailPeriod{max-width:none!important;margin:0!important}
 .actionDetailPeriod label{margin-bottom:3px}
 .actionDetailPeriod select{padding:8px 9px}
-#popup.actionDetailPanel #zoneOptions{grid-template-columns:repeat(3,minmax(0,1fr))}
-#popup.actionDetailPanel #moveOptions{grid-template-columns:repeat(3,minmax(0,1fr))}
-#popup.actionDetailPanel #whoOptions.attackAttributionLayout{grid-template-columns:minmax(120px,1fr) repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(48px,auto));gap:7px}
-#popup.actionDetailPanel #whoOptions.attackAttributionLayout button[data-who=""]{grid-column:1;grid-row:1 / span 2;min-height:100%}
+.actionDetailZoneMoveRow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,2fr);gap:10px;align-items:start}
+.actionDetailZoneMoveRow>.step{min-width:0}
+#popup.actionDetailPanel #zoneOptions,#popup.actionDetailPanel #moveOptions{grid-template-columns:1fr;gap:6px}
+#popup.actionDetailPanel #zoneOptions button,#popup.actionDetailPanel #moveOptions button{min-height:42px}
+#popup.actionDetailPanel #whoOptions.attackAttributionLayout{grid-template-columns:minmax(90px,1fr) repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:7px;height:138px}
+#popup.actionDetailPanel #whoOptions.attackAttributionLayout button[data-who=""]{grid-column:1;grid-row:1 / span 2;min-height:0;height:100%}
+#popup.actionDetailPanel #whoOptions.attackAttributionLayout button:not([data-who=""]){min-height:0;height:100%}
 #popup.actionDetailPanel #whoOptions.attackAttributionLayout button:not([data-who=""]){grid-column:auto;grid-row:auto}
+.actionDetailSaveBar{display:grid!important;grid-template-columns:minmax(120px,160px) minmax(0,1fr);gap:10px;align-items:end}
+.actionDetailSaveBar .actionDetailPeriod{min-width:0}
 .actionDetailSaveBar button{min-height:50px;font-size:16px}
 body.videoReviewWideActive #popup.actionDetailPanel,body.videoReviewWideActive #faultPopup.actionDetailPanel{position:static!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;width:auto!important;padding-top:14px!important;padding-right:0!important;padding-bottom:0!important;padding-left:0!important;display:block;align-items:initial;justify-content:initial}
 body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideActive #faultPopup.actionDetailPanel.hidden{display:none!important}
@@ -1482,7 +1488,9 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
  .actionOpponentOptions{margin-top:4px}
  .actionOpponentOptions button{padding:6px 8px;font-size:11px}
  .actionDetailPanel>.sheet{padding:10px}
- .actionDetailHeader{grid-template-columns:minmax(0,1fr) 126px}
+ .actionDetailSaveBar{grid-template-columns:118px minmax(0,1fr);gap:7px}
+ .actionDetailZoneMoveRow{grid-template-columns:1fr;gap:6px}
+ #popup.actionDetailPanel #zoneOptions button,#popup.actionDetailPanel #moveOptions button{min-height:40px;padding:8px 6px;font-size:11px}
  #popup.actionDetailPanel #whoOptions.attackAttributionLayout{grid-template-columns:minmax(96px,.9fr) repeat(2,minmax(0,1fr));gap:5px}
 }
 
@@ -2259,10 +2267,7 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
      <h2 id="popupTitle">Action</h2>
      <div class="meta" id="popupMeta"></div>
     </div>
-    <div class="field popupPeriodField actionDetailPeriod">
-     <label>Période</label>
-     <select id="popupPeriod"><option>P1</option><option>P2</option><option>P3</option><option>P4</option><option>P5</option><option>P6</option><option>P7</option><option>P8</option><option>P9</option><option>P10</option></select>
-    </div>
+
    </div>
 
    <div class="step hidden" id="restartLocationStep">
@@ -2274,20 +2279,26 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
     </div>
    </div>
 
-   <div class="step hidden" id="zoneStep">
-    <h3>Zone — facultatif</h3>
-    <div class="options" id="zoneOptions">
-      <button data-zone="">NON PRÉCISÉE</button>
-      <button data-zone="RE">RE</button>
-      <button data-zone="EE">EE</button>
+   <div class="actionDetailZoneMoveRow">
+    <div class="step hidden" id="zoneStep">
+     <h3>Zone — facultatif</h3>
+     <div class="options" id="zoneOptions">
+       <button data-zone="">NON PRÉCISÉE</button>
+       <button data-zone="RE">RE</button>
+       <button data-zone="EE">EE</button>
+     </div>
     </div>
-   </div>
-   <div class="step hidden" id="moveStep">
-    <h3>Déplacement — facultatif</h3>
-    <div class="options" id="moveOptions">
-      <button data-move="">NON DÉFINI</button>
-      <button data-move="Non">SANS DÉPLACEMENT</button>
-      <button data-move="Oui">AVEC DÉPLACEMENT</button>
+    <div class="step hidden" id="moveStep">
+     <h3>Déplacement — facultatif</h3>
+     <div class="options" id="moveOptions">
+       <button data-move="">NON DÉFINI</button>
+       <button data-move="Non">SANS DÉPLACEMENT</button>
+       <button data-move="Oui">AVEC DÉPLACEMENT</button>
+     </div>
+    </div>
+    <div class="step hidden" id="whoStep">
+     <h3 id="whoTitle">Attribution — facultatif</h3>
+     <div class="options" id="whoOptions"></div>
     </div>
    </div>
 
@@ -2333,12 +2344,12 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
    </div>
 
 
-   <div class="step hidden" id="whoStep">
-    <h3 id="whoTitle">Attribution — facultatif</h3>
-    <div class="options" id="whoOptions"></div>
-   </div>
    </div>
    <div class="row popupActionBar actionDetailSaveBar" style="margin-top:14px">
+    <div class="field popupPeriodField actionDetailPeriod">
+     <label>Période</label>
+     <select id="popupPeriod"><option>P1</option><option>P2</option><option>P3</option><option>P4</option><option>P5</option><option>P6</option><option>P7</option><option>P8</option><option>P9</option><option>P10</option></select>
+    </div>
     <button class="primary" style="flex:1" id="savePopup">Sauvegarder</button>
    </div>
  </div>
@@ -2352,10 +2363,7 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
      <h2>Faute</h2>
      <div class="meta" id="faultMeta"></div>
     </div>
-    <div class="field popupPeriodField actionDetailPeriod">
-     <label>Période</label>
-     <select id="faultPeriod"><option>P1</option><option>P2</option><option>P3</option><option>P4</option><option>P5</option><option>P6</option><option>P7</option><option>P8</option><option>P9</option><option>P10</option></select>
-    </div>
+
    </div>
    <div class="step">
     <h3>Type de faute</h3>
@@ -2374,6 +2382,10 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
     <div class="options" id="faultWhoOptions"></div>
    </div>
    <div class="row actionDetailSaveBar" style="margin-top:14px">
+    <div class="field popupPeriodField actionDetailPeriod">
+     <label>Période</label>
+     <select id="faultPeriod"><option>P1</option><option>P2</option><option>P3</option><option>P4</option><option>P5</option><option>P6</option><option>P7</option><option>P8</option><option>P9</option><option>P10</option></select>
+    </div>
     <button class="primary" style="flex:1" id="saveFault">Sauvegarder</button>
    </div>
  </div>
@@ -3618,7 +3630,7 @@ function configureWhoUI(){
     renderCenterDefenseResponsibility();
   }else{
     buildWho('#whoOptions');
-    $('#whoOptions').classList.toggle('attackAttributionLayout',actionType==='Attaque');
+    $('#whoOptions').classList.toggle('attackAttributionLayout',['Attaque','Défense'].includes(actionType));
     const requiresAttackPlayer=attackOutcomeRequiresPlayer();
     $('#whoTitle').textContent=actionType==='Attaque'?'Frappeur — facultatif':(isCenterAttack()?'Attaquant':(actionType==='Défense'?'Attribution — plusieurs joueurs possibles':'Attribution — facultatif'));
     const collectiveBtn=$('#whoOptions button[data-who=""]');
@@ -4383,7 +4395,7 @@ function configureQuickAttributionUI(){
 
   buildWho('#whoOptions');
 
-  box.classList.toggle('attackAttributionLayout',actionType==='Attaque');
+  box.classList.toggle('attackAttributionLayout',['Attaque','Défense'].includes(actionType));
 
   if(actionType==='Attaque'){
     $('#whoTitle').textContent='Frappeur — facultatif';
@@ -4486,10 +4498,7 @@ function openActionPopup(selectedFamily,selectedActionType,presetRestart=''){
   if($('#popupPeriod'))$('#popupPeriod').value=$('#period').value||'P1';
   const restartLabel=restartLocation?({'centre':'centre','ligne':'ligne','coin':'coin'}[restartLocation]||restartLocation):'';
   $('#popupTitle').textContent=actionType+(family==='centre'?' au centre':family==='gel'?' Gel':(' remise'+(restartLabel?' · '+restartLabel:'')));
-  $('#popupMeta').textContent=(currentVideoPosition()?'Vidéo '+currentVideoPosition()+' · ':'')+$('#period').value;
-  if(family==='centre'){
-    $('#popupMeta').textContent=$('#period').value+(currentVideoPosition()?' · '+currentVideoPosition():'');
-  }
+  $('#popupMeta').textContent=currentVideoPosition()?('Vidéo '+currentVideoPosition()):'';
   $$('#restartLocationOptions button').forEach(b=>b.classList.toggle('choice',!!restartLocation&&b.dataset.restart===restartLocation));
   $$('#zoneOptions button').forEach(b=>b.classList.remove('choice'));
   $('#zoneOptions button[data-zone=""]').classList.add('choice');
@@ -4552,7 +4561,7 @@ function openFaultPopup(){
   faultType='';faultWho='';
   if($('#faultPeriod'))$('#faultPeriod').value=$('#period').value||'P1';
   const vp=currentVideoPosition();
-  $('#faultMeta').textContent='Faute d’attaque · '+labelContext(context)+(vp?' · vidéo '+vp:'')+' · '+$('#period').value;
+  $('#faultMeta').textContent='Faute d’attaque · '+labelContext(context)+(vp?' · vidéo '+vp:'');
   buildActionOpponentOptions();
   $$('#faultTypes button').forEach(b=>b.classList.remove('choice'));
   buildWho('#faultWhoOptions');
@@ -4692,15 +4701,13 @@ $('#savePopup').onclick=async()=>{
   }catch(e){handleError('save event',e)}
 };
 if($('#popupPeriod'))$('#popupPeriod').onchange=()=>{
-  const p=$('#popupPeriod').value||'P1';
   const vp=($('#videoPosition').value||'').trim();
-  $('#popupMeta').textContent=(editingId?labelContext(context):'')+(editingId&&vp?' · vidéo '+vp:'')+(editingId?' · ':'')+p;
+  $('#popupMeta').textContent=(editingId?labelContext(context):'')+(editingId&&vp?' · vidéo '+vp:'');
   applyAutomaticDefenseAttribution();
 };
 if($('#faultPeriod'))$('#faultPeriod').onchange=()=>{
-  const p=$('#faultPeriod').value||'P1';
   const vp=($('#videoPosition').value||'').trim();
-  $('#faultMeta').textContent=(actionType==='Défense'?'Défensive illégale':'Faute d’attaque')+' · '+labelContext(context)+(vp?' · vidéo '+vp:'')+' · '+p;
+  $('#faultMeta').textContent=(actionType==='Défense'?'Défensive illégale':'Faute d’attaque')+' · '+labelContext(context)+(vp?' · vidéo '+vp:'');
 };
 
 $('#saveFault').onclick=async()=>{
@@ -4799,7 +4806,7 @@ function editEvent(id){
       $('#faultTypes').appendChild(b);
       b.onclick=()=>{faultType=b.dataset.fault;$$('#faultTypes button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice')};
     }
-    $('#faultMeta').textContent=(actionType==='Défense'?'Défensive illégale':'Faute d’attaque')+' · '+labelContext(context)+(e.videoPosition?' · vidéo '+e.videoPosition:'')+' · '+(e.period||'P1');
+    $('#faultMeta').textContent=(actionType==='Défense'?'Défensive illégale':'Faute d’attaque')+' · '+labelContext(context)+(e.videoPosition?' · vidéo '+e.videoPosition:'');
     buildActionOpponentOptions();
     $$('#faultTypes button').forEach(b=>b.classList.toggle('choice',b.dataset.fault===faultType));
     buildWho('#faultWhoOptions');
@@ -4820,7 +4827,7 @@ function editEvent(id){
   else actionResult='';
   zone=family==='gel'?'':(({E1:'A1',E2:'P',E3:'A2'}[e.zone])||e.zone||'');movement=e.movement||'';who=e.player||'';whoMany=actionType==='Défense'?[...(e.attributedPlayers||((e.player)?[e.player]:[]))]:[];opponentTeam=e.opponentTeam||'';
   $('#popupTitle').textContent='Modifier · '+actionType;
-  $('#popupMeta').textContent=labelContext(context)+(e.videoPosition?' · vidéo '+e.videoPosition:'')+' · '+(e.period||'P1');
+  $('#popupMeta').textContent=labelContext(context)+(e.videoPosition?' · vidéo '+e.videoPosition:'');
   buildOpponentOptions();
   $('#restartLocationStep').classList.toggle('hidden',family!=='remise');
   $$('#restartLocationOptions button').forEach(b=>b.classList.toggle('choice',b.dataset.restart===restartLocation));
