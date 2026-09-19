@@ -3929,9 +3929,10 @@ function handleOutcome(value,button){
   }
   if(actionType==='Défense'&&value==='Défensive illégale'){
     pending='Faute';faultType='Défensive illégale';zone='';movement='Non';
+    const map=defenseRoleMapForPopup();
+    whoMany=map?.R?[map.R]:[];
+    who='';
     if(isCenterDefense()){
-      const map=defenseRoleMap();
-      whoMany=map.R?[map.R]:[];
       $('#centerDefenseMapStep').classList.remove('hidden');
       $('#zoneStep').classList.add('hidden');
       $$('#centerDefenseMap .sector').forEach(x=>x.classList.remove('selected'));
@@ -4051,6 +4052,45 @@ function showQuickOutcomes(button){
 }
 
 
+
+function defenseRoleMapForPopup(){
+  const period=$('#popupPeriod')?.value||$('#period')?.value||'P1';
+  return defenseRoleMap(period);
+}
+
+function refreshDefenseAttributionUI(){
+  if(actionType!=='Défense')return;
+  if($('#popup')?.classList.contains('quickOutcomePreset')){
+    configureQuickAttributionUI();
+  }else{
+    configureWhoUI();
+  }
+}
+
+function applyAutomaticDefenseAttribution(){
+  if(actionType!=='Défense')return false;
+
+  const map=defenseRoleMapForPopup();
+  let player=null;
+
+  // Defensive illegal by us is always attributed to our R.
+  if(actionResult==='Défensive illégale'){
+    player=map?.R||null;
+  }
+  // On an escape, RE belongs to R and EE to P.
+  else if(actionResult==='Échappé'){
+    if(zone==='RE')player=map?.R||null;
+    else if(zone==='EE')player=map?.P||null;
+  }
+
+  if(!player)return false;
+  who='';
+  whoMany=[player];
+  refreshDefenseAttributionUI();
+  updatePopupSaveVisibility();
+  return true;
+}
+
 function configureQuickAttributionUI(){
   const box=$('#whoOptions');
   if(!box)return;
@@ -4138,7 +4178,10 @@ function launchQuickOutcome(outcome){
 
     $('#whoStep').classList.remove('hidden');
     configureQuickAttributionUI();
+    applyAutomaticDefenseAttribution();
     updatePopupSaveVisibility();
+  }else{
+    applyAutomaticDefenseAttribution();
   }
 
   resetPopupScroll('#popup');
@@ -4212,7 +4255,26 @@ function openFaultPopup(){
   syncVideoPopupBounds();
   $('#faultPopup').classList.remove('hidden');resetPopupScroll('#faultPopup');
 }
-$$('#zoneOptions button').forEach(b=>b.onclick=()=>{zone=b.dataset.zone;$$('#zoneOptions button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice')});
+$$('#zoneOptions button').forEach(b=>b.onclick=()=>{
+  zone=b.dataset.zone;
+  $$('#zoneOptions button').forEach(x=>x.classList.remove('choice'));
+  b.classList.add('choice');
+
+  if(actionType==='Défense'&&actionResult==='Échappé'){
+    const map=defenseRoleMapForPopup();
+    if(zone==='RE'&&map?.R){
+      who='';whoMany=[map.R];
+      refreshDefenseAttributionUI();
+    }else if(zone==='EE'&&map?.P){
+      who='';whoMany=[map.P];
+      refreshDefenseAttributionUI();
+    }else if(!zone){
+      who='';whoMany=[];
+      refreshDefenseAttributionUI();
+    }
+    updatePopupSaveVisibility();
+  }
+});
 const centerDefenseGestureState=new WeakMap();
 $$('#centerDefenseMap .sector').forEach(el=>{
   const st={simpleTimer:null,longTimer:null,longTriggered:false,suppressClickUntil:0};
@@ -4326,6 +4388,7 @@ if($('#popupPeriod'))$('#popupPeriod').onchange=()=>{
   const p=$('#popupPeriod').value||'P1';
   const vp=($('#videoPosition').value||'').trim();
   $('#popupMeta').textContent=(editingId?labelContext(context):'')+(editingId&&vp?' · vidéo '+vp:'')+(editingId?' · ':'')+p;
+  applyAutomaticDefenseAttribution();
 };
 if($('#faultPeriod'))$('#faultPeriod').onchange=()=>{
   const p=$('#faultPeriod').value||'P1';
