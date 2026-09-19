@@ -137,6 +137,94 @@ button:active{transform:scale(.985)}
 .matchVideoSpeedRow{display:flex;gap:7px;flex-wrap:wrap;padding:8px 0 0}
 .matchVideoSpeedBtn.active{background:var(--accent)}
 
+
+/* Analyse vidéo sur ordinateur : lecteur à gauche, saisie à droite.
+   La séparation est redimensionnable par glisser-déposer. */
+@media(min-width:1101px){
+  .app.videoReviewWide{
+    max-width:1680px;
+    padding-left:20px;
+    padding-right:20px;
+  }
+
+  .app.videoReviewWide #live.videoDesktopLayout{
+    --video-pane: 58%;
+    display:grid;
+    grid-template-columns:
+      minmax(520px,var(--video-pane))
+      10px
+      minmax(360px,1fr);
+    gap:0 10px;
+    align-items:start;
+  }
+
+  .app.videoReviewWide #live.videoDesktopLayout > #matchVideoPanel{
+    grid-column:1;
+    grid-row:1 / span 30;
+    position:sticky;
+    top:12px;
+    margin-bottom:0;
+  }
+
+  .app.videoReviewWide #live.videoDesktopLayout > #videoDesktopResizer{
+    display:block!important;
+    grid-column:2;
+    grid-row:1 / span 30;
+    align-self:stretch;
+    min-height:calc(100vh - 40px);
+    cursor:col-resize;
+    position:relative;
+    touch-action:none;
+    user-select:none;
+  }
+
+  .app.videoReviewWide #live.videoDesktopLayout > #videoDesktopResizer::before{
+    content:"";
+    position:sticky;
+    top:18px;
+    display:block;
+    width:4px;
+    height:82px;
+    margin:0 auto;
+    border-radius:999px;
+    background:var(--line);
+    transition:background .15s,width .15s;
+  }
+
+  .app.videoReviewWide #live.videoDesktopLayout > #videoDesktopResizer:hover::before,
+  .app.videoReviewWide #live.videoDesktopLayout > #videoDesktopResizer.dragging::before,
+  .app.videoReviewWide #live.videoDesktopLayout > #videoDesktopResizer:focus-visible::before{
+    width:6px;
+    background:var(--accent);
+  }
+
+  .app.videoReviewWide #live.videoDesktopLayout > section:not(#matchVideoPanel){
+    grid-column:3;
+    min-width:0;
+    margin-bottom:12px;
+  }
+
+  .app.videoReviewWide #live.videoDesktopLayout .matchVideoSticky{
+    position:relative;
+  }
+
+  .app.videoReviewWide #live.videoDesktopLayout .players{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .app.videoReviewWide #live.videoDesktopLayout .tabs{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+
+  .app.videoReviewWide #live.videoDesktopLayout .timeline{
+    max-height:300px;
+  }
+
+  body:has(.app.videoReviewWide) .footerin{
+    max-width:1680px;
+  }
+}
+
 @media(max-width:1100px){
   .matchVideoSticky{
     position:sticky;
@@ -1830,7 +1918,7 @@ button:active{transform:scale(.985)}
 
   <section class="panel matchVideoPanel hidden" id="matchVideoPanel">
     <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
-      <div><h2 style="font-size:18px">🎥 Analyse vidéo</h2><div class="small" id="matchVideoMeta">Position enregistrée automatiquement à chaque action</div></div>
+      <div><h2 style="font-size:18px">🎥 Analyse vidéo</h2><div class="small" id="matchVideoMeta">Position enregistrée automatiquement à chaque action · sur ordinateur, fais glisser la séparation pour ajuster la largeur.</div></div>
       <button class="ghost" id="matchVideoOpenYoutube" type="button">Ouvrir sur YouTube</button>
     </div>
     <div class="matchVideoSticky">
@@ -1852,6 +1940,9 @@ button:active{transform:scale(.985)}
       </details>
     </div>
   </section>
+
+  <div id="videoDesktopResizer" class="videoDesktopResizer hidden" role="separator"
+       aria-orientation="vertical" aria-label="Redimensionner la zone vidéo" tabindex="0"></div>
 
   <section class="panel">
     <div class="row" style="justify-content:flex-end;margin-bottom:8px">
@@ -2357,8 +2448,110 @@ function setMatchCaptureMode(mode){
   $$('#matchCaptureMode [data-capture-mode]').forEach(b=>b.classList.toggle('active',b.dataset.captureMode===state.captureMode));
   $('#matchYoutubeWrap')?.classList.toggle('hidden',state.captureMode!=='video');
 }
+
+const VIDEO_PANE_KEY='kinball_video_pane_ratio';
+
+function clampVideoPaneRatio(ratio){
+  const live=$('#live');
+  if(!live)return .58;
+  const width=live.getBoundingClientRect().width||1200;
+  // Keep at least ~520 px for video and ~360 px for controls.
+  const min=Math.min(.65,520/width);
+  const max=Math.max(.50,1-(360/width));
+  return Math.min(Math.max(Number(ratio)||.58,min),Math.min(.78,max));
+}
+
+function setVideoPaneRatio(ratio,persist=true){
+  const live=$('#live');
+  if(!live)return;
+  const r=clampVideoPaneRatio(ratio);
+  live.style.setProperty('--video-pane',`${(r*100).toFixed(2)}%`);
+  if(persist){
+    try{localStorage.setItem(VIDEO_PANE_KEY,String(r))}catch{}
+  }
+}
+
+function applySavedVideoPaneWidth(){
+  let r=.58;
+  try{
+    const saved=parseFloat(localStorage.getItem(VIDEO_PANE_KEY)||'');
+    if(Number.isFinite(saved))r=saved;
+  }catch{}
+  setVideoPaneRatio(r,false);
+}
+
+function initVideoDesktopResizer(){
+  const handle=$('#videoDesktopResizer');
+  const live=$('#live');
+  if(!handle||!live)return;
+
+  let dragging=false;
+
+  const updateFromClientX=x=>{
+    const rect=live.getBoundingClientRect();
+    if(!rect.width)return;
+    setVideoPaneRatio((x-rect.left)/rect.width,true);
+  };
+
+  handle.addEventListener('pointerdown',e=>{
+    if(window.innerWidth<1101||!live.classList.contains('videoDesktopLayout'))return;
+    dragging=true;
+    handle.classList.add('dragging');
+    try{handle.setPointerCapture(e.pointerId)}catch{}
+    updateFromClientX(e.clientX);
+    e.preventDefault();
+  });
+
+  handle.addEventListener('pointermove',e=>{
+    if(!dragging)return;
+    updateFromClientX(e.clientX);
+    e.preventDefault();
+  });
+
+  const stop=e=>{
+    if(!dragging)return;
+    dragging=false;
+    handle.classList.remove('dragging');
+    try{handle.releasePointerCapture(e.pointerId)}catch{}
+  };
+  handle.addEventListener('pointerup',stop);
+  handle.addEventListener('pointercancel',stop);
+
+  handle.addEventListener('keydown',e=>{
+    if(window.innerWidth<1101)return;
+    let current=.58;
+    try{
+      current=parseFloat(getComputedStyle(live).getPropertyValue('--video-pane'))/100||.58;
+    }catch{}
+    if(e.key==='ArrowLeft'){
+      setVideoPaneRatio(current-.025,true);
+      e.preventDefault();
+    }else if(e.key==='ArrowRight'){
+      setVideoPaneRatio(current+.025,true);
+      e.preventDefault();
+    }else if(e.key==='Home'){
+      setVideoPaneRatio(.50,true);
+      e.preventDefault();
+    }else if(e.key==='End'){
+      setVideoPaneRatio(.72,true);
+      e.preventDefault();
+    }
+  });
+
+  window.addEventListener('resize',()=>{
+    if(live.classList.contains('videoDesktopLayout'))applySavedVideoPaneWidth();
+  });
+}
+
 function syncMatchVideoUi(){
   const videoMode=state.captureMode==='video'&&!!state.youtubeVideoId;
+  const app=document.querySelector('.app');
+  const live=$('#live');
+  const desktopVideo=videoMode && !!live && !live.classList.contains('hidden');
+  app?.classList.toggle('videoReviewWide',desktopVideo);
+  live?.classList.toggle('videoDesktopLayout',desktopVideo);
+  $('#videoDesktopResizer')?.classList.toggle('hidden',!desktopVideo);
+  if(desktopVideo)applySavedVideoPaneWidth();
   $('#matchVideoPanel')?.classList.toggle('hidden',!videoMode);
   if($('#videoPositionHint'))$('#videoPositionHint').textContent=videoMode?'Mise à jour automatiquement depuis le lecteur ; tu peux la corriger manuellement.':'Facultatif en mode direct.';
   if($('#videoPositionNote'))$('#videoPositionNote').textContent=videoMode?'La position courante du lecteur est enregistrée automatiquement au moment où tu valides chaque action.':'En mode direct, tu peux laisser la position vidéo vide et ne la renseigner que pour certaines actions utiles à retrouver.';
@@ -3290,6 +3483,7 @@ async function start(){
     $('#setup').classList.add('hidden');
     $('#live').classList.remove('hidden');
     $('#footer')?.classList.remove('hidden');
+    syncMatchVideoUi();
     initOrLoadMatchVideo();
     saveLocal();renderPlayers();render();
     await refreshRecentMatches();
@@ -7582,6 +7776,7 @@ function render(){
 }
 
 render();
+initVideoDesktopResizer();
 initAuth().catch(e=>handleError('initAuth',e));
 </script>
 
