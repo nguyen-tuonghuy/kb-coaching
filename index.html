@@ -2027,6 +2027,42 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
  </section>
 
 
+ <div class="popupBackdrop hidden" id="matchMetaPopup">
+  <div class="sheet" style="max-width:720px">
+   <div class="sheetTop">
+    <div>
+     <h2>Modifier les informations du match</h2>
+     <div class="small">Ces changements modifient les informations générales du match, pas les actions déjà relevées.</div>
+    </div>
+    <button class="ghost" id="closeMatchMetaPopup" type="button">✕</button>
+   </div>
+   <div class="row" style="margin-top:12px">
+    <div class="field"><label>Nom du match</label><input id="editMatchName"></div>
+    <div class="field"><label>Date</label><input id="editMatchDate" type="text" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AA" autocomplete="off"></div>
+    <div class="field"><label>Type de match</label><select id="editMatchType"><option value="">— Aucun type —</option></select></div>
+   </div>
+   <div class="row" style="margin-top:10px">
+    <div class="field"><label>Équipe adverse 1</label><input id="editMatchOpponent1"></div>
+    <div class="field"><label>Équipe adverse 2</label><input id="editMatchOpponent2"></div>
+   </div>
+   <div style="margin-top:12px">
+    <label>Mode de prise de notes</label>
+    <div class="matchCaptureMode" id="editMatchCaptureMode">
+     <button type="button" data-edit-capture-mode="live">🏟️ En direct</button>
+     <button type="button" data-edit-capture-mode="video">🎥 Depuis une vidéo</button>
+    </div>
+   </div>
+   <div class="field hidden" id="editMatchYoutubeWrap" style="margin-top:10px">
+    <label>URL YouTube</label>
+    <input id="editMatchYoutubeUrl" placeholder="https://www.youtube.com/watch?v=…">
+   </div>
+   <div class="row" style="justify-content:flex-end;margin-top:16px">
+    <button class="primary" id="saveMatchMeta" type="button">Sauvegarder</button>
+   </div>
+  </div>
+ </div>
+
+
  <section class="panel hidden" id="matchAnalysisSelect">
    <div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:10px">
     <div>
@@ -5730,12 +5766,14 @@ function renderMatchLibrary(){
       <div class="matchLibraryActions">
         <button class="primary" data-analyze="${m.id}">Analyser</button>
         <button class="ghost" data-consult="${m.id}">Consulter</button>
+        <button class="ghost" data-edit-meta="${m.id}">Modifier infos</button>
         <button class="ghost" data-resume="${m.id}">Reprendre</button>
         <button class="ghost" data-delete="${m.id}">Supprimer</button>
       </div>
     </div>`;
     card.querySelector('[data-analyze]').onclick=()=>openMatchAnalysis(m.id).catch(e=>handleError('analyse match',e));
     card.querySelector('[data-consult]').onclick=()=>openMatchReadOnly(m.id).catch(e=>handleError('consult match',e));
+    card.querySelector('[data-edit-meta]').onclick=()=>openMatchMetaEditor(m.id).catch(e=>handleError('edit match meta',e));
     card.querySelector('[data-resume]').onclick=()=>loadMatch(m.id);
     card.querySelector('[data-delete]').onclick=async()=>{
       const deleted=await deleteSavedMatch(m.id);
@@ -5756,6 +5794,55 @@ async function openMatchLibrary(options={}){
   renderMatchLibrary();
   window.scrollTo({top:0,behavior:'instant'});
 }
+let editingMatchMetaId=null;
+let editingMatchCaptureMode='live';
+
+function setEditMatchCaptureMode(mode){
+  editingMatchCaptureMode=mode==='video'?'video':'live';
+  $$('#editMatchCaptureMode button').forEach(b=>b.classList.toggle('active',b.dataset.editCaptureMode===editingMatchCaptureMode));
+  $('#editMatchYoutubeWrap')?.classList.toggle('hidden',editingMatchCaptureMode!=='video');
+}
+
+async function openMatchMetaEditor(matchId){
+  setCloud('Chargement…',true);
+  await fetchMatchTypes();
+  const {data:m,error}=await db.from('matches')
+    .select('id,label,played_on,match_type_id,opponent_team_1_id,opponent_team_2_id,capture_mode,youtube_url,opponent1:teams!matches_opponent_team_1_id_fkey(name),opponent2:teams!matches_opponent_team_2_id_fkey(name)')
+    .eq('id',matchId).single();
+  if(error)throw error;
+  editingMatchMetaId=matchId;
+  $('#editMatchName').value=m.label||'';
+  $('#editMatchDate').value=isoToFrInput(m.played_on||today());
+  populateMatchTypeSelect($('#editMatchType'),{selected:m.match_type_id||'',includeArchivedId:m.match_type_id||null});
+  $('#editMatchOpponent1').value=m.opponent1?.name||'';
+  $('#editMatchOpponent2').value=m.opponent2?.name||'';
+  $('#editMatchYoutubeUrl').value=m.youtube_url||'';
+  setEditMatchCaptureMode(m.capture_mode==='video'?'video':'live');
+  $('#matchMetaPopup').classList.remove('hidden');
+  setCloud('Synchronisé',true);
+}
+function closeMatchMetaEditor(){editingMatchMetaId=null;$('#matchMetaPopup')?.classList.add('hidden')}
+async function saveMatchMetaEditor(){
+  if(!editingMatchMetaId)return;
+  const name=$('#editMatchName').value.trim()||'Match';
+  const date=frInputToIso($('#editMatchDate').value||isoToFrInput(today()));
+  const typeId=$('#editMatchType').value||null;
+  const opp1=$('#editMatchOpponent1').value.trim();
+  const opp2=$('#editMatchOpponent2').value.trim();
+  const youtubeUrl=editingMatchCaptureMode==='video'?($('#editMatchYoutubeUrl').value||'').trim():'';
+  if(!opp1||!opp2){alert('Renseigne les deux équipes adverses.');return}
+  if(opp1.toLowerCase()===opp2.toLowerCase()){alert('Les deux équipes adverses doivent être différentes.');return}
+  if(editingMatchCaptureMode==='video'&&!matchYoutubeId(youtubeUrl)){alert('Renseigne une URL YouTube valide pour le mode vidéo.');return}
+  try{
+    setCloud('Enregistrement…',true);
+    const [opp1Id,opp2Id]=await Promise.all([ensureTeam(opp1),ensureTeam(opp2)]);
+    const {error}=await db.from('matches').update({label:name,played_on:date,match_type_id:typeId,opponent_team_1_id:opp1Id,opponent_team_2_id:opp2Id,capture_mode:editingMatchCaptureMode,youtube_url:youtubeUrl||null}).eq('id',editingMatchMetaId);
+    if(error)throw error;
+    closeMatchMetaEditor();
+    await fetchMatchLibrary();populateMatchLibraryFilters();renderMatchLibrary();setCloud('Synchronisé',true);
+  }catch(e){handleError('save match meta',e);setCloud('Erreur',false)}
+}
+
 async function openMatchReadOnly(matchId){
   const {data:m,error:me}=await db.from('matches')
     .select('id,label,played_on,group_id,match_type_id,team_id,created_at,updated_at,created_by,updated_by,match_type:match_types!matches_match_type_id_fkey(name),group:coaching_groups!matches_group_id_fkey(name),followed_team:teams!matches_team_id_fkey(name),opponent1:teams!matches_opponent_team_1_id_fkey(name),opponent2:teams!matches_opponent_team_2_id_fkey(name)')
@@ -8328,6 +8415,10 @@ $('#openAdminModule').onclick=()=>openAdminModule().catch(e=>handleError('admin 
 $('#adminBackHome').onclick=showAppHome;
 $('#matchBackHome').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
 if($('#liveBackHome'))$('#liveBackHome').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
+$('#closeMatchMetaPopup').onclick=closeMatchMetaEditor;
+$('#saveMatchMeta').onclick=saveMatchMetaEditor;
+$$('#editMatchCaptureMode button').forEach(b=>b.onclick=()=>setEditMatchCaptureMode(b.dataset.editCaptureMode));
+$('#matchMetaPopup').addEventListener('click',e=>{if(e.target===$('#matchMetaPopup'))closeMatchMetaEditor()});
 $('#matchLibraryBack').onclick=showAppHome;
 $('#libraryNewMatch').onclick=()=>openMatchModule().catch(e=>handleError('new match',e));
 $('#libraryGroupAnalysis').onclick=()=>openGroupAnalysisSelector().catch(e=>handleError('analyse groupée',e));
