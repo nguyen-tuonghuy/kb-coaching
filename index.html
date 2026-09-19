@@ -4459,27 +4459,42 @@ function launchQuickOutcome(outcome){
     $('#popup').classList.add('quickCenterSimple');
     $('#popup').classList.remove('centerDefenseCompact','centerAttackMode','fieldMode');
 
-    // Keep the useful manual fields, but skip the graphical court diagram.
+    // En saisie rapide au centre, on ne réaffiche pas les champs que
+    // handleOutcome() a volontairement masqués. Pour une faute offensive
+    // adverse, le comportement doit être strictement le même qu'en remise
+    // en jeu : aucun champ Zone / Déplacement / Défenseur n'est demandé.
+    const opponentAttackFault=q.actionType==='Défense'&&outcome==='Faute de l’adversaire';
+
     $('#centerDefenseMapStep').classList.add('hidden');
-    $('#zoneStep').classList.remove('hidden');
-    $('#moveStep').classList.remove('hidden');
-
-    // Start with the same neutral defaults as the restart workflow.
-    if(!zone)zone='';
-    if(movement==null)movement='';
-    $$('#zoneOptions button').forEach(b=>b.classList.toggle('choice',(b.dataset.zone||'')===zone));
-    $$('#moveOptions button').forEach(b=>b.classList.toggle('choice',(b.dataset.move||'')===movement));
-
-    // Do not pre-assign a defender from the old centre diagram logic.
-    if(q.actionType==='Défense'){
+    if(opponentAttackFault){
+      $('#zoneStep').classList.add('hidden');
+      $('#moveStep').classList.add('hidden');
+      $('#whoStep').classList.add('hidden');
       whoMany=[];
       who='';
-    }
+      updatePopupSaveVisibility();
+    }else{
+      // Keep the useful manual fields, but skip the graphical court diagram.
+      $('#zoneStep').classList.remove('hidden');
+      $('#moveStep').classList.remove('hidden');
 
-    $('#whoStep').classList.remove('hidden');
-    configureQuickAttributionUI();
-    applyAutomaticDefenseAttribution();
-    updatePopupSaveVisibility();
+      // Start with the same neutral defaults as the restart workflow.
+      if(!zone)zone='';
+      if(movement==null)movement='';
+      $$('#zoneOptions button').forEach(b=>b.classList.toggle('choice',(b.dataset.zone||'')===zone));
+      $$('#moveOptions button').forEach(b=>b.classList.toggle('choice',(b.dataset.move||'')===movement));
+
+      // Do not pre-assign a defender from the old centre diagram logic.
+      if(q.actionType==='Défense'){
+        whoMany=[];
+        who='';
+      }
+
+      $('#whoStep').classList.remove('hidden');
+      configureQuickAttributionUI();
+      applyAutomaticDefenseAttribution();
+      updatePopupSaveVisibility();
+    }
   }else{
     applyAutomaticDefenseAttribution();
   }
