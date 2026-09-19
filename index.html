@@ -3796,6 +3796,11 @@ async function loadMatch(matchId){
     const last=state.events.at(-1);
     state.activePlayers=(last?.activePlayers?.length?last.activePlayers:(mp||[]).filter(x=>x.started_on_court).map(x=>idToName[x.player_id]).filter(Boolean));
 
+    // When resuming note-taking, continue from the period of the last recorded action.
+    const resumePeriod=last?.period||'P1';
+    if($('#period'))$('#period').value=resumePeriod;
+    if($('#startPeriod'))$('#startPeriod').value=resumePeriod;
+
     $('#matchName').value=state.matchName;
     await fetchMatchTypes();
     populateMatchTypeSelect($('#matchType'),{selected:state.matchTypeId,includeArchivedId:state.matchTypeId});
@@ -4077,8 +4082,8 @@ function applyAutomaticDefenseAttribution(){
   if(actionResult==='Défensive illégale'){
     player=map?.R||null;
   }
-  // On an escape, RE belongs to R and EE to P.
-  else if(actionResult==='Échappé'){
+  // On an escape or a ball defended by us, RE belongs to R and EE to P.
+  else if(['Échappé','Ballon défendu'].includes(actionResult)){
     if(zone==='RE')player=map?.R||null;
     else if(zone==='EE')player=map?.P||null;
   }
@@ -4260,7 +4265,7 @@ $$('#zoneOptions button').forEach(b=>b.onclick=()=>{
   $$('#zoneOptions button').forEach(x=>x.classList.remove('choice'));
   b.classList.add('choice');
 
-  if(actionType==='Défense'&&actionResult==='Échappé'){
+  if(actionType==='Défense'&&['Échappé','Ballon défendu'].includes(actionResult)){
     const map=defenseRoleMapForPopup();
     if(zone==='RE'&&map?.R){
       who='';whoMany=[map.R];
