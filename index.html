@@ -4567,7 +4567,8 @@ function openFaultPopup(){
   $$('#faultTypes button').forEach(b=>b.classList.remove('choice'));
   buildWho('#faultWhoOptions');
   $$('#faultWhoOptions button').forEach(b=>b.classList.remove('choice'));
-  $('#faultWhoOptions button[data-who=""]').classList.add('choice');
+  const defaultFaultWho=$('#faultWhoOptions button[data-who=""]');
+  if(defaultFaultWho)defaultFaultWho.classList.add('choice');
   $$('#faultWhoOptions button').forEach(b=>b.onclick=()=>{faultWho=b.dataset.who;$$('#faultWhoOptions button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice')});
   syncVideoPopupBounds();
   $('#popup')?.classList.add('hidden');$('#faultPopup').classList.remove('hidden');resetPopupScroll('#faultPopup');
