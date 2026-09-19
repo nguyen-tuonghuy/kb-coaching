@@ -83,6 +83,55 @@ button:active{transform:scale(.985)}
 .options button,.faultgrid button{min-height:51px}
 .choice{outline:none!important;background:var(--accent)!important;color:#fff!important}
 .entryAction.selected{background:var(--accent)!important;color:#fff!important}
+.quickOutcomePanel{
+  margin-top:14px;
+  padding-top:12px;
+  border-top:1px solid var(--line);
+}
+.quickOutcomeTitle{
+  font-size:13px;
+  color:var(--muted);
+  font-weight:750;
+  margin-bottom:8px;
+}
+.quickOutcomeGrid{
+  display:grid;
+  gap:8px;
+}
+.quickOutcomeGrid.attack{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+}
+.quickOutcomeGrid.defense{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+}
+.quickOutcomeBtn{
+  min-height:58px;
+  padding:10px 8px;
+  border:1px solid var(--line);
+  font-size:13px;
+  line-height:1.15;
+}
+.quickOutcomeBtn:hover{border-color:#5f8fff}
+.quickOutcomeBtn.point{background:#245fbd}
+.quickOutcomeBtn.defended{background:#273243}
+.quickOutcomeBtn.fault{background:#6b3434}
+.quickOutcomeBtn.illegal{background:#704727}
+@media(max-width:520px){
+  .quickOutcomeGrid{gap:6px}
+  .quickOutcomeBtn{min-height:55px;padding:8px 5px;font-size:11px}
+}
+#popup.quickOutcomePreset #resultStep{display:none!important}
+#popup.quickOutcomePreset.centerDefenseCompact .centerDefenseArena{
+  grid-template-columns:minmax(500px,4.5fr) minmax(82px,.42fr);
+  grid-template-areas:"map who";
+}
+@media(max-width:640px){
+  #popup.quickOutcomePreset.centerDefenseCompact .centerDefenseArena{
+    grid-template-columns:1fr;
+    grid-template-areas:"map" "who";
+  }
+}
+
 .full{grid-column:1/-1}
 .timeline{display:flex;flex-direction:column;gap:8px;max-height:350px;overflow:auto}
 .item{display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:9px;align-items:center;background:var(--panel2);padding:10px;border-radius:12px;cursor:pointer}
@@ -2052,6 +2101,11 @@ button:active{transform:scale(.985)}
     <button class="entryAction" data-family="gel" data-actiontype="Défense">DÉFENSE GEL</button>
    </div>
 
+   <div id="quickOutcomePanel" class="quickOutcomePanel hidden">
+    <div class="quickOutcomeTitle" id="quickOutcomeTitle">Issue</div>
+    <div class="quickOutcomeGrid" id="quickOutcomeGrid"></div>
+   </div>
+
   </section>
 
   <section class="panel">
@@ -2456,6 +2510,7 @@ let state={
 let matchVideoPlayer=null,matchVideoPlayerReady=false,matchVideoWantedId='',matchVideoPreferredSpeed=1.5;
 let context='jeu_centre', pending=null, zone='', movement='', who='', whoMany=[], faultType='', faultWho='', editingId=null, opponentTeam='';
 let family='centre',actionType='Attaque',actionResult='',restartLocation='';
+let quickSelectedAction=null;
 let currentUser=null;
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -3830,15 +3885,12 @@ function buildOutcomeButtons(){
     add('BALLON DÉFENDU','Ballon défendu');
     add('FAUTE D’ATTAQUE','Faute attaque');
     if(isCenterAttack()){
-      add('DÉFENSIVE ILLÉGALE','Défensive illégale');
       const point=$('#resultOptions button[data-result="Point marqué"]');
       const defended=$('#resultOptions button[data-result="Ballon défendu"]');
       const fault=$('#resultOptions button[data-result="Faute attaque"]');
-      const illegal=$('#resultOptions button[data-result="Défensive illégale"]');
       if(point)point.innerHTML='POINT<br>MARQUÉ';
       if(defended)defended.innerHTML='BALLON<br>DÉFENDU';
-      if(fault)fault.innerHTML='FAUTE<br>D’ATTAQUE';
-      if(illegal)illegal.innerHTML='DÉFENSIVE<br>ILLÉGALE';
+      if(fault)fault.innerHTML='FAUTE<br>OFFENSIVE';
     }
   }else{
     add('BALLON DÉFENDU','Ballon défendu');
@@ -3941,7 +3993,87 @@ function updatePopupSaveVisibility(){
   const missing=missingActionFields();
   btn.title=missing.length?`À compléter : ${missing.join(', ')}`:'Enregistrer l’action';
 }
+
+function clearQuickOutcomeSelection(){
+  quickSelectedAction=null;
+  $$('.entryAction').forEach(x=>x.classList.remove('selected'));
+  $('#quickOutcomePanel')?.classList.add('hidden');
+  const grid=$('#quickOutcomeGrid');
+  if(grid){grid.innerHTML='';grid.className='quickOutcomeGrid'}
+}
+
+function showQuickOutcomes(button){
+  const selectedFamily=button.dataset.family;
+  const selectedActionType=button.dataset.actiontype;
+  const presetRestart=button.dataset.restart||'';
+
+  quickSelectedAction={family:selectedFamily,actionType:selectedActionType,restart:presetRestart};
+  $$('.entryAction').forEach(x=>x.classList.toggle('selected',x===button));
+
+  const panel=$('#quickOutcomePanel');
+  const title=$('#quickOutcomeTitle');
+  const grid=$('#quickOutcomeGrid');
+  if(!panel||!title||!grid)return;
+
+  const attack=selectedActionType==='Attaque';
+  title.textContent=attack?'Issue de l’attaque':'Issue de la défense';
+  grid.className='quickOutcomeGrid '+(attack?'attack':'defense');
+
+  const outcomes=attack
+    ? [
+        {label:'POINT MARQUÉ',value:'Point marqué',cls:'point'},
+        {label:'DÉFENDU',value:'Ballon défendu',cls:'defended'},
+        {label:'FAUTE OFFENSIVE',value:'Faute attaque',cls:'fault'}
+      ]
+    : [
+        {label:'ÉCHAPPÉ',value:'Échappé',cls:'point'},
+        {label:'DÉFENDU PAR NOUS',value:'Ballon défendu',cls:'defended'},
+        {label:'DÉFENSIVE ILLÉGALE',value:'Défensive illégale',cls:'illegal'},
+        {label:'FAUTE OFFENSIVE ADVERSE',value:'Faute de l’adversaire',cls:'fault'}
+      ];
+
+  grid.innerHTML='';
+  outcomes.forEach(o=>{
+    const b=document.createElement('button');
+    b.type='button';
+    b.className='quickOutcomeBtn '+o.cls;
+    b.textContent=o.label;
+    b.onclick=()=>launchQuickOutcome(o.value);
+    grid.appendChild(b);
+  });
+
+  panel.classList.remove('hidden');
+  panel.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+
+function launchQuickOutcome(outcome){
+  if(!quickSelectedAction)return;
+  const q={...quickSelectedAction};
+
+  openActionPopup(q.family,q.actionType,q.restart);
+
+  // This is a new quick-entry workflow: the outcome was already chosen outside the popup.
+  $('#popup')?.classList.add('quickOutcomePreset');
+
+  const resultButton=$(`#resultOptions button[data-result="${CSS.escape(outcome)}"]`);
+  if(resultButton){
+    handleOutcome(outcome,resultButton);
+  }else{
+    // Fallback for any legacy/edge value.
+    actionResult=outcome;
+    pending=q.actionType+' · '+outcome;
+    updatePopupSaveVisibility();
+  }
+
+  // Attack faults switch to the dedicated fault popup in handleOutcome().
+  if(!$('#popup').classList.contains('hidden')){
+    $('#resultStep').classList.add('hidden');
+    resetPopupScroll('#popup');
+  }
+}
+
 function openActionPopup(selectedFamily,selectedActionType,presetRestart=''){
+  $('#popup')?.classList.remove('quickOutcomePreset');
   family=selectedFamily;actionType=selectedActionType;restartLocation=selectedFamily==='remise'?(presetRestart||''):'';
   $('#popup').classList.toggle('centerDefenseCompact',family==='centre');
   $('#popup').classList.toggle('centerAttackMode',family==='centre'&&actionType==='Attaque');
@@ -3973,8 +4105,7 @@ function openActionPopup(selectedFamily,selectedActionType,presetRestart=''){
   $('#popup').classList.remove('hidden');resetPopupScroll('#popup');
 }
 $$('.entryAction').forEach(b=>b.onclick=()=>{
-  $$('.entryAction').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');
-  openActionPopup(b.dataset.family,b.dataset.actiontype,b.dataset.restart||'');
+  showQuickOutcomes(b);
 });
 $$('#restartLocationOptions button').forEach(b=>b.onclick=()=>{
   restartLocation=b.dataset.restart;context='remise_'+restartLocation;
@@ -4116,7 +4247,7 @@ $('#savePopup').onclick=async()=>{
     }else{
       state.events.push({id:eventId,...base});
     }
-    editingId=null;$('#popup').classList.add('hidden');$$('.entryAction').forEach(x=>x.classList.remove('selected'));render();setCloud('Synchronisé',true);
+    editingId=null;$('#popup').classList.add('hidden');$('#popup').classList.remove('quickOutcomePreset');clearQuickOutcomeSelection();render();setCloud('Synchronisé',true);
   }catch(e){handleError('save event',e)}
 };
 if($('#popupPeriod'))$('#popupPeriod').onchange=()=>{
@@ -4151,11 +4282,16 @@ $('#saveFault').onclick=async()=>{
     }else{
       state.events.push({id:eventId,...base});
     }
-    editingId=null;$('#faultPopup').classList.add('hidden');$$('.entryAction').forEach(x=>x.classList.remove('selected'));render();setCloud('Synchronisé',true);
+    editingId=null;$('#faultPopup').classList.add('hidden');clearQuickOutcomeSelection();render();setCloud('Synchronisé',true);
   }catch(e){handleError('save fault',e)}
 };
 
-const closePopup=id=>{editingId=null;$(id).classList.add('hidden');$$('.entryAction').forEach(x=>x.classList.remove('selected'))};
+const closePopup=id=>{
+  editingId=null;
+  $(id).classList.add('hidden');
+  $('#popup')?.classList.remove('quickOutcomePreset');
+  clearQuickOutcomeSelection();
+};
 $('#cancelPopup').onclick=()=>closePopup('#popup');
 $('#cancelFault').onclick=()=>closePopup('#faultPopup');
 $('#closeMainPopup').onclick=()=>closePopup('#popup');
@@ -4210,6 +4346,8 @@ $('#undo').onclick=async()=>{
 };
 
 function editEvent(id){
+  clearQuickOutcomeSelection();
+  $('#popup')?.classList.remove('quickOutcomePreset');
   const e=state.events.find(x=>x.id===id);if(!e)return;
   editingId=id;context=e.context||'centre';
   family=e.family||(context.startsWith('remise_')?'remise':'centre');
