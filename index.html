@@ -1462,6 +1462,7 @@ button:active{transform:scale(.985)}
 .actionDetailPanel{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
 .actionDetailPanel>.sheet{width:100%;max-width:none;max-height:none;overflow:visible;padding:12px;background:#141820;border-radius:14px;container-type:inline-size}
 .actionDetailPanel .sheetTop{position:static;top:auto;padding:0 0 8px;background:transparent}
+#popup.actionDetailPanel #centerDefenseMapStep{display:none!important}
 .actionDetailHeader{display:block!important}
 .actionDetailTitle .meta:empty{display:none}
 .actionDetailTitle{min-width:0}
@@ -3656,13 +3657,10 @@ function configureWhoUI(){
   }
 }
 function configureZoneUI(show=true){
-  const center=isCenterDiagram();
-  $('#centerDefenseMapStep').classList.toggle('hidden',!show||!center);
-  $('#zoneStep').classList.toggle('hidden',!show||center||family==='gel');
-  if(center&&show){
-    refreshCenterDefenseMapLabels();
-    syncCenterDefenseSectorFromEvent();
-  }
+  // Les diagrammes de terrain ne sont plus utilisés : on conserve uniquement
+  // les boutons de zone, y compris pour le jeu au centre et lors d'une édition.
+  $('#centerDefenseMapStep').classList.add('hidden');
+  $('#zoneStep').classList.toggle('hidden',!show||family==='gel');
 }
 
 function buildWho(boxId){
@@ -4840,7 +4838,6 @@ function editEvent(id){
     $('#moveStep').classList.add('hidden');
     configureZoneUI(false);
     $('#whoStep').classList.add('hidden');
-    if(isCenterDefense()) $('#centerDefenseMapStep').classList.remove('hidden');
   }else{
     $('#moveStep').classList.remove('hidden');
     configureZoneUI(family!=='gel');
