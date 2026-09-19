@@ -28,14 +28,25 @@ button:active{transform:scale(.985)}
 .warn{background:var(--warn);color:#121212}.ghost{background:transparent;border:1px solid var(--line)}
 .hidden{display:none!important}
 .players{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
-.livePlayersDetails{padding:0;overflow:hidden}
-.livePlayersDetails summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px;font-size:18px;font-weight:800;user-select:none}
-.livePlayersDetails summary::-webkit-details-marker{display:none}
+.periodSettingsPanel,.livePlayersDetails{padding:0;overflow:hidden}
+.periodSettingsPanel summary,.livePlayersDetails summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px;font-size:18px;font-weight:800;user-select:none}
+.periodSettingsPanel summary::-webkit-details-marker,.livePlayersDetails summary::-webkit-details-marker{display:none}
 .livePlayersChevron{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid var(--line);border-radius:999px;font-size:20px;line-height:1;transition:transform .15s ease}
-.livePlayersDetails[open] .livePlayersChevron{transform:rotate(180deg)}
-.livePlayersDetailsBody{padding:0 14px 14px}
+.periodSettingsPanel[open] > summary .livePlayersChevron,.livePlayersDetails[open] > summary .livePlayersChevron{transform:rotate(180deg)}
+.periodSettingsBody{padding:0 14px 14px}
+.periodSettingsSection{padding:14px 0}
+.periodSettingsSection + .periodSettingsSection{border-top:1px solid var(--line)}
+.livePlayersDetails.periodSettingsInner{margin:0;border:0;background:transparent;border-top:1px solid var(--line);border-radius:0}
+.livePlayersDetails.periodSettingsInner .livePlayersDetailsBody{padding:0 0 0}
+.livePlayersDetails.periodSettingsInner summary{padding:14px 0}
+.periodSettingsInlineNote{margin-top:8px}
 .quickRestartGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.actionColumns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.actionColumn{min-width:0}
+.actionColumnTitle{font-size:14px;color:var(--muted);font-weight:800;margin:0 0 10px}
+
 .quickRestartGrid button{min-height:58px;padding:10px 7px;font-size:13px;line-height:1.15}
+@media(max-width:720px){.actionColumns{grid-template-columns:1fr;gap:14px}}
 @media(max-width:520px){.quickRestartGrid{gap:6px}.quickRestartGrid button{min-height:56px;padding:8px 5px;font-size:11px}}
 
 .players button{min-height:54px}
@@ -83,6 +94,33 @@ button:active{transform:scale(.985)}
 .options button,.faultgrid button{min-height:51px}
 .choice{outline:none!important;background:var(--accent)!important;color:#fff!important}
 .entryAction.selected{background:var(--accent)!important;color:#fff!important}
+
+/* Issues directement ancrées sous le bouton d’action sélectionné */
+.entryAction{position:relative}
+.actionOutcomeDropdown{
+  position:fixed;
+  z-index:80;
+  display:grid;
+  gap:5px;
+  padding:6px;
+  background:#161a21;
+  border:1px solid var(--line);
+  border-radius:12px;
+  box-shadow:0 14px 34px rgba(0,0,0,.48);
+}
+.actionOutcomeDropdown.attack{grid-template-columns:1fr}
+.actionOutcomeDropdown.defense{grid-template-columns:1fr}
+.actionOutcomeDropdown .quickOutcomeBtn{
+  width:100%;
+  min-height:46px;
+  padding:8px 9px;
+  font-size:12px;
+  text-align:center;
+}
+@media(max-width:520px){
+  .actionOutcomeDropdown{gap:4px;padding:5px}
+  .actionOutcomeDropdown .quickOutcomeBtn{min-height:44px;font-size:11px;padding:7px 6px}
+}
 .quickOutcomePanel{
   margin-top:14px;
   padding-top:12px;
@@ -536,6 +574,15 @@ button:active{transform:scale(.985)}
   .centerDefenseMap .roleText{font-size:16px}
 }
 
+
+
+/* Bibliothèque des matchs : titre fixe, contenu inférieur repliable */
+.matchLibraryDetails{padding:0;overflow:hidden;margin-top:12px}
+.matchLibraryDetails>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;user-select:none;font-weight:800}
+.matchLibraryDetails>summary::-webkit-details-marker{display:none}
+.matchLibraryChevron{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;min-width:30px;border:1px solid var(--line);border-radius:999px;font-size:20px;line-height:1;transition:transform .15s ease}
+.matchLibraryDetails[open]>summary .matchLibraryChevron{transform:rotate(180deg)}
+.matchLibraryDetailsBody{padding-top:12px}
 
 .matchLibraryToolbar{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;margin-bottom:12px}
 .matchLibraryCard{background:var(--panel2);border:1px solid var(--line);border-radius:13px;padding:11px;margin-bottom:8px}
@@ -1405,6 +1452,40 @@ button:active{transform:scale(.985)}
  .analysisEvolutionToolbar{grid-template-columns:1fr}
 }
 
+
+/* === Saisie d'action inline : adversaire + détail sous « Choisir l’action » === */
+.actionCaptureHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.actionOpponentPicker{display:flex;align-items:center;justify-content:flex-end;gap:7px;min-width:0}
+.actionOpponentPicker>.small{white-space:nowrap}
+.actionOpponentOptions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.actionOpponentOptions button{min-height:34px;padding:7px 11px;border:1px solid var(--line);border-radius:10px;font-size:12px}
+.actionDetailPanel{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.actionDetailPanel>.sheet{width:100%;max-width:none;max-height:none;overflow:visible;padding:12px;background:#141820;border-radius:14px}
+.actionDetailPanel .sheetTop{position:static;top:auto;padding:0 0 8px;background:transparent}
+.actionDetailHeader{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(120px,160px);align-items:end!important;gap:12px}
+.actionDetailTitle{min-width:0}
+.actionDetailTitle .meta{margin:3px 0 0}
+.actionDetailPeriod{max-width:none!important;margin:0!important}
+.actionDetailPeriod label{margin-bottom:3px}
+.actionDetailPeriod select{padding:8px 9px}
+#popup.actionDetailPanel #zoneOptions{grid-template-columns:repeat(3,minmax(0,1fr))}
+#popup.actionDetailPanel #moveOptions{grid-template-columns:repeat(3,minmax(0,1fr))}
+#popup.actionDetailPanel #whoOptions.attackAttributionLayout{grid-template-columns:minmax(120px,1fr) repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(48px,auto));gap:7px}
+#popup.actionDetailPanel #whoOptions.attackAttributionLayout button[data-who=""]{grid-column:1;grid-row:1 / span 2;min-height:100%}
+#popup.actionDetailPanel #whoOptions.attackAttributionLayout button:not([data-who=""]){grid-column:auto;grid-row:auto}
+.actionDetailSaveBar button{min-height:50px;font-size:16px}
+body.videoReviewWideActive #popup.actionDetailPanel,body.videoReviewWideActive #faultPopup.actionDetailPanel{position:static!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;width:auto!important;padding-top:14px!important;padding-right:0!important;padding-bottom:0!important;padding-left:0!important;display:block;align-items:initial;justify-content:initial}
+body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideActive #faultPopup.actionDetailPanel.hidden{display:none!important}
+@media(max-width:640px){
+ .actionCaptureHeader{align-items:flex-start;gap:8px}
+ .actionOpponentPicker{display:block;text-align:right}
+ .actionOpponentOptions{margin-top:4px}
+ .actionOpponentOptions button{padding:6px 8px;font-size:11px}
+ .actionDetailPanel>.sheet{padding:10px}
+ .actionDetailHeader{grid-template-columns:minmax(0,1fr) 126px}
+ #popup.actionDetailPanel #whoOptions.attackAttributionLayout{grid-template-columns:minmax(96px,.9fr) repeat(2,minmax(0,1fr));gap:5px}
+}
+
 </style>
 </head>
 <body>
@@ -1827,21 +1908,32 @@ button:active{transform:scale(.985)}
 
 
  <section class="panel hidden" id="matchLibrary">
-   <div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:10px">
-    <div><h2 style="font-size:20px">Matchs</h2><div class="small">Bibliothèque des matchs enregistrés : analyser, consulter, reprendre ou supprimer.</div></div>
+   <div class="row" style="justify-content:space-between;align-items:flex-start;gap:10px">
+    <div style="min-width:0;flex:1 1 0">
+     <h2 style="font-size:20px">Matchs</h2>
+     <div class="small">Bibliothèque des matchs enregistrés : analyser, consulter, reprendre ou supprimer.</div>
+    </div>
     <button class="ghost" id="matchLibraryBack">← Accueil</button>
    </div>
-   <div class="matchLibraryPrimaryActions">
-    <button class="primary" id="libraryNewMatch">＋ Nouveau match</button>
-    <button class="ghost" id="libraryGroupAnalysis">📊 Analyse groupée</button>
-   </div>
-   <div class="matchLibraryToolbar">
-    <input id="matchLibrarySearch" placeholder="Rechercher un match…">
-    <select id="matchLibraryGroup"><option value="">Tous les groupes</option></select>
-    <select id="matchLibraryType"><option value="">Tous les types</option></select>
-   </div>
-   <div class="small" id="matchLibraryCount" style="margin-bottom:8px"></div>
-   <div id="matchLibraryList"></div>
+   <details class="matchLibraryDetails" open>
+    <summary>
+     <span>Bibliothèque des matchs</span>
+     <span class="matchLibraryChevron">⌄</span>
+    </summary>
+    <div class="matchLibraryDetailsBody">
+     <div class="matchLibraryPrimaryActions">
+      <button class="primary" id="libraryNewMatch">＋ Nouveau match</button>
+      <button class="ghost" id="libraryGroupAnalysis">📊 Analyse groupée</button>
+     </div>
+     <div class="matchLibraryToolbar">
+      <input id="matchLibrarySearch" placeholder="Rechercher un match…">
+      <select id="matchLibraryGroup"><option value="">Tous les groupes</option></select>
+      <select id="matchLibraryType"><option value="">Tous les types</option></select>
+     </div>
+     <div class="small" id="matchLibraryCount" style="margin-bottom:8px"></div>
+     <div id="matchLibraryList"></div>
+    </div>
+   </details>
  </section>
 
 
@@ -2052,47 +2144,49 @@ button:active{transform:scale(.985)}
   <div id="videoDesktopResizer" class="videoDesktopResizer hidden" role="separator"
        aria-orientation="vertical" aria-label="Redimensionner la zone vidéo" tabindex="0"></div>
 
-  <section class="panel">
-    <div class="row" style="justify-content:flex-end;margin-bottom:8px">
-      <button class="ghost" id="liveBackHome">← Accueil</button>
-    </div>
-    <div class="row">
+  <details class="panel periodSettingsPanel" id="periodSettingsPanel" open>
+   <summary><span>Paramètres de période</span><span class="livePlayersChevron" aria-hidden="true">⌄</span></summary>
+   <div class="periodSettingsBody">
+    <div class="periodSettingsSection">
+     <div class="row">
       <div class="field">
-        <label>Position vidéo</label>
-        <input id="videoPosition" placeholder="ex. 12:43">
-        <div class="small" id="videoPositionHint" style="margin-top:5px">Facultatif en mode direct.</div>
+       <label>Position vidéo</label>
+       <input id="videoPosition" placeholder="ex. 12:43">
+       <div class="small" id="videoPositionHint" style="margin-top:5px">Facultatif en mode direct.</div>
       </div>
       <div class="field">
-        <label>Période</label>
-        <select id="period"><option>P1</option><option>P2</option><option>P3</option><option>P4</option><option>P5</option><option>P6</option><option>P7</option><option>P8</option><option>P9</option><option>P10</option></select>
+       <label>Période</label>
+       <select id="period"><option>P1</option><option>P2</option><option>P3</option><option>P4</option><option>P5</option><option>P6</option><option>P7</option><option>P8</option><option>P9</option><option>P10</option></select>
       </div>
+     </div>
+     <div class="note periodSettingsInlineNote" id="videoPositionNote">En mode direct, tu peux laisser la position vidéo vide et ne la renseigner que pour certaines actions utiles à retrouver.</div>
     </div>
-    <div class="note" style="margin-top:8px" id="videoPositionNote">En mode direct, tu peux laisser la position vidéo vide et ne la renseigner que pour certaines actions utiles à retrouver.</div>
-  </section>
 
-  <details class="panel livePlayersDetails">
-   <summary><span>Joueurs en jeu</span><span class="livePlayersChevron" aria-hidden="true">⌄</span></summary>
-   <div class="livePlayersDetailsBody">
-    <div class="row" style="justify-content:flex-end;margin-bottom:9px"><button class="ghost" id="editPlayers">Modifier</button></div>
-    <div class="players" id="activePlayers"></div>
+    <details class="livePlayersDetails periodSettingsInner">
+     <summary><span>Joueurs en jeu</span><span class="livePlayersChevron" aria-hidden="true">⌄</span></summary>
+     <div class="livePlayersDetailsBody">
+      <div class="row" style="justify-content:flex-end;margin-bottom:9px"><button class="ghost" id="editPlayers">Modifier</button></div>
+      <div class="players" id="activePlayers"></div>
+     </div>
+    </details>
+
+    <section class="periodSettingsSection" id="defenseRolesPanel">
+     <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div>
+       <h2 style="font-size:18px;margin:0">Organisation défensive au centre</h2>
+       <div class="small">Mémorisée pour la période sélectionnée</div>
+      </div>
+     </div>
+     <div class="defenseRoleGrid">
+      <div class="field"><label>R</label><select id="defRoleR"></select></div>
+      <div class="field"><label>A1 · Ailier 1</label><select id="defRoleA1"></select></div>
+      <div class="field"><label>P · Pointe</label><select id="defRoleP"></select></div>
+      <div class="field"><label>A2 · Ailier 2</label><select id="defRoleA2"></select></div>
+     </div>
+     <div class="small defenseRoleHint" id="defenseRoleHint">Prérempli selon les postes habituels du groupe · modifiable à tout moment.</div>
+    </section>
    </div>
   </details>
-
-  <section class="panel" id="defenseRolesPanel">
-   <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
-    <div>
-     <h2 style="font-size:18px;margin:0">Organisation défensive au centre</h2>
-     <div class="small">Mémorisée pour la période sélectionnée</div>
-    </div>
-   </div>
-   <div class="defenseRoleGrid">
-    <div class="field"><label>R</label><select id="defRoleR"></select></div>
-    <div class="field"><label>A1 · Ailier 1</label><select id="defRoleA1"></select></div>
-    <div class="field"><label>P · Pointe</label><select id="defRoleP"></select></div>
-    <div class="field"><label>A2 · Ailier 2</label><select id="defRoleA2"></select></div>
-   </div>
-   <div class="small defenseRoleHint" id="defenseRoleHint">Prérempli selon les postes habituels du groupe · modifiable à tout moment.</div>
-  </section>
 
   <section class="panel hidden" id="playerEditor">
    <h2 style="font-size:18px;margin-bottom:9px">Joueurs en jeu</h2>
@@ -2100,38 +2194,191 @@ button:active{transform:scale(.985)}
    <button class="primary" style="width:100%;margin-top:9px" id="closeEditor">Terminé</button>
   </section>
 
-  <section class="panel">
-   <h2 style="font-size:18px;margin-bottom:9px">Choisir l’action</h2>
-
-   <div class="small" style="margin-bottom:7px">Jeu au centre</div>
-   <div class="tabs" style="grid-template-columns:repeat(2,1fr);margin-bottom:12px">
-    <button class="entryAction" data-family="centre" data-actiontype="Attaque">ATTAQUE AU CENTRE</button>
-    <button class="entryAction" data-family="centre" data-actiontype="Défense">DÉFENSE AU CENTRE</button>
+  <section class="panel actionCapturePanel">
+   <div class="actionCaptureHeader">
+    <h2 style="font-size:18px;margin:0">Choisir l’action</h2>
+    <div class="actionOpponentPicker">
+     <span class="small">Adversaire</span>
+     <div class="actionOpponentOptions" id="actionOpponentOptions"></div>
+    </div>
    </div>
 
-   <div class="small" style="margin-bottom:7px">Remise en jeu · Attaque</div>
-   <div class="quickRestartGrid" style="margin-bottom:10px">
-    <button class="entryAction" data-family="remise" data-actiontype="Attaque" data-restart="centre">ATTAQUE<br>REMISE CENTRE</button>
-    <button class="entryAction" data-family="remise" data-actiontype="Attaque" data-restart="ligne">ATTAQUE<br>REMISE LIGNE</button>
-    <button class="entryAction" data-family="remise" data-actiontype="Attaque" data-restart="coin">ATTAQUE<br>REMISE COIN</button>
-   </div>
-   <div class="small" style="margin-bottom:7px">Remise en jeu · Défense</div>
-   <div class="quickRestartGrid" style="margin-bottom:12px">
-    <button class="entryAction" data-family="remise" data-actiontype="Défense" data-restart="centre">DÉFENSE<br>REMISE CENTRE</button>
-    <button class="entryAction" data-family="remise" data-actiontype="Défense" data-restart="ligne">DÉFENSE<br>REMISE LIGNE</button>
-    <button class="entryAction" data-family="remise" data-actiontype="Défense" data-restart="coin">DÉFENSE<br>REMISE COIN</button>
-   </div>
+   <div class="actionColumns">
+    <div class="actionColumn">
+     <div class="actionColumnTitle">Attaque</div>
 
-   <div class="small" style="margin-bottom:7px">Gel</div>
-   <div class="tabs" style="grid-template-columns:repeat(2,1fr);margin-bottom:12px">
-    <button class="entryAction" data-family="gel" data-actiontype="Attaque">ATTAQUE GEL</button>
-    <button class="entryAction" data-family="gel" data-actiontype="Défense">DÉFENSE GEL</button>
+     <div class="small" style="margin-bottom:7px">Jeu au centre</div>
+     <div class="tabs" style="grid-template-columns:1fr;margin-bottom:12px">
+      <button class="entryAction" data-family="centre" data-actiontype="Attaque">ATTAQUE AU CENTRE</button>
+     </div>
+
+     <div class="small" style="margin-bottom:7px">Remise en jeu</div>
+     <div class="quickRestartGrid" style="margin-bottom:12px">
+      <button class="entryAction" data-family="remise" data-actiontype="Attaque" data-restart="centre">ATTAQUE<br>REMISE CENTRE</button>
+      <button class="entryAction" data-family="remise" data-actiontype="Attaque" data-restart="ligne">ATTAQUE<br>REMISE LIGNE</button>
+      <button class="entryAction" data-family="remise" data-actiontype="Attaque" data-restart="coin">ATTAQUE<br>REMISE COIN</button>
+     </div>
+
+     <div class="small" style="margin-bottom:7px">Gel</div>
+     <div class="tabs" style="grid-template-columns:1fr;margin-bottom:12px">
+      <button class="entryAction" data-family="gel" data-actiontype="Attaque">ATTAQUE GEL</button>
+     </div>
+    </div>
+
+    <div class="actionColumn">
+     <div class="actionColumnTitle">Défense</div>
+
+     <div class="small" style="margin-bottom:7px">Jeu au centre</div>
+     <div class="tabs" style="grid-template-columns:1fr;margin-bottom:12px">
+      <button class="entryAction" data-family="centre" data-actiontype="Défense">DÉFENSE AU CENTRE</button>
+     </div>
+
+     <div class="small" style="margin-bottom:7px">Remise en jeu</div>
+     <div class="quickRestartGrid" style="margin-bottom:12px">
+      <button class="entryAction" data-family="remise" data-actiontype="Défense" data-restart="centre">DÉFENSE<br>REMISE CENTRE</button>
+      <button class="entryAction" data-family="remise" data-actiontype="Défense" data-restart="ligne">DÉFENSE<br>REMISE LIGNE</button>
+      <button class="entryAction" data-family="remise" data-actiontype="Défense" data-restart="coin">DÉFENSE<br>REMISE COIN</button>
+     </div>
+
+     <div class="small" style="margin-bottom:7px">Gel</div>
+     <div class="tabs" style="grid-template-columns:1fr;margin-bottom:12px">
+      <button class="entryAction" data-family="gel" data-actiontype="Défense">DÉFENSE GEL</button>
+     </div>
+    </div>
    </div>
 
    <div id="quickOutcomePanel" class="quickOutcomePanel hidden">
     <div class="quickOutcomeTitle" id="quickOutcomeTitle">Issue</div>
     <div class="quickOutcomeGrid" id="quickOutcomeGrid"></div>
    </div>
+
+<div class="actionDetailPanel hidden" id="popup">
+ <div class="sheet">
+   <div class="sheetTop actionDetailHeader">
+    <div class="actionDetailTitle">
+     <h2 id="popupTitle">Action</h2>
+     <div class="meta" id="popupMeta"></div>
+    </div>
+    <div class="field popupPeriodField actionDetailPeriod">
+     <label>Période</label>
+     <select id="popupPeriod"><option>P1</option><option>P2</option><option>P3</option><option>P4</option><option>P5</option><option>P6</option><option>P7</option><option>P8</option><option>P9</option><option>P10</option></select>
+    </div>
+   </div>
+
+   <div class="step hidden" id="restartLocationStep">
+    <h3>Position de la remise en jeu</h3>
+    <div class="options" id="restartLocationOptions">
+      <button data-restart="centre">CENTRE</button>
+      <button data-restart="ligne">LIGNE</button>
+      <button data-restart="coin">COIN</button>
+    </div>
+   </div>
+
+   <div class="step hidden" id="zoneStep">
+    <h3>Zone — facultatif</h3>
+    <div class="options" id="zoneOptions">
+      <button data-zone="">NON PRÉCISÉE</button>
+      <button data-zone="RE">RE</button>
+      <button data-zone="EE">EE</button>
+    </div>
+   </div>
+   <div class="step hidden" id="moveStep">
+    <h3>Déplacement — facultatif</h3>
+    <div class="options" id="moveOptions">
+      <button data-move="">NON DÉFINI</button>
+      <button data-move="Non">SANS DÉPLACEMENT</button>
+      <button data-move="Oui">AVEC DÉPLACEMENT</button>
+    </div>
+   </div>
+
+   <div class="centerDefenseArena">
+   <div class="step hidden" id="centerDefenseMapStep">
+    <div class="small centerDefenseGestureHint"><span id="centerGestureHintText"></span></div>
+
+    <div class="centerDefenseRoleEditor">
+      <div class="centerDefenseRoleEditorGrid">
+        <div><label>R</label><select id="popupDefRoleR"></select></div>
+        <div><label>A1</label><select id="popupDefRoleA1"></select></div>
+        <div><label>P</label><select id="popupDefRoleP"></select></div>
+        <div><label>A2</label><select id="popupDefRoleA2"></select></div>
+      </div>
+    </div>
+
+    <div class="centerDefenseMapWrap">
+      <svg class="centerDefenseMap" id="centerDefenseMap" viewBox="0 0 800 500" role="img" aria-label="Schéma des zones de défense au centre">
+        <polygon class="sector" data-sector="R" data-zone="R" data-roles="R" points="400,270 400,480 20,480 20,295"></polygon>
+        <polygon class="sector" data-sector="RE-left" data-zone="RE" data-roles="R,A1" points="400,270 20,295 20,20 110,20"></polygon>
+        <polygon class="sector" data-sector="A1" data-zone="A1" data-roles="A1" points="400,270 110,20 280,20"></polygon>
+        <polygon class="sector" data-sector="EE-top" data-zone="EE" data-roles="A1,P" points="400,270 280,20 650,20"></polygon>
+        <polygon class="sector" data-sector="P" data-zone="P" data-roles="P" points="400,270 650,20 780,20 780,50"></polygon>
+        <polygon class="sector" data-sector="EE-right" data-zone="EE" data-roles="P,A2" points="400,270 780,50 780,350"></polygon>
+        <polygon class="sector" data-sector="A2" data-zone="A2" data-roles="A2" points="400,270 780,350 780,455"></polygon>
+        <polygon class="sector" data-sector="RE-bottom" data-zone="RE" data-roles="R,A2" points="400,270 780,455 780,480 400,480"></polygon>
+
+        <circle class="ball" cx="400" cy="270" r="39"></circle>
+        <text class="ballText" x="400" y="277" text-anchor="middle">Ballon</text>
+
+        <text class="roleText" id="centerMapRoleR" x="345" y="335" text-anchor="end">R</text>
+        <text class="roleText" id="centerMapRoleA1" x="305" y="155" text-anchor="middle">A1</text>
+        <text class="roleText" id="centerMapRoleP" x="545" y="165" text-anchor="middle">P</text>
+        <text class="roleText" id="centerMapRoleA2" x="560" y="315" text-anchor="middle">A2</text>
+      </svg>
+    </div>
+   </div>
+
+
+   <div class="step" id="resultStep">
+    <h3>Issue de l’action</h3>
+    <div class="options" id="resultOptions"></div>
+   </div>
+
+
+   <div class="step hidden" id="whoStep">
+    <h3 id="whoTitle">Attribution — facultatif</h3>
+    <div class="options" id="whoOptions"></div>
+   </div>
+   </div>
+   <div class="row popupActionBar actionDetailSaveBar" style="margin-top:14px">
+    <button class="primary" style="flex:1" id="savePopup">Sauvegarder</button>
+   </div>
+ </div>
+</div>
+
+
+<div class="actionDetailPanel hidden" id="faultPopup">
+ <div class="sheet">
+   <div class="sheetTop actionDetailHeader">
+    <div class="actionDetailTitle">
+     <h2>Faute</h2>
+     <div class="meta" id="faultMeta"></div>
+    </div>
+    <div class="field popupPeriodField actionDetailPeriod">
+     <label>Période</label>
+     <select id="faultPeriod"><option>P1</option><option>P2</option><option>P3</option><option>P4</option><option>P5</option><option>P6</option><option>P7</option><option>P8</option><option>P9</option><option>P10</option></select>
+    </div>
+   </div>
+   <div class="step">
+    <h3>Type de faute</h3>
+    <div class="faultgrid" id="faultTypes">
+      <button data-fault="Faute d'appellation">FAUTE D’APPELLATION</button>
+      <button data-fault="Manque un contact">MANQUE UN CONTACT</button>
+      <button data-fault="Pente descendante">PENTE DESCENDANTE</button>
+      <button data-fault="Extérieur">EXTÉRIEUR</button>
+      <button data-fault="Offensive illégale">OFFENSIVE ILLÉGALE</button>
+      <button data-fault="Déplacement illégal du ballon">DÉPLACEMENT ILLÉGAL DU BALLON</button>
+      <button data-fault="Faute de temps">FAUTE DE TEMPS</button>
+    </div>
+   </div>
+   <div class="step">
+    <h3>Attribution — facultatif</h3>
+    <div class="options" id="faultWhoOptions"></div>
+   </div>
+   <div class="row actionDetailSaveBar" style="margin-top:14px">
+    <button class="primary" style="flex:1" id="saveFault">Sauvegarder</button>
+   </div>
+ </div>
+</div>
+
 
   </section>
 
@@ -2333,146 +2580,6 @@ button:active{transform:scale(.985)}
    <div class="row" style="margin-top:14px">
     <button class="ghost" style="flex:1" id="cancelExerciseCreate">Annuler</button>
     <button class="primary" style="flex:2" id="confirmExerciseCreate">Créer l’exercice</button>
-   </div>
- </div>
-</div>
-
-<div class="popupBackdrop hidden" id="popup">
- <div class="sheet">
-   <div class="sheetTop">
-    <div>
-     <h2 id="popupTitle">Action</h2>
-     <div class="meta" id="popupMeta"></div>
-    </div>
-    <button class="closePopup" id="closeMainPopup" aria-label="Fermer">×</button>
-   </div>
-
-   <div class="field popupPeriodField" style="margin-top:8px">
-    <label>Période</label>
-    <select id="popupPeriod"><option>P1</option><option>P2</option><option>P3</option><option>P4</option><option>P5</option><option>P6</option><option>P7</option><option>P8</option><option>P9</option><option>P10</option></select>
-   </div>
-
-   <div class="step" id="opponentStep">
-    <h3 id="opponentTitle">Équipe concernée</h3>
-    <div class="options" id="opponentOptions"></div>
-   </div>
-
-   <div class="step hidden" id="restartLocationStep">
-    <h3>Position de la remise en jeu</h3>
-    <div class="options" id="restartLocationOptions">
-      <button data-restart="centre">CENTRE</button>
-      <button data-restart="ligne">LIGNE</button>
-      <button data-restart="coin">COIN</button>
-    </div>
-   </div>
-
-   <div class="step hidden" id="zoneStep">
-    <h3>Zone — facultatif</h3>
-    <div class="options" id="zoneOptions">
-      <button data-zone="">NON PRÉCISÉE</button>
-      <button data-zone="RE">RE</button>
-      <button data-zone="EE">EE</button>
-    </div>
-   </div>
-   <div class="step hidden" id="moveStep">
-    <h3>Déplacement — facultatif</h3>
-    <div class="options" id="moveOptions">
-      <button data-move="Non">SANS DÉPLACEMENT</button>
-      <button data-move="Oui">AVEC DÉPLACEMENT</button>
-    </div>
-   </div>
-
-   <div class="centerDefenseArena">
-   <div class="step hidden" id="centerDefenseMapStep">
-    <div class="small centerDefenseGestureHint"><span id="centerGestureHintText"></span></div>
-
-    <div class="centerDefenseRoleEditor">
-      <div class="centerDefenseRoleEditorGrid">
-        <div><label>R</label><select id="popupDefRoleR"></select></div>
-        <div><label>A1</label><select id="popupDefRoleA1"></select></div>
-        <div><label>P</label><select id="popupDefRoleP"></select></div>
-        <div><label>A2</label><select id="popupDefRoleA2"></select></div>
-      </div>
-    </div>
-
-    <div class="centerDefenseMapWrap">
-      <svg class="centerDefenseMap" id="centerDefenseMap" viewBox="0 0 800 500" role="img" aria-label="Schéma des zones de défense au centre">
-        <polygon class="sector" data-sector="R" data-zone="R" data-roles="R" points="400,270 400,480 20,480 20,295"></polygon>
-        <polygon class="sector" data-sector="RE-left" data-zone="RE" data-roles="R,A1" points="400,270 20,295 20,20 110,20"></polygon>
-        <polygon class="sector" data-sector="A1" data-zone="A1" data-roles="A1" points="400,270 110,20 280,20"></polygon>
-        <polygon class="sector" data-sector="EE-top" data-zone="EE" data-roles="A1,P" points="400,270 280,20 650,20"></polygon>
-        <polygon class="sector" data-sector="P" data-zone="P" data-roles="P" points="400,270 650,20 780,20 780,50"></polygon>
-        <polygon class="sector" data-sector="EE-right" data-zone="EE" data-roles="P,A2" points="400,270 780,50 780,350"></polygon>
-        <polygon class="sector" data-sector="A2" data-zone="A2" data-roles="A2" points="400,270 780,350 780,455"></polygon>
-        <polygon class="sector" data-sector="RE-bottom" data-zone="RE" data-roles="R,A2" points="400,270 780,455 780,480 400,480"></polygon>
-
-        <circle class="ball" cx="400" cy="270" r="39"></circle>
-        <text class="ballText" x="400" y="277" text-anchor="middle">Ballon</text>
-
-        <text class="roleText" id="centerMapRoleR" x="345" y="335" text-anchor="end">R</text>
-        <text class="roleText" id="centerMapRoleA1" x="305" y="155" text-anchor="middle">A1</text>
-        <text class="roleText" id="centerMapRoleP" x="545" y="165" text-anchor="middle">P</text>
-        <text class="roleText" id="centerMapRoleA2" x="560" y="315" text-anchor="middle">A2</text>
-      </svg>
-    </div>
-   </div>
-
-
-   <div class="step" id="resultStep">
-    <h3>Issue de l’action</h3>
-    <div class="options" id="resultOptions"></div>
-   </div>
-
-
-   <div class="step hidden" id="whoStep">
-    <h3 id="whoTitle">Attribution — facultatif</h3>
-    <div class="options" id="whoOptions"></div>
-   </div>
-   </div>
-   <div class="row popupActionBar" style="margin-top:14px">
-    <button class="ghost" style="flex:1" id="cancelPopup">Annuler</button>
-    <button class="primary" style="flex:2" id="savePopup">Enregistrer</button>
-   </div>
- </div>
-</div>
-
-<div class="popupBackdrop hidden" id="faultPopup">
- <div class="sheet">
-   <div class="sheetTop">
-    <div>
-     <h2>Faute</h2>
-     <div class="meta" id="faultMeta"></div>
-    </div>
-    <button class="closePopup" id="closeFaultPopup" aria-label="Fermer">×</button>
-   </div>
-   <div class="field popupPeriodField" style="margin-top:8px">
-    <label>Période</label>
-    <select id="faultPeriod"><option>P1</option><option>P2</option><option>P3</option><option>P4</option><option>P5</option><option>P6</option><option>P7</option><option>P8</option><option>P9</option><option>P10</option></select>
-   </div>
-
-   <div class="step">
-    <h3 id="faultOpponentTitle">Équipe attaquée</h3>
-    <div class="options" id="faultOpponentOptions"></div>
-   </div>
-   <div class="step">
-    <h3>Type de faute</h3>
-    <div class="faultgrid" id="faultTypes">
-      <button data-fault="Faute d'appellation">FAUTE D’APPELLATION</button>
-      <button data-fault="Manque un contact">MANQUE UN CONTACT</button>
-      <button data-fault="Pente descendante">PENTE DESCENDANTE</button>
-      <button data-fault="Extérieur">EXTÉRIEUR</button>
-      <button data-fault="Offensive illégale">OFFENSIVE ILLÉGALE</button>
-      <button data-fault="Déplacement illégal du ballon">DÉPLACEMENT ILLÉGAL DU BALLON</button>
-      <button data-fault="Faute de temps">FAUTE DE TEMPS</button>
-    </div>
-   </div>
-   <div class="step">
-    <h3>Attribution — facultatif</h3>
-    <div class="options" id="faultWhoOptions"></div>
-   </div>
-   <div class="row" style="margin-top:14px">
-    <button class="ghost" style="flex:1" id="cancelFault">Annuler</button>
-    <button class="primary" style="flex:2" id="saveFault">Enregistrer</button>
    </div>
  </div>
 </div>
@@ -3506,10 +3613,12 @@ function syncCenterDefenseSectorFromEvent(){
 }
 function configureWhoUI(){
   if(isCenterDefense()){
+    $('#whoOptions').classList.remove('attackAttributionLayout');
     $('#whoTitle').textContent='Responsabilité — modifiable';
     renderCenterDefenseResponsibility();
   }else{
     buildWho('#whoOptions');
+    $('#whoOptions').classList.toggle('attackAttributionLayout',actionType==='Attaque');
     const requiresAttackPlayer=attackOutcomeRequiresPlayer();
     $('#whoTitle').textContent=actionType==='Attaque'?'Frappeur — facultatif':(isCenterAttack()?'Attaquant':(actionType==='Défense'?'Attribution — plusieurs joueurs possibles':'Attribution — facultatif'));
     const collectiveBtn=$('#whoOptions button[data-who=""]');
@@ -4097,21 +4206,24 @@ function handleOutcome(value,button){
   updatePopupSaveVisibility();
 }
 function resetPopupScroll(popupId){const sheet=$(popupId+' .sheet');if(sheet) sheet.scrollTop=0}
-function buildOpponentOptions(){
-  const box=$('#opponentOptions');box.innerHTML='';
+function buildActionOpponentOptions(){
+  const box=$('#actionOpponentOptions');
+  if(!box)return;
+  if(opponentTeam&&!state.opponentTeams.includes(opponentTeam))opponentTeam='';
+  box.innerHTML='';
   state.opponentTeams.forEach(name=>{
     const b=document.createElement('button');
-    b.dataset.opponent=name;b.textContent=name;
+    b.type='button';b.dataset.opponent=name;b.textContent=name;
     b.classList.toggle('choice',opponentTeam===name);
     b.onclick=()=>{
       opponentTeam=name;
-      $$('#opponentOptions button').forEach(x=>x.classList.toggle('choice',x.dataset.opponent===name));
+      $$('#actionOpponentOptions button').forEach(x=>x.classList.toggle('choice',x.dataset.opponent===name));
       updatePopupSaveVisibility();
     };
     box.append(b);
   });
-  $('#opponentTitle').textContent=actionType==='Attaque'?'Équipe attaquée':'Équipe attaquante';
 }
+function buildOpponentOptions(){buildActionOpponentOptions()}
 function attackOutcomeRequiresPlayer(){
   return false;
 }
@@ -4128,34 +4240,65 @@ function updatePopupSaveVisibility(){
   if(!btn)return;
   btn.disabled=false;
   const missing=missingActionFields();
-  btn.title=missing.length?`À compléter : ${missing.join(', ')}`:'Enregistrer l’action';
+  btn.title=missing.length?`À compléter : ${missing.join(', ')}`:'Sauvegarder l’action';
 }
 
 function clearQuickOutcomeSelection(){
   quickSelectedAction=null;
   $$('.entryAction').forEach(x=>x.classList.remove('selected'));
+  $$('.actionOutcomeDropdown').forEach(x=>x.remove());
   $('#quickOutcomePanel')?.classList.add('hidden');
   const grid=$('#quickOutcomeGrid');
   if(grid){grid.innerHTML='';grid.className='quickOutcomeGrid'}
+}
+
+function positionActionOutcomeDropdown(button,menu){
+  if(!button||!menu)return;
+  const r=button.getBoundingClientRect();
+  const margin=6;
+  const width=Math.max(150,Math.min(r.width,window.innerWidth-margin*2));
+  let left=Math.max(margin,Math.min(r.left,window.innerWidth-width-margin));
+  let top=r.bottom+4;
+  menu.style.width=width+'px';
+  menu.style.left=left+'px';
+  menu.style.top=top+'px';
+  const mr=menu.getBoundingClientRect();
+  if(mr.bottom>window.innerHeight-margin && r.top>mr.height+margin){
+    top=Math.max(margin,r.top-mr.height-4);
+    menu.style.top=top+'px';
+  }
 }
 
 function showQuickOutcomes(button){
   const selectedFamily=button.dataset.family;
   const selectedActionType=button.dataset.actiontype;
   const presetRestart=button.dataset.restart||'';
+  const detailOpen=!$('#popup')?.classList.contains('hidden')||!$('#faultPopup')?.classList.contains('hidden');
+  const sameAction=button.classList.contains('selected')&&quickSelectedAction
+    && quickSelectedAction.family===selectedFamily
+    && quickSelectedAction.actionType===selectedActionType
+    && (quickSelectedAction.restart||'')===presetRestart;
+  const alreadyOpen=sameAction&&document.querySelector('.actionOutcomeDropdown');
+
+  // Un second clic sur l'action active joue le rôle de l'ancien bouton Annuler :
+  // on ferme la saisie en cours et on repart de zéro.
+  if(sameAction&&detailOpen){
+    editingId=null;
+    pending=null;actionResult='';zone='';movement='';who='';whoMany=[];
+    $('#popup')?.classList.add('hidden');
+    $('#faultPopup')?.classList.add('hidden');
+    $('#popup')?.classList.remove('quickOutcomePreset','quickCenterSimple','centerDefenseCompact','centerAttackMode','fieldMode');
+    clearQuickOutcomeSelection();
+    return;
+  }
+
+  clearQuickOutcomeSelection();
+  if(alreadyOpen)return;
 
   quickSelectedAction={family:selectedFamily,actionType:selectedActionType,restart:presetRestart};
-  $$('.entryAction').forEach(x=>x.classList.toggle('selected',x===button));
-
-  const panel=$('#quickOutcomePanel');
-  const title=$('#quickOutcomeTitle');
-  const grid=$('#quickOutcomeGrid');
-  if(!panel||!title||!grid)return;
+  button.classList.add('selected');
 
   const attack=selectedActionType==='Attaque';
-  title.textContent=attack?'Issue de l’attaque':'Issue de la défense';
-  grid.className='quickOutcomeGrid '+(attack?'attack':'defense');
-
   const outcomes=attack
     ? [
         {label:'POINT MARQUÉ',value:'Point marqué',cls:'point'},
@@ -4169,18 +4312,29 @@ function showQuickOutcomes(button){
         {label:'FAUTE OFFENSIVE ADVERSE',value:'Faute de l’adversaire',cls:'fault'}
       ];
 
-  grid.innerHTML='';
+  const menu=document.createElement('div');
+  menu.className='actionOutcomeDropdown '+(attack?'attack':'defense');
+  menu.setAttribute('role','menu');
+  menu.setAttribute('aria-label',attack?'Issue de l’attaque':'Issue de la défense');
+
   outcomes.forEach(o=>{
     const b=document.createElement('button');
     b.type='button';
     b.className='quickOutcomeBtn '+o.cls;
     b.textContent=o.label;
-    b.onclick=()=>launchQuickOutcome(o.value);
-    grid.appendChild(b);
+    b.setAttribute('role','menuitem');
+    b.onclick=(ev)=>{
+      ev.stopPropagation();
+      menu.remove();
+      // Le bouton d'action reste visuellement actif pendant toute la saisie.
+      button.classList.add('selected');
+      launchQuickOutcome(o.value);
+    };
+    menu.appendChild(b);
   });
 
-  panel.classList.remove('hidden');
-  panel.scrollIntoView({block:'nearest',behavior:'smooth'});
+  document.body.appendChild(menu);
+  positionActionOutcomeDropdown(button,menu);
 }
 
 
@@ -4228,6 +4382,8 @@ function configureQuickAttributionUI(){
   if(!box)return;
 
   buildWho('#whoOptions');
+
+  box.classList.toggle('attackAttributionLayout',actionType==='Attaque');
 
   if(actionType==='Attaque'){
     $('#whoTitle').textContent='Frappeur — facultatif';
@@ -4298,7 +4454,7 @@ function launchQuickOutcome(outcome){
 
     // Start with the same neutral defaults as the restart workflow.
     if(!zone)zone='';
-    if(!movement)movement='Non';
+    if(movement==null)movement='';
     $$('#zoneOptions button').forEach(b=>b.classList.toggle('choice',(b.dataset.zone||'')===zone));
     $$('#moveOptions button').forEach(b=>b.classList.toggle('choice',(b.dataset.move||'')===movement));
 
@@ -4326,7 +4482,7 @@ function openActionPopup(selectedFamily,selectedActionType,presetRestart=''){
   $('#popup').classList.toggle('centerAttackMode',family==='centre'&&actionType==='Attaque');
   $('#popup').classList.toggle('fieldMode',family==='centre');
   context=family==='centre'?'centre':(family==='gel'?'gel':('remise_'+(restartLocation||'centre')));
-  pending=null;actionResult='';zone='';movement='Non';who='';whoMany=[];opponentTeam='';editingId=null;
+  pending=null;actionResult='';zone='';movement='';who='';whoMany=[];editingId=null;
   if($('#popupPeriod'))$('#popupPeriod').value=$('#period').value||'P1';
   const restartLabel=restartLocation?({'centre':'centre','ligne':'ligne','coin':'coin'}[restartLocation]||restartLocation):'';
   $('#popupTitle').textContent=actionType+(family==='centre'?' au centre':family==='gel'?' Gel':(' remise'+(restartLabel?' · '+restartLabel:'')));
@@ -4338,7 +4494,7 @@ function openActionPopup(selectedFamily,selectedActionType,presetRestart=''){
   $$('#zoneOptions button').forEach(b=>b.classList.remove('choice'));
   $('#zoneOptions button[data-zone=""]').classList.add('choice');
   $$('#moveOptions button').forEach(b=>b.classList.remove('choice'));
-  $('#moveOptions button[data-move="Non"]').classList.add('choice');
+  $('#moveOptions button[data-move=""]').classList.add('choice');
   buildOpponentOptions();
   $('#restartLocationStep').classList.toggle('hidden',family!=='remise'||!!presetRestart);
   buildOutcomeButtons();
@@ -4349,11 +4505,30 @@ function openActionPopup(selectedFamily,selectedActionType,presetRestart=''){
   configureWhoUI();
   syncVideoPopupBounds();
   syncVideoPopupBounds();
-  $('#popup').classList.remove('hidden');resetPopupScroll('#popup');
+  $('#faultPopup')?.classList.add('hidden');$('#popup').classList.remove('hidden');resetPopupScroll('#popup');
 }
-$$('.entryAction').forEach(b=>b.onclick=()=>{
+$$('.entryAction').forEach(b=>b.onclick=(ev)=>{
+  ev.stopPropagation();
   showQuickOutcomes(b);
 });
+document.addEventListener('click',ev=>{
+  // Une fois l'issue choisie, conserver l'action active pendant les réglages
+  // du bloc de saisie (ou du détail de faute). Elle sera réinitialisée au
+  // second clic sur le même bouton ou après sauvegarde.
+  const detailOpen=!$('#popup')?.classList.contains('hidden')||!$('#faultPopup')?.classList.contains('hidden');
+  if(detailOpen)return;
+  if(!ev.target.closest('.entryAction')&&!ev.target.closest('.actionOutcomeDropdown'))clearQuickOutcomeSelection();
+});
+window.addEventListener('resize',()=>{
+  const selected=document.querySelector('.entryAction.selected');
+  const menu=document.querySelector('.actionOutcomeDropdown');
+  if(selected&&menu)positionActionOutcomeDropdown(selected,menu);
+});
+window.addEventListener('scroll',()=>{
+  const selected=document.querySelector('.entryAction.selected');
+  const menu=document.querySelector('.actionOutcomeDropdown');
+  if(selected&&menu)positionActionOutcomeDropdown(selected,menu);
+},{passive:true});
 $$('#restartLocationOptions button').forEach(b=>b.onclick=()=>{
   restartLocation=b.dataset.restart;context='remise_'+restartLocation;
   $$('#restartLocationOptions button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice');
@@ -4378,14 +4553,14 @@ function openFaultPopup(){
   if($('#faultPeriod'))$('#faultPeriod').value=$('#period').value||'P1';
   const vp=currentVideoPosition();
   $('#faultMeta').textContent='Faute d’attaque · '+labelContext(context)+(vp?' · vidéo '+vp:'')+' · '+$('#period').value;
-  buildFaultOpponentOptions();
+  buildActionOpponentOptions();
   $$('#faultTypes button').forEach(b=>b.classList.remove('choice'));
   buildWho('#faultWhoOptions');
   $$('#faultWhoOptions button').forEach(b=>b.classList.remove('choice'));
   $('#faultWhoOptions button[data-who=""]').classList.add('choice');
   $$('#faultWhoOptions button').forEach(b=>b.onclick=()=>{faultWho=b.dataset.who;$$('#faultWhoOptions button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice')});
   syncVideoPopupBounds();
-  $('#faultPopup').classList.remove('hidden');resetPopupScroll('#faultPopup');
+  $('#popup')?.classList.add('hidden');$('#faultPopup').classList.remove('hidden');resetPopupScroll('#faultPopup');
 }
 $$('#zoneOptions button').forEach(b=>b.onclick=()=>{
   zone=b.dataset.zone;
@@ -4513,7 +4688,7 @@ $('#savePopup').onclick=async()=>{
     }else{
       state.events.push({id:eventId,...base});
     }
-    editingId=null;$('#popup').classList.add('hidden');$('#popup').classList.remove('quickOutcomePreset','quickCenterSimple');clearQuickOutcomeSelection();render();setCloud('Synchronisé',true);
+    editingId=null;$('#popup').classList.add('hidden');$('#faultPopup')?.classList.add('hidden');$('#popup').classList.remove('quickOutcomePreset','quickCenterSimple');clearQuickOutcomeSelection();render();setCloud('Synchronisé',true);
   }catch(e){handleError('save event',e)}
 };
 if($('#popupPeriod'))$('#popupPeriod').onchange=()=>{
@@ -4549,7 +4724,7 @@ $('#saveFault').onclick=async()=>{
     }else{
       state.events.push({id:eventId,...base});
     }
-    editingId=null;$('#faultPopup').classList.add('hidden');clearQuickOutcomeSelection();render();setCloud('Synchronisé',true);
+    editingId=null;$('#faultPopup').classList.add('hidden');$('#popup')?.classList.add('hidden');clearQuickOutcomeSelection();render();setCloud('Synchronisé',true);
   }catch(e){handleError('save fault',e)}
 };
 
@@ -4559,12 +4734,6 @@ const closePopup=id=>{
   $('#popup')?.classList.remove('quickOutcomePreset','quickCenterSimple');
   clearQuickOutcomeSelection();
 };
-$('#cancelPopup').onclick=()=>closePopup('#popup');
-$('#cancelFault').onclick=()=>closePopup('#faultPopup');
-$('#closeMainPopup').onclick=()=>closePopup('#popup');
-$('#closeFaultPopup').onclick=()=>closePopup('#faultPopup');
-$('#popup').onclick=e=>{if(e.target===$('#popup'))closePopup('#popup')};
-$('#faultPopup').onclick=e=>{if(e.target===$('#faultPopup'))closePopup('#faultPopup')};
 
 $('#newMatchTop').onclick=()=>{
   if(state.events.length && !confirm('Commencer un nouveau match ? Le match actuel restera enregistré dans la base.')) return;
@@ -4631,7 +4800,7 @@ function editEvent(id){
       b.onclick=()=>{faultType=b.dataset.fault;$$('#faultTypes button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice')};
     }
     $('#faultMeta').textContent=(actionType==='Défense'?'Défensive illégale':'Faute d’attaque')+' · '+labelContext(context)+(e.videoPosition?' · vidéo '+e.videoPosition:'')+' · '+(e.period||'P1');
-    buildFaultOpponentOptions();
+    buildActionOpponentOptions();
     $$('#faultTypes button').forEach(b=>b.classList.toggle('choice',b.dataset.fault===faultType));
     buildWho('#faultWhoOptions');
     $$('#faultWhoOptions button').forEach(b=>{
@@ -4639,7 +4808,7 @@ function editEvent(id){
       b.onclick=()=>{faultWho=b.dataset.who;$$('#faultWhoOptions button').forEach(x=>x.classList.remove('choice'));b.classList.add('choice')}
     });
     syncVideoPopupBounds();
-    $('#faultPopup').classList.remove('hidden');resetPopupScroll('#faultPopup');return
+    $('#popup')?.classList.add('hidden');$('#faultPopup').classList.remove('hidden');resetPopupScroll('#faultPopup');return
   }
   pending=e.action;actionType=e.action.startsWith('Attaque')?'Attaque':'Défense';
   $('#popup').classList.toggle('centerDefenseCompact',family==='centre'&&actionType==='Défense');
@@ -4649,7 +4818,7 @@ function editEvent(id){
   else if(e.action.includes('Défensive illégale'))actionResult='Défensive illégale';
   else if(e.action.includes('Faute de l’adversaire'))actionResult='Faute de l’adversaire';
   else actionResult='';
-  zone=family==='gel'?'':(({E1:'A1',E2:'P',E3:'A2'}[e.zone])||e.zone||'');movement=e.movement||'Non';who=e.player||'';whoMany=actionType==='Défense'?[...(e.attributedPlayers||((e.player)?[e.player]:[]))]:[];opponentTeam=e.opponentTeam||'';
+  zone=family==='gel'?'':(({E1:'A1',E2:'P',E3:'A2'}[e.zone])||e.zone||'');movement=e.movement||'';who=e.player||'';whoMany=actionType==='Défense'?[...(e.attributedPlayers||((e.player)?[e.player]:[]))]:[];opponentTeam=e.opponentTeam||'';
   $('#popupTitle').textContent='Modifier · '+actionType;
   $('#popupMeta').textContent=labelContext(context)+(e.videoPosition?' · vidéo '+e.videoPosition:'')+' · '+(e.period||'P1');
   buildOpponentOptions();
@@ -4673,7 +4842,7 @@ function editEvent(id){
   $$('#moveOptions button').forEach(b=>b.classList.toggle('choice',(b.dataset.move||'')===movement));
   configureWhoUI();
   if(isCenterDefense())syncCenterDefenseSectorFromEvent();
-  $('#popup').classList.remove('hidden');resetPopupScroll('#popup');
+  $('#faultPopup')?.classList.add('hidden');$('#popup').classList.remove('hidden');resetPopupScroll('#popup');
 }
 
 function eventAttributionLabel(e){
@@ -5499,7 +5668,9 @@ function renderMatchLibrary(){
     list.append(card);
   });
 }
-async function openMatchLibrary(){
+async function openMatchLibrary(options={}){
+  const details=$('.matchLibraryDetails');
+  if(details)details.setAttribute('open','');
   hideMainModules();setMatchHeaderMode(false);
   $('#matchLibrary').classList.remove('hidden');
   $('#matchLibraryList').innerHTML='<div class="small">Chargement…</div>';
@@ -8028,7 +8199,7 @@ $('#openGroupsModule').onclick=()=>openGroupsModule();
 $('#openAdminModule').onclick=()=>openAdminModule().catch(e=>handleError('admin module',e));
 $('#adminBackHome').onclick=showAppHome;
 $('#matchBackHome').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
-$('#liveBackHome').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
+if($('#liveBackHome'))$('#liveBackHome').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
 $('#matchLibraryBack').onclick=showAppHome;
 $('#libraryNewMatch').onclick=()=>openMatchModule().catch(e=>handleError('new match',e));
 $('#libraryGroupAnalysis').onclick=()=>openGroupAnalysisSelector().catch(e=>handleError('analyse groupée',e));
@@ -8038,8 +8209,8 @@ $('#groupAnalysisType').onchange=autoSelectGroupAnalysisType;
 $('#groupAnalysisSelectVisible').onclick=()=>{groupAnalysisVisibleMatches().forEach(m=>groupAnalysisState.selected.add(m.id));renderGroupAnalysisMatches()};
 $('#groupAnalysisClear').onclick=()=>{groupAnalysisState.selected.clear();renderGroupAnalysisMatches()};
 $('#groupAnalysisRun').onclick=()=>runGroupedAnalysis().catch(e=>handleError('analyse groupée',e));
-$('#matchReadBack').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
-$('#matchAnalysisBack').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
+$('#matchReadBack').onclick=()=>openMatchLibrary({collapsible:true}).catch(e=>handleError('match library',e));
+$('#matchAnalysisBack').onclick=()=>openMatchLibrary({collapsible:true}).catch(e=>handleError('match library',e));
 $$('.matchAnalysisTabs button').forEach(b=>b.onclick=()=>setAnalysisTab(b.dataset.analysisTab));
 { const analysisPopulation=$('#analysisPopulation'); if(analysisPopulation) analysisPopulation.onchange=async()=>{
   analysisState.population=analysisPopulation.value;
@@ -8233,6 +8404,7 @@ $$('.statsLeaderboardMode').forEach(b=>b.onclick=()=>{
 });
 
 function render(){
+  buildActionOpponentOptions();
   $('#count').textContent=state.events.length+' action'+(state.events.length>1?'s':'');
   const last=state.events.at(-1);
   $('#last').textContent=last
