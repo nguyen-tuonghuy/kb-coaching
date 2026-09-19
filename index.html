@@ -1316,6 +1316,28 @@ button:active{transform:scale(.985)}
 .analysisPeriodBar.defense{background:#7ddc9f}
 .analysisPeriodBar.attackFault{background:var(--warn)}
 .analysisPeriodLabel{font-size:11px;color:var(--muted);margin-top:6px}
+.statsImpactEvolutionBlock{margin-top:14px;border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--panel2)}
+.statsImpactEvolutionControls{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:10px}
+.statsImpactEvolutionControls .field{min-width:220px;flex:1 1 220px}
+.statsImpactEvolutionOrderBtn{min-width:30px;min-height:30px;padding:4px 7px;font-size:13px}
+.statsImpactEvolutionOrderCell{display:flex;gap:4px;justify-content:flex-start}
+.statsImpactEvolutionOrderHint{margin:0 0 8px}
+.statsImpactEvolutionToggle{margin-top:10px}
+.statsImpactEvolutionToggle summary{cursor:pointer;font-weight:800;list-style:none}
+.statsImpactEvolutionToggle summary::-webkit-details-marker{display:none}
+.statsImpactEvolutionToggle summary::before{content:"▸";display:inline-block;margin-right:7px;transition:transform .15s}
+.statsImpactEvolutionToggle[open] summary::before{transform:rotate(90deg)}
+.statsImpactEvolutionSvgWrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:10px 0 2px}
+.statsImpactEvolutionSvg{display:block}
+.statsImpactGridLine{stroke:rgba(255,255,255,.09);stroke-width:1}
+.statsImpactAxis{stroke:rgba(255,255,255,.16);stroke-width:1}
+.statsImpactTick{font-size:10px;fill:var(--muted)}
+.statsImpactLineSimple{fill:none;stroke:var(--accent);stroke-width:2.5}
+.statsImpactPointSimple{fill:var(--accent)}
+.statsImpactPointLimited{fill:var(--warn)}
+.statsImpactPointInsufficient{fill:rgba(255,255,255,.35)}
+.statsImpactMatchLabel{font-size:10px;fill:var(--muted)}
+.statsImpactValueLabel{font-size:10px;fill:#fff;font-weight:700}
 .analysisOpponentPeriodCharts{display:grid;grid-template-columns:1fr;gap:10px;margin-top:12px}
 .analysisOpponentPeriodCard{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px}
 .analysisOpponentPeriodTitle{font-size:13px;font-weight:800;margin-bottom:6px}
@@ -5260,7 +5282,7 @@ $('#matchTypeCreateForm').onsubmit=event=>{
 let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{}};
 let groupState={groups:[],currentGroupId:null,currentPlayers:[],matchPlayers:[],profiles:{}};
 let adminState={isAdmin:false,groups:[]};
-let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',statsMatchView:'summary',reference:null,impactReference:null};
+let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',impactPlayerName:'',impactMatchManualOrder:[],statsMatchView:'summary',reference:null,impactReference:null};
 
 
 
@@ -8270,6 +8292,163 @@ function renderStatsImpactMatchSelector(){
   });
 }
 
+function statsMatchSort(a,b){
+  return (a.played_on||'').localeCompare(b.played_on||'')||(a.label||'').localeCompare(b.label||'','fr');
+}
+function statsImpactOrderStorageKey(){
+  return `kinball_stats_impact_match_order_${$('#statsGroup')?.value||'all'}`;
+}
+function loadStatsImpactManualOrder(){
+  try{
+    const raw=localStorage.getItem(statsImpactOrderStorageKey());
+    const parsed=raw?JSON.parse(raw):[];
+    statsState.impactMatchManualOrder=Array.isArray(parsed)?parsed.filter(Boolean):[];
+  }catch{
+    statsState.impactMatchManualOrder=[];
+  }
+}
+function saveStatsImpactManualOrder(){
+  try{localStorage.setItem(statsImpactOrderStorageKey(),JSON.stringify(statsState.impactMatchManualOrder||[]))}catch{}
+}
+function statsImpactOrderedMatches(matches){
+  const source=[...(matches||[])];
+  const defaultSorted=[...source].sort(statsMatchSort);
+  const ids=new Set(source.map(m=>m.id));
+  const manual=(statsState.impactMatchManualOrder||[]).filter(id=>ids.has(id));
+  const seen=new Set(manual);
+  defaultSorted.forEach(m=>{if(!seen.has(m.id)){manual.push(m.id);seen.add(m.id)}});
+  const map=Object.fromEntries(source.map(m=>[m.id,m]));
+  return manual.map(id=>map[id]).filter(Boolean);
+}
+function moveStatsImpactMatch(matchId,delta){
+  const ds=statsState.impactDataset;
+  if(!ds)return;
+  const ordered=statsImpactOrderedMatches(ds.matches||[]);
+  const ids=ordered.map(m=>m.id);
+  const index=ids.indexOf(matchId);
+  const target=index+delta;
+  if(index<0||target<0||target>=ids.length)return;
+  [ids[index],ids[target]]=[ids[target],ids[index]];
+  const other=(statsState.impactMatchManualOrder||[]).filter(id=>!ids.includes(id));
+  statsState.impactMatchManualOrder=[...ids,...other];
+  saveStatsImpactManualOrder();
+  renderStatsImpactSelection().catch(e=>handleError('stats impact reorder',e));
+}
+function statsImpactPlayersWithAttempts(ds,scope='all'){
+  return (ds.players||[]).filter(name=>playerOffensiveImpact(ds.events||[],name,scope).total>0)
+    .sort((a,b)=>a.localeCompare(b,'fr'));
+}
+function statsImpactPlayerSeries(ds,playerName,scope='all'){
+  const matches=statsImpactOrderedMatches(ds.matches||[]);
+  return matches.map(match=>{
+    const perf=playerOffensiveImpact((ds.events||[]).filter(e=>e.match_id===match.id),playerName,scope);
+    return {
+      match,
+      ...perf,
+      label:formatDateShort(match.played_on)||'Date ?',
+      shortLabel:(formatDateShort(match.played_on)||'Date ?').replace(/\//g,'/'),
+      title:[formatDateShort(match.played_on)||'Date ?',match.label||'Match'].filter(Boolean).join(' · ')
+    };
+  });
+}
+function statsImpactEvolutionChartHtml(series){
+  const items=(series||[]).filter(x=>x.total>0&&Number.isFinite(x.impact100));
+  if(!items.length)return '<div class="statsEmpty">Pas assez de données pour tracer une évolution.</div>';
+  const maxAbsRaw=Math.max(...items.map(x=>Math.abs(x.impact100)),5);
+  const maxAbs=Math.max(5,Math.ceil(maxAbsRaw/5)*5);
+  const width=Math.max(560,items.length*92);
+  const height=230,left=46,right=14,top=24,bottom=54;
+  const plotWidth=width-left-right,plotHeight=height-top-bottom;
+  const valueToY=v=>top+plotHeight/2-(v/maxAbs)*(plotHeight/2);
+  const step=plotWidth/Math.max(items.length-1,1);
+  const ticks=[maxAbs,maxAbs/2,0,-maxAbs/2,-maxAbs].map(v=>{
+    const y=valueToY(v);
+    return `<g><line x1="${left}" x2="${width-right}" y1="${y}" y2="${y}" class="statsImpactGridLine"></line><text x="${left-8}" y="${y+3}" text-anchor="end" class="statsImpactTick">${String(Math.round(v*10)/10).replace('.',',')}</text></g>`;
+  }).join('');
+  const points=items.map((x,i)=>{
+    const cx=items.length===1?left+plotWidth/2:left+step*i;
+    const cy=valueToY(x.impact100);
+    const q=offensiveSampleLabel(x.total).level;
+    const cls=q==='too_small'?'statsImpactPointInsufficient':q==='limited'?'statsImpactPointLimited':'statsImpactPointSimple';
+    const label=(formatDateShort(x.match.played_on)||'Date ?').slice(0,10);
+    return {x,cx,cy,cls,label};
+  });
+  const poly=points.length>1?`<polyline points="${points.map(p=>`${p.cx},${p.cy}`).join(' ')}" class="statsImpactLineSimple"></polyline>`:'';
+  const marks=points.map(p=>`<g>
+    <title>${escapeHtml(p.x.title)} · N=${p.x.total} · performance /100 ${signed1(p.x.impact100)}</title>
+    <circle cx="${p.cx}" cy="${p.cy}" r="5" class="${p.cls}"></circle>
+    <text x="${p.cx}" y="${p.cy-10}" text-anchor="middle" class="statsImpactValueLabel">${signed1(p.x.impact100)}</text>
+    <text x="${p.cx}" y="${height-22}" text-anchor="middle" class="statsImpactMatchLabel">${escapeHtml(p.label)}</text>
+    <text x="${p.cx}" y="${height-9}" text-anchor="middle" class="statsImpactMatchLabel">N=${p.x.total}</text>
+  </g>`).join('');
+  return `<div class="analysisSubtle">Un point = un match. Orange = échantillon limité (5–15 attaques), gris = insuffisant (&lt;5).</div>
+    <div class="statsImpactEvolutionSvgWrap">
+      <svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" class="statsImpactEvolutionSvg" role="img" aria-label="Performance offensive par match">
+        ${ticks}
+        <line x1="${left}" x2="${width-right}" y1="${valueToY(0)}" y2="${valueToY(0)}" class="statsImpactAxis"></line>
+        ${poly}${marks}
+      </svg>
+    </div>`;
+}
+
+function statsImpactEvolutionTableHtml(series){
+  const items=series||[];
+  const rows=items.map((x,i)=>{
+    const reliability=x.total?offensiveSampleLabel(x.total):{html:'<span class="small">Aucune attaque</span>'};
+    return `<tr>
+      <td>
+        <div class="statsImpactEvolutionOrderCell">
+          <button type="button" class="ghost statsImpactEvolutionOrderBtn" data-impact-move="${x.match.id}" data-impact-delta="-1" ${i===0?'disabled':''} title="Monter ce match">↑</button>
+          <button type="button" class="ghost statsImpactEvolutionOrderBtn" data-impact-move="${x.match.id}" data-impact-delta="1" ${i===items.length-1?'disabled':''} title="Descendre ce match">↓</button>
+        </div>
+      </td>
+      <td>${i+1}</td>
+      <td>${escapeHtml(formatDateShort(x.match.played_on)||'—')}</td>
+      <td>${escapeHtml(x.match.label||'Match')}</td>
+      <td>${x.total}</td>
+      <td>${x.total?x.points:'—'}</td>
+      <td>${x.total?x.faults:'—'}</td>
+      <td class="${impactClass(x.impact||0)}">${x.total?signed1(x.impact):'—'}</td>
+      <td class="${impactClass(x.impact100||0)}">${x.total?signed1(x.impact100):'—'}</td>
+      <td>${x.total?reliability.html:'—'}</td>
+    </tr>`;
+  }).join('');
+  return `<div class="analysisSubtle statsImpactEvolutionOrderHint">L’ordre suit la date par défaut. Utilise ↑ / ↓ pour corriger l’ordre réel des matchs joués le même jour. Cet ordre est mémorisé pour ce groupe.</div>
+  <div class="analysisTableWrap">
+    <table class="analysisTable">
+      <thead><tr><th>Ordre</th><th>#</th><th>Date</th><th>Match</th><th>N</th><th>Points</th><th>Fautes</th><th>Performance</th><th>Performance /100</th><th>Fiabilité</th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="10">Aucun match.</td></tr>'}</tbody>
+    </table>
+  </div>`;
+}
+
+function statsImpactEvolutionBlockHtml(ds,scope='all'){
+  const players=statsImpactPlayersWithAttempts(ds,scope);
+  if(!players.length)return '';
+  let playerName=statsState.impactPlayerName||'';
+  if(!players.includes(playerName))playerName=players[0];
+  statsState.impactPlayerName=playerName;
+  const overall=playerOffensiveImpact(ds.events||[],playerName,scope);
+  const series=statsImpactPlayerSeries(ds,playerName,scope);
+  return `<div class="statsImpactEvolutionBlock">
+    <div class="analysisSubsectionTitle" style="margin-top:0">Évolution par match</div>
+    <div class="statsImpactEvolutionControls">
+      <div class="field">
+        <label>Joueur</label>
+        <select id="statsImpactPlayerSelect">${players.map(name=>`<option value="${escapeHtml(name)}" ${name===playerName?'selected':''}>${escapeHtml(name)}</option>`).join('')}</select>
+      </div>
+      <div class="analysisSubtle" style="flex:2 1 340px">
+        Lecture chronologique des matchs sélectionnés. La performance /100 reste comparable malgré des volumes d’attaques différents, mais la fiabilité dépend fortement de N.
+      </div>
+    </div>
+    ${statsImpactEvolutionTableHtml(series)}
+    <details class="statsImpactEvolutionToggle">
+      <summary>Afficher le graphique</summary>
+      ${statsImpactEvolutionChartHtml(series)}
+    </details>
+  </div>`;
+}
+
 async function renderStatsImpactSelection(){
   const groupId=$('#statsGroup').value;
   const box=$('#statsImpactContent');
@@ -8286,6 +8465,8 @@ async function renderStatsImpactSelection(){
   box.innerHTML='<div class="statsEmpty">Calcul de la performance offensive…</div>';
   const ds=await loadMatchAnalysisDataset(selected);
   if(!ds.matchIds.length){box.innerHTML='<div class="statsEmpty">Aucun match exploitable.</div>';return}
+  statsState.impactDataset=ds;
+  loadStatsImpactManualOrder();
 
   const pop=$('#statsImpactPopulation').value||'H';
   const ref=await loadOffensiveReference(pop);
@@ -8296,7 +8477,6 @@ async function renderStatsImpactSelection(){
   const names=(ds.players||[]).filter(Boolean);
   const scope=statsState.impactScope||'all';
   const rows=names.map(name=>playerOffensiveImpact(ds.events,name,scope));
-  analysisState.offensiveReference=previousRef;
 
   rows.sort((a,b)=>(b.impact100??-Infinity)-(a.impact100??-Infinity));
   const body=rows.map(x=>`<tr>
@@ -8315,9 +8495,19 @@ async function renderStatsImpactSelection(){
       valeur d’une attaque : +1 point, 0 ballon défendu, −2 faute.
       Les actions laissées en collectif ne sont pas attribuées à un joueur.
     </div>
-    <div class="analysisTableWrap"><table class="analysisTable"><thead><tr>
+    ${statsImpactEvolutionBlockHtml(ds,scope)}
+    <div class="analysisTableWrap" style="margin-top:14px"><table class="analysisTable"><thead><tr>
       <th>Joueur</th><th>Att.</th><th>Pts</th><th>Pts att.</th><th>Fautes</th><th>Fautes att.</th><th>Performance offensive</th><th>Performance /100</th>
     </tr></thead><tbody>${body||'<tr><td colspan="8">Aucune attaque attribuée.</td></tr>'}</tbody></table></div>`;
+  const playerSelect=$('#statsImpactPlayerSelect');
+  if(playerSelect)playerSelect.onchange=e=>{
+    statsState.impactPlayerName=e.target.value||'';
+    renderStatsImpactSelection().catch(err=>handleError('stats impact player',err));
+  };
+  box.querySelectorAll('[data-impact-move]').forEach(b=>b.onclick=()=>{
+    moveStatsImpactMatch(b.dataset.impactMove,Number(b.dataset.impactDelta)||0);
+  });
+  analysisState.offensiveReference=previousRef;
 }
 
 async function loadStatsImpact(){
