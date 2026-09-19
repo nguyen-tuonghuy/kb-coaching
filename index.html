@@ -6086,7 +6086,7 @@ function renderOffensiveImpactTable(events,allPlayers){
   <div class="analysisTableWrap"><table class="analysisTable"><thead><tr>
     <th>Joueur</th><th>Att.</th><th>Pts réels</th><th>Pts attendus</th><th>Fautes</th><th>Fautes att.</th><th>Performance offensive</th><th>Performance /100</th>
   </tr></thead><tbody>${rows.map(x=>`<tr>
-    <td>${escapeHtml(x.name)}${x.total>0&&x.total<20?' <span class="small">· échantillon limité</span>':''}</td>
+    <td>${escapeHtml(x.name)}${x.total>0?` ${offensiveSampleLabel(x.total).html}`:''}</td>
     <td>${x.total}</td><td>${x.points}</td><td>${x.total?(Math.round(x.expectedPoints*10)/10).toFixed(1).replace('.',','):'—'}</td>
     <td>${x.faults}</td><td>${x.total?(Math.round(x.expectedFaults*10)/10).toFixed(1).replace('.',','):'—'}</td>
     <td class="${impactClass(x.impact)}">${x.total?signed1(x.impact):'—'}</td>
@@ -8093,7 +8093,7 @@ async function renderStatsImpactSelection(){
 
   rows.sort((a,b)=>(b.impact100??-Infinity)-(a.impact100??-Infinity));
   const body=rows.map(x=>`<tr>
-    <td>${escapeHtml(x.name)}${x.total>0&&x.total<20?' <span class="small">· échantillon limité</span>':''}</td>
+    <td>${escapeHtml(x.name)}${x.total>0?` ${offensiveSampleLabel(x.total).html}`:''}</td>
     <td>${x.total}</td><td>${x.points}</td><td>${x.total?(Math.round(x.expectedPoints*10)/10).toFixed(1).replace('.',','):'—'}</td>
     <td>${x.faults}</td><td>${x.total?(Math.round(x.expectedFaults*10)/10).toFixed(1).replace('.',','):'—'}</td>
     <td class="${impactClass(x.impact)}">${x.total?signed1(x.impact):'—'}</td>
