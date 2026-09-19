@@ -381,6 +381,24 @@ button:active{transform:scale(.985)}
   display:flex;justify-content:space-between;align-items:center;gap:10px;
   flex-wrap:wrap;margin-top:10px
 }
+.statsImpactScopeTabs{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+  margin-top:12px;
+}
+.statsImpactScopeTabs button{
+  min-height:42px;
+  border:1px solid var(--line);
+}
+.statsImpactScopeTabs button.active{
+  background:var(--accent);
+  border-color:#78a2ff;
+}
+@media(max-width:620px){
+  .statsImpactScopeTabs{grid-template-columns:1fr}
+}
+
 .statsHelpBtn{
   width:34px;height:34px;min-width:34px;padding:0;border-radius:50%;
   display:inline-flex;align-items:center;justify-content:center;
@@ -1797,6 +1815,11 @@ button:active{transform:scale(.985)}
      </div>
      <div id="statsImpactMatchSelector" class="statsMatchSelector"></div>
 
+     <div class="statsImpactScopeTabs" id="statsImpactScopeTabs">
+      <button type="button" class="ghost active" data-impact-scope="all">Cumulé</button>
+      <button type="button" class="ghost" data-impact-scope="center">Jeu au centre</button>
+      <button type="button" class="ghost" data-impact-scope="restart">Remise en jeu</button>
+     </div>
      <div id="statsImpactContent" style="margin-top:14px"></div>
     </div>
    </div>
@@ -4956,7 +4979,7 @@ $('#matchTypeCreateForm').onsubmit=event=>{
 let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{}};
 let groupState={groups:[],currentGroupId:null,currentPlayers:[],matchPlayers:[],profiles:{}};
 let adminState={isAdmin:false,groups:[]};
-let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',reference:null,impactReference:null};
+let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',reference:null,impactReference:null};
 
 
 
@@ -5838,7 +5861,7 @@ function offensiveActualValue(outcome){
   if(outcome==='Faute attaque')return -2;
   return null;
 }
-function playerOffensiveImpact(events,playerName){
+function playerOffensiveImpact(events,playerName,scope='all'){
   const ref=analysisState.offensiveReference;
   const out={name:playerName,total:0,points:0,defended:0,faults:0,expectedPoints:0,expectedFaults:0,actualValue:0,expectedValue:0,impact:0,impact100:null};
   if(!ref)return out;
@@ -5847,6 +5870,8 @@ function playerOffensiveImpact(events,playerName){
     const people=analysisEventPeople(e);
     if(people.length!==1||people[0]!==playerName)return;
     const context=offensiveContextFromEvent(e);
+    if(scope==='center'&&context!=='game_center')return;
+    if(scope==='restart'&&!['restart_center','restart_line','restart_corner'].includes(context))return;
     const r=ref.contexts[context];
     if(!context||!r||!r.total)return;
     const outcome=analysisOutcome(e);
@@ -7883,7 +7908,8 @@ async function renderStatsImpactSelection(){
   const previousRef=analysisState.offensiveReference;
   analysisState.offensiveReference=ref;
   const names=(ds.players||[]).filter(Boolean);
-  const rows=names.map(name=>playerOffensiveImpact(ds.events,name));
+  const scope=statsState.impactScope||'all';
+  const rows=names.map(name=>playerOffensiveImpact(ds.events,name,scope));
   analysisState.offensiveReference=previousRef;
 
   rows.sort((a,b)=>(b.impact100??-Infinity)-(a.impact100??-Infinity));
@@ -7895,8 +7921,10 @@ async function renderStatsImpactSelection(){
     <td class="${impactClass(x.impact100||0)}">${x.total?signed1(x.impact100):'—'}</td>
    </tr>`).join('');
 
+  const scopeLabel=scope==='center'?'Jeu au centre':scope==='restart'?'Remise en jeu':'Cumulé';
   box.innerHTML=`<div class="analysisSubtle" style="margin-bottom:8px">
       ${selected.length===1?'Match sélectionné':`Cumul de ${selected.length} matchs sélectionnés`} ·
+      Vue : ${scopeLabel} ·
       Référentiel ${pop==='H'?'Hommes':'Femmes'} ·
       valeur d’une attaque : +1 point, 0 ballon défendu, −2 faute.
       Les actions laissées en collectif ne sont pas attribuées à un joueur.
@@ -8169,6 +8197,11 @@ $$('.statsDomainTab').forEach(b=>b.onclick=()=>switchStatsDomain(b.dataset.stats
 $$('.statsTab').forEach(b=>b.onclick=()=>switchStatsTab(b.dataset.statsTab));
 $('#statsReferencePopulation').onchange=()=>loadStatsReference().catch(e=>handleError('stats reference population',e));
 $('#statsImpactPopulation').onchange=()=>renderStatsImpactSelection().catch(e=>handleError('stats impact population',e));
+$$('#statsImpactScopeTabs [data-impact-scope]').forEach(b=>b.onclick=()=>{
+  statsState.impactScope=b.dataset.impactScope||'all';
+  $$('#statsImpactScopeTabs [data-impact-scope]').forEach(x=>x.classList.toggle('active',x===b));
+  renderStatsImpactSelection().catch(e=>handleError('stats impact scope',e));
+});
 if($('#statsImpactLatest'))$('#statsImpactLatest').onclick=()=>{
   const list=statsState.impactMatchList||[];
   const latest=list[list.length-1];
