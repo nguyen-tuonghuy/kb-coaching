@@ -242,7 +242,7 @@ button:active{transform:scale(.985)}
 /* Analyse vidéo sur ordinateur : lecteur à gauche, saisie à droite.
    La séparation est redimensionnable par glisser-déposer. */
 
-@media(min-width:1101px){
+@media(min-width:1367px){
   body.videoReviewWideActive #popup,
   body.videoReviewWideActive #faultPopup{
     left:var(--video-note-left,50vw);
@@ -263,7 +263,7 @@ button:active{transform:scale(.985)}
   }
 }
 
-@media(min-width:1101px){
+@media(min-width:1367px){
   .app.videoReviewWide{
     max-width:1680px;
     padding-left:20px;
@@ -348,7 +348,7 @@ button:active{transform:scale(.985)}
   }
 }
 
-@media(max-width:1100px){
+@media(max-width:1366px){
   .matchVideoSticky{
     position:sticky;
     top:0;
@@ -1508,6 +1508,68 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
 @container (max-width:360px){
  .actionDetailZoneMoveRow{grid-template-columns:1fr}
  .actionDetailZoneMoveRow>#whoStep{grid-column:auto}
+}
+
+
+/* === Mode vidéo tablette compact : lecteur + saisie sans défilement inutile === */
+@media (min-width:641px) and (max-width:1366px){
+  .app.videoReviewWide{padding-top:8px}
+  .app.videoReviewWide #matchVideoPanel{padding:8px;margin-bottom:7px}
+  .app.videoReviewWide #matchVideoPanel > .row:first-child{display:none}
+  .app.videoReviewWide .matchVideoSticky{padding:0 0 4px;box-shadow:0 7px 14px rgba(0,0,0,.28)}
+  .app.videoReviewWide .matchVideoWrap{
+    width:min(100%,calc(32dvh * 16 / 9));
+    aspect-ratio:16/9;
+    margin:0 auto;
+    border-radius:10px;
+  }
+  .app.videoReviewWide .matchVideoTransport{gap:5px;margin-top:5px}
+  .app.videoReviewWide .matchVideoTransport button{min-height:34px;padding:6px 8px;font-size:12px}
+  .app.videoReviewWide .matchVideoSpeed{display:none!important}
+
+  .app.videoReviewWide .periodSettingsPanel{margin-bottom:7px}
+  .app.videoReviewWide .periodSettingsPanel > summary{padding:8px 10px;font-size:14px}
+  .app.videoReviewWide .periodSettingsPanel > summary .livePlayersChevron{width:24px;height:24px;font-size:16px}
+
+  .app.videoReviewWide .actionCapturePanel{padding:9px;margin-bottom:7px}
+  .app.videoReviewWide .actionCaptureHeader{margin-bottom:6px;gap:8px}
+  .app.videoReviewWide .actionCaptureHeader h2{font-size:16px!important}
+  .app.videoReviewWide .actionOpponentOptions{gap:4px}
+  .app.videoReviewWide .actionOpponentOptions button{min-height:30px;padding:5px 8px;font-size:11px}
+  .app.videoReviewWide .actionColumns{gap:8px}
+  .app.videoReviewWide .actionColumnTitle{font-size:12px;margin-bottom:5px}
+  .app.videoReviewWide .actionColumn > .small{font-size:10px;margin-bottom:3px!important}
+  .app.videoReviewWide .actionColumn .tabs,
+  .app.videoReviewWide .actionColumn .quickRestartGrid{margin-bottom:6px!important}
+  .app.videoReviewWide .quickRestartGrid{gap:5px}
+  .app.videoReviewWide .quickRestartGrid button,
+  .app.videoReviewWide .actionCapturePanel .entryAction{min-height:38px;padding:5px 5px;font-size:11px;line-height:1.05;border-radius:10px}
+
+  .app.videoReviewWide .actionDetailPanel{margin-top:7px;padding-top:7px}
+  .app.videoReviewWide .actionDetailPanel>.sheet{padding:8px;border-radius:10px}
+  .app.videoReviewWide .actionDetailPanel .sheetTop{padding-bottom:4px}
+  .app.videoReviewWide .actionDetailPanel .sheetTop h2{font-size:15px}
+  .app.videoReviewWide .actionDetailZoneMoveRow{gap:6px}
+  .app.videoReviewWide .actionDetailZoneMoveRow .step{margin-top:2px}
+  .app.videoReviewWide .actionDetailZoneMoveRow .step h3{font-size:11px;margin-bottom:3px}
+  .app.videoReviewWide #popup.actionDetailPanel #zoneOptions,
+  .app.videoReviewWide #popup.actionDetailPanel #moveOptions,
+  .app.videoReviewWide #popup.actionDetailPanel #whoOptions.attackAttributionLayout{gap:4px}
+  .app.videoReviewWide #popup.actionDetailPanel #zoneOptions button,
+  .app.videoReviewWide #popup.actionDetailPanel #moveOptions button,
+  .app.videoReviewWide #popup.actionDetailPanel #whoOptions.attackAttributionLayout button{padding:5px 4px;font-size:11px;line-height:1.05}
+  .app.videoReviewWide .actionDetailSaveBar{
+    position:sticky;
+    bottom:0;
+    z-index:12;
+    grid-template-columns:110px minmax(0,1fr);
+    gap:6px;
+    margin-top:6px!important;
+    padding-top:5px;
+    background:#141820;
+  }
+  .app.videoReviewWide .actionDetailSaveBar select{padding:6px 7px}
+  .app.videoReviewWide .actionDetailSaveBar button{min-height:40px;font-size:14px;padding:7px}
 }
 
 </style>
@@ -2769,7 +2831,7 @@ function setMatchCaptureMode(mode){
 
 function syncVideoPopupBounds(){
   const live=$('#live');
-  if(!live||window.innerWidth<1101||!live.classList.contains('videoDesktopLayout')){
+  if(!live||window.innerWidth<1367||!live.classList.contains('videoDesktopLayout')){
     document.body.classList.remove('videoReviewWideActive');
     document.documentElement.style.removeProperty('--video-note-left');
     document.documentElement.style.removeProperty('--video-note-width');
@@ -2831,7 +2893,7 @@ function initVideoDesktopResizer(){
   };
 
   handle.addEventListener('pointerdown',e=>{
-    if(window.innerWidth<1101||!live.classList.contains('videoDesktopLayout'))return;
+    if(window.innerWidth<1367||!live.classList.contains('videoDesktopLayout'))return;
     dragging=true;
     handle.classList.add('dragging');
     try{handle.setPointerCapture(e.pointerId)}catch{}
@@ -2855,7 +2917,7 @@ function initVideoDesktopResizer(){
   handle.addEventListener('pointercancel',stop);
 
   handle.addEventListener('keydown',e=>{
-    if(window.innerWidth<1101)return;
+    if(window.innerWidth<1367)return;
     let current=.58;
     try{
       current=parseFloat(getComputedStyle(live).getPropertyValue('--video-pane'))/100||.58;
@@ -2889,7 +2951,7 @@ function syncMatchVideoUi(){
   app?.classList.toggle('videoReviewWide',desktopVideo);
   live?.classList.toggle('videoDesktopLayout',desktopVideo);
   $('#videoDesktopResizer')?.classList.toggle('hidden',!desktopVideo);
-  document.body.classList.toggle('videoReviewWideActive',desktopVideo && window.innerWidth>=1101);
+  document.body.classList.toggle('videoReviewWideActive',desktopVideo && window.innerWidth>=1367);
   if(desktopVideo){
     applySavedVideoPaneWidth();
     requestAnimationFrame(syncVideoPopupBounds);
@@ -2901,8 +2963,12 @@ function syncMatchVideoUi(){
   if($('#videoPositionNote'))$('#videoPositionNote').textContent=videoMode?'La position courante du lecteur est enregistrée automatiquement au moment où tu valides chaque action.':'En mode direct, tu peux laisser la position vidéo vide et ne la renseigner que pour certaines actions utiles à retrouver.';
   const details=$('#matchVideoSpeedDetails');
   if(details){
-    if(window.matchMedia('(max-width:640px)').matches)details.removeAttribute('open');
+    if(window.matchMedia('(max-width:1366px)').matches)details.removeAttribute('open');
     else details.setAttribute('open','');
+  }
+  const periodSettings=$('#periodSettingsPanel');
+  if(periodSettings && videoMode && window.matchMedia('(min-width:641px) and (max-width:1366px)').matches){
+    periodSettings.removeAttribute('open');
   }
 }
 function createMatchVideoPlayer(){
