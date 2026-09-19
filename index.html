@@ -3953,12 +3953,22 @@ async function insertAttributions(eventId,players){
   if(error) throw error;
 }
 
+async function nextEventSequenceNo(){
+  const {data,error}=await db.from('match_events')
+    .select('sequence_no')
+    .eq('match_id',state.currentMatchId)
+    .order('sequence_no',{ascending:false})
+    .limit(1);
+  if(error) throw error;
+  return ((data&&data[0]?.sequence_no)||0)+1;
+}
+
 async function persistEvent(base,isEdit=false){
   const payload={
     match_id:state.currentMatchId,
     sequence_no:isEdit
       ? (state.events.find(e=>e.id===editingId)?.sequenceNo||1)
-      : (Math.max(0,...state.events.map(e=>e.sequenceNo||0))+1),
+      : null,
     period:base.period,
     video_position:base.videoPosition,
     family:base.family,
@@ -3982,11 +3992,23 @@ async function persistEvent(base,isEdit=false){
     const {error:dae}=await db.from('match_event_attributions').delete().eq('event_id',editingId);
     if(dae) throw dae;
   }else{
-    const {data,error}=await db.from('match_events').insert(payload).select('id,sequence_no,created_at').single();
-    if(error) throw error;
-    eventId=data.id;
-    base.createdAt=data.created_at;
-    base.sequenceNo=data.sequence_no;
+    let inserted=null;
+    let lastError=null;
+    for(let attempt=0;attempt<4&&!inserted;attempt++){
+      payload.sequence_no=await nextEventSequenceNo();
+      const {data,error}=await db.from('match_events').insert(payload).select('id,sequence_no,created_at').single();
+      if(!error){
+        inserted=data;
+        break;
+      }
+      lastError=error;
+      const duplicateSequence=error?.code==='23505'&&String(error?.message||'').includes('match_events_match_id_sequence_no_key');
+      if(!duplicateSequence) throw error;
+    }
+    if(!inserted) throw lastError||new Error('Impossible de déterminer un numéro de séquence libre.');
+    eventId=inserted.id;
+    base.createdAt=inserted.created_at;
+    base.sequenceNo=inserted.sequence_no;
   }
   await insertLineup(eventId,base.activePlayers);
   await insertAttributions(eventId,base.attributedPlayers||[]);
