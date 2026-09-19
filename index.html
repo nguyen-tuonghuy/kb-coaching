@@ -121,6 +121,10 @@ button:active{transform:scale(.985)}
   .quickOutcomeBtn{min-height:55px;padding:8px 5px;font-size:11px}
 }
 #popup.quickOutcomePreset #resultStep{display:none!important}
+#popup.quickOutcomePreset.quickCenterSimple #centerDefenseMapStep{
+  display:none!important;
+}
+
 #popup.quickOutcomePreset.centerDefenseCompact .centerDefenseArena{
   grid-template-columns:minmax(500px,4.5fr) minmax(82px,.42fr);
   grid-template-areas:"map who";
@@ -4046,34 +4050,102 @@ function showQuickOutcomes(button){
   panel.scrollIntoView({block:'nearest',behavior:'smooth'});
 }
 
+
+function configureQuickAttributionUI(){
+  const box=$('#whoOptions');
+  if(!box)return;
+
+  buildWho('#whoOptions');
+
+  if(actionType==='Attaque'){
+    $('#whoTitle').textContent='Frappeur — facultatif';
+    $$('#whoOptions button').forEach(b=>{
+      const name=b.dataset.who||'';
+      b.classList.toggle('choice',name===who);
+      b.onclick=()=>{
+        who=name;
+        $$('#whoOptions button').forEach(x=>x.classList.remove('choice'));
+        b.classList.add('choice');
+        updatePopupSaveVisibility();
+      };
+    });
+  }else{
+    $('#whoTitle').textContent='Défenseur(s) — facultatif';
+    $$('#whoOptions button').forEach(b=>{
+      const name=b.dataset.who||'';
+      b.classList.toggle('choice',name?whoMany.includes(name):whoMany.length===0);
+      b.onclick=()=>{
+        if(!name){
+          whoMany=[];
+        }else{
+          whoMany=whoMany.includes(name)?whoMany.filter(x=>x!==name):[...whoMany,name];
+        }
+        $$('#whoOptions button').forEach(x=>{
+          const n=x.dataset.who||'';
+          x.classList.toggle('choice',n?whoMany.includes(n):whoMany.length===0);
+        });
+        updatePopupSaveVisibility();
+      };
+    });
+  }
+}
+
 function launchQuickOutcome(outcome){
   if(!quickSelectedAction)return;
   const q={...quickSelectedAction};
 
   openActionPopup(q.family,q.actionType,q.restart);
 
-  // This is a new quick-entry workflow: the outcome was already chosen outside the popup.
+  // The outcome has already been chosen in the quick-entry panel.
   $('#popup')?.classList.add('quickOutcomePreset');
 
   const resultButton=$(`#resultOptions button[data-result="${CSS.escape(outcome)}"]`);
   if(resultButton){
     handleOutcome(outcome,resultButton);
   }else{
-    // Fallback for any legacy/edge value.
     actionResult=outcome;
     pending=q.actionType+' · '+outcome;
     updatePopupSaveVisibility();
   }
 
-  // Attack faults switch to the dedicated fault popup in handleOutcome().
-  if(!$('#popup').classList.contains('hidden')){
-    $('#resultStep').classList.add('hidden');
-    resetPopupScroll('#popup');
+  // Attack faults keep the dedicated fault popup.
+  if($('#popup').classList.contains('hidden'))return;
+
+  $('#resultStep').classList.add('hidden');
+
+  // For centre actions, the diagram is intentionally skipped in quick-entry mode:
+  // only attribution is requested, just like the simplified restart workflow.
+  if(q.family==='centre'){
+    $('#popup').classList.add('quickCenterSimple');
+    $('#popup').classList.remove('centerDefenseCompact','centerAttackMode','fieldMode');
+
+    // Keep the useful manual fields, but skip the graphical court diagram.
+    $('#centerDefenseMapStep').classList.add('hidden');
+    $('#zoneStep').classList.remove('hidden');
+    $('#moveStep').classList.remove('hidden');
+
+    // Start with the same neutral defaults as the restart workflow.
+    if(!zone)zone='';
+    if(!movement)movement='Non';
+    $$('#zoneOptions button').forEach(b=>b.classList.toggle('choice',(b.dataset.zone||'')===zone));
+    $$('#moveOptions button').forEach(b=>b.classList.toggle('choice',(b.dataset.move||'')===movement));
+
+    // Do not pre-assign a defender from the old centre diagram logic.
+    if(q.actionType==='Défense'){
+      whoMany=[];
+      who='';
+    }
+
+    $('#whoStep').classList.remove('hidden');
+    configureQuickAttributionUI();
+    updatePopupSaveVisibility();
   }
+
+  resetPopupScroll('#popup');
 }
 
 function openActionPopup(selectedFamily,selectedActionType,presetRestart=''){
-  $('#popup')?.classList.remove('quickOutcomePreset');
+  $('#popup')?.classList.remove('quickOutcomePreset','quickCenterSimple');
   family=selectedFamily;actionType=selectedActionType;restartLocation=selectedFamily==='remise'?(presetRestart||''):'';
   $('#popup').classList.toggle('centerDefenseCompact',family==='centre');
   $('#popup').classList.toggle('centerAttackMode',family==='centre'&&actionType==='Attaque');
@@ -4247,7 +4319,7 @@ $('#savePopup').onclick=async()=>{
     }else{
       state.events.push({id:eventId,...base});
     }
-    editingId=null;$('#popup').classList.add('hidden');$('#popup').classList.remove('quickOutcomePreset');clearQuickOutcomeSelection();render();setCloud('Synchronisé',true);
+    editingId=null;$('#popup').classList.add('hidden');$('#popup').classList.remove('quickOutcomePreset','quickCenterSimple');clearQuickOutcomeSelection();render();setCloud('Synchronisé',true);
   }catch(e){handleError('save event',e)}
 };
 if($('#popupPeriod'))$('#popupPeriod').onchange=()=>{
@@ -4289,7 +4361,7 @@ $('#saveFault').onclick=async()=>{
 const closePopup=id=>{
   editingId=null;
   $(id).classList.add('hidden');
-  $('#popup')?.classList.remove('quickOutcomePreset');
+  $('#popup')?.classList.remove('quickOutcomePreset','quickCenterSimple');
   clearQuickOutcomeSelection();
 };
 $('#cancelPopup').onclick=()=>closePopup('#popup');
