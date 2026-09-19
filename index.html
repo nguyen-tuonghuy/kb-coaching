@@ -2538,6 +2538,8 @@ function matchYoutubeId(raw){
 }
 
 let matchVideoResumeSeconds=0;
+let matchVideoResumePending=false;
+let matchVideoResumeToken=0;
 
 function parseMatchVideoTime(value){
   const raw=String(value||'').trim();
@@ -2550,11 +2552,49 @@ function parseMatchVideoTime(value){
   return 0;
 }
 
-function applyMatchVideoResumePosition(){
-  if(!matchVideoPlayerReady||!matchVideoPlayer||!matchVideoResumeSeconds)return;
+function cueMatchVideoAtResumePosition(){
+  if(!matchVideoPlayerReady||!matchVideoPlayer||!matchVideoWantedId)return;
+  const start=Math.max(0,Number(matchVideoResumeSeconds)||0);
   try{
-    matchVideoPlayer.seekTo(matchVideoResumeSeconds,true);
-    $('#videoPosition').value=formatMatchVideoTime(matchVideoResumeSeconds);
+    matchVideoPlayer.cueVideoById({
+      videoId:matchVideoWantedId,
+      startSeconds:start
+    });
+    if(start){
+      matchVideoResumePending=true;
+      $('#videoPosition').value=formatMatchVideoTime(start);
+      scheduleMatchVideoResumeSeek();
+    }else{
+      matchVideoResumePending=false;
+    }
+  }catch{}
+}
+
+function scheduleMatchVideoResumeSeek(){
+  if(!matchVideoResumePending||!matchVideoResumeSeconds)return;
+  const token=++matchVideoResumeToken;
+  [80,250,600,1200].forEach((delay,index)=>{
+    setTimeout(()=>{
+      if(token!==matchVideoResumeToken||!matchVideoResumePending)return;
+      applyMatchVideoResumePosition(index===3);
+    },delay);
+  });
+}
+
+function applyMatchVideoResumePosition(finalAttempt=false){
+  if(!matchVideoPlayerReady||!matchVideoPlayer||!matchVideoResumePending||!matchVideoResumeSeconds)return;
+  const target=Math.max(0,Number(matchVideoResumeSeconds)||0);
+  try{
+    const current=Number(matchVideoPlayer.getCurrentTime?.()||0);
+    if(Math.abs(current-target)>1.5){
+      matchVideoPlayer.seekTo(target,true);
+    }
+    $('#videoPosition').value=formatMatchVideoTime(target);
+
+    // After the player has had time to process cue/seek, stop protecting the field.
+    if(finalAttempt||Math.abs(Number(matchVideoPlayer.getCurrentTime?.()||0)-target)<=1.5){
+      matchVideoResumePending=false;
+    }
   }catch{}
 }
 
@@ -2711,17 +2751,27 @@ function createMatchVideoPlayer(){
   if(matchVideoPlayer||!window.YT||!YT.Player)return;
   matchVideoPlayer=new YT.Player('matchVideoPlayer',{
     videoId:matchVideoWantedId,
-    playerVars:{playsinline:1,rel:0},
+    playerVars:{
+      playsinline:1,
+      rel:0,
+      start:Math.max(0,Math.floor(matchVideoResumeSeconds||0))
+    },
     events:{
       onReady:()=>{
         matchVideoPlayerReady=true;
-        if(matchVideoWantedId)matchVideoPlayer.cueVideoById(matchVideoWantedId);
+        if(matchVideoWantedId)cueMatchVideoAtResumePosition();
         applyMatchVideoSpeed(matchVideoPreferredSpeed);
-        if(matchVideoResumeSeconds){
-          setTimeout(applyMatchVideoResumePosition,120);
-        }
       },
-      onStateChange:()=>syncMatchVideoPositionInput(),
+      onStateChange:e=>{
+        // CUED (-1/5 depending on API transition): enforce the saved position once more.
+        if(matchVideoResumePending && matchVideoResumeSeconds){
+          const stateCode=Number(e?.data);
+          if(stateCode===YT.PlayerState.CUED||stateCode===YT.PlayerState.PAUSED||stateCode===YT.PlayerState.UNSTARTED){
+            applyMatchVideoResumePosition(false);
+          }
+        }
+        syncMatchVideoPositionInput();
+      },
       onPlaybackRateChange:()=>syncMatchVideoSpeedButtons()
     }
   });
@@ -2730,18 +2780,24 @@ function initOrLoadMatchVideo(){
   syncMatchVideoUi();
   if(state.captureMode!=='video'||!state.youtubeVideoId)return;
   matchVideoWantedId=state.youtubeVideoId;
+  matchVideoResumePending=!!matchVideoResumeSeconds;
   if(matchVideoPlayerReady&&matchVideoPlayer){
     try{
-      matchVideoPlayer.cueVideoById(matchVideoWantedId);
+      cueMatchVideoAtResumePosition();
       applyMatchVideoSpeed(matchVideoPreferredSpeed);
-      if(matchVideoResumeSeconds)setTimeout(applyMatchVideoResumePosition,120);
     }catch{}
   }else if(window.YT&&YT.Player){createMatchVideoPlayer()}
 }
 window.onYouTubeIframeAPIReady=function(){createMatchVideoPlayer()};
 function syncMatchVideoPositionInput(){
   if(state.captureMode!=='video'||!matchVideoPlayerReady||!matchVideoPlayer)return;
-  try{$('#videoPosition').value=formatMatchVideoTime(matchVideoPlayer.getCurrentTime())}catch{}
+  try{
+    if(matchVideoResumePending&&matchVideoResumeSeconds){
+      $('#videoPosition').value=formatMatchVideoTime(matchVideoResumeSeconds);
+      return;
+    }
+    $('#videoPosition').value=formatMatchVideoTime(matchVideoPlayer.getCurrentTime());
+  }catch{}
 }
 function matchVideoSeek(delta){
   if(!matchVideoPlayerReady||!matchVideoPlayer)return;
@@ -3533,6 +3589,8 @@ function resetForNewMatch(){
   state.youtubeUrl='';
   state.youtubeVideoId='';
   matchVideoResumeSeconds=0;
+  matchVideoResumePending=false;
+  matchVideoResumeToken++;
 
   $('#matchName').value='Match';
   if($('#matchType'))$('#matchType').value='';
@@ -3584,6 +3642,8 @@ async function start(){
     state.youtubeUrl=state.captureMode==='video'?($('#matchYoutubeUrl').value||'').trim():'';
     state.youtubeVideoId=state.captureMode==='video'?matchYoutubeId(state.youtubeUrl):'';
     matchVideoResumeSeconds=0;
+    matchVideoResumePending=false;
+    matchVideoResumeToken++;
     if(state.captureMode==='video'&&!state.youtubeVideoId){alert('Renseigne une URL YouTube valide pour le mode vidéo.');return}
     const groupId=$('#matchGroup').value;
     if(!groupId){alert('Choisis le groupe suivi.');return}
@@ -3839,6 +3899,8 @@ async function loadMatch(matchId){
     // Resume YouTube from the most recent timestamp actually recorded.
     const lastTimedEvent=[...state.events].reverse().find(e=>(e.videoPosition||'').trim());
     matchVideoResumeSeconds=parseMatchVideoTime(lastTimedEvent?.videoPosition||'');
+    matchVideoResumePending=!!matchVideoResumeSeconds;
+    matchVideoResumeToken++;
     if($('#videoPosition')){
       $('#videoPosition').value=lastTimedEvent?.videoPosition||'';
     }
