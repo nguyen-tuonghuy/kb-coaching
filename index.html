@@ -222,6 +222,10 @@ button:active{transform:scale(.985)}
 
 .statsTabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
 .statsDomainTabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:14px 0 12px}
+.statsMatchViewTabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:14px 0 10px}
+.statsMatchViewTabs button{min-height:44px}
+.statsMatchViewTabs button.active{background:var(--accent);color:#fff}
+
 .statsDomainTab{border:1px solid var(--line);min-height:46px}
 .statsDomainTab.active{background:var(--accent);border-color:#78a2ff}
 .matchCaptureMode{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
@@ -5220,7 +5224,7 @@ $('#matchTypeCreateForm').onsubmit=event=>{
 let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{}};
 let groupState={groups:[],currentGroupId:null,currentPlayers:[],matchPlayers:[],profiles:{}};
 let adminState={isAdmin:false,groups:[]};
-let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',reference:null,impactReference:null};
+let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',statsMatchView:'summary',reference:null,impactReference:null};
 
 
 
@@ -7642,7 +7646,7 @@ function switchStatsDomain(domain){
   $('#statsMatchesDomain').classList.toggle('hidden',domain!=='matches');
   $('#statsReferenceDomain').classList.toggle('hidden',domain!=='reference');
   $('#statsImpactDomain').classList.toggle('hidden',domain!=='impact');
-  if(domain==='matches')loadStatsMatches().catch(e=>{handleError('stats matches',e);$('#statsMatchSummary').innerHTML=`<div class="statsEmpty">${escapeHtml(e.message||String(e))}</div>`});
+  if(domain==='matches'){statsState.statsMatchView='summary';loadStatsMatches().catch(e=>{handleError('stats matches',e);$('#statsMatchSummary').innerHTML=`<div class="statsEmpty">${escapeHtml(e.message||String(e))}</div>`})};
   if(domain==='reference')loadStatsReference().catch(e=>{handleError('stats reference',e);$('#statsReferenceContent').innerHTML=`<div class="statsEmpty">${escapeHtml(e.message||String(e))}</div>`});
   if(domain==='impact')loadStatsImpact().catch(e=>{handleError('stats impact',e);$('#statsImpactContent').innerHTML=`<div class="statsEmpty">${escapeHtml(e.message||String(e))}</div>`});
 }
@@ -7979,6 +7983,15 @@ function statsAnalysisSummaryHtml(events){
   </div>`;
 }
 
+function switchStatsMatchView(view){
+  statsState.statsMatchView=view==='advanced'?'advanced':'summary';
+  const root=$('#statsMatchSummary');
+  if(!root)return;
+  root.querySelectorAll('[data-stats-match-view]').forEach(b=>b.classList.toggle('active',b.dataset.statsMatchView===statsState.statsMatchView));
+  root.querySelector('#statsMatchViewSummary')?.classList.toggle('hidden',statsState.statsMatchView!=='summary');
+  root.querySelector('#statsMatchViewAdvanced')?.classList.toggle('hidden',statsState.statsMatchView!=='advanced');
+}
+
 async function renderStatsMatchesSelection(){
   const box=$('#statsMatchSummary');
   const groupId=$('#statsGroup').value;
@@ -8006,21 +8019,30 @@ async function renderStatsMatchesSelection(){
   const pointRate=attackTotals.total?Math.round(1000*attackTotals.point/attackTotals.total)/10:null;
   const faultRate=attackTotals.total?Math.round(1000*attackTotals.attack_fault/attackTotals.total)/10:null;
 
+  const currentView=statsState.statsMatchView==='advanced'?'advanced':'summary';
   box.innerHTML=`<div class="analysisSubtle" style="margin-bottom:8px">${selected.length===1?'Analyse du match sélectionné':`Cumul construit sur ${selected.length} matchs sélectionnés`}.</div>
-   ${statsAnalysisSummaryHtml(ds.events)}
-   <div class="analysisSubsectionTitle" style="margin-top:18px">Détails statistiques complémentaires</div>
-   <div class="statsMatchGrid">
-    <div class="statsMatchCard"><span class="small">Matchs inclus</span><strong>${selected.length}</strong></div>
-    <div class="statsMatchCard"><span class="small">Attaques exploitables</span><strong>${attackTotals.total}</strong></div>
-    <div class="statsMatchCard"><span class="small">Taux de point</span><strong>${pointRate==null?'—':String(pointRate).replace('.',',')+' %'}</strong></div>
-    <div class="statsMatchCard"><span class="small">Taux de faute</span><strong>${faultRate==null?'—':String(faultRate).replace('.',',')+' %'}</strong></div>
+   <div class="statsMatchViewTabs">
+    <button type="button" class="ghost ${currentView==='summary'?'active':''}" data-stats-match-view="summary">Résumé</button>
+    <button type="button" class="ghost ${currentView==='advanced'?'active':''}" data-stats-match-view="advanced">Analyse avancée</button>
    </div>
-   ${teamOffensivePerformanceHtml(teamPerformance,population)}
-   ${opponentOffensivePerformanceHtml(opponentPerformance,population,'Performance offensive de nos adversaires contre nous')}
-   ${statsContextTable(attacks.counts,'Attaque de l’équipe suivie')}
-   ${statsContextTable(adverse.counts,'Attaque adverse observée via notre défense')}
-   ${statsOneVsOneHtml(ds.events,offensiveReference,population)}
-   <div class="analysisSubtle" style="margin-top:8px">Centre / ligne / coin correspondent à la position de départ de l’attaque ou de la remise en jeu.</div>`;
+   <div id="statsMatchViewSummary" class="${currentView==='summary'?'':'hidden'}">
+    ${statsAnalysisSummaryHtml(ds.events)}
+   </div>
+   <div id="statsMatchViewAdvanced" class="${currentView==='advanced'?'':'hidden'}">
+    <div class="statsMatchGrid">
+     <div class="statsMatchCard"><span class="small">Matchs inclus</span><strong>${selected.length}</strong></div>
+     <div class="statsMatchCard"><span class="small">Attaques exploitables</span><strong>${attackTotals.total}</strong></div>
+     <div class="statsMatchCard"><span class="small">Taux de point</span><strong>${pointRate==null?'—':String(pointRate).replace('.',',')+' %'}</strong></div>
+     <div class="statsMatchCard"><span class="small">Taux de faute</span><strong>${faultRate==null?'—':String(faultRate).replace('.',',')+' %'}</strong></div>
+    </div>
+    ${teamOffensivePerformanceHtml(teamPerformance,population)}
+    ${opponentOffensivePerformanceHtml(opponentPerformance,population,'Performance offensive de nos adversaires contre nous')}
+    ${statsContextTable(attacks.counts,'Attaque de l’équipe suivie')}
+    ${statsContextTable(adverse.counts,'Attaque adverse observée via notre défense')}
+    ${statsOneVsOneHtml(ds.events,offensiveReference,population)}
+    <div class="analysisSubtle" style="margin-top:8px">Centre / ligne / coin correspondent à la position de départ de l’attaque ou de la remise en jeu.</div>
+   </div>`;
+  box.querySelectorAll('[data-stats-match-view]').forEach(b=>b.onclick=()=>switchStatsMatchView(b.dataset.statsMatchView));
 }
 
 async function loadStatsMatches(){
