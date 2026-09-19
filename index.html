@@ -1460,7 +1460,7 @@ button:active{transform:scale(.985)}
 .actionOpponentOptions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .actionOpponentOptions button{min-height:34px;padding:7px 11px;border:1px solid var(--line);border-radius:10px;font-size:12px}
 .actionDetailPanel{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
-.actionDetailPanel>.sheet{width:100%;max-width:none;max-height:none;overflow:visible;padding:12px;background:#141820;border-radius:14px}
+.actionDetailPanel>.sheet{width:100%;max-width:none;max-height:none;overflow:visible;padding:12px;background:#141820;border-radius:14px;container-type:inline-size}
 .actionDetailPanel .sheetTop{position:static;top:auto;padding:0 0 8px;background:transparent}
 .actionDetailHeader{display:block!important}
 .actionDetailTitle .meta:empty{display:none}
@@ -1469,14 +1469,12 @@ button:active{transform:scale(.985)}
 .actionDetailPeriod{max-width:none!important;margin:0!important}
 .actionDetailPeriod label{margin-bottom:3px}
 .actionDetailPeriod select{padding:8px 9px}
-.actionDetailZoneMoveRow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,2fr);gap:10px;align-items:start}
-.actionDetailZoneMoveRow>.step{min-width:0}
-#popup.actionDetailPanel #zoneOptions,#popup.actionDetailPanel #moveOptions{grid-template-columns:1fr;gap:6px}
-#popup.actionDetailPanel #zoneOptions button,#popup.actionDetailPanel #moveOptions button{min-height:42px}
-#popup.actionDetailPanel #whoOptions.attackAttributionLayout{grid-template-columns:minmax(90px,1fr) repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:7px;height:138px}
-#popup.actionDetailPanel #whoOptions.attackAttributionLayout button[data-who=""]{grid-column:1;grid-row:1 / span 2;min-height:0;height:100%}
-#popup.actionDetailPanel #whoOptions.attackAttributionLayout button:not([data-who=""]){min-height:0;height:100%}
-#popup.actionDetailPanel #whoOptions.attackAttributionLayout button:not([data-who=""]){grid-column:auto;grid-row:auto}
+.actionDetailZoneMoveRow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,2fr);gap:10px;align-items:stretch}
+.actionDetailZoneMoveRow>.step{min-width:0;display:flex;flex-direction:column}
+#popup.actionDetailPanel #zoneOptions,#popup.actionDetailPanel #moveOptions{grid-template-columns:1fr;grid-template-rows:repeat(3,minmax(0,1fr));gap:6px;flex:1}
+#popup.actionDetailPanel #zoneOptions button,#popup.actionDetailPanel #moveOptions button{min-height:0;height:100%;padding:9px 7px;line-height:1.12;white-space:normal}
+#popup.actionDetailPanel #whoOptions.attackAttributionLayout{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:7px;height:auto;flex:1}
+#popup.actionDetailPanel #whoOptions.attackAttributionLayout button{min-height:0;height:100%}
 .actionDetailSaveBar{display:grid!important;grid-template-columns:minmax(120px,160px) minmax(0,1fr);gap:10px;align-items:end}
 .actionDetailSaveBar .actionDetailPeriod{min-width:0}
 .actionDetailSaveBar button{min-height:50px;font-size:16px}
@@ -1491,7 +1489,24 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
  .actionDetailSaveBar{grid-template-columns:118px minmax(0,1fr);gap:7px}
  .actionDetailZoneMoveRow{grid-template-columns:1fr;gap:6px}
  #popup.actionDetailPanel #zoneOptions button,#popup.actionDetailPanel #moveOptions button{min-height:40px;padding:8px 6px;font-size:11px}
- #popup.actionDetailPanel #whoOptions.attackAttributionLayout{grid-template-columns:minmax(96px,.9fr) repeat(2,minmax(0,1fr));gap:5px}
+ #popup.actionDetailPanel #whoOptions.attackAttributionLayout{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+}
+
+@container (max-width:700px){
+ .actionDetailZoneMoveRow{gap:6px}
+ .actionDetailZoneMoveRow .step h3{font-size:12px;line-height:1.1}
+ #popup.actionDetailPanel #zoneOptions,#popup.actionDetailPanel #moveOptions{gap:5px}
+ #popup.actionDetailPanel #whoOptions.attackAttributionLayout{gap:5px}
+ #popup.actionDetailPanel #zoneOptions button,#popup.actionDetailPanel #moveOptions button,#popup.actionDetailPanel #whoOptions.attackAttributionLayout button{font-size:clamp(10px,2.2cqi,14px);padding:7px 5px;line-height:1.08}
+}
+@container (max-width:520px){
+ .actionDetailZoneMoveRow{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+ .actionDetailZoneMoveRow>#whoStep{grid-column:1/-1}
+ #popup.actionDetailPanel #whoOptions.attackAttributionLayout{min-height:92px}
+}
+@container (max-width:360px){
+ .actionDetailZoneMoveRow{grid-template-columns:1fr}
+ .actionDetailZoneMoveRow>#whoStep{grid-column:auto}
 }
 
 </style>
@@ -3503,12 +3518,6 @@ function renderCenterDefenseResponsibility(){
   if(!box)return;
   box.innerHTML='';
   const map=defenseRoleMap();
-  const collective=document.createElement('button');
-  collective.className='full';
-  collective.dataset.who='';
-  collective.dataset.role='';
-  collective.textContent='NON SPÉCIFIÉ';
-  box.append(collective);
   DEFENSE_ROLES.forEach(role=>{
     const p=map[role];
     if(!p)return;
@@ -3519,16 +3528,12 @@ function renderCenterDefenseResponsibility(){
   });
   $$('#whoOptions button').forEach(b=>{
     const name=b.dataset.who||'';
-    b.classList.toggle('choice',name?whoMany.includes(name):whoMany.length===0);
+    b.classList.toggle('choice',whoMany.includes(name));
     b.onclick=()=>{
-      if(!name){
-        whoMany=[];
-      }else{
-        whoMany=whoMany.includes(name)?whoMany.filter(x=>x!==name):[...whoMany,name];
-      }
+      whoMany=whoMany.includes(name)?whoMany.filter(x=>x!==name):[...whoMany,name];
       $$('#whoOptions button').forEach(x=>{
         const n=x.dataset.who||'';
-        x.classList.toggle('choice',n?whoMany.includes(n):whoMany.length===0);
+        x.classList.toggle('choice',whoMany.includes(n));
       });
     };
   });
@@ -3633,29 +3638,17 @@ function configureWhoUI(){
     $('#whoOptions').classList.toggle('attackAttributionLayout',['Attaque','Défense'].includes(actionType));
     const requiresAttackPlayer=attackOutcomeRequiresPlayer();
     $('#whoTitle').textContent=actionType==='Attaque'?'Frappeur — facultatif':(isCenterAttack()?'Attaquant':(actionType==='Défense'?'Attribution — plusieurs joueurs possibles':'Attribution — facultatif'));
-    const collectiveBtn=$('#whoOptions button[data-who=""]');
-    if(collectiveBtn){
-      collectiveBtn.disabled=false;
-      collectiveBtn.title='Laisser collectif si le frappeur n’est pas identifié.';
-    }
     $$('#whoOptions button').forEach(b=>{
       const name=b.dataset.who||'';
-      b.classList.toggle('choice',actionType==='Défense'?(name?whoMany.includes(name):whoMany.length===0):(!requiresAttackPlayer&&name===who)||(requiresAttackPlayer&&!!name&&name===who));
+      b.classList.toggle('choice',actionType==='Défense'?whoMany.includes(name):name===who);
       b.onclick=()=>{
         if(actionType==='Défense'){
-          if(!name){
-            whoMany=[];
-            $$('#whoOptions button').forEach(x=>x.classList.remove('choice'));
-            b.classList.add('choice');
-          }else{
-            whoMany=whoMany.includes(name)?whoMany.filter(x=>x!==name):[...whoMany,name];
-            $('#whoOptions button[data-who=""]').classList.toggle('choice',whoMany.length===0);
-            b.classList.toggle('choice',whoMany.includes(name));
-          }
+          whoMany=whoMany.includes(name)?whoMany.filter(x=>x!==name):[...whoMany,name];
+          b.classList.toggle('choice',whoMany.includes(name));
         }else{
-          who=name;
+          who=(who===name?'':name);
           $$('#whoOptions button').forEach(x=>x.classList.remove('choice'));
-          b.classList.add('choice');
+          if(who)b.classList.add('choice');
         }
         updatePopupSaveVisibility();
       };
@@ -3674,9 +3667,6 @@ function configureZoneUI(show=true){
 
 function buildWho(boxId){
   const box=$(boxId);box.innerHTML='';
-  const collective=document.createElement('button');
-  collective.className='full';collective.dataset.who='';collective.textContent='COLLECTIF';
-  box.append(collective);
   state.activePlayers.forEach(p=>{
     const b=document.createElement('button');b.dataset.who=p;b.textContent=p;box.append(b)
   });
@@ -4403,9 +4393,9 @@ function configureQuickAttributionUI(){
       const name=b.dataset.who||'';
       b.classList.toggle('choice',name===who);
       b.onclick=()=>{
-        who=name;
+        who=(who===name?'':name);
         $$('#whoOptions button').forEach(x=>x.classList.remove('choice'));
-        b.classList.add('choice');
+        if(who)b.classList.add('choice');
         updatePopupSaveVisibility();
       };
     });
@@ -4413,16 +4403,12 @@ function configureQuickAttributionUI(){
     $('#whoTitle').textContent='Défenseur(s) — facultatif';
     $$('#whoOptions button').forEach(b=>{
       const name=b.dataset.who||'';
-      b.classList.toggle('choice',name?whoMany.includes(name):whoMany.length===0);
+      b.classList.toggle('choice',whoMany.includes(name));
       b.onclick=()=>{
-        if(!name){
-          whoMany=[];
-        }else{
-          whoMany=whoMany.includes(name)?whoMany.filter(x=>x!==name):[...whoMany,name];
-        }
+        whoMany=whoMany.includes(name)?whoMany.filter(x=>x!==name):[...whoMany,name];
         $$('#whoOptions button').forEach(x=>{
           const n=x.dataset.who||'';
-          x.classList.toggle('choice',n?whoMany.includes(n):whoMany.length===0);
+          x.classList.toggle('choice',whoMany.includes(n));
         });
         updatePopupSaveVisibility();
       };
