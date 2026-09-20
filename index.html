@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Kinball Coach — V2.2 Préliminaire</title>
+<title>Kinball Coach</title>
 <style>
 :root{
  --bg:#0f1115;--panel:#171a21;--panel2:#20242d;--text:#f5f7fa;--muted:#aab1bc;
@@ -1616,7 +1616,7 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
 <body>
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1><div class="sub">V3.3 Préliminaire — Bibliothèque en ligne · correctifs</div></div>
+   <div><h1>Kinball Coach</h1></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -2054,6 +2054,27 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
       <button type="button" class="ghost active" data-impact-scope="all">Cumulé</button>
       <button type="button" class="ghost" data-impact-scope="center">Jeu au centre</button>
       <button type="button" class="ghost" data-impact-scope="restart">Remise en jeu</button>
+     </div>
+     <div class="row" style="gap:10px;align-items:end;margin-top:10px;flex-wrap:wrap">
+      <div class="field" style="max-width:260px">
+       <label>Trier par</label>
+       <select id="statsImpactSortField">
+        <option value="impact100">Performance /100</option>
+        <option value="creation100">Création /100</option>
+        <option value="safety100">Sécurité /100</option>
+        <option value="pointRate">% points</option>
+        <option value="faultRate">% fautes</option>
+        <option value="total">N</option>
+        <option value="name">Prénom</option>
+       </select>
+      </div>
+      <div class="field" style="max-width:190px">
+       <label>Ordre</label>
+       <select id="statsImpactSortDirection">
+        <option value="desc">Décroissant</option>
+        <option value="asc">Croissant</option>
+       </select>
+      </div>
      </div>
      <div id="statsImpactContent" style="margin-top:14px"></div>
     </div>
@@ -2820,7 +2841,6 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://www.youtube.com/iframe_api"></script>
 <script>
 const KEY='kinball_coach_cloud_v200';
 const SUPABASE_URL='https://chrbzchthloxowlzdvpe.supabase.co';
@@ -3077,6 +3097,28 @@ function syncMatchVideoUi(){
     periodSettings.removeAttribute('open');
   }
 }
+let youtubeIframeApiPromise=null;
+function loadYouTubeIframeApi(){
+  if(window.YT&&window.YT.Player)return Promise.resolve(window.YT);
+  if(youtubeIframeApiPromise)return youtubeIframeApiPromise;
+  youtubeIframeApiPromise=new Promise((resolve,reject)=>{
+    const existing=document.querySelector('script[data-youtube-iframe-api="1"]');
+    const previousReady=window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady=function(){
+      try{if(typeof previousReady==='function')previousReady()}catch{}
+      resolve(window.YT);
+    };
+    if(existing)return;
+    const script=document.createElement('script');
+    script.src='https://www.youtube.com/iframe_api';
+    script.async=true;
+    script.dataset.youtubeIframeApi='1';
+    script.onerror=()=>reject(new Error('Impossible de charger YouTube.'));
+    document.head.append(script);
+  });
+  return youtubeIframeApiPromise;
+}
+
 function createMatchVideoPlayer(){
   if(matchVideoPlayer||!window.YT||!YT.Player)return;
   matchVideoPlayer=new YT.Player('matchVideoPlayer',{
@@ -3116,9 +3158,12 @@ function initOrLoadMatchVideo(){
       cueMatchVideoAtResumePosition();
       applyMatchVideoSpeed(matchVideoPreferredSpeed);
     }catch{}
-  }else if(window.YT&&YT.Player){createMatchVideoPlayer()}
+  }else if(window.YT&&YT.Player){
+    createMatchVideoPlayer();
+  }else{
+    loadYouTubeIframeApi().then(()=>createMatchVideoPlayer()).catch(e=>handleError('youtube api',e));
+  }
 }
-window.onYouTubeIframeAPIReady=function(){createMatchVideoPlayer()};
 function syncMatchVideoPositionInput(){
   if(state.captureMode!=='video'||!matchVideoPlayerReady||!matchVideoPlayer)return;
   try{
@@ -5326,7 +5371,7 @@ $('#matchTypeCreateForm').onsubmit=event=>{
 let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{}};
 let groupState={groups:[],currentGroupId:null,currentPlayers:[],matchPlayers:[],profiles:{}};
 let adminState={isAdmin:false,groups:[]};
-let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',impactPlayerName:'',impactMatchManualOrder:[],statsMatchView:'summary',reference:null,referenceMeta:null,referenceSources:[],referenceVersions:[],impactReference:null};
+let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',impactSortField:'impact100',impactSortDirection:'desc',impactPlayerName:'',impactMatchManualOrder:[],statsMatchView:'summary',reference:null,referenceMeta:null,referenceSources:[],referenceVersions:[],impactReference:null};
 
 
 
@@ -6311,6 +6356,10 @@ function playerOffensiveImpact(events,playerName,scope='all'){
     out.actualValue+=value;
     out.expectedValue+=r.mu;
   });
+  out.pointRate=out.total?100*out.points/out.total:null;
+  out.faultRate=out.total?100*out.faults/out.total:null;
+  out.expectedPointRate=out.total?100*out.expectedPoints/out.total:null;
+  out.expectedFaultRate=out.total?100*out.expectedFaults/out.total:null;
   out.creation=out.points-out.expectedPoints;
   out.safety=out.expectedFaults-out.faults;
   out.creation100=out.total?100*out.creation/out.total:null;
@@ -6323,6 +6372,46 @@ function signed1(v){
   if(v==null||!Number.isFinite(v))return '—';
   const rounded=Math.round(v*10)/10;
   return `${rounded>0?'+':''}${rounded.toFixed(1).replace('.',',')}`;
+}
+function pct1(v){
+  if(v==null||!Number.isFinite(v))return '—';
+  return `${(Math.round(v*10)/10).toFixed(1).replace('.',',')} %`;
+}
+function actualVsReferencePctHtml(actual,expected){
+  if(actual==null||!Number.isFinite(actual))return '—';
+  return `<div>${pct1(actual)}</div><div class="small">réf. ${pct1(expected)}</div>`;
+}
+function statsImpactSortRows(rows){
+  const field=statsState.impactSortField||'impact100';
+  const dir=statsState.impactSortDirection||'desc';
+  const sorted=[...(rows||[])];
+  const getVal=row=>{
+    switch(field){
+      case 'name': return String(row.name||'');
+      case 'total': return row.total;
+      case 'pointRate': return row.pointRate;
+      case 'faultRate': return row.faultRate;
+      case 'creation100': return row.creation100;
+      case 'safety100': return row.safety100;
+      case 'impact100':
+      default: return row.impact100;
+    }
+  };
+  sorted.sort((a,b)=>{
+    const av=getVal(a), bv=getVal(b);
+    if(field==='name'){
+      const cmp=String(av).localeCompare(String(bv),'fr');
+      return dir==='asc'?cmp:-cmp;
+    }
+    const aMissing=av==null||!Number.isFinite(av), bMissing=bv==null||!Number.isFinite(bv);
+    if(aMissing&&bMissing)return String(a.name||'').localeCompare(String(b.name||''),'fr');
+    if(aMissing)return 1;
+    if(bMissing)return -1;
+    const cmp=av===bv?0:(av<bv?-1:1);
+    if(cmp!==0)return dir==='asc'?cmp:-cmp;
+    return String(a.name||'').localeCompare(String(b.name||''),'fr');
+  });
+  return sorted;
 }
 function impactClass(v){
   if(v>0.05)return 'analysisImpactPositive';
@@ -6338,8 +6427,8 @@ function renderOffensiveImpactTable(events,allPlayers){
   </tr></thead><tbody>${rows.map(x=>`<tr>
     <td>${escapeHtml(x.name)}${x.total>0?` ${offensiveSampleLabel(x.total).html}`:''}</td>
     <td>${x.total}</td>
-    <td>${x.total?(Math.round(1000*x.points/x.total)/10).toFixed(1).replace('.',',')+' %':'—'}</td>
-    <td>${x.total?(Math.round(1000*x.faults/x.total)/10).toFixed(1).replace('.',',')+' %':'—'}</td>
+    <td>${x.total?actualVsReferencePctHtml(x.pointRate,x.expectedPointRate):'—'}</td>
+    <td>${x.total?actualVsReferencePctHtml(x.faultRate,x.expectedFaultRate):'—'}</td>
     <td class="${impactClass(x.creation100||0)}">${x.total?signed1(x.creation100):'—'}</td>
     <td class="${impactClass(x.safety100||0)}">${x.total?signed1(x.safety100):'—'}</td>
     <td>${x.total?offensivePerf100Display(x.impact100,x.total):'—'}</td>
@@ -8582,8 +8671,8 @@ function statsImpactEvolutionTableHtml(series){
       <td>${escapeHtml(formatDateShort(x.match.played_on)||'—')}</td>
       <td>${escapeHtml(x.match.label||'Match')}</td>
       <td>${x.total}</td>
-      <td>${x.total?(Math.round(1000*x.points/x.total)/10).toFixed(1).replace('.',',')+' %':'—'}</td>
-      <td>${x.total?(Math.round(1000*x.faults/x.total)/10).toFixed(1).replace('.',',')+' %':'—'}</td>
+      <td>${x.total?actualVsReferencePctHtml(x.pointRate,x.expectedPointRate):'—'}</td>
+      <td>${x.total?actualVsReferencePctHtml(x.faultRate,x.expectedFaultRate):'—'}</td>
       <td class="${impactClass(x.creation100||0)}">${x.total?signed1(x.creation100):'—'}</td>
       <td class="${impactClass(x.safety100||0)}">${x.total?signed1(x.safety100):'—'}</td>
       <td>${x.total?offensivePerf100Display(x.impact100,x.total):'—'}</td>
@@ -8653,14 +8742,13 @@ async function renderStatsImpactSelection(){
   analysisState.offensiveReference=ref;
   const names=(ds.players||[]).filter(Boolean);
   const scope=statsState.impactScope||'all';
-  const rows=names.map(name=>playerOffensiveImpact(ds.events,name,scope));
+  const rows=statsImpactSortRows(names.map(name=>playerOffensiveImpact(ds.events,name,scope)));
 
-  rows.sort((a,b)=>(b.impact100??-Infinity)-(a.impact100??-Infinity));
   const body=rows.map(x=>`<tr>
     <td>${escapeHtml(x.name)}</td>
     <td>${x.total}</td>
-    <td>${x.total?(Math.round(1000*x.points/x.total)/10).toFixed(1).replace('.',',')+' %':'—'}</td>
-    <td>${x.total?(Math.round(1000*x.faults/x.total)/10).toFixed(1).replace('.',',')+' %':'—'}</td>
+    <td>${x.total?actualVsReferencePctHtml(x.pointRate,x.expectedPointRate):'—'}</td>
+    <td>${x.total?actualVsReferencePctHtml(x.faultRate,x.expectedFaultRate):'—'}</td>
     <td class="${impactClass(x.creation100||0)}">${x.total?signed1(x.creation100):'—'}</td>
     <td class="${impactClass(x.safety100||0)}">${x.total?signed1(x.safety100):'—'}</td>
     <td>${x.total?offensivePerf100Display(x.impact100,x.total):'—'}</td>
@@ -8675,6 +8763,7 @@ async function renderStatsImpactSelection(){
       valeur d’une attaque : +1 point, 0 ballon défendu, −1 faute.
       Création /100 mesure les points marqués au-dessus de l’attendu ; Sécurité /100 mesure les fautes évitées par rapport à l’attendu.
       Performance /100 = Création /100 + Sécurité /100.
+      Les colonnes % points et % fautes rappellent aussi, sous la valeur observée, le niveau du référentiel correspondant.
       Les actions laissées en collectif ne sont pas attribuées à un joueur.
     </div>
     <div class="analysisTableWrap" style="margin-top:14px"><table class="analysisTable"><thead><tr>
@@ -8758,6 +8847,8 @@ async function openStatsModule(){
     const pop=groupPopulationFromName(group?.name)||'H';
     $('#statsReferencePopulation').value=pop;
     $('#statsImpactPopulation').value=pop;
+    if($('#statsImpactSortField'))$('#statsImpactSortField').value=statsState.impactSortField||'impact100';
+    if($('#statsImpactSortDirection'))$('#statsImpactSortDirection').value=statsState.impactSortDirection||'desc';
     window.scrollTo({top:0,behavior:'instant'});
   }catch(e){handleError('stats',e);$('#statsStatus').textContent=e.message||String(e)}
 }
@@ -8963,6 +9054,8 @@ if($('#statsReferenceReloadSources'))$('#statsReferenceReloadSources').onclick=(
 if($('#statsReferenceSaveSources'))$('#statsReferenceSaveSources').onclick=()=>saveReferenceSources().catch(e=>{handleError('save reference sources',e);setCloud('Erreur',false)});
 if($('#statsReferenceCreateVersion'))$('#statsReferenceCreateVersion').onclick=()=>createReferenceVersion().catch(e=>{handleError('create reference version',e);setCloud('Erreur',false)});
 $('#statsImpactPopulation').onchange=()=>renderStatsImpactSelection().catch(e=>handleError('stats impact population',e));
+if($('#statsImpactSortField'))$('#statsImpactSortField').onchange=()=>{statsState.impactSortField=$('#statsImpactSortField').value||'impact100';renderStatsImpactSelection().catch(e=>handleError('stats impact sort field',e));};
+if($('#statsImpactSortDirection'))$('#statsImpactSortDirection').onchange=()=>{statsState.impactSortDirection=$('#statsImpactSortDirection').value||'desc';renderStatsImpactSelection().catch(e=>handleError('stats impact sort direction',e));};
 $$('#statsImpactScopeTabs [data-impact-scope]').forEach(b=>b.onclick=()=>{
   statsState.impactScope=b.dataset.impactScope||'all';
   $$('#statsImpactScopeTabs [data-impact-scope]').forEach(x=>x.classList.toggle('active',x===b));
