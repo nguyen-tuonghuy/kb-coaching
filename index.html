@@ -2799,13 +2799,15 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
       <div class="statsHelpItem"><strong>Réf.</strong>Valeur moyenne observée dans le référentiel empirique Hommes ou Femmes pour le même contexte de départ.</div>
       <div class="statsHelpItem"><strong>Δ point</strong>Écart entre notre taux de point et le taux de point de référence.<div class="statsHelpFormula">Δ point = % point observé − % point référence</div></div>
       <div class="statsHelpItem"><strong>Δ faute</strong>Écart entre notre taux de faute et le taux de faute de référence. Un Δ faute positif signifie plus de fautes que la moyenne.<div class="statsHelpFormula">Δ faute = % faute observé − % faute référence</div></div>
-      <div class="statsHelpItem"><strong>μ</strong>Valeur offensive moyenne d’une attaque. Un point vaut +1, un ballon défendu 0 et une faute −2.<div class="statsHelpFormula">μ = P(point) − 2 × P(faute)</div></div>
+      <div class="statsHelpItem"><strong>μ</strong>Valeur offensive moyenne d’une attaque. Un point vaut +1, un ballon défendu 0 et une faute −1.<div class="statsHelpFormula">μ = P(point) − P(faute)</div></div>
       <div class="statsHelpItem"><strong>μ réf.</strong>Valeur offensive moyenne attendue dans le référentiel pour le même contexte.</div>
       <div class="statsHelpItem"><strong>Δ μ</strong>Écart entre la valeur offensive observée et la valeur de référence.<div class="statsHelpFormula">Δ μ = μ observé − μ référence</div></div>
-      <div class="statsHelpItem"><strong>Valeur réelle</strong>Somme de la valeur de toutes les attaques : +1 par point, 0 par ballon défendu, −2 par faute.</div>
+      <div class="statsHelpItem"><strong>Valeur réelle</strong>Somme de la valeur de toutes les attaques : +1 par point, 0 par ballon défendu, −1 par faute.</div>
       <div class="statsHelpItem"><strong>Valeur attendue</strong>Somme des valeurs moyennes μ attendues pour chacun des contextes dans lesquels les attaques ont été réalisées.</div>
-      <div class="statsHelpItem"><strong>Performance offensive</strong>Différence entre ce qui a réellement été produit et ce qui était attendu dans les mêmes contextes.<div class="statsHelpFormula">Performance offensive = valeur réelle − valeur attendue</div></div>
-      <div class="statsHelpItem"><strong>Performance /100</strong>Performance offensive ramenée à 100 attaques pour faciliter les comparaisons.<div class="statsHelpFormula">Perf. /100 = 100 × performance offensive / N</div></div>
+      <div class="statsHelpItem"><strong>Création /100</strong>Surplus ou déficit de points marqués par rapport au référentiel, ramené à 100 attaques.<div class="statsHelpFormula">Création /100 = 100 × (points − points attendus) / N</div></div>
+      <div class="statsHelpItem"><strong>Sécurité /100</strong>Fautes évitées par rapport au référentiel, ramenées à 100 attaques. Une valeur positive signifie moins de fautes que prévu.<div class="statsHelpFormula">Sécurité /100 = 100 × (fautes attendues − fautes) / N</div></div>
+      <div class="statsHelpItem"><strong>Performance offensive</strong>Somme de la création et de la sécurité offensives dans les mêmes contextes.<div class="statsHelpFormula">Performance = Création + Sécurité</div></div>
+      <div class="statsHelpItem"><strong>Performance /100</strong>Score offensif global ramené à 100 attaques.<div class="statsHelpFormula">Performance /100 = Création /100 + Sécurité /100</div></div>
       <div class="statsHelpItem"><strong>Fiabilité de l’échantillon</strong>N &lt; 5 : score /100 masqué. De 5 à 15 : score affiché avec avertissement. Au-delà de 15 : affichage normal.</div>
       <div class="statsHelpItem"><strong>Jeu courant · centre</strong>Attaque réalisée en jeu courant depuis le centre.</div>
       <div class="statsHelpItem"><strong>Remise · centre / ligne / coin</strong>Le terme indique la position de départ de la remise en jeu, et non la direction de la frappe.</div>
@@ -6258,7 +6260,7 @@ async function loadOffensiveReference(population){
   const contexts={};
   OFFENSIVE_CONTEXTS.forEach(c=>{
     const x=counts[c.key];
-    contexts[c.key]={...x,p:x.total?x.point/x.total:0,q:x.total?x.attack_fault/x.total:0,mu:x.total?(x.point-2*x.attack_fault)/x.total:0};
+    contexts[c.key]={...x,p:x.total?x.point/x.total:0,q:x.total?x.attack_fault/x.total:0,mu:x.total?(x.point-x.attack_fault)/x.total:0};
   });
   return {population:pop,contexts,total:quickCount+detailedCount,quickCount,detailedCount};
 }
@@ -6281,12 +6283,12 @@ function renderOffensiveReference(){
 function offensiveActualValue(outcome){
   if(outcome==='Point marqué'||outcome==='Défensive illégale')return 1;
   if(outcome==='Ballon défendu')return 0;
-  if(outcome==='Faute attaque')return -2;
+  if(outcome==='Faute attaque')return -1;
   return null;
 }
 function playerOffensiveImpact(events,playerName,scope='all'){
   const ref=analysisState.offensiveReference;
-  const out={name:playerName,total:0,points:0,defended:0,faults:0,expectedPoints:0,expectedFaults:0,actualValue:0,expectedValue:0,impact:0,impact100:null};
+  const out={name:playerName,total:0,points:0,defended:0,faults:0,expectedPoints:0,expectedFaults:0,actualValue:0,expectedValue:0,creation:0,safety:0,creation100:null,safety100:null,impact:0,impact100:null};
   if(!ref)return out;
   events.forEach(e=>{
     if(analysisSemanticType(e)!=='attack')return;
@@ -6309,7 +6311,11 @@ function playerOffensiveImpact(events,playerName,scope='all'){
     out.actualValue+=value;
     out.expectedValue+=r.mu;
   });
-  out.impact=out.actualValue-out.expectedValue;
+  out.creation=out.points-out.expectedPoints;
+  out.safety=out.expectedFaults-out.faults;
+  out.creation100=out.total?100*out.creation/out.total:null;
+  out.safety100=out.total?100*out.safety/out.total:null;
+  out.impact=out.creation+out.safety;
   out.impact100=out.total?100*out.impact/out.total:null;
   return out;
 }
@@ -6325,16 +6331,18 @@ function impactClass(v){
 }
 function renderOffensiveImpactTable(events,allPlayers){
   const rows=allPlayers.map(name=>playerOffensiveImpact(events,name));
-  return `<div class="analysisSubsectionTitle">Performance offensive ajusté au contexte</div>
-  <div class="analysisSubtle" style="margin-bottom:7px">Valeur réelle : +1 point · 0 ballon défendu · −2 faute. Performance offensive = valeur réelle − valeur attendue selon la position de départ. Les actions laissées en collectif ne sont pas affectées à un joueur.</div>
+  return `<div class="analysisSubsectionTitle">Performance offensive ajustée au contexte</div>
+  <div class="analysisSubtle" style="margin-bottom:7px">Valeur d’une attaque : +1 point · 0 ballon défendu · −1 faute. Création = points produits au-dessus de l’attendu ; Sécurité = fautes évitées par rapport à l’attendu. Performance = Création + Sécurité. Les actions laissées en collectif ne sont pas affectées à un joueur.</div>
   <div class="analysisTableWrap"><table class="analysisTable"><thead><tr>
-    <th>Joueur</th><th>Att.</th><th>Pts réels</th><th>Pts attendus</th><th>Fautes</th><th>Fautes att.</th><th>Performance offensive</th><th>Performance /100</th>
+    <th>Joueur</th><th>Att.</th><th>% points</th><th>% fautes</th><th>Création /100</th><th>Sécurité /100</th><th>Performance /100</th>
   </tr></thead><tbody>${rows.map(x=>`<tr>
     <td>${escapeHtml(x.name)}${x.total>0?` ${offensiveSampleLabel(x.total).html}`:''}</td>
-    <td>${x.total}</td><td>${x.points}</td><td>${x.total?(Math.round(x.expectedPoints*10)/10).toFixed(1).replace('.',','):'—'}</td>
-    <td>${x.faults}</td><td>${x.total?(Math.round(x.expectedFaults*10)/10).toFixed(1).replace('.',','):'—'}</td>
-    <td class="${impactClass(x.impact)}">${x.total?signed1(x.impact):'—'}</td>
-    <td class="${impactClass(x.impact100||0)}">${x.total?signed1(x.impact100):'—'}</td>
+    <td>${x.total}</td>
+    <td>${x.total?(Math.round(1000*x.points/x.total)/10).toFixed(1).replace('.',',')+' %':'—'}</td>
+    <td>${x.total?(Math.round(1000*x.faults/x.total)/10).toFixed(1).replace('.',',')+' %':'—'}</td>
+    <td class="${impactClass(x.creation100||0)}">${x.total?signed1(x.creation100):'—'}</td>
+    <td class="${impactClass(x.safety100||0)}">${x.total?signed1(x.safety100):'—'}</td>
+    <td>${x.total?offensivePerf100Display(x.impact100,x.total):'—'}</td>
   </tr>`).join('')}</tbody></table></div>`;
 }
 
@@ -7946,7 +7954,7 @@ function opponentOffensivePerformance(events,reference){
     const ref=reference?.contexts?.[obs.context];
     if(!ref||!ref.total)return;
 
-    const v=obs.outcome==='point'?1:(obs.outcome==='attack_fault'?-2:0);
+    const v=obs.outcome==='point'?1:(obs.outcome==='attack_fault'?-1:0);
     const c=byContext[obs.context];
     attacks++; c.attacks++;
     if(obs.outcome==='point'){points++;c.points++}
@@ -8056,7 +8064,7 @@ function teamOffensivePerformance(events,reference){
     const ref=reference?.contexts?.[obs.context];
     if(!ref||!ref.total)return;
 
-    const v=obs.outcome==='point'?1:(obs.outcome==='attack_fault'?-2:0);
+    const v=obs.outcome==='point'?1:(obs.outcome==='attack_fault'?-1:0);
     const c=byContext[obs.context];
     attacks++; c.attacks++;
     if(obs.outcome==='point'){points++;c.points++}
@@ -8284,7 +8292,7 @@ function statsReferenceHtml(ref){
     <div class="statsMatchCard"><span class="small">Collecte rapide</span><strong>${ref.quickCount}</strong></div>
     <div class="statsMatchCard"><span class="small">Matchs détaillés</span><strong>${ref.detailedCount}</strong></div>
    </div>
-   <div class="analysisTableWrap" style="margin-top:10px"><table class="analysisTable"><thead><tr><th>Contexte</th><th>Points</th><th>Défendus</th><th>Fautes</th><th>N</th><th>% point</th><th>% faute</th><th>μ = p − 2q</th></tr></thead><tbody>${rows}</tbody></table></div>
+   <div class="analysisTableWrap" style="margin-top:10px"><table class="analysisTable"><thead><tr><th>Contexte</th><th>Points</th><th>Défendus</th><th>Fautes</th><th>N</th><th>% point</th><th>% faute</th><th>μ = p − q</th></tr></thead><tbody>${rows}</tbody></table></div>
    <div class="analysisSubtle" style="margin-top:8px">Cette table provient uniquement de la version active. Les sources cochées pour une future version n’ont aucun effet tant que tu ne crées pas cette nouvelle version.</div>`;
 }
 function formatReferenceDate(value){
@@ -8574,18 +8582,19 @@ function statsImpactEvolutionTableHtml(series){
       <td>${escapeHtml(formatDateShort(x.match.played_on)||'—')}</td>
       <td>${escapeHtml(x.match.label||'Match')}</td>
       <td>${x.total}</td>
-      <td>${x.total?x.points:'—'}</td>
-      <td>${x.total?x.faults:'—'}</td>
-      <td class="${impactClass(x.impact||0)}">${x.total?signed1(x.impact):'—'}</td>
-      <td class="${impactClass(x.impact100||0)}">${x.total?signed1(x.impact100):'—'}</td>
+      <td>${x.total?(Math.round(1000*x.points/x.total)/10).toFixed(1).replace('.',',')+' %':'—'}</td>
+      <td>${x.total?(Math.round(1000*x.faults/x.total)/10).toFixed(1).replace('.',',')+' %':'—'}</td>
+      <td class="${impactClass(x.creation100||0)}">${x.total?signed1(x.creation100):'—'}</td>
+      <td class="${impactClass(x.safety100||0)}">${x.total?signed1(x.safety100):'—'}</td>
+      <td>${x.total?offensivePerf100Display(x.impact100,x.total):'—'}</td>
       <td>${x.total?reliability.html:'—'}</td>
     </tr>`;
   }).join('');
   return `<div class="analysisSubtle statsImpactEvolutionOrderHint">L’ordre suit la date par défaut. Utilise ↑ / ↓ pour corriger l’ordre réel des matchs joués le même jour. Cet ordre est mémorisé pour ce groupe.</div>
   <div class="analysisTableWrap">
     <table class="analysisTable">
-      <thead><tr><th>Ordre</th><th>#</th><th>Date</th><th>Match</th><th>N</th><th>Points</th><th>Fautes</th><th>Performance</th><th>Performance /100</th><th>Fiabilité</th></tr></thead>
-      <tbody>${rows||'<tr><td colspan="10">Aucun match.</td></tr>'}</tbody>
+      <thead><tr><th>Ordre</th><th>#</th><th>Date</th><th>Match</th><th>N</th><th>% points</th><th>% fautes</th><th>Création /100</th><th>Sécurité /100</th><th>Performance /100</th><th>Fiabilité</th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="11">Aucun match.</td></tr>'}</tbody>
     </table>
   </div>`;
 }
@@ -8648,11 +8657,14 @@ async function renderStatsImpactSelection(){
 
   rows.sort((a,b)=>(b.impact100??-Infinity)-(a.impact100??-Infinity));
   const body=rows.map(x=>`<tr>
-    <td>${escapeHtml(x.name)}${x.total>0?` ${offensiveSampleLabel(x.total).html}`:''}</td>
-    <td>${x.total}</td><td>${x.points}</td><td>${x.total?(Math.round(x.expectedPoints*10)/10).toFixed(1).replace('.',','):'—'}</td>
-    <td>${x.faults}</td><td>${x.total?(Math.round(x.expectedFaults*10)/10).toFixed(1).replace('.',','):'—'}</td>
-    <td class="${impactClass(x.impact)}">${x.total?signed1(x.impact):'—'}</td>
-    <td class="${impactClass(x.impact100||0)}">${x.total?signed1(x.impact100):'—'}</td>
+    <td>${escapeHtml(x.name)}</td>
+    <td>${x.total}</td>
+    <td>${x.total?(Math.round(1000*x.points/x.total)/10).toFixed(1).replace('.',',')+' %':'—'}</td>
+    <td>${x.total?(Math.round(1000*x.faults/x.total)/10).toFixed(1).replace('.',',')+' %':'—'}</td>
+    <td class="${impactClass(x.creation100||0)}">${x.total?signed1(x.creation100):'—'}</td>
+    <td class="${impactClass(x.safety100||0)}">${x.total?signed1(x.safety100):'—'}</td>
+    <td>${x.total?offensivePerf100Display(x.impact100,x.total):'—'}</td>
+    <td>${x.total?offensiveSampleLabel(x.total).html:'—'}</td>
    </tr>`).join('');
 
   const scopeLabel=scope==='center'?'Jeu au centre':scope==='restart'?'Remise en jeu':'Cumulé';
@@ -8660,11 +8672,13 @@ async function renderStatsImpactSelection(){
       ${selected.length===1?'Match sélectionné':`Cumul de ${selected.length} matchs sélectionnés`} ·
       Vue : ${scopeLabel} ·
       Référentiel ${pop==='H'?'Hommes':'Femmes'} ·
-      valeur d’une attaque : +1 point, 0 ballon défendu, −2 faute.
+      valeur d’une attaque : +1 point, 0 ballon défendu, −1 faute.
+      Création /100 mesure les points marqués au-dessus de l’attendu ; Sécurité /100 mesure les fautes évitées par rapport à l’attendu.
+      Performance /100 = Création /100 + Sécurité /100.
       Les actions laissées en collectif ne sont pas attribuées à un joueur.
     </div>
     <div class="analysisTableWrap" style="margin-top:14px"><table class="analysisTable"><thead><tr>
-      <th>Joueur</th><th>Att.</th><th>Pts</th><th>Pts att.</th><th>Fautes</th><th>Fautes att.</th><th>Performance offensive</th><th>Performance /100</th>
+      <th>Joueur</th><th>N</th><th>% points</th><th>% fautes</th><th>Création /100</th><th>Sécurité /100</th><th>Performance /100</th><th>Fiabilité</th>
     </tr></thead><tbody>${body||'<tr><td colspan="8">Aucune attaque attribuée.</td></tr>'}</tbody></table></div>
     ${statsImpactEvolutionBlockHtml(ds,scope)}`;
   const playerSelect=$('#statsImpactPlayerSelect');
