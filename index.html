@@ -1667,10 +1667,9 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
    <div class="moduleGrid">
     <button class="moduleCard primary" id="openMatchModule"><strong>🏐 Matchs</strong><span>Prise de notes et statistiques partagées du groupe</span></button>
     <button class="moduleCard" id="openTrainingModule"><strong>🎯 Entraînements</strong><span>Séances, exercices, résultats et progression des joueurs</span></button>
-    <button class="moduleCard" type="button" onclick="window.location.href='quick-collection.html'"><strong>⚡ Collecte rapide</strong><span>Dépouillement vidéo YouTube · dataset partagé H / F</span></button>
+    <button class="moduleCard" id="openStatsModule"><strong>📊 Statistiques</strong><span>Entraînements, matchs, performance joueurs et référentiel offensif</span></button>
     <button class="moduleCard" id="openGroupsModule"><strong>👥 Groupes</strong><span>Effectifs et entraîneurs partageant les mêmes données</span></button>
     <button class="moduleCard" id="openSettingsModule"><strong>⚙️ Paramètres</strong><span>Catégories d’exercices · Types de match</span></button>
-    <button class="moduleCard" id="openStatsModule"><strong>📊 Statistiques</strong><span>Entraînements, matchs, référentiel offensif et impact joueurs</span></button>
     <button class="moduleCard hidden" id="openAdminModule"><strong>🛡️ Administration</strong><span>Voir tous les groupes et leurs entraîneurs</span></button>
    </div>
  </section>
@@ -1906,8 +1905,8 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
    <div class="statsDomainTabs">
     <button class="statsDomainTab active" data-stats-domain="training">Entraînements</button>
     <button class="statsDomainTab" data-stats-domain="matches">Matchs</button>
-    <button class="statsDomainTab" data-stats-domain="reference">Référentiel offensif</button>
     <button class="statsDomainTab" data-stats-domain="impact">Performance offensive joueurs</button>
+    <button class="statsDomainTab" data-stats-domain="reference">Référentiel offensif</button>
    </div>
 
    <div id="statsStatus" class="small" style="margin-bottom:10px"></div>
@@ -1983,14 +1982,17 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
    <div id="statsReferenceDomain" class="hidden">
     <div class="analysisBlock">
      <div class="row" style="justify-content:space-between;align-items:end;gap:10px">
-      <div>
+      <div style="flex:1;min-width:260px">
        <h3>Référentiel offensif</h3>
        <div class="analysisSubtle">Les performances sont comparées à une version stable du référentiel. Ajouter de nouvelles données ne change rien tant qu’une nouvelle version n’est pas créée.</div>
        <div id="statsReferenceActiveMeta" style="margin-top:7px"></div>
       </div>
-      <div class="field" style="max-width:190px">
-       <label>Population</label>
-       <select id="statsReferencePopulation"><option value="H">Hommes</option><option value="F">Femmes</option></select>
+      <div class="row" style="align-items:end;gap:8px;flex-wrap:wrap">
+       <button class="ghost" type="button" id="openQuickCollectionFromReference">⚡ Collecte rapide</button>
+       <div class="field" style="max-width:190px">
+        <label>Population</label>
+        <select id="statsReferencePopulation"><option value="H">Hommes</option><option value="F">Femmes</option></select>
+       </div>
       </div>
      </div>
      <div id="statsReferenceContent" style="margin-top:10px"></div>
@@ -8897,6 +8899,7 @@ $('#historyPlayer').onchange=()=>loadPlayerHistory($('#historyPlayer').value).ca
 
 
 $('#openStatsModule').onclick=()=>openStatsModule();
+if($('#openQuickCollectionFromReference'))$('#openQuickCollectionFromReference').onclick=()=>{window.location.href='quick-collection.html'};
 $('#statsBackHome').onclick=showAppHome;
 if($('#statsMatchLatest'))$('#statsMatchLatest').onclick=()=>{
   const list=statsState.matchList||[];
