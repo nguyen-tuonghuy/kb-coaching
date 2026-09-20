@@ -2055,6 +2055,17 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
       <button type="button" class="ghost" data-impact-scope="center">Jeu au centre</button>
       <button type="button" class="ghost" data-impact-scope="restart">Remise en jeu</button>
      </div>
+     <div class="row hidden" id="statsImpactRestartFilter" style="gap:10px;align-items:end;margin-top:10px;flex-wrap:wrap">
+      <div class="field" style="max-width:260px">
+       <label>Type de remise en jeu</label>
+       <select id="statsImpactRestartLocation">
+        <option value="all">Toutes les remises</option>
+        <option value="center">Au centre</option>
+        <option value="line">Sur ligne</option>
+        <option value="corner">Sur coin</option>
+       </select>
+      </div>
+     </div>
      <div class="row" style="gap:10px;align-items:end;margin-top:10px;flex-wrap:wrap">
       <div class="field" style="max-width:260px">
        <label>Trier par</label>
@@ -5371,7 +5382,7 @@ $('#matchTypeCreateForm').onsubmit=event=>{
 let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{}};
 let groupState={groups:[],currentGroupId:null,currentPlayers:[],matchPlayers:[],profiles:{}};
 let adminState={isAdmin:false,groups:[]};
-let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',impactSortField:'impact100',impactSortDirection:'desc',impactPlayerName:'',impactMatchManualOrder:[],statsMatchView:'summary',reference:null,referenceMeta:null,referenceSources:[],referenceVersions:[],impactReference:null};
+let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',impactRestartLocation:'all',impactSortField:'impact100',impactSortDirection:'desc',impactPlayerName:'',impactMatchManualOrder:[],statsMatchView:'summary',reference:null,referenceMeta:null,referenceSources:[],referenceVersions:[],impactReference:null};
 
 
 
@@ -6342,6 +6353,9 @@ function playerOffensiveImpact(events,playerName,scope='all'){
     const context=offensiveContextFromEvent(e);
     if(scope==='center'&&context!=='game_center')return;
     if(scope==='restart'&&!['restart_center','restart_line','restart_corner'].includes(context))return;
+    if(scope==='restart_center'&&context!=='restart_center')return;
+    if(scope==='restart_line'&&context!=='restart_line')return;
+    if(scope==='restart_corner'&&context!=='restart_corner')return;
     const r=ref.contexts[context];
     if(!context||!r||!r.total)return;
     const outcome=analysisOutcome(e);
@@ -8715,6 +8729,24 @@ function statsImpactEvolutionBlockHtml(ds,scope='all'){
   </div>`;
 }
 
+function statsImpactEffectiveScope(){
+  const base=statsState.impactScope||'all';
+  if(base!=='restart')return base;
+  const location=statsState.impactRestartLocation||'all';
+  if(location==='center')return 'restart_center';
+  if(location==='line')return 'restart_line';
+  if(location==='corner')return 'restart_corner';
+  return 'restart';
+}
+function statsImpactScopeLabel(scope){
+  if(scope==='center')return 'Jeu au centre';
+  if(scope==='restart_center')return 'Remise en jeu · centre';
+  if(scope==='restart_line')return 'Remise en jeu · ligne';
+  if(scope==='restart_corner')return 'Remise en jeu · coin';
+  if(scope==='restart')return 'Remise en jeu · toutes';
+  return 'Cumulé';
+}
+
 async function renderStatsImpactSelection(){
   const groupId=$('#statsGroup').value;
   const box=$('#statsImpactContent');
@@ -8741,7 +8773,7 @@ async function renderStatsImpactSelection(){
   const previousRef=analysisState.offensiveReference;
   analysisState.offensiveReference=ref;
   const names=(ds.players||[]).filter(Boolean);
-  const scope=statsState.impactScope||'all';
+  const scope=statsImpactEffectiveScope();
   const rows=statsImpactSortRows(names.map(name=>playerOffensiveImpact(ds.events,name,scope)));
 
   const body=rows.map(x=>`<tr>
@@ -8754,7 +8786,7 @@ async function renderStatsImpactSelection(){
     <td>${x.total?offensivePerf100Display(x.impact100,x.total):'—'}</td>
    </tr>`).join('');
 
-  const scopeLabel=scope==='center'?'Jeu au centre':scope==='restart'?'Remise en jeu':'Cumulé';
+  const scopeLabel=statsImpactScopeLabel(scope);
   box.innerHTML=`<div class="analysisSubtle" style="margin-bottom:8px">
       ${selected.length===1?'Match sélectionné':`Cumul de ${selected.length} matchs sélectionnés`} ·
       Vue : ${scopeLabel} ·
@@ -8848,6 +8880,8 @@ async function openStatsModule(){
     $('#statsImpactPopulation').value=pop;
     if($('#statsImpactSortField'))$('#statsImpactSortField').value=statsState.impactSortField||'impact100';
     if($('#statsImpactSortDirection'))$('#statsImpactSortDirection').value=statsState.impactSortDirection||'desc';
+    if($('#statsImpactRestartLocation'))$('#statsImpactRestartLocation').value=statsState.impactRestartLocation||'all';
+    $('#statsImpactRestartFilter')?.classList.toggle('hidden',(statsState.impactScope||'all')!=='restart');
     window.scrollTo({top:0,behavior:'instant'});
   }catch(e){handleError('stats',e);$('#statsStatus').textContent=e.message||String(e)}
 }
@@ -9058,8 +9092,13 @@ if($('#statsImpactSortDirection'))$('#statsImpactSortDirection').onchange=()=>{s
 $$('#statsImpactScopeTabs [data-impact-scope]').forEach(b=>b.onclick=()=>{
   statsState.impactScope=b.dataset.impactScope||'all';
   $$('#statsImpactScopeTabs [data-impact-scope]').forEach(x=>x.classList.toggle('active',x===b));
+  $('#statsImpactRestartFilter')?.classList.toggle('hidden',statsState.impactScope!=='restart');
   renderStatsImpactSelection().catch(e=>handleError('stats impact scope',e));
 });
+if($('#statsImpactRestartLocation'))$('#statsImpactRestartLocation').onchange=()=>{
+  statsState.impactRestartLocation=$('#statsImpactRestartLocation').value||'all';
+  renderStatsImpactSelection().catch(e=>handleError('stats impact restart location',e));
+};
 if($('#statsImpactLatest'))$('#statsImpactLatest').onclick=()=>{
   const list=statsState.impactMatchList||[];
   const latest=list[list.length-1];
