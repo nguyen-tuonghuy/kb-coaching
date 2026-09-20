@@ -1787,6 +1787,7 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
 
    <h3 style="font-size:16px;margin:18px 0 8px">Entraîneurs</h3>
    <div id="groupCoachesList"></div>
+   <div class="authStatus" id="groupCoachesStatus"></div>
  </section>
 
  <section class="panel hidden" id="trainingHome">
@@ -5592,14 +5593,45 @@ async function openGroupDetail(groupId){
     if(error)throw error;
     await fetchProfiles((coaches||[]).map(c=>c.user_id));
     const cb=$('#groupCoachesList');cb.innerHTML='';
+    const coachesStatus=$('#groupCoachesStatus');if(coachesStatus){coachesStatus.textContent='';coachesStatus.className='authStatus'}
     (coaches||[]).forEach((c,i)=>{
       const d=document.createElement('div');d.className='historyItem';
       const name=groupState.profiles[c.user_id]||`Entraîneur ${i+1}`;
-      d.innerHTML=`<strong>${escapeHtml(name)}</strong><div class="small">${c.role==='owner'?'Créateur du groupe':'Entraîneur'}${c.user_id===currentUser.id?' · toi':''}</div>`;
+      const row=document.createElement('div');row.className='row';row.style.alignItems='center';row.style.gap='8px';
+      const info=document.createElement('div');info.style.flex='1';info.style.minWidth='0';
+      info.innerHTML=`<strong>${escapeHtml(name)}</strong><div class="small">${c.role==='owner'?'Créateur du groupe':'Entraîneur'}${c.user_id===currentUser.id?' · toi':''}</div>`;
+      row.append(info);
+      if(g.role==='owner'&&c.role!=='owner'&&c.user_id!==currentUser.id){
+        const remove=document.createElement('button');
+        remove.type='button';remove.className='ghost';
+        remove.style.color='#ff8d8d';
+        remove.textContent='Retirer';
+        remove.onclick=()=>removeCoachFromCurrentGroup(c.user_id,name);
+        row.append(remove);
+      }
+      d.append(row);
       cb.append(d);
     });
     hideMainModules();setMatchHeaderMode(false);$('#groupDetail').classList.remove('hidden');window.scrollTo({top:0,behavior:'instant'});
   }catch(e){handleError('openGroupDetail',e)}
+}
+
+async function removeCoachFromCurrentGroup(userId,displayName){
+  const groupId=groupState.currentGroupId;
+  const g=groupState.groups.find(x=>x.id===groupId);
+  const status=$('#groupCoachesStatus');
+  if(!groupId||!g||g.role!=='owner')return;
+  if(!confirm(`Retirer ${displayName||'cet entraîneur'} du groupe « ${g.name} » ?\n\nIl n’aura plus accès aux matchs, entraînements et statistiques partagés de ce groupe.`))return;
+  if(status){status.textContent='Suppression de l’entraîneur…';status.className='authStatus'}
+  try{
+    const {error}=await db.rpc('remove_coaching_group_coach',{p_group_id:groupId,p_user_id:userId});
+    if(error)throw error;
+    if(status){status.textContent='Entraîneur retiré du groupe ✓';status.className='authStatus cloudOk'}
+    await openGroupDetail(groupId);
+  }catch(e){
+    if(status){status.textContent=e.message||'Impossible de retirer cet entraîneur.';status.className='authStatus cloudErr'}
+    handleError('remove group coach',e);
+  }
 }
 
 async function saveCurrentGroupName(){
