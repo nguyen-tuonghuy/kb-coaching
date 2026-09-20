@@ -8752,7 +8752,6 @@ async function renderStatsImpactSelection(){
     <td class="${impactClass(x.creation100||0)}">${x.total?signed1(x.creation100):'—'}</td>
     <td class="${impactClass(x.safety100||0)}">${x.total?signed1(x.safety100):'—'}</td>
     <td>${x.total?offensivePerf100Display(x.impact100,x.total):'—'}</td>
-    <td>${x.total?offensiveSampleLabel(x.total).html:'—'}</td>
    </tr>`).join('');
 
   const scopeLabel=scope==='center'?'Jeu au centre':scope==='restart'?'Remise en jeu':'Cumulé';
@@ -8767,8 +8766,8 @@ async function renderStatsImpactSelection(){
       Les actions laissées en collectif ne sont pas attribuées à un joueur.
     </div>
     <div class="analysisTableWrap" style="margin-top:14px"><table class="analysisTable"><thead><tr>
-      <th>Joueur</th><th>N</th><th>% points</th><th>% fautes</th><th>Création /100</th><th>Sécurité /100</th><th>Performance /100</th><th>Fiabilité</th>
-    </tr></thead><tbody>${body||'<tr><td colspan="8">Aucune attaque attribuée.</td></tr>'}</tbody></table></div>
+      <th>Joueur</th><th>N</th><th>% points</th><th>% fautes</th><th>Création /100</th><th>Sécurité /100</th><th>Performance /100</th>
+    </tr></thead><tbody>${body||'<tr><td colspan="7">Aucune attaque attribuée.</td></tr>'}</tbody></table></div>
     ${statsImpactEvolutionBlockHtml(ds,scope)}`;
   const playerSelect=$('#statsImpactPlayerSelect');
   if(playerSelect)playerSelect.onchange=e=>{
