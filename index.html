@@ -1384,6 +1384,19 @@ button:active{transform:scale(.985)}
 .analysisImpactPositive{color:#8ee3aa;font-weight:800}
 .analysisImpactNegative{color:#ff9b9b;font-weight:800}
 .analysisImpactNeutral{color:var(--text);font-weight:800}
+.referenceManager{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+.referenceManagerHeader{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.referenceSourceList{display:grid;grid-template-columns:1fr;gap:7px;margin-top:10px}
+.referenceSourceRow{display:grid;grid-template-columns:auto minmax(0,1fr) 90px 72px;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px;background:var(--panel2)}
+.referenceSourceRow .sourceMain{min-width:0}
+.referenceSourceRow .sourceTitle{font-weight:800;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.referenceSourceRow .sourceMeta{font-size:10px;color:var(--muted);margin-top:2px;line-height:1.3}
+.referenceVersionBadge{display:inline-block;padding:4px 8px;border-radius:999px;background:rgba(125,220,159,.12);border:1px solid rgba(125,220,159,.35);font-size:11px}
+.referenceManagerActions{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px}
+.referenceManagerActions .field{min-width:260px;flex:1 1 280px}
+.referenceVersionHistory{margin-top:10px}
+.referenceVersionItem{display:flex;justify-content:space-between;gap:10px;border-top:1px solid var(--line);padding:8px 0;font-size:11px}
+@media(max-width:700px){.referenceSourceRow{grid-template-columns:auto minmax(0,1fr);}.referenceSourceRow .sourcePopulation,.referenceSourceRow .sourceVolume{grid-column:2}}
 .analysisReferenceGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
 .analysisReferenceCard{border:1px solid var(--line);border-radius:11px;padding:9px;background:rgba(255,255,255,.018)}
 .analysisReferenceCard strong{display:block;font-size:12px;margin-bottom:5px}
@@ -1970,8 +1983,9 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
     <div class="analysisBlock">
      <div class="row" style="justify-content:space-between;align-items:end;gap:10px">
       <div>
-       <h3>Référentiel offensif global</h3>
-       <div class="analysisSubtle">Quick Collection + issues exploitables des matchs détaillés. Les populations Hommes et Femmes sont toujours séparées.</div>
+       <h3>Référentiel offensif</h3>
+       <div class="analysisSubtle">Les performances sont comparées à une version stable du référentiel. Ajouter de nouvelles données ne change rien tant qu’une nouvelle version n’est pas créée.</div>
+       <div id="statsReferenceActiveMeta" style="margin-top:7px"></div>
       </div>
       <div class="field" style="max-width:190px">
        <label>Population</label>
@@ -1979,6 +1993,31 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
       </div>
      </div>
      <div id="statsReferenceContent" style="margin-top:10px"></div>
+
+     <div class="referenceManager hidden" id="statsReferenceManager">
+      <div class="referenceManagerHeader">
+       <div>
+        <h3 style="margin-bottom:4px">Préparer la prochaine version</h3>
+        <div class="analysisSubtle">Coche les matchs et collectes qui doivent contribuer. Modifier cette sélection ne change pas la référence active : il faut ensuite créer une nouvelle version.</div>
+       </div>
+       <button class="ghost" id="statsReferenceReloadSources" type="button">Actualiser</button>
+      </div>
+      <div id="statsReferenceSourceStatus" class="small" style="margin-top:9px"></div>
+      <div id="statsReferenceSources" class="referenceSourceList"></div>
+      <div class="referenceManagerActions">
+       <button class="ghost" id="statsReferenceSaveSources" type="button">Enregistrer la sélection</button>
+       <div class="field">
+        <label>Nom de la nouvelle version</label>
+        <input id="statsReferenceVersionLabel" placeholder="ex. Référence internationale · Mondial 2026 + CDE 2027">
+       </div>
+       <button class="primary" id="statsReferenceCreateVersion" type="button">Créer et activer cette version</button>
+      </div>
+      <div class="analysisSubtle" style="margin-top:8px">Les nouvelles prises de notes sont exclues par défaut. Tu choisis explicitement celles qui rejoignent la prochaine version.</div>
+      <details class="referenceVersionHistory">
+       <summary>Historique des versions</summary>
+       <div id="statsReferenceVersions"></div>
+      </details>
+     </div>
     </div>
    </div>
 
@@ -5282,7 +5321,7 @@ $('#matchTypeCreateForm').onsubmit=event=>{
 let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{}};
 let groupState={groups:[],currentGroupId:null,currentPlayers:[],matchPlayers:[],profiles:{}};
 let adminState={isAdmin:false,groups:[]};
-let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',impactPlayerName:'',impactMatchManualOrder:[],statsMatchView:'summary',reference:null,impactReference:null};
+let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',impactPlayerName:'',impactMatchManualOrder:[],statsMatchView:'summary',reference:null,referenceMeta:null,referenceSources:[],referenceVersions:[],impactReference:null};
 
 
 
@@ -6167,12 +6206,11 @@ function detailedEventToOffensiveObservation(e){
   return null;
 }
 async function loadOffensiveReference(population){
+  const pop=population==='F'?'F':'H';
   const counts=emptyOffensiveCounts();
   let quickCount=0,detailedCount=0;
-
-  const {data,error}=await db.rpc('get_global_offensive_reference',{p_population:population});
+  const {data,error}=await db.rpc('get_active_offensive_reference',{p_population:pop});
   if(error)throw error;
-
   (data||[]).forEach(row=>{
     const n=Number(row.n)||0;
     const context=row.attack_context;
@@ -6183,19 +6221,14 @@ async function loadOffensiveReference(population){
     if(row.source==='quick')quickCount+=n;
     else if(row.source==='detailed')detailedCount+=n;
   });
-
   const contexts={};
   OFFENSIVE_CONTEXTS.forEach(c=>{
     const x=counts[c.key];
-    contexts[c.key]={
-      ...x,
-      p:x.total?x.point/x.total:0,
-      q:x.total?x.attack_fault/x.total:0,
-      mu:x.total?(x.point-2*x.attack_fault)/x.total:0
-    };
+    contexts[c.key]={...x,p:x.total?x.point/x.total:0,q:x.total?x.attack_fault/x.total:0,mu:x.total?(x.point-2*x.attack_fault)/x.total:0};
   });
-  return {population,contexts,total:quickCount+detailedCount,quickCount,detailedCount};
+  return {population:pop,contexts,total:quickCount+detailedCount,quickCount,detailedCount};
 }
+
 function renderOffensiveReference(){
   const box=$('#analysisOffensiveReference');if(!box)return;
   const ref=analysisState.offensiveReference;
@@ -6209,7 +6242,7 @@ function renderOffensiveReference(){
       <div class="small">N = ${x.total}</div>
     </div>`;
   }).join('')}</div>
-  <div class="analysisSubtle" style="margin-top:8px">Population ${ref.population==='H'?'Hommes':'Femmes'} · ${ref.total} observations : ${ref.quickCount} collecte rapide + ${ref.detailedCount} issues des matchs détaillés. Centre / ligne / coin désignent la position de départ.</div>`;
+  <div class="analysisSubtle" style="margin-top:8px">Version active du référentiel · population ${ref.population==='H'?'Hommes':'Femmes'} · ${ref.total} observations : ${ref.quickCount} collecte rapide + ${ref.detailedCount} issues des matchs détaillés. Centre / ligne / coin désignent la position de départ.</div>`;
 }
 function offensiveActualValue(outcome){
   if(outcome==='Point marqué'||outcome==='Défensive illégale')return 1;
@@ -8214,18 +8247,119 @@ function statsReferenceHtml(ref){
   return `<div class="statsMatchGrid">
     <div class="statsMatchCard"><span class="small">Population</span><strong>${ref.population==='H'?'Hommes':'Femmes'}</strong></div>
     <div class="statsMatchCard"><span class="small">Observations</span><strong>${ref.total}</strong></div>
-    <div class="statsMatchCard"><span class="small">Quick Collection</span><strong>${ref.quickCount}</strong></div>
+    <div class="statsMatchCard"><span class="small">Collecte rapide</span><strong>${ref.quickCount}</strong></div>
     <div class="statsMatchCard"><span class="small">Matchs détaillés</span><strong>${ref.detailedCount}</strong></div>
    </div>
    <div class="analysisTableWrap" style="margin-top:10px"><table class="analysisTable"><thead><tr><th>Contexte</th><th>Points</th><th>Défendus</th><th>Fautes</th><th>N</th><th>% point</th><th>% faute</th><th>μ = p − 2q</th></tr></thead><tbody>${rows}</tbody></table></div>
-   <div class="analysisSubtle" style="margin-top:8px">Référentiel recalculé depuis les données disponibles · H/F séparés.</div>`;
+   <div class="analysisSubtle" style="margin-top:8px">Cette table provient uniquement de la version active. Les sources cochées pour une future version n’ont aucun effet tant que tu ne crées pas cette nouvelle version.</div>`;
+}
+function formatReferenceDate(value){
+  if(!value)return '';
+  try{return new Date(value).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'})}catch{return String(value)}
+}
+async function loadReferenceMeta(){
+  const {data,error}=await db.rpc('get_active_offensive_reference_meta');
+  if(error)throw error;
+  statsState.referenceMeta=(data||[])[0]||null;
+  const box=$('#statsReferenceActiveMeta');
+  if(box){
+    const m=statsState.referenceMeta;
+    box.innerHTML=m
+      ? `<span class="referenceVersionBadge">Version active</span> <strong>${escapeHtml(m.label)}</strong><div class="analysisSubtle" style="margin-top:4px">Créée le ${escapeHtml(formatReferenceDate(m.created_at))} · ${Number(m.source_counts?.matches||0)} match(s) · ${Number(m.source_counts?.quick_sessions||0)} collecte(s) rapide(s)</div>`
+      : '<span class="small">Aucune version active.</span>';
+  }
+}
+function referenceSourcePopulationSelect(source){
+  if(source.source_type==='quick')return `<span class="sourcePopulation small">${source.population==='F'?'F':'H'}</span>`;
+  const value=source.population||'';
+  return `<select class="sourcePopulation" data-ref-population="${source.source_id}">
+    <option value="" ${!value?'selected':''}>H/F ?</option>
+    <option value="H" ${value==='H'?'selected':''}>H</option>
+    <option value="F" ${value==='F'?'selected':''}>F</option>
+  </select>`;
+}
+function renderReferenceSources(){
+  const box=$('#statsReferenceSources'),status=$('#statsReferenceSourceStatus');
+  if(!box||!status)return;
+  const rows=statsState.referenceSources||[];
+  if(!rows.length){box.innerHTML='<div class="statsEmpty">Aucune source disponible.</div>';status.textContent='';return}
+  const included=rows.filter(x=>x.included).length;
+  status.textContent=`${included} source${included>1?'s':''} préparée${included>1?'s':''} pour la prochaine version · ${rows.length} disponible${rows.length>1?'s':''}`;
+  box.innerHTML=rows.map(s=>`<div class="referenceSourceRow">
+    <input type="checkbox" data-ref-include="${s.source_id}" data-ref-type="${s.source_type}" ${s.included?'checked':''}>
+    <div class="sourceMain">
+      <div class="sourceTitle">${escapeHtml(s.source_label||'Sans nom')}</div>
+      <div class="sourceMeta">${escapeHtml(s.source_type==='quick'?'Collecte rapide':'Match détaillé')} · ${escapeHtml(s.source_date?formatDateShort(s.source_date):'Date ?')}${s.source_group?' · '+escapeHtml(s.source_group):''}${s.source_category?' · '+escapeHtml(s.source_category):''}</div>
+    </div>
+    ${referenceSourcePopulationSelect(s)}
+    <div class="sourceVolume small">N=${Number(s.volume||0)}</div>
+  </div>`).join('');
+}
+async function loadReferenceSources(){
+  if(!adminState.isAdmin){$('#statsReferenceManager')?.classList.add('hidden');return}
+  $('#statsReferenceManager')?.classList.remove('hidden');
+  const {data,error}=await db.rpc('get_offensive_reference_sources');
+  if(error)throw error;
+  statsState.referenceSources=data||[];
+  renderReferenceSources();
+  await loadReferenceVersions();
+}
+async function saveReferenceSources(){
+  if(!adminState.isAdmin)return;
+  const rows=statsState.referenceSources||[];
+  const box=$('#statsReferenceSources');
+  if(!box)return;
+  setCloud('Enregistrement…',true);
+  for(const source of rows){
+    const checkbox=box.querySelector(`[data-ref-include="${source.source_id}"]`);
+    if(!checkbox)continue;
+    const included=checkbox.checked;
+    let population=source.population||null;
+    if(source.source_type==='match'){
+      population=box.querySelector(`[data-ref-population="${source.source_id}"]`)?.value||null;
+      if(included&&!population){alert(`Choisis H ou F pour « ${source.source_label||'ce match'} ».`);setCloud('Synchronisé',true);return false}
+    }
+    const {error}=await db.rpc('set_offensive_reference_source',{p_source_type:source.source_type,p_source_id:source.source_id,p_included:included,p_population:population});
+    if(error)throw error;
+  }
+  await loadReferenceSources();
+  setCloud('Synchronisé',true);
+  return true;
+}
+async function createReferenceVersion(){
+  if(!adminState.isAdmin)return;
+  const saved=await saveReferenceSources();
+  if(saved===false)return;
+  const input=$('#statsReferenceVersionLabel');
+  const label=(input?.value||'').trim();
+  if(!label){alert('Donne un nom à la nouvelle version du référentiel.');input?.focus();return}
+  if(!confirm(`Créer et activer le référentiel « ${label} » ?\n\nLes performances seront ensuite calculées avec cette nouvelle version.`))return;
+  setCloud('Création du référentiel…',true);
+  const {error}=await db.rpc('create_offensive_reference_version',{p_label:label});
+  if(error)throw error;
+  if(input)input.value='';
+  await loadStatsReference();
+  setCloud('Synchronisé',true);
+}
+async function loadReferenceVersions(){
+  const {data,error}=await db.from('offensive_reference_versions').select('id,label,is_active,created_at,snapshot').order('created_at',{ascending:false}).limit(12);
+  if(error)throw error;
+  statsState.referenceVersions=data||[];
+  const box=$('#statsReferenceVersions');if(!box)return;
+  box.innerHTML=(data||[]).map(v=>{
+    const counts=v.snapshot?.source_counts||{};
+    return `<div class="referenceVersionItem"><div><strong>${escapeHtml(v.label)}</strong>${v.is_active?' <span class="referenceVersionBadge">active</span>':''}<div class="analysisSubtle">${escapeHtml(formatReferenceDate(v.created_at))}</div></div><div class="small">${Number(counts.matches||0)} match(s) · ${Number(counts.quick_sessions||0)} collecte(s)</div></div>`;
+  }).join('')||'<div class="small">Aucune version.</div>';
 }
 async function loadStatsReference(){
   const pop=$('#statsReferencePopulation').value||'H';
-  const box=$('#statsReferenceContent');box.innerHTML='<div class="statsEmpty">Calcul du référentiel…</div>';
+  const box=$('#statsReferenceContent');box.innerHTML='<div class="statsEmpty">Chargement du référentiel…</div>';
+  await loadReferenceMeta();
   statsState.reference=await loadOffensiveReference(pop);
   box.innerHTML=statsReferenceHtml(statsState.reference);
+  await loadReferenceSources();
 }
+
 async function statsGroupMatchDataset(){
   const groupId=$('#statsGroup').value;
   if(!groupId)return {matchIds:[],matches:[],events:[],players:[]};
@@ -8495,10 +8629,10 @@ async function renderStatsImpactSelection(){
       valeur d’une attaque : +1 point, 0 ballon défendu, −2 faute.
       Les actions laissées en collectif ne sont pas attribuées à un joueur.
     </div>
-    ${statsImpactEvolutionBlockHtml(ds,scope)}
     <div class="analysisTableWrap" style="margin-top:14px"><table class="analysisTable"><thead><tr>
       <th>Joueur</th><th>Att.</th><th>Pts</th><th>Pts att.</th><th>Fautes</th><th>Fautes att.</th><th>Performance offensive</th><th>Performance /100</th>
-    </tr></thead><tbody>${body||'<tr><td colspan="8">Aucune attaque attribuée.</td></tr>'}</tbody></table></div>`;
+    </tr></thead><tbody>${body||'<tr><td colspan="8">Aucune attaque attribuée.</td></tr>'}</tbody></table></div>
+    ${statsImpactEvolutionBlockHtml(ds,scope)}`;
   const playerSelect=$('#statsImpactPlayerSelect');
   if(playerSelect)playerSelect.onchange=e=>{
     statsState.impactPlayerName=e.target.value||'';
@@ -8776,6 +8910,9 @@ $('#statsGroup').onchange=async()=>{
 $$('.statsDomainTab').forEach(b=>b.onclick=()=>switchStatsDomain(b.dataset.statsDomain));
 $$('.statsTab').forEach(b=>b.onclick=()=>switchStatsTab(b.dataset.statsTab));
 $('#statsReferencePopulation').onchange=()=>loadStatsReference().catch(e=>handleError('stats reference population',e));
+if($('#statsReferenceReloadSources'))$('#statsReferenceReloadSources').onclick=()=>loadReferenceSources().catch(e=>handleError('reference sources',e));
+if($('#statsReferenceSaveSources'))$('#statsReferenceSaveSources').onclick=()=>saveReferenceSources().catch(e=>{handleError('save reference sources',e);setCloud('Erreur',false)});
+if($('#statsReferenceCreateVersion'))$('#statsReferenceCreateVersion').onclick=()=>createReferenceVersion().catch(e=>{handleError('create reference version',e);setCloud('Erreur',false)});
 $('#statsImpactPopulation').onchange=()=>renderStatsImpactSelection().catch(e=>handleError('stats impact population',e));
 $$('#statsImpactScopeTabs [data-impact-scope]').forEach(b=>b.onclick=()=>{
   statsState.impactScope=b.dataset.impactScope||'all';
