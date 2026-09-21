@@ -1692,9 +1692,10 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
     <div class="small" id="playerJoinGroupName">Sélectionne ton prénom avant de te connecter ou de créer ton compte.</div>
     <div class="field"><label>Mon prénom</label><select id="playerJoinSelect"><option value="">Chargement…</option></select></div>
     <div class="small" id="playerJoinStatus" style="margin-top:8px"></div>
+    <button class="primary hidden" id="playerJoinContinue" type="button" style="width:100%;margin-top:10px">Continuer avec ce compte</button>
    </div>
 
-   <div style="padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--panel2);margin-bottom:14px">
+   <div id="playerLoginBox" style="padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--panel2);margin-bottom:14px">
     <h3 style="font-size:16px;margin-bottom:10px">Déjà un compte ?</h3>
     <div class="row">
      <div class="field"><label>Email</label><input id="authEmail" type="email" autocomplete="email" placeholder="vous@exemple.fr"></div>
@@ -1704,7 +1705,7 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
     <button class="ghost" id="forgotPassword" type="button" style="width:100%;margin-top:8px">Mot de passe oublié ?</button>
    </div>
 
-   <div style="padding:14px;border:1px solid var(--line);border-radius:14px">
+   <div id="playerSignupBox" style="padding:14px;border:1px solid var(--line);border-radius:14px">
     <h3 style="font-size:16px;margin-bottom:6px">Première utilisation ?</h3>
     <p class="small" style="margin-bottom:12px">
       Créez votre compte pour enregistrer vos matchs dans la base centrale et retrouver vos données sur tous vos appareils.
@@ -3410,7 +3411,34 @@ function playerGroupInvitePlayerId(){try{return new URLSearchParams(location.sea
 function setPlayerGroupInvitePlayerId(playerId){try{const u=new URL(location.href);if(playerId){u.searchParams.set('player_id',playerId);localStorage.setItem('kinball_player_invite_player',playerId)}else{u.searchParams.delete('player_id');localStorage.removeItem('kinball_player_invite_player')}history.replaceState({},'',u.pathname+(u.search||'')+(u.hash||''))}catch{}}
 function clearPlayerInviteToken(){try{const u=new URL(location.href);u.searchParams.delete('player_invite');u.searchParams.delete('player_group_invite');u.searchParams.delete('player_id');localStorage.removeItem('kinball_player_invite_player');history.replaceState({},'',u.pathname+(u.search||'')+(u.hash||''))}catch{}}
 function authRedirectWithPlayerInvite(){const direct=playerInviteToken(),group=playerGroupInviteToken(),playerId=playerGroupInvitePlayerId();if(!direct&&!group)return AUTH_REDIRECT_URL;const u=new URL(AUTH_REDIRECT_URL);if(direct)u.searchParams.set('player_invite',direct);if(group)u.searchParams.set('player_group_invite',group);if(group&&playerId)u.searchParams.set('player_id',playerId);return u.toString()}
-async function loadSharedPlayerInvite(){const token=playerGroupInviteToken();const box=$('#playerJoinBox');if(!token){box?.classList.add('hidden');return false}if(box)box.classList.remove('hidden');const status=$('#playerJoinStatus'),sel=$('#playerJoinSelect');if(status)status.textContent='Chargement du groupe…';const {data,error}=await db.rpc('get_player_group_invite',{p_token:token});if(error){if(status)status.textContent=error.message||'Lien invalide ou expiré';if(sel)sel.innerHTML='<option value="">Lien indisponible</option>';return false}if($('#playerJoinGroupName'))$('#playerJoinGroupName').textContent=`${data?.group_name||'Groupe'} · sélectionne ton prénom avant de te connecter ou de créer ton compte.`;const players=data?.players||[];const available=players.filter(p=>!p.linked);const saved=playerGroupInvitePlayerId();if(sel){sel.innerHTML='<option value="">— Choisir mon prénom —</option>'+players.map(p=>`<option value="${escapeHtml(p.player_id)}" ${p.linked?'disabled':''}>${escapeHtml(p.player_name)}${p.linked?' · compte déjà activé':''}</option>`).join('');if(saved&&available.some(p=>p.player_id===saved))sel.value=saved;else if(available.length===1){sel.value=available[0].player_id;setPlayerGroupInvitePlayerId(sel.value)}sel.onchange=()=>{setPlayerGroupInvitePlayerId(sel.value);if(status)status.textContent=sel.value?'Ton prénom est sélectionné. Tu peux maintenant te connecter ou créer ton compte.':'Sélectionne ton prénom.'}}if(status)status.textContent=available.length?(sel?.value?'Ton prénom est sélectionné. Tu peux maintenant te connecter ou créer ton compte.':'Sélectionne ton prénom.'):'Tous les joueurs de ce groupe ont déjà activé leur accès.';return true}
+async function loadSharedPlayerInvite(){
+  const token=playerGroupInviteToken(),box=$('#playerJoinBox');
+  if(!token){box?.classList.add('hidden');return false}
+  if(box)box.classList.remove('hidden');
+  const status=$('#playerJoinStatus'),sel=$('#playerJoinSelect'),cont=$('#playerJoinContinue');
+  if(status)status.textContent='Chargement du groupe…';
+  const {data,error}=await db.rpc('get_player_group_invite',{p_token:token});
+  if(error){if(status)status.textContent=error.message||'Lien invalide ou expiré';if(sel)sel.innerHTML='<option value="">Lien indisponible</option>';cont?.classList.add('hidden');return false}
+  if($('#playerJoinGroupName'))$('#playerJoinGroupName').textContent=`${data?.group_name||'Groupe'} · sélectionne ton prénom.`;
+  const players=data?.players||[],available=players.filter(p=>!p.linked),saved=playerGroupInvitePlayerId();
+  if(sel){
+    sel.innerHTML='<option value="">— Choisir mon prénom —</option>'+players.map(p=>`<option value="${escapeHtml(p.player_id)}" ${p.linked?'disabled':''}>${escapeHtml(p.player_name)}${p.linked?' · compte déjà activé':''}</option>`).join('');
+    if(saved&&available.some(p=>p.player_id===saved))sel.value=saved;
+    else if(available.length===1){sel.value=available[0].player_id;setPlayerGroupInvitePlayerId(sel.value)}
+    sel.onchange=()=>{setPlayerGroupInvitePlayerId(sel.value);if(status)status.textContent=sel.value?'Ton prénom est sélectionné.':'Sélectionne ton prénom.'}
+  }
+  const {data:{session}}=await db.auth.getSession();
+  const signedIn=!!session?.user;
+  if(cont)cont.classList.toggle('hidden',!signedIn);
+  $('#playerLoginBox')?.classList.toggle('hidden',signedIn);
+  $('#playerSignupBox')?.classList.toggle('hidden',signedIn);
+  if(status){
+    if(!available.length)status.textContent='Tous les joueurs de ce groupe ont déjà activé leur accès.';
+    else if(signedIn)status.textContent=sel?.value?'Ton prénom est sélectionné. Clique sur « Continuer avec ce compte ».':'Tu es déjà connecté. Sélectionne ton prénom puis continue.';
+    else status.textContent=sel?.value?'Ton prénom est sélectionné. Connecte-toi ou crée ton compte.':'Sélectionne ton prénom puis connecte-toi ou crée ton compte.';
+  }
+  return true
+}
 async function claimPlayerInviteIfPresent(){const groupToken=playerGroupInviteToken();if(groupToken){const playerId=playerGroupInvitePlayerId();if(!playerId)throw new Error('Sélectionne ton prénom avant de te connecter.');const {error}=await db.rpc('claim_coaching_player_group_invite',{p_token:groupToken,p_player_id:playerId});if(error)throw error;clearPlayerInviteToken();return true}const token=playerInviteToken();if(!token)return false;const {error}=await db.rpc('claim_coaching_player_invite',{p_token:token});if(error)throw error;clearPlayerInviteToken();return true}
 async function fetchMyPlayerAccesses(){const {data,error}=await db.rpc('get_my_player_access');if(error)throw error;playerPortalState.accesses=data||[];return playerPortalState.accesses}
 function playerPortalEffectiveScope(){if(playerPortalState.scope!=='restart')return playerPortalState.scope||'all';const loc=playerPortalState.restartLocation||'all';return loc==='center'?'restart_center':loc==='line'?'restart_line':loc==='corner'?'restart_corner':'restart'}
@@ -3429,14 +3457,21 @@ async function openPlayerPortal(accesses){playerPortalState.accesses=accesses||a
 
 async function initAuthenticated(user){
   currentUser=user;
+  const invitedPlayerFlow=!!(playerGroupInviteToken()||playerInviteToken());
   $('#authPanel').classList.add('hidden');
   $('#setup').classList.add('hidden');
   $('#logout').classList.remove('hidden');
   setCloud('Synchronisé',true);
-  try{await claimPlayerInviteIfPresent()}catch(e){authMessage(e.message||'Impossible d’activer cette invitation joueur.',true);throw e}
+  try{await claimPlayerInviteIfPresent()}catch(e){
+    $('#authPanel').classList.remove('hidden');
+    await loadSharedPlayerInvite().catch(()=>{});
+    authMessage(e.message||'Impossible d’activer cet accès joueur.',true);
+    setCloud('Accès joueur à compléter',false);
+    throw e
+  }
   const accesses=await fetchMyPlayerAccesses();
   await fetchMyGroups();
-  if(!groupState.groups.length&&accesses.length){await openPlayerPortal(accesses);return}
+  if(accesses.length&&(invitedPlayerFlow||!groupState.groups.length)){await openPlayerPortal(accesses);return}
   $('#appHome').classList.remove('hidden');$('#trainingHome').classList.add('hidden');$('#groupsHome').classList.add('hidden');$('#groupDetail').classList.add('hidden');$('#trainingSession').classList.add('hidden');$('#trainingHistory').classList.add('hidden');$('#homeBtn').classList.remove('hidden');$('#profileBtn').classList.remove('hidden');$('#newMatchTop').classList.add('hidden');
   await ensureWorkspace();await ensureMyProfile();await refreshAdminAccess();await fetchMyGroups();
 }
@@ -3451,7 +3486,17 @@ async function initAuth(){
   const recoveryLink=hashParams.get('type')==='recovery'||queryParams.get('type')==='recovery';
   const {data:{session}}=await db.auth.getSession();
   if(session?.user){
-    try{await initAuthenticated(session.user)}catch(e){handleError('initAuthenticated',e)}
+    if(playerGroupInviteToken()&&!playerGroupInvitePlayerId()){
+      currentUser=session.user;
+      $('#authPanel').classList.remove('hidden');
+      $('#setup').classList.add('hidden');
+      $('#logout').classList.remove('hidden');
+      setCloud('Accès joueur',true);
+      authMessage('Tu es déjà connecté : sélectionne ton prénom puis continue.');
+      await loadSharedPlayerInvite();
+    }else{
+      try{await initAuthenticated(session.user)}catch(e){console.error('initAuthenticated',e)}
+    }
     if(recoveryLink) openResetPasswordPopup(true);
   }else{
     $('#authPanel').classList.remove('hidden');
@@ -9419,6 +9464,7 @@ $('#playerPortalSelectAll').onclick=()=>{playerPortalState.selected=(playerPorta
 $('#playerPortalLatest').onclick=()=>{const m=(playerPortalState.matches||[])[0];playerPortalState.selected=m?[m.id]:[];playerPortalRenderMatches();playerPortalRender().catch(e=>handleError('player portal latest',e))};
 document.querySelectorAll('#playerPortalScopeTabs [data-player-scope]').forEach(btn=>btn.onclick=()=>{playerPortalState.scope=btn.dataset.playerScope||'all';document.querySelectorAll('#playerPortalScopeTabs [data-player-scope]').forEach(b=>b.classList.toggle('active',b===btn));$('#playerPortalRestartField').classList.toggle('hidden',playerPortalState.scope!=='restart');playerPortalRender().catch(e=>handleError('player portal scope',e))});
 $('#playerPortalRestart').onchange=e=>{playerPortalState.restartLocation=e.target.value||'all';playerPortalRender().catch(err=>handleError('player portal restart',err))};
+$('#playerJoinContinue').onclick=async()=>{const playerId=playerGroupInvitePlayerId();if(!playerId){authMessage('Sélectionne d’abord ton prénom.',true);return}const {data:{session}}=await db.auth.getSession();if(!session?.user){authMessage('Connecte-toi ou crée ton compte pour continuer.',true);return}authMessage('Activation de ton accès…');try{await initAuthenticated(session.user);authMessage('')}catch(e){console.error('player join continue',e)}};
 $('#groupPlayerSharedLink').onclick=()=>createSharedPlayerAccessLink();
 
 render();
