@@ -1981,7 +1981,7 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
     <button type="button" class="playerPortalHomeCard" id="playerPortalHomeStatsCard">
      <div class="analysisSubtle">Matchs</div>
      <h3>Mes statistiques</h3>
-     <p>Consulte tes indicateurs offensifs, le référentiel, les repères anonymisés du groupe et le message des entraîneurs.</p>
+     <p>Consulte tes indicateurs offensifs.</p>
      <span class="cardAction">Voir mes statistiques →</span>
     </button>
     <div class="playerPortalHomeCard disabled">
@@ -1993,7 +1993,7 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
     <button type="button" class="playerPortalHomeCard" id="playerPortalHomeProfileCard">
      <div class="analysisSubtle">Compte</div>
      <h3>Mon profil</h3>
-     <p>Gère ton poste préféré et les informations liées à ton compte joueur.</p>
+     <p>Gère les informations liées à ton compte joueur.</p>
      <span class="cardAction">Ouvrir mon profil →</span>
     </button>
    </div>
@@ -2023,7 +2023,7 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
        <option value="R">Rapproché (R)</option>
        <option value="A">Ailier (A)</option>
        <option value="P">Pointe (P)</option>
-       <option value="AP">A ou P</option>
+       <option value="AP">Ailier ou Pointe</option>
       </select>
       <div class="small" id="playerPortalRoleStatus">Modifiable par le joueur.</div>
      </div>
@@ -2032,7 +2032,7 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
      <h3>Mon compte joueur</h3>
      <div class="accountText"><span class="small">Adresse de connexion</span><strong id="playerPortalAccountEmail"></strong></div>
      <div style="margin-top:12px"><button type="button" class="ghost" id="playerPortalChangePassword">Changer mon mot de passe</button></div>
-     <div class="playerPortalPrivacyNote">Ton espace n’affiche que tes données personnelles. Les résultats individuels des autres joueurs ne sont pas transmis à cette vue ; seuls les repères collectifs anonymisés sont utilisés.</div>
+     <div class="playerPortalPrivacyNote">Ton espace n’affiche que tes données personnelles.</div>
     </div>
    </div>
   </div>
@@ -2049,7 +2049,6 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
     <button class="ghost" id="openExerciseLibrary">Bibliothèque d’exercices</button>
     <button class="ghost" id="openTrainingHistory">Historique joueur</button>
    </div>
-   <div class="small">Les séances et résultats sont enregistrés dans la même base Supabase que les matchs.</div>
  </section>
 
  <section class="panel hidden" id="trainingSession">
@@ -2211,7 +2210,7 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
    <div id="statsMatchesDomain" class="hidden">
     <div class="analysisBlock">
      <h3>Statistiques de matchs</h3>
-     <div class="analysisSubtle">Un match est analysé par défaut. Coche plusieurs matchs uniquement lorsque tu veux construire un cumul spécifique.</div>
+     <div class="analysisSubtle">Coche plusieurs matchs lorsque tu veux construire un cumul spécifique.</div>
      <div class="statsMatchSelectionBar">
       <div class="small" id="statsMatchSelectionStatus"></div>
       <div class="row" style="gap:6px">
@@ -9714,8 +9713,6 @@ async function renderStatsImpactSelection(){
       valeur d’une attaque : +1 point, 0 ballon défendu, −1 faute.
       Création /100 mesure les points marqués au-dessus de l’attendu ; Sécurité /100 mesure les fautes évitées par rapport à l’attendu.
       Performance /100 = Création /100 + Sécurité /100.
-      Les colonnes % points et % fautes rappellent aussi, sous la valeur observée, le niveau du référentiel correspondant.
-      Les actions laissées en collectif ne sont pas attribuées à un joueur.
     </div>
     <div class="analysisTableWrap" style="margin-top:14px"><table class="analysisTable"><thead><tr>
       <th>Joueur</th><th>N</th><th>% points</th><th>% fautes</th><th>Création /100</th><th>Sécurité /100</th><th>Performance /100</th>
