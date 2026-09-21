@@ -1717,6 +1717,19 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
 .playerPortalMessageComposer{display:grid;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
 .playerPortalMessageComposer textarea{width:100%;box-sizing:border-box;min-height:76px;resize:vertical}
 .playerPortalMessageComposerActions{display:flex;justify-content:flex-end;align-items:center;gap:10px;flex-wrap:wrap}
+.playerPortalMessageReadState{margin-left:6px;color:var(--muted);font-size:10px}
+.playerObjectives{margin-top:14px;border:1px solid var(--line);border-radius:16px;background:var(--panel2);padding:16px}
+.playerObjectivesHeader{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.playerObjectivesList{display:grid;gap:8px}
+.playerObjectiveItem{border:1px solid var(--line);border-radius:12px;padding:11px 12px;background:#181d25;display:flex;gap:10px;align-items:flex-start}
+.playerObjectiveItem.completed{opacity:.72}
+.playerObjectiveText{flex:1;min-width:0;line-height:1.45}
+.playerObjectiveMeta{font-size:11px;color:var(--muted);margin-top:4px}
+.playerObjectiveActions{display:flex;gap:6px;flex-wrap:wrap}
+.playerObjectiveComposer{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:10px}
+.playerObjectiveComposer input{min-width:0}
+@media(max-width:620px){.playerObjectiveComposer{grid-template-columns:1fr}.playerObjectiveActions{width:100%}}
+
 .playerPortalStaffPreviewBanner{border:1px solid var(--primary);border-radius:12px;padding:9px 11px;margin-bottom:12px;font-size:12px;color:var(--muted)}
 .messageUnreadBadge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#e05252;color:#fff;font-size:11px;font-weight:800;line-height:1}
 .moduleCard .messageUnreadBadge{margin-left:7px;vertical-align:middle}
@@ -1954,6 +1967,15 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
      <textarea id="playerPortalMessageInput" maxlength="2000" placeholder="Écrire un message…"></textarea>
      <div class="playerPortalMessageComposerActions"><span class="small" id="playerPortalMessageStatus"></span><button type="button" class="primary" id="playerPortalMessageSend">Envoyer</button></div>
     </div>
+   </div>
+   <div class="playerObjectives">
+    <div class="playerObjectivesHeader"><strong>Objectifs individuels</strong><span class="analysisSubtle" id="playerObjectivesHint">Définis par les entraîneurs</span></div>
+    <div class="playerObjectivesList" id="playerObjectivesList"><div class="small">Chargement…</div></div>
+    <div class="playerObjectiveComposer hidden" id="playerObjectiveComposer">
+     <input id="playerObjectiveInput" maxlength="500" placeholder="Ajouter un objectif individuel…">
+     <button type="button" class="primary" id="playerObjectiveAdd">Ajouter</button>
+    </div>
+    <div class="small" id="playerObjectiveStatus" style="margin-top:7px"></div>
    </div>
    <div class="playerPortalHomeGrid">
     <button type="button" class="playerPortalHomeCard" id="playerPortalHomeStatsCard">
@@ -3703,7 +3725,8 @@ function playerPortalConversationHtml(rows){
     const mine=(r.sender_role||'coach')===ownRole;
     const who=mine?'Moi':(r.author_name||((r.sender_role||'coach')==='player'?'Joueur':'Entraîneur'));
     const unread=!mine&&r.is_read===false;
-    return `<div class="playerPortalMessageRow ${mine?'mine':''} ${unread?'unread':''}"><div class="playerPortalMessageBubble"><div class="playerPortalMessageMeta">${escapeHtml(who)} · ${escapeHtml(playerPortalConversationDate(r.created_at))}${unread?' · Nouveau':''}</div><div class="playerPortalMessageText">${escapeHtml(r.message||'')}</div></div></div>`;
+    const readState=mine?`<span class="playerPortalMessageReadState">${r.recipient_read?'Lu':'Envoyé'}</span>`:'';
+    return `<div class="playerPortalMessageRow ${mine?'mine':''} ${unread?'unread':''}"><div class="playerPortalMessageBubble"><div class="playerPortalMessageMeta">${escapeHtml(who)} · ${escapeHtml(playerPortalConversationDate(r.created_at))}${unread?' · Nouveau':''}${readState}</div><div class="playerPortalMessageText">${escapeHtml(r.message||'')}</div></div></div>`;
   }).join('');
 }
 async function loadPlayerPortalConversation(){
@@ -3741,6 +3764,66 @@ async function sendPlayerPortalMessage(){
     if(status)status.textContent='Erreur';
     handleError('send player message',e);
   }finally{button.disabled=false}
+}
+
+function playerObjectiveDate(v){
+  if(!v)return '';
+  try{return new Date(v).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'})}catch{return String(v)}
+}
+function playerObjectivesHtml(rows){
+  const active=(rows||[]).filter(x=>x.status==='active');
+  const completed=(rows||[]).filter(x=>x.status==='completed').slice(0,5);
+  const item=(o,isCompleted=false)=>`<div class="playerObjectiveItem ${isCompleted?'completed':''}">
+    <div class="playerObjectiveText"><strong>${escapeHtml(o.objective||'')}</strong><div class="playerObjectiveMeta">${isCompleted?`Atteint le ${escapeHtml(playerObjectiveDate(o.completed_at))}`:`Ajouté le ${escapeHtml(playerObjectiveDate(o.created_at))}${o.created_by_name?' · '+escapeHtml(o.created_by_name):''}`}</div></div>
+    ${playerPortalState.staffPreview?`<div class="playerObjectiveActions"><button type="button" class="ghost" data-objective-action="${isCompleted?'reopen':'complete'}" data-objective-id="${escapeHtml(o.id)}">${isCompleted?'Réouvrir':'Marquer atteint'}</button></div>`:''}
+  </div>`;
+  let html=active.length?active.map(o=>item(o,false)).join(''):'<div class="small">Aucun objectif actif pour le moment.</div>';
+  if(completed.length)html+=`<details style="margin-top:4px"><summary class="small">Objectifs atteints (${completed.length})</summary><div class="playerObjectivesList" style="margin-top:8px">${completed.map(o=>item(o,true)).join('')}</div></details>`;
+  return html;
+}
+async function loadPlayerObjectives(){
+  const groupId=playerPortalState.groupId,playerId=playerPortalTargetPlayerId();
+  const box=$('#playerObjectivesList'),composer=$('#playerObjectiveComposer'),hint=$('#playerObjectivesHint');
+  if(!groupId||!playerId||!box)return;
+  if(composer)composer.classList.toggle('hidden',!playerPortalState.staffPreview);
+  if(hint)hint.textContent=playerPortalState.staffPreview?'Tu peux définir jusqu’à 3 objectifs actifs.':'Définis par les entraîneurs';
+  box.innerHTML='<div class="small">Chargement…</div>';
+  const {data,error}=await db.rpc('get_player_objectives',{p_group_id:groupId,p_player_id:playerId});
+  if(error)throw error;
+  box.innerHTML=playerObjectivesHtml(data||[]);
+  box.querySelectorAll('[data-objective-action]').forEach(b=>b.onclick=()=>updatePlayerObjectiveStatus(b.dataset.objectiveId,b.dataset.objectiveAction));
+}
+async function addPlayerObjective(){
+  if(!playerPortalState.staffPreview)return;
+  const groupId=playerPortalState.groupId,playerId=playerPortalTargetPlayerId();
+  const input=$('#playerObjectiveInput'),status=$('#playerObjectiveStatus'),button=$('#playerObjectiveAdd');
+  const objective=(input?.value||'').trim();
+  if(!objective)return;
+  button.disabled=true;if(status)status.textContent='Ajout…';
+  try{
+    const {error}=await db.rpc('add_player_objective',{p_group_id:groupId,p_player_id:playerId,p_objective:objective});
+    if(error)throw error;
+    input.value='';if(status)status.textContent='Objectif ajouté.';
+    await loadPlayerObjectives();
+  }catch(e){
+    if(status)status.textContent=e?.message?.includes('Maximum de 3')?'Maximum de 3 objectifs actifs.':'Impossible d’ajouter l’objectif.';
+    handleError('add player objective',e);
+  }finally{button.disabled=false}
+}
+async function updatePlayerObjectiveStatus(objectiveId,action){
+  if(!playerPortalState.staffPreview||!objectiveId)return;
+  const status=$('#playerObjectiveStatus');
+  if(status)status.textContent=action==='complete'?'Mise à jour…':'Réouverture…';
+  try{
+    const rpc=action==='complete'?'complete_player_objective':'reopen_player_objective';
+    const {error}=await db.rpc(rpc,{p_group_id:playerPortalState.groupId,p_objective_id:objectiveId});
+    if(error)throw error;
+    if(status)status.textContent=action==='complete'?'Objectif marqué comme atteint.':'Objectif réouvert.';
+    await loadPlayerObjectives();
+  }catch(e){
+    if(status)status.textContent=e?.message?.includes('Maximum de 3')?'Maximum de 3 objectifs actifs.':'Impossible de modifier l’objectif.';
+    handleError('update player objective',e);
+  }
 }
 function syncPlayerPortalRole(groupId){const access=playerPortalAccessForGroup(groupId);const sel=$('#playerPortalRole'),status=$('#playerPortalRoleStatus');if(!sel)return;sel.value=access?.preferred_role||'AP';if(status)status.textContent=playerPortalState.staffPreview?'Modifiable par l’entraîneur ou le joueur.':'Modifiable par le joueur.'}
 async function saveMyPreferredRole(role){
@@ -3805,7 +3888,7 @@ function playerPortalSheetHtml(data,allDetails){
   return `<div class="statsImpactPlayerSheet"><div class="statsImpactPlayerHeader"><div><div class="analysisSubtle">${escapeHtml(playerPortalScopeLabel(playerPortalEffectiveScope()))}</div><h3>${escapeHtml(data.player_name||'')}</h3></div></div>${data?.is_test_mirror?`<div class="playerPortalTestDataNotice">Profil de test : les statistiques affichées sont une copie de celles de ${escapeHtml(data.stats_source_player_name||'un joueur source')} afin de tester un profil complet.</div>`:''}<div class="playerPortalExactCounts"><div class="playerPortalExactCount"><span>Nombre de frappes</span><strong>${n}</strong>${rel.label?`<span class="reliability">${escapeHtml(rel.label)}</span>`:''}</div><div class="playerPortalExactCount"><span>Points marqués</span><strong>${Number(x.points)||0}</strong></div><div class="playerPortalExactCount"><span>Fautes</span><strong>${Number(x.faults)||0}</strong></div></div>${playerVolumeWarningHtml(n)}${playerPortalTakeawaysHtml(x,n)}<div class="statsImpactPlayerMainMetrics"><div class="statsImpactPlayerMetric"><span>Création /100</span><strong class="${playerPortalImpactClass(x.creation100)}">${n?playerPortalSigned(x.creation100):'—'}</strong><small>Moyenne groupe ${playerPortalSigned(avg.creation100)}</small></div><div class="statsImpactPlayerMetric"><span>Sécurité /100</span><strong class="${playerPortalImpactClass(x.safety100)}">${n?playerPortalSigned(x.safety100):'—'}</strong><small>Moyenne groupe ${playerPortalSigned(avg.safety100)}</small></div></div><div class="statsImpactPlayerSecondaryMetrics"><div class="statsImpactPlayerSecondary"><span>% points</span><strong>${n?playerPortalPct(x.point_rate):'—'}</strong><small>${Number(x.points)||0} point${Number(x.points)===1?'':'s'} marqué${Number(x.points)===1?'':'s'} · Référentiel ${playerPortalPct(x.expected_point_rate)} · Moyenne groupe ${playerPortalPct(avg.point_rate)}</small></div><div class="statsImpactPlayerSecondary"><span>% fautes</span><strong>${n?playerPortalPct(x.fault_rate):'—'}</strong><small>${Number(x.faults)||0} faute${Number(x.faults)===1?'':'s'} · Référentiel ${playerPortalPct(x.expected_fault_rate)} · Moyenne groupe ${playerPortalPct(avg.fault_rate)}</small></div></div><div class="analysisSubtle statsImpactPlayerBenchmarkNote">La moyenne du groupe est calculée sans afficher les résultats des autres joueurs. Elle sert uniquement de repère collectif.</div><details class="statsImpactPlayerExplainer" open><summary>Comprendre le référentiel et les scores</summary><div class="statsImpactPlayerExplainerBody"><p><strong>Le référentiel</strong> (${escapeHtml(referenceVersion)}) est construit à partir des attaques de la compétition de référence sélectionnées par le staff. Les données Hommes et Femmes sont séparées, ainsi que le jeu au centre et les remises au centre, sur ligne et sur coin.</p><p>Pour chaque situation, il donne le <strong>taux de points</strong> et le <strong>taux de fautes</strong> observés sur l'ensemble des attaques retenues.</p><div class="statsImpactPlayerExplainerFormula"><strong>Création /100</strong> : nombre de points produits en plus ou en moins sur 100 attaques par rapport au nombre attendu selon le référentiel.</div><div class="statsImpactPlayerExplainerFormula"><strong>Sécurité /100</strong> : nombre de fautes évitées ou ajoutées sur 100 attaques par rapport au nombre attendu selon le référentiel.</div><p><strong>Un score de 0</strong> signifie que ta performance correspond au niveau moyen de la compétition ayant servi à construire le référentiel, en tenant compte des situations que tu as réellement jouées. Positif = au-dessus du référentiel ; négatif = en dessous.</p><p><strong>Attention au volume analysé.</strong> Les scores sont ramenés à 100 attaques : avec peu d’actions, une seule action peut donc faire fortement bouger le résultat. En pratique, <strong>N &lt; 5</strong> est trop faible pour conclure ; entre <strong>5 et 15</strong>, le score donne seulement une tendance provisoire ; au-delà de <strong>15</strong>, il devient plus stable, sans pour autant supprimer l’incertitude.</p><p>Exemple : <strong>Création +5</strong> correspond à environ 5 points de plus que prévu sur 100 attaques ; <strong>Sécurité +3</strong> à environ 3 fautes de moins que prévu sur 100 attaques.</p></div></details>${playerPortalDetailsHtml(allDetails||data.details||[])}</div>`
 }
 async function playerPortalRender(){const box=$('#playerPortalContent');if(!box||!playerPortalState.groupId)return;const ids=playerPortalState.selected||[];if(!ids.length){box.innerHTML='<div class="statsEmpty">Sélectionne au moins un match.</div>';return}if(playerPortalState.loading)return;playerPortalState.loading=true;box.innerHTML='<div class="statsEmpty">Calcul de tes statistiques…</div>';try{const scope=playerPortalEffectiveScope();const calls=[db.rpc('get_player_portal_metrics',playerPortalMetricsArgs(playerPortalState.groupId,ids,scope))];if(scope!=='all')calls.push(db.rpc('get_player_portal_metrics',playerPortalMetricsArgs(playerPortalState.groupId,ids,'all')));const results=await Promise.all(calls);results.forEach(r=>{if(r.error)throw r.error});const data=results[0].data||{};const details=(results[1]?.data||data).details||[];box.innerHTML=playerPortalSheetHtml(data,details)}finally{playerPortalState.loading=false}}
-async function loadPlayerPortalGroup(groupId){playerPortalState.groupId=groupId;syncPlayerPortalRole(groupId);refreshPlayerPortalIdentity();playerPortalState.scope='all';playerPortalState.restartLocation='all';document.querySelectorAll('#playerPortalScopeTabs [data-player-scope]').forEach(b=>b.classList.toggle('active',b.dataset.playerScope==='all'));$('#playerPortalRestartField')?.classList.add('hidden');if($('#playerPortalRestart'))$('#playerPortalRestart').value='all';const {data,error}=await db.rpc('get_player_portal_metrics',playerPortalMetricsArgs(groupId,null,'all'));if(error)throw error;playerPortalState.matches=data?.matches||[];playerPortalState.selected=playerPortalState.matches.map(m=>m.id);$('#playerPortalTitle').textContent=data?.player_name?`Mes statistiques · ${data.player_name}`:'Mes statistiques';$('#playerPortalSubtitle').textContent=data?.group_name||'';await refreshMessageNotifications(playerPortalState.staffPreview?'coach':'player').catch(e=>handleError('message notifications',e));await loadPlayerPortalConversation();playerPortalRenderMatches();$('#playerPortalContent').innerHTML=playerPortalSheetHtml(data,data?.details||[])}
+async function loadPlayerPortalGroup(groupId){playerPortalState.groupId=groupId;syncPlayerPortalRole(groupId);refreshPlayerPortalIdentity();playerPortalState.scope='all';playerPortalState.restartLocation='all';document.querySelectorAll('#playerPortalScopeTabs [data-player-scope]').forEach(b=>b.classList.toggle('active',b.dataset.playerScope==='all'));$('#playerPortalRestartField')?.classList.add('hidden');if($('#playerPortalRestart'))$('#playerPortalRestart').value='all';const {data,error}=await db.rpc('get_player_portal_metrics',playerPortalMetricsArgs(groupId,null,'all'));if(error)throw error;playerPortalState.matches=data?.matches||[];playerPortalState.selected=playerPortalState.matches.map(m=>m.id);$('#playerPortalTitle').textContent=data?.player_name?`Mes statistiques · ${data.player_name}`:'Mes statistiques';$('#playerPortalSubtitle').textContent=data?.group_name||'';await refreshMessageNotifications(playerPortalState.staffPreview?'coach':'player').catch(e=>handleError('message notifications',e));await loadPlayerPortalConversation();await loadPlayerObjectives().catch(e=>handleError('player objectives',e));playerPortalRenderMatches();$('#playerPortalContent').innerHTML=playerPortalSheetHtml(data,data?.details||[])}
 async function openPlayerPortal(accesses){
   playerPortalState.accesses=accesses||await fetchMyPlayerAccesses();
   if(!playerPortalState.accesses.length)return false;
@@ -10029,6 +10112,8 @@ $('#playerPortalNavProfile').onclick=()=>playerPortalSetView('profile');
 $('#playerPortalHomeStatsCard').onclick=()=>playerPortalSetView('stats');
 $('#playerPortalHomeProfileCard').onclick=()=>playerPortalSetView('profile');
 $('#playerPortalMessageSend').onclick=()=>sendPlayerPortalMessage();
+$('#playerObjectiveAdd').onclick=()=>addPlayerObjective();
+$('#playerObjectiveInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addPlayerObjective()}});
 $('#playerPortalMessageInput').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();sendPlayerPortalMessage()}});
 $('#playerSpaceBtn').onclick=()=>enterMyPlayerPortal().catch(err=>handleError('open player portal',err));
 $('#playerPortalBackStaff').onclick=()=>returnToStaffSpace().catch(e=>handleError('return staff space',e));
