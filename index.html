@@ -1611,6 +1611,54 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
   .app.videoReviewWide .actionDetailSaveBar button{min-height:40px;font-size:14px;padding:7px}
 }
 
+
+.statsImpactViewTabs{display:flex;gap:8px;flex-wrap:wrap}
+.statsImpactViewTabs .active{background:var(--primary,#2563eb);color:#fff;border-color:transparent}
+.statsImpactPlayerSheet{display:grid;gap:14px}
+.statsImpactPlayerHeader{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap}
+.statsImpactPlayerHeader h3{margin:2px 0 0;font-size:26px}
+.statsImpactPlayerVolume{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.statsImpactPlayerVolume strong{font-size:20px}
+.statsImpactPlayerMainMetrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.statsImpactPlayerMetric{border:1px solid var(--line);border-radius:14px;padding:16px;background:var(--panel2);display:flex;flex-direction:column;gap:6px}
+.statsImpactPlayerMetric>span{font-weight:700;color:var(--text)}
+.statsImpactPlayerMetric>strong{font-size:34px;line-height:1}
+.statsImpactPlayerMetric small,.statsImpactPlayerSecondary small{color:var(--muted);line-height:1.35}
+.statsImpactPlayerSecondaryMetrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.statsImpactPlayerSecondary{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--panel2);display:flex;flex-direction:column;gap:4px}
+.statsImpactCoachMessage{border:1px solid var(--line);border-radius:14px;padding:14px;background:#181d25;display:grid;gap:9px}
+.statsImpactCoachMessageHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.statsImpactCoachMessageHeader strong{font-size:16px}
+.statsImpactCoachMessage textarea{width:100%;min-height:92px;resize:vertical;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:var(--panel2);color:var(--text);font:inherit;line-height:1.4}
+.statsImpactCoachMessageActions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.statsImpactCoachMessageStatus{font-size:12px;color:var(--muted)}
+.statsImpactPlayerSecondary>strong{font-size:22px}
+.statsImpactPlayerBenchmarkNote{border-left:3px solid var(--primary,#3b82f6);padding:9px 0 9px 12px;color:var(--muted)}
+.statsImpactPlayerExplainer{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--panel2)}
+.statsImpactPlayerExplainer>summary{cursor:pointer;font-weight:800;font-size:15px}
+.statsImpactPlayerExplainerBody{display:grid;gap:10px;margin-top:12px;color:var(--muted);line-height:1.5}
+.statsImpactPlayerExplainerBody p{margin:0}
+.statsImpactPlayerExplainerBody strong{color:var(--text)}
+.statsImpactPlayerExplainerFormula{padding:9px 11px;border-radius:10px;background:#171c24;border:1px solid var(--line);color:var(--text)}
+.statsImpactPlayerDetails{margin-top:2px}
+.statsImpactPlayerDetails>summary{cursor:pointer;font-weight:700;margin-bottom:8px}
+@media(max-width:720px){.statsImpactPlayerMainMetrics,.statsImpactPlayerSecondaryMetrics{grid-template-columns:1fr}.statsImpactPlayerVolume{align-items:flex-start}.statsImpactPlayerMetric>strong{font-size:30px}}
+
+.playerPortalHeader{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.playerPortalHeader h2{margin:0 0 4px;font-size:22px}
+.playerPortalToolbar{display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin:12px 0}
+.playerPortalMatchList{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0 14px}
+.playerPortalMatchItem{display:flex;gap:9px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:10px;background:var(--panel2);cursor:pointer}
+.playerPortalMatchItem.checked{border-color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary)}
+.playerPortalMatchItem input{margin-top:3px}.playerPortalMatchItem strong{display:block;font-size:13px}.playerPortalMatchItem .small{margin-top:2px}
+.playerPortalScopeTabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0 8px}.playerPortalScopeTabs button{min-height:46px}
+.playerPortalReadOnlyMessage{border:1px solid var(--line);border-radius:14px;padding:14px;background:#181d25;display:grid;gap:7px}.playerPortalReadOnlyMessage .messageBody{white-space:pre-wrap;line-height:1.5;color:var(--text)}
+.playerPortalAccessBadge{font-size:12px;color:var(--muted)}
+.playerSharedAccessBox{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--panel2);display:grid;gap:10px;margin-bottom:14px}
+.playerSharedAccessBox .row{align-items:center}.playerSharedAccessBox strong{font-size:15px}
+.playerJoinBox{border:1px solid var(--primary);border-radius:14px;padding:14px;background:color-mix(in srgb,var(--primary) 8%,var(--panel2));margin-bottom:14px}
+.playerJoinBox h3{font-size:16px;margin:0 0 5px}.playerJoinBox .field{margin-top:10px}
+@media(max-width:900px){.playerPortalMatchList{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.playerPortalMatchList{grid-template-columns:1fr}.playerPortalScopeTabs{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -1638,6 +1686,13 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
    <p class="small" style="margin-bottom:16px">
      Connectez-vous pour retrouver vos matchs enregistrés. Si vous utilisez Kinball Coach pour la première fois, créez votre compte depuis le bouton dédié.
    </p>
+
+   <div class="playerJoinBox hidden" id="playerJoinBox">
+    <h3>Accès joueur</h3>
+    <div class="small" id="playerJoinGroupName">Sélectionne ton prénom avant de te connecter ou de créer ton compte.</div>
+    <div class="field"><label>Mon prénom</label><select id="playerJoinSelect"><option value="">Chargement…</option></select></div>
+    <div class="small" id="playerJoinStatus" style="margin-top:8px"></div>
+   </div>
 
    <div style="padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--panel2);margin-bottom:14px">
     <h3 style="font-size:16px;margin-bottom:10px">Déjà un compte ?</h3>
@@ -1767,6 +1822,11 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
     </div>
    </div>
 
+   <div class="playerSharedAccessBox">
+    <div><strong>Accès joueurs aux statistiques</strong><div class="small" style="margin-top:4px">Un seul lien commun pour le groupe. Chaque joueur sélectionne son prénom puis se connecte ou crée son compte. Une fiche déjà liée ne peut pas être réattribuée à un autre compte.</div></div>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="primary" id="groupPlayerSharedLink">Créer / renouveler le lien commun</button><span class="small" id="groupPlayerSharedLinkStatus"></span></div>
+   </div>
+
    <h3 style="font-size:16px;margin:0 0 8px">Effectif du groupe</h3>
    <div class="row" style="margin-bottom:10px;align-items:flex-end">
     <div class="field"><input id="groupAddPlayers" placeholder="Noms séparés par des virgules"></div>
@@ -1787,6 +1847,18 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
    <h3 style="font-size:16px;margin:18px 0 8px">Entraîneurs</h3>
    <div id="groupCoachesList"></div>
    <div class="authStatus" id="groupCoachesStatus"></div>
+ </section>
+
+ <section class="panel hidden" id="playerPortal">
+  <div class="playerPortalHeader">
+   <div><div class="analysisSubtle">Espace joueur</div><h2 id="playerPortalTitle">Mes statistiques</h2><div class="small" id="playerPortalSubtitle"></div></div>
+   <div class="field hidden" id="playerPortalGroupField" style="min-width:240px"><label>Groupe</label><select id="playerPortalGroup"></select></div>
+  </div>
+  <div class="playerPortalToolbar"><button type="button" class="ghost" id="playerPortalSelectAll">Tous les matchs</button><button type="button" class="ghost" id="playerPortalLatest">Dernier match</button><span class="small" id="playerPortalSelectionStatus"></span></div>
+  <div id="playerPortalMatches" class="playerPortalMatchList"></div>
+  <div class="playerPortalScopeTabs" id="playerPortalScopeTabs"><button type="button" class="ghost active" data-player-scope="all">Cumulé</button><button type="button" class="ghost" data-player-scope="center">Jeu au centre</button><button type="button" class="ghost" data-player-scope="restart">Remise en jeu</button></div>
+  <div class="field hidden" id="playerPortalRestartField" style="max-width:260px;margin:8px 0 12px"><label>Type de remise en jeu</label><select id="playerPortalRestart"><option value="all">Toutes les remises</option><option value="center">Au centre</option><option value="line">Sur ligne</option><option value="corner">Sur coin</option></select></div>
+  <div id="playerPortalContent"><div class="statsEmpty">Chargement…</div></div>
  </section>
 
  <section class="panel hidden" id="trainingHome">
@@ -2037,6 +2109,18 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
       </div>
      </div>
 
+     <div class="statsImpactViewTabs" id="statsImpactViewTabs" style="margin-top:12px">
+      <button type="button" class="ghost active" data-impact-view="staff">Vue staff</button>
+      <button type="button" class="ghost" data-impact-view="player">Vue joueur</button>
+     </div>
+     <div class="row hidden" id="statsImpactPlayerViewControl" style="gap:10px;align-items:end;margin-top:10px;flex-wrap:wrap">
+      <div class="field" style="max-width:260px">
+       <label>Joueur</label>
+       <select id="statsImpactPlayerViewSelect"></select>
+      </div>
+      <div class="analysisSubtle" style="flex:1 1 320px">Vue partageable : aucun classement nominatif, uniquement des repères anonymisés du groupe.</div>
+     </div>
+
      <div class="statsMatchSelectionBar">
       <div class="small" id="statsImpactMatchSelectionStatus"></div>
       <div class="row" style="gap:6px">
@@ -2066,7 +2150,7 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
        </select>
       </div>
      </div>
-     <div class="row" style="gap:10px;align-items:end;margin-top:10px;flex-wrap:wrap">
+     <div class="row" id="statsImpactSortControls" style="gap:10px;align-items:end;margin-top:10px;flex-wrap:wrap">
       <div class="field" style="max-width:260px">
        <label>Trier par</label>
        <select id="statsImpactSortField">
@@ -3320,25 +3404,41 @@ function updateMatchAuditMeta(){
   meta.classList.remove('hidden');
 }
 
+function playerInviteToken(){try{return new URLSearchParams(location.search||'').get('player_invite')||''}catch{return ''}}
+function playerGroupInviteToken(){try{return new URLSearchParams(location.search||'').get('player_group_invite')||''}catch{return ''}}
+function playerGroupInvitePlayerId(){try{return new URLSearchParams(location.search||'').get('player_id')||localStorage.getItem('kinball_player_invite_player')||''}catch{return ''}}
+function setPlayerGroupInvitePlayerId(playerId){try{const u=new URL(location.href);if(playerId){u.searchParams.set('player_id',playerId);localStorage.setItem('kinball_player_invite_player',playerId)}else{u.searchParams.delete('player_id');localStorage.removeItem('kinball_player_invite_player')}history.replaceState({},'',u.pathname+(u.search||'')+(u.hash||''))}catch{}}
+function clearPlayerInviteToken(){try{const u=new URL(location.href);u.searchParams.delete('player_invite');u.searchParams.delete('player_group_invite');u.searchParams.delete('player_id');localStorage.removeItem('kinball_player_invite_player');history.replaceState({},'',u.pathname+(u.search||'')+(u.hash||''))}catch{}}
+function authRedirectWithPlayerInvite(){const direct=playerInviteToken(),group=playerGroupInviteToken(),playerId=playerGroupInvitePlayerId();if(!direct&&!group)return AUTH_REDIRECT_URL;const u=new URL(AUTH_REDIRECT_URL);if(direct)u.searchParams.set('player_invite',direct);if(group)u.searchParams.set('player_group_invite',group);if(group&&playerId)u.searchParams.set('player_id',playerId);return u.toString()}
+async function loadSharedPlayerInvite(){const token=playerGroupInviteToken();const box=$('#playerJoinBox');if(!token){box?.classList.add('hidden');return false}if(box)box.classList.remove('hidden');const status=$('#playerJoinStatus'),sel=$('#playerJoinSelect');if(status)status.textContent='Chargement du groupe…';const {data,error}=await db.rpc('get_player_group_invite',{p_token:token});if(error){if(status)status.textContent=error.message||'Lien invalide ou expiré';if(sel)sel.innerHTML='<option value="">Lien indisponible</option>';return false}if($('#playerJoinGroupName'))$('#playerJoinGroupName').textContent=`${data?.group_name||'Groupe'} · sélectionne ton prénom avant de te connecter ou de créer ton compte.`;const players=data?.players||[];const available=players.filter(p=>!p.linked);const saved=playerGroupInvitePlayerId();if(sel){sel.innerHTML='<option value="">— Choisir mon prénom —</option>'+players.map(p=>`<option value="${escapeHtml(p.player_id)}" ${p.linked?'disabled':''}>${escapeHtml(p.player_name)}${p.linked?' · compte déjà activé':''}</option>`).join('');if(saved&&available.some(p=>p.player_id===saved))sel.value=saved;else if(available.length===1){sel.value=available[0].player_id;setPlayerGroupInvitePlayerId(sel.value)}sel.onchange=()=>{setPlayerGroupInvitePlayerId(sel.value);if(status)status.textContent=sel.value?'Ton prénom est sélectionné. Tu peux maintenant te connecter ou créer ton compte.':'Sélectionne ton prénom.'}}if(status)status.textContent=available.length?(sel?.value?'Ton prénom est sélectionné. Tu peux maintenant te connecter ou créer ton compte.':'Sélectionne ton prénom.'):'Tous les joueurs de ce groupe ont déjà activé leur accès.';return true}
+async function claimPlayerInviteIfPresent(){const groupToken=playerGroupInviteToken();if(groupToken){const playerId=playerGroupInvitePlayerId();if(!playerId)throw new Error('Sélectionne ton prénom avant de te connecter.');const {error}=await db.rpc('claim_coaching_player_group_invite',{p_token:groupToken,p_player_id:playerId});if(error)throw error;clearPlayerInviteToken();return true}const token=playerInviteToken();if(!token)return false;const {error}=await db.rpc('claim_coaching_player_invite',{p_token:token});if(error)throw error;clearPlayerInviteToken();return true}
+async function fetchMyPlayerAccesses(){const {data,error}=await db.rpc('get_my_player_access');if(error)throw error;playerPortalState.accesses=data||[];return playerPortalState.accesses}
+function playerPortalEffectiveScope(){if(playerPortalState.scope!=='restart')return playerPortalState.scope||'all';const loc=playerPortalState.restartLocation||'all';return loc==='center'?'restart_center':loc==='line'?'restart_line':loc==='corner'?'restart_corner':'restart'}
+function playerPortalScopeLabel(scope){return scope==='center'?'Jeu au centre':scope==='restart_center'?'Remise en jeu · centre':scope==='restart_line'?'Remise en jeu · ligne':scope==='restart_corner'?'Remise en jeu · coin':scope==='restart'?'Remise en jeu · toutes':'Cumulé'}
+function playerPortalContextLabel(context){return ({game_center:'Jeu au centre',restart_center:'Remise · centre',restart_line:'Remise · ligne',restart_corner:'Remise · coin'})[context]||context}
+function playerPortalNum(v){const n=Number(v);return Number.isFinite(n)?n:null}
+function playerPortalSigned(v){const n=playerPortalNum(v);if(n==null)return '—';const x=Math.round(n*10)/10;return `${x>0?'+':''}${x.toFixed(1).replace('.',',')}`}
+function playerPortalPct(v){const n=playerPortalNum(v);if(n==null)return '—';return `${(Math.round(n*10)/10).toFixed(1).replace('.',',')} %`}
+function playerPortalImpactClass(v){const n=playerPortalNum(v)||0;return n>.05?'analysisImpactPositive':n<-.05?'analysisImpactNegative':'analysisImpactNeutral'}
+function playerPortalRenderMatches(){const box=$('#playerPortalMatches'),status=$('#playerPortalSelectionStatus');if(!box)return;const selected=new Set(playerPortalState.selected||[]);box.innerHTML=(playerPortalState.matches||[]).map(m=>`<label class="playerPortalMatchItem ${selected.has(m.id)?'checked':''}"><input type="checkbox" data-player-match="${escapeHtml(m.id)}" ${selected.has(m.id)?'checked':''}><span><strong>${escapeHtml(m.label||'Match')}</strong><span class="small">${escapeHtml(formatDateShort(m.played_on)||'Date ?')}${m.competition?' · '+escapeHtml(m.competition):''}</span></span></label>`).join('');if(status)status.textContent=`${selected.size} match${selected.size>1?'s':''} sélectionné${selected.size>1?'s':''}`;box.querySelectorAll('input[data-player-match]').forEach(input=>input.onchange=()=>{const set=new Set(playerPortalState.selected||[]);if(input.checked)set.add(input.dataset.playerMatch);else set.delete(input.dataset.playerMatch);playerPortalState.selected=[...set];playerPortalRenderMatches();playerPortalRender().catch(e=>handleError('player portal metrics',e))})}
+function playerPortalDetailsHtml(details){const map=Object.fromEntries((details||[]).map(d=>[d.context,d]));const contexts=['game_center','restart_center','restart_line','restart_corner'];return `<details class="statsImpactPlayerDetails" open><summary>Détail par situation</summary><div class="analysisSubtle" style="margin:8px 0">Tu peux consulter séparément le jeu au centre et chacune des remises en jeu. La valeur du référentiel est indiquée sous tes taux.</div><div class="analysisTableWrap"><table class="analysisTable"><thead><tr><th>Situation</th><th>N</th><th>% points</th><th>% fautes</th><th>Création /100</th><th>Sécurité /100</th></tr></thead><tbody>${contexts.map(c=>{const d=map[c]||{};const n=Number(d.n)||0;return `<tr><td>${escapeHtml(playerPortalContextLabel(c))}</td><td>${n}</td><td>${n?`<div>${playerPortalPct(d.point_rate)}</div><div class="small">Référentiel ${playerPortalPct(d.expected_point_rate)}</div>`:'—'}</td><td>${n?`<div>${playerPortalPct(d.fault_rate)}</div><div class="small">Référentiel ${playerPortalPct(d.expected_fault_rate)}</div>`:'—'}</td><td class="${playerPortalImpactClass(d.creation100)}">${n?playerPortalSigned(d.creation100):'—'}</td><td class="${playerPortalImpactClass(d.safety100)}">${n?playerPortalSigned(d.safety100):'—'}</td></tr>`}).join('')}</tbody></table></div></details>`}
+function playerPortalSheetHtml(data,allDetails){const x=data?.metrics||{},avg=data?.group_average||{},n=Number(x.n)||0;const message=(data?.message||'').trim();const referenceVersion=data?.reference_version||'référence active';return `<div class="statsImpactPlayerSheet"><div class="statsImpactPlayerHeader"><div><div class="analysisSubtle">${escapeHtml(playerPortalScopeLabel(playerPortalEffectiveScope()))}</div><h3>${escapeHtml(data.player_name||'')}</h3></div><div class="statsImpactPlayerVolume"><span class="small">Volume analysé</span><strong>N = ${n}</strong></div></div><div class="statsImpactPlayerMainMetrics"><div class="statsImpactPlayerMetric"><span>Création /100</span><strong class="${playerPortalImpactClass(x.creation100)}">${n?playerPortalSigned(x.creation100):'—'}</strong><small>Moyenne groupe ${playerPortalSigned(avg.creation100)}</small></div><div class="statsImpactPlayerMetric"><span>Sécurité /100</span><strong class="${playerPortalImpactClass(x.safety100)}">${n?playerPortalSigned(x.safety100):'—'}</strong><small>Moyenne groupe ${playerPortalSigned(avg.safety100)}</small></div></div><div class="statsImpactPlayerSecondaryMetrics"><div class="statsImpactPlayerSecondary"><span>% points</span><strong>${n?playerPortalPct(x.point_rate):'—'}</strong><small>Référentiel ${playerPortalPct(x.expected_point_rate)} · Moyenne groupe ${playerPortalPct(avg.point_rate)}</small></div><div class="statsImpactPlayerSecondary"><span>% fautes</span><strong>${n?playerPortalPct(x.fault_rate):'—'}</strong><small>Référentiel ${playerPortalPct(x.expected_fault_rate)} · Moyenne groupe ${playerPortalPct(avg.fault_rate)}</small></div></div><div class="analysisSubtle statsImpactPlayerBenchmarkNote">La moyenne du groupe est calculée sans afficher les résultats des autres joueurs. Elle sert uniquement de repère collectif.</div><details class="statsImpactPlayerExplainer" open><summary>Comprendre le référentiel et les scores</summary><div class="statsImpactPlayerExplainerBody"><p><strong>Le référentiel</strong> (${escapeHtml(referenceVersion)}) est construit à partir des attaques de la compétition de référence sélectionnées par le staff. Les données Hommes et Femmes sont séparées, ainsi que le jeu au centre et les remises au centre, sur ligne et sur coin.</p><p>Pour chaque situation, il donne le <strong>taux de points</strong> et le <strong>taux de fautes</strong> observés sur l'ensemble des attaques retenues.</p><div class="statsImpactPlayerExplainerFormula"><strong>Création /100</strong> : nombre de points produits en plus ou en moins sur 100 attaques par rapport au nombre attendu selon le référentiel.</div><div class="statsImpactPlayerExplainerFormula"><strong>Sécurité /100</strong> : nombre de fautes évitées ou ajoutées sur 100 attaques par rapport au nombre attendu selon le référentiel.</div><p><strong>Un score de 0</strong> signifie que ta performance correspond au niveau moyen de la compétition ayant servi à construire le référentiel, en tenant compte des situations que tu as réellement jouées. Positif = au-dessus du référentiel ; négatif = en dessous.</p><p>Exemple : <strong>Création +5</strong> correspond à environ 5 points de plus que prévu sur 100 attaques ; <strong>Sécurité +3</strong> à environ 3 fautes de moins que prévu sur 100 attaques.</p></div></details><div class="playerPortalReadOnlyMessage"><div class="statsImpactCoachMessageHeader"><strong>Message des entraîneurs</strong><span class="analysisSubtle">Message personnel</span></div><div class="messageBody">${message?escapeHtml(message):'<span class="analysisSubtle">Aucun message pour le moment.</span>'}</div></div>${playerPortalDetailsHtml(allDetails||data.details||[])}</div>`}
+async function playerPortalRender(){const box=$('#playerPortalContent');if(!box||!playerPortalState.groupId)return;const ids=playerPortalState.selected||[];if(!ids.length){box.innerHTML='<div class="statsEmpty">Sélectionne au moins un match.</div>';return}if(playerPortalState.loading)return;playerPortalState.loading=true;box.innerHTML='<div class="statsEmpty">Calcul de tes statistiques…</div>';try{const scope=playerPortalEffectiveScope();const calls=[db.rpc('get_player_portal_metrics',{p_group_id:playerPortalState.groupId,p_match_ids:ids,p_scope:scope})];if(scope!=='all')calls.push(db.rpc('get_player_portal_metrics',{p_group_id:playerPortalState.groupId,p_match_ids:ids,p_scope:'all'}));const results=await Promise.all(calls);results.forEach(r=>{if(r.error)throw r.error});const data=results[0].data||{};const details=(results[1]?.data||data).details||[];box.innerHTML=playerPortalSheetHtml(data,details)}finally{playerPortalState.loading=false}}
+async function loadPlayerPortalGroup(groupId){playerPortalState.groupId=groupId;playerPortalState.scope='all';playerPortalState.restartLocation='all';document.querySelectorAll('#playerPortalScopeTabs [data-player-scope]').forEach(b=>b.classList.toggle('active',b.dataset.playerScope==='all'));$('#playerPortalRestartField')?.classList.add('hidden');if($('#playerPortalRestart'))$('#playerPortalRestart').value='all';const {data,error}=await db.rpc('get_player_portal_metrics',{p_group_id:groupId,p_match_ids:null,p_scope:'all'});if(error)throw error;playerPortalState.matches=data?.matches||[];playerPortalState.selected=playerPortalState.matches.map(m=>m.id);$('#playerPortalTitle').textContent=data?.player_name?`Mes statistiques · ${data.player_name}`:'Mes statistiques';$('#playerPortalSubtitle').textContent=data?.group_name||'';playerPortalRenderMatches();$('#playerPortalContent').innerHTML=playerPortalSheetHtml(data,data?.details||[])}
+async function openPlayerPortal(accesses){playerPortalState.accesses=accesses||await fetchMyPlayerAccesses();if(!playerPortalState.accesses.length)return false;hideMainModules();setMatchHeaderMode(false);$('#playerPortal').classList.remove('hidden');$('#homeBtn').classList.add('hidden');$('#profileBtn').classList.add('hidden');$('#logout').classList.remove('hidden');const sel=$('#playerPortalGroup'),field=$('#playerPortalGroupField');sel.innerHTML=playerPortalState.accesses.map(a=>`<option value="${escapeHtml(a.group_id)}">${escapeHtml(a.group_name)} · ${escapeHtml(a.player_name)}</option>`).join('');field.classList.toggle('hidden',playerPortalState.accesses.length<2);sel.onchange=()=>loadPlayerPortalGroup(sel.value).catch(e=>handleError('player portal group',e));await loadPlayerPortalGroup(playerPortalState.accesses[0].group_id);setCloud('Synchronisé',true);window.scrollTo({top:0,behavior:'instant'});return true}
+
 async function initAuthenticated(user){
   currentUser=user;
   $('#authPanel').classList.add('hidden');
   $('#setup').classList.add('hidden');
-  $('#appHome').classList.remove('hidden');
-  $('#trainingHome').classList.add('hidden');
-  $('#groupsHome').classList.add('hidden');
-  $('#groupDetail').classList.add('hidden');
-  $('#trainingSession').classList.add('hidden');
-  $('#trainingHistory').classList.add('hidden');
-  $('#homeBtn').classList.remove('hidden');
-  $('#profileBtn').classList.remove('hidden');
   $('#logout').classList.remove('hidden');
-  $('#newMatchTop').classList.add('hidden');
   setCloud('Synchronisé',true);
-  await ensureWorkspace();
-  await ensureMyProfile();
-  await refreshAdminAccess();
+  try{await claimPlayerInviteIfPresent()}catch(e){authMessage(e.message||'Impossible d’activer cette invitation joueur.',true);throw e}
+  const accesses=await fetchMyPlayerAccesses();
   await fetchMyGroups();
+  if(!groupState.groups.length&&accesses.length){await openPlayerPortal(accesses);return}
+  $('#appHome').classList.remove('hidden');$('#trainingHome').classList.add('hidden');$('#groupsHome').classList.add('hidden');$('#groupDetail').classList.add('hidden');$('#trainingSession').classList.add('hidden');$('#trainingHistory').classList.add('hidden');$('#homeBtn').classList.remove('hidden');$('#profileBtn').classList.remove('hidden');$('#newMatchTop').classList.add('hidden');
+  await ensureWorkspace();await ensureMyProfile();await refreshAdminAccess();await fetchMyGroups();
 }
 
 async function initAuth(){
@@ -3357,6 +3457,8 @@ async function initAuth(){
     $('#authPanel').classList.remove('hidden');
     $('#setup').classList.add('hidden');
     setCloud('Non connecté',false);
+    if(playerInviteToken())authMessage('Invitation joueur détectée : connecte-toi ou crée ton compte pour accéder à ta page personnelle.');
+    if(playerGroupInviteToken()){authMessage('Accès joueur détecté : sélectionne ton prénom puis connecte-toi ou crée ton compte.');await loadSharedPlayerInvite()}
   }
   db.auth.onAuthStateChange(async (event,session)=>{
     if(session?.user && (!currentUser || currentUser.id!==session.user.id)){
@@ -3367,6 +3469,7 @@ async function initAuth(){
 }
 
 $('#login').onclick=async()=>{
+  if(playerGroupInviteToken()&&!playerGroupInvitePlayerId()){authMessage('Sélectionne d’abord ton prénom.',true);return}
   authMessage('Connexion…');
   const email=$('#authEmail').value.trim();
   const password=$('#authPassword').value;
@@ -3382,6 +3485,7 @@ const signupMessage=(text,error=false)=>{
   el.className='authStatus '+(error?'cloudErr':'');
 };
 function openSignupPopup(){
+  if(playerGroupInviteToken()&&!playerGroupInvitePlayerId()){authMessage('Sélectionne d’abord ton prénom.',true);return}
   $('#signupFirstName').value='';
   $('#signupEmail').value='';
   $('#signupPassword').value='';
@@ -3409,7 +3513,7 @@ $('#confirmSignup').onclick=async()=>{
   signupMessage('Création du compte…');
   const {data,error}=await db.auth.signUp({
     email,password,
-    options:{emailRedirectTo:AUTH_REDIRECT_URL,data:{first_name:firstName}}
+    options:{emailRedirectTo:authRedirectWithPlayerInvite(),data:{first_name:firstName}}
   });
   $('#signupPassword').value='';
   if(error){signupMessage(error.message,true);return}
@@ -5380,9 +5484,10 @@ $('#matchTypeCreateForm').onsubmit=event=>{
 };
 
 let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{}};
+let playerPortalState={accesses:[],groupId:null,matches:[],selected:[],scope:'all',restartLocation:'all',loading:false};
 let groupState={groups:[],currentGroupId:null,currentPlayers:[],matchPlayers:[],profiles:{}};
 let adminState={isAdmin:false,groups:[]};
-let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',impactRestartLocation:'all',impactSortField:'impact100',impactSortDirection:'desc',impactPlayerName:'',impactMatchManualOrder:[],statsMatchView:'summary',reference:null,referenceMeta:null,referenceSources:[],referenceVersions:[],impactReference:null};
+let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',impactRestartLocation:'all',impactView:'staff',impactSortField:'impact100',impactSortDirection:'desc',impactPlayerName:'',impactMatchManualOrder:[],statsMatchView:'summary',reference:null,referenceMeta:null,referenceSources:[],referenceVersions:[],impactReference:null};
 
 
 
@@ -5641,6 +5746,9 @@ async function openGroupDetail(groupId){
     const g=groupState.groups.find(x=>x.id===groupId);if(!g)return;
     groupState.currentGroupId=groupId;
     groupState.currentPlayers=await fetchGroupPlayers(groupId);
+    const {data:playerAccessRows,error:playerAccessError}=await db.rpc('get_coaching_group_player_access',{p_group_id:groupId});
+    if(playerAccessError)throw playerAccessError;
+    groupState.playerAccess=Object.fromEntries((playerAccessRows||[]).map(x=>[x.player_id,!!x.linked]));
     $('#groupDetailName').textContent=g.name;
     $('#groupDetailClub').textContent=g.club||'';
     $('#groupInviteCode').textContent=g.invite_code||'—';
@@ -5735,22 +5843,14 @@ async function saveCurrentGroupName(){
 }
 
 function renderGroupPlayers(){
-  const box=$('#groupPlayersList');if(!box)return;box.innerHTML='';
-  if(!groupState.currentPlayers.length){box.innerHTML='<div class="small">Aucun joueur dans ce groupe.</div>';return}
+  const box=$('#groupPlayersList');if(!box)return;box.innerHTML='';if(!groupState.currentPlayers.length){box.innerHTML='<div class="small">Aucun joueur dans ce groupe.</div>';return}
   const roleLabel={R:'Rapproché (R)',A:'Ailier (A)',P:'Pointe (P)',AP:'A / P'};
-  groupState.currentPlayers.forEach(p=>{
-    const d=document.createElement('div');d.className='historyItem';
-    const row=document.createElement('div');row.className='row';row.style.alignItems='center';
-    const name=document.createElement('strong');name.textContent=p.display_name;name.style.flex='1';
-    const sel=document.createElement('select');sel.style.maxWidth='180px';sel.setAttribute('aria-label',`Poste habituel de ${p.display_name}`);
-    ['R','A','P','AP'].forEach(value=>{
-      const o=document.createElement('option');o.value=value;o.textContent=roleLabel[value];sel.append(o);
-    });
-    sel.value=p.preferred_role||'AP';
-    sel.onchange=()=>updateGroupPlayerPreference(p.id,sel.value);
-    row.append(name,sel);d.append(row);box.append(d);
-  });
+  groupState.currentPlayers.forEach(p=>{const d=document.createElement('div');d.className='historyItem';const row=document.createElement('div');row.className='row';row.style.alignItems='center';row.style.gap='8px';const info=document.createElement('div');info.style.flex='1';info.style.minWidth='140px';const name=document.createElement('strong');name.textContent=p.display_name;info.append(name);const linked=!!groupState.playerAccess?.[p.id];const access=document.createElement('div');access.className='playerPortalAccessBadge';access.textContent=linked?'Compte joueur lié':'Accès joueur non encore activé';info.append(access);const sel=document.createElement('select');sel.style.maxWidth='180px';sel.setAttribute('aria-label',`Poste habituel de ${p.display_name}`);['R','A','P','AP'].forEach(value=>{const o=document.createElement('option');o.value=value;o.textContent=roleLabel[value];sel.append(o)});sel.value=p.preferred_role||'AP';sel.onchange=()=>updateGroupPlayerPreference(p.id,sel.value);row.append(info,sel);if(linked){const unlink=document.createElement('button');unlink.type='button';unlink.className='ghost';unlink.textContent='Délier l’accès';unlink.onclick=()=>unlinkPlayerAccount(p.id,p.display_name);row.append(unlink)}d.append(row);box.append(d)})
 }
+async function createSharedPlayerAccessLink(){if(!groupState.currentGroupId)return;const button=$('#groupPlayerSharedLink'),status=$('#groupPlayerSharedLinkStatus');const old=button?.textContent;if(button){button.disabled=true;button.textContent='Création…'}if(status)status.textContent='';try{const {data,error}=await db.rpc('create_coaching_player_group_invite',{p_group_id:groupState.currentGroupId});if(error)throw error;const token=data?.[0]?.token;if(!token)throw new Error('Lien non généré');const u=new URL(location.href);u.search='';u.hash='';u.searchParams.set('player_group_invite',token);const link=u.toString();let copied=false;try{await navigator.clipboard.writeText(link);copied=true}catch{}if(status)status.textContent=copied?'Lien commun copié.':'Lien commun créé.';prompt(`${copied?'Lien copié dans le presse-papiers. ':''}Transmets ce même lien à tous les joueurs du groupe. Chacun sélectionnera son prénom avant de créer ou connecter son compte.`,link)}catch(e){handleError('create shared player access link',e);if(status)status.textContent='Erreur lors de la création du lien.'}finally{if(button){button.disabled=false;button.textContent=old}}}
+
+async function unlinkPlayerAccount(playerId,playerName){if(!groupState.currentGroupId||!playerId)return;if(!confirm(`Délier le compte joueur de ${playerName} ?\n\nLe joueur pourra ensuite réactiver son accès avec le lien commun du groupe.`))return;try{const {error}=await db.rpc('unlink_coaching_player_account',{p_group_id:groupState.currentGroupId,p_player_id:playerId});if(error)throw error;groupState.playerAccess[playerId]=false;renderGroupPlayers();setCloud('Synchronisé',true)}catch(e){handleError('unlink player account',e)}}
+
 async function updateGroupPlayerPreference(playerId,preferredRole){
   if(!groupState.currentGroupId)return;
   try{
@@ -5851,7 +5951,7 @@ function setMatchHeaderMode(isMatch){
 }
 
 function hideMainModules(){
-  ['settingsHome','adminHome','appHome','setup','live','matchLibrary','matchAnalysisSelect','matchReadOnly','matchAnalysis','groupsHome','groupDetail','trainingHome','trainingSession','trainingDuplicate','exerciseLibrary','trainingHistory','statsHome'].forEach(id=>$('#'+id)?.classList.add('hidden'));
+  ['settingsHome','adminHome','appHome','setup','live','matchLibrary','matchAnalysisSelect','matchReadOnly','matchAnalysis','groupsHome','groupDetail','trainingHome','trainingSession','trainingDuplicate','exerciseLibrary','trainingHistory','statsHome','playerPortal'].forEach(id=>$('#'+id)?.classList.add('hidden'));
   $('#footer')?.classList.add('hidden');
   $('#newMatchTop').classList.add('hidden');
 }
@@ -8747,9 +8847,147 @@ function statsImpactScopeLabel(scope){
   return 'Cumulé';
 }
 
+function statsImpactQuantile(values,q){
+  const arr=(values||[]).filter(Number.isFinite).sort((a,b)=>a-b);
+  if(!arr.length)return null;
+  if(arr.length===1)return arr[0];
+  const pos=(arr.length-1)*q;
+  const lo=Math.floor(pos),hi=Math.ceil(pos);
+  return lo===hi?arr[lo]:arr[lo]+(arr[hi]-arr[lo])*(pos-lo);
+}
+function statsImpactAnonymousBenchmark(rows,key){
+  const vals=(rows||[]).map(x=>x[key]).filter(Number.isFinite);
+  if(!vals.length)return null;
+  return {
+    mean:vals.reduce((sum,v)=>sum+v,0)/vals.length,
+    count:vals.length
+  };
+}
+function statsImpactBenchmarkText(bench,formatter=signed1){
+  if(!bench)return '—';
+  return `Moyenne groupe ${formatter(bench.mean)}`;
+}
+function statsImpactPlayerContextRows(ds,playerName){
+  return [
+    ['Jeu au centre','center'],
+    ['Remise · centre','restart_center'],
+    ['Remise · ligne','restart_line'],
+    ['Remise · coin','restart_corner']
+  ].map(([label,scope])=>({label,scope,...playerOffensiveImpact(ds.events||[],playerName,scope)}));
+}
+function statsImpactPlayerContextTableHtml(ds,playerName){
+  const rows=statsImpactPlayerContextRows(ds,playerName);
+  const body=rows.map(x=>`<tr>
+    <td>${escapeHtml(x.label)}</td>
+    <td>${x.total}</td>
+    <td>${x.total?actualVsReferencePctHtml(x.pointRate,x.expectedPointRate):'—'}</td>
+    <td>${x.total?actualVsReferencePctHtml(x.faultRate,x.expectedFaultRate):'—'}</td>
+    <td class="${impactClass(x.creation100||0)}">${x.total?signed1(x.creation100):'—'}</td>
+    <td class="${impactClass(x.safety100||0)}">${x.total?signed1(x.safety100):'—'}</td>
+  </tr>`).join('');
+  return `<details class="statsImpactPlayerDetails" open>
+    <summary>Détail par situation</summary>
+    <div class="analysisSubtle" style="margin:8px 0">Les remises centre, ligne et coin restent consultables séparément. Les valeurs de référence s’affichent sous les taux observés.</div>
+    <div class="analysisTableWrap"><table class="analysisTable">
+      <thead><tr><th>Situation</th><th>N</th><th>% points</th><th>% fautes</th><th>Création /100</th><th>Sécurité /100</th></tr></thead>
+      <tbody>${body}</tbody>
+    </table></div>
+  </details>`;
+}
+function statsImpactPlayerViewHtml(ds,allRows,scope){
+  const players=(ds.players||[]).filter(Boolean).filter(name=>playerOffensiveImpact(ds.events||[],name,scope).total>0).sort((a,b)=>a.localeCompare(b,'fr'));
+  if(!players.length)return '<div class="statsEmpty">Aucune attaque attribuée à un joueur dans cette vue.</div>';
+  let playerName=statsState.impactPlayerName||'';
+  if(!players.includes(playerName))playerName=players[0];
+  statsState.impactPlayerName=playerName;
+  const x=playerOffensiveImpact(ds.events||[],playerName,scope);
+  const creationBench=statsImpactAnonymousBenchmark(allRows,'creation100');
+  const safetyBench=statsImpactAnonymousBenchmark(allRows,'safety100');
+  const pointBench=statsImpactAnonymousBenchmark(allRows,'pointRate');
+  const faultBench=statsImpactAnonymousBenchmark(allRows,'faultRate');
+  const pct=v=>pct1(v);
+  return `<div class="statsImpactPlayerSheet">
+    <div class="statsImpactPlayerHeader">
+      <div><div class="analysisSubtle">${escapeHtml(statsImpactScopeLabel(scope))}</div><h3>${escapeHtml(playerName)}</h3></div>
+      <div class="statsImpactPlayerVolume"><span class="small">Volume analysé</span><strong>N = ${x.total}</strong></div>
+    </div>
+    <div class="statsImpactPlayerMainMetrics">
+      <div class="statsImpactPlayerMetric"><span>Création /100</span><strong class="${impactClass(x.creation100||0)}">${x.total?signed1(x.creation100):'—'}</strong><small>${statsImpactBenchmarkText(creationBench,signed1)}</small></div>
+      <div class="statsImpactPlayerMetric"><span>Sécurité /100</span><strong class="${impactClass(x.safety100||0)}">${x.total?signed1(x.safety100):'—'}</strong><small>${statsImpactBenchmarkText(safetyBench,signed1)}</small></div>
+    </div>
+    <div class="statsImpactPlayerSecondaryMetrics">
+      <div class="statsImpactPlayerSecondary"><span>% points</span><strong>${x.total?pct1(x.pointRate):'—'}</strong><small>Référentiel ${pct1(x.expectedPointRate)} · ${statsImpactBenchmarkText(pointBench,pct)}</small></div>
+      <div class="statsImpactPlayerSecondary"><span>% fautes</span><strong>${x.total?pct1(x.faultRate):'—'}</strong><small>Référentiel ${pct1(x.expectedFaultRate)} · ${statsImpactBenchmarkText(faultBench,pct)}</small></div>
+    </div>
+    <div class="analysisSubtle statsImpactPlayerBenchmarkNote">La moyenne du groupe est calculée anonymement sur les joueurs ayant au moins une attaque dans la sélection et la situation affichée (${allRows.filter(r=>r.total>0).length} joueurs). Elle sert uniquement de repère collectif, sans classement.</div>
+    <details class="statsImpactPlayerExplainer" open>
+      <summary>Comprendre le référentiel et les scores</summary>
+      <div class="statsImpactPlayerExplainerBody">
+        <p><strong>Le référentiel</strong> est construit à partir des attaques de la compétition de référence sélectionnées par le staff. Les données Hommes et Femmes sont séparées, ainsi que les situations : jeu au centre, remise au centre, sur ligne et sur coin.</p>
+        <p>Pour chaque situation, le référentiel donne le <strong>taux de points</strong> et le <strong>taux de fautes</strong> observés sur l'ensemble des attaques retenues. Il s'agit donc d'une moyenne pondérée par le nombre d'attaques, et non d'un classement des joueurs.</p>
+        <div class="statsImpactPlayerExplainerFormula"><strong>Création /100</strong> : combien de points supplémentaires (ou manquants) le joueur produit sur 100 attaques par rapport au nombre de points attendu selon le référentiel.</div>
+        <div class="statsImpactPlayerExplainerFormula"><strong>Sécurité /100</strong> : combien de fautes le joueur évite (ou ajoute) sur 100 attaques par rapport au nombre de fautes attendu selon le référentiel.</div>
+        <p><strong>Un score de 0</strong> signifie que le joueur est exactement au niveau moyen observé dans la compétition ayant servi de référentiel, pour les situations qu'il a réellement jouées. Un score positif est au-dessus de ce niveau de référence ; un score négatif est en dessous.</p>
+        <p>Exemple : <strong>Création +5</strong> signifie environ 5 points de plus que prévu sur 100 attaques ; <strong>Sécurité +3</strong> signifie environ 3 fautes de moins que prévu sur 100 attaques.</p>
+      </div>
+    </details>
+    <div class="statsImpactCoachMessage" id="statsImpactCoachMessageBox">
+      <div class="statsImpactCoachMessageHeader"><strong>Message des entraîneurs</strong><span class="analysisSubtle">Visible dans la vue joueur</span></div>
+      <textarea id="statsImpactCoachMessageInput" maxlength="2000" placeholder="Écrire ici un retour, un point fort, un axe de travail ou une consigne pour le joueur…"></textarea>
+      <div class="statsImpactCoachMessageActions"><button type="button" class="primary" id="statsImpactCoachMessageSave">Enregistrer le message</button><span class="statsImpactCoachMessageStatus" id="statsImpactCoachMessageStatus"></span></div>
+    </div>
+    ${statsImpactPlayerContextTableHtml(ds,playerName)}
+  </div>`;
+}
+
+async function statsImpactLoadCoachMessage(groupId,playerName){
+  const input=$('#statsImpactCoachMessageInput');
+  const status=$('#statsImpactCoachMessageStatus');
+  const save=$('#statsImpactCoachMessageSave');
+  if(!input||!save||!groupId||!playerName)return;
+  input.disabled=true;save.disabled=true;if(status)status.textContent='Chargement…';
+  try{
+    const players=await fetchGroupPlayers(groupId);
+    const player=players.find(p=>p.display_name===playerName);
+    if(!player){if(status)status.textContent='Joueur introuvable dans le groupe.';return;}
+    input.dataset.playerId=player.id;
+    const {data,error}=await db.from('coaching_player_messages').select('message,updated_at').eq('group_id',groupId).eq('player_id',player.id).maybeSingle();
+    if(error)throw error;
+    input.value=data?.message||'';
+    if(status)status.textContent=data?.updated_at?'Message enregistré.':'';
+    input.disabled=false;save.disabled=false;
+    save.onclick=()=>statsImpactSaveCoachMessage(groupId,player.id);
+  }catch(e){
+    if(status)status.textContent='Impossible de charger le message.';
+    handleError('load player coach message',e);
+  }
+}
+async function statsImpactSaveCoachMessage(groupId,playerId){
+  const input=$('#statsImpactCoachMessageInput');
+  const status=$('#statsImpactCoachMessageStatus');
+  const save=$('#statsImpactCoachMessageSave');
+  if(!input||!groupId||!playerId)return;
+  const message=input.value.trim();
+  if(save)save.disabled=true;if(status)status.textContent='Enregistrement…';
+  try{
+    const {error}=await db.from('coaching_player_messages').upsert({group_id:groupId,player_id:playerId,message,updated_at:new Date().toISOString()},{onConflict:'group_id,player_id'});
+    if(error)throw error;
+    if(status)status.textContent='Message enregistré.';
+  }catch(e){
+    if(status)status.textContent='Erreur lors de l’enregistrement.';
+    handleError('save player coach message',e);
+  }finally{if(save)save.disabled=false;}
+}
+
 async function renderStatsImpactSelection(){
   const groupId=$('#statsGroup').value;
   const box=$('#statsImpactContent');
+  const view=statsState.impactView||'staff';
+  const playerControl=$('#statsImpactPlayerViewControl');
+  const sortControls=$('#statsImpactSortControls');
+  if(playerControl)playerControl.classList.toggle('hidden',view!=='player');
+  if(sortControls)sortControls.classList.toggle('hidden',view==='player');
+  document.querySelectorAll('#statsImpactViewTabs [data-impact-view]').forEach(b=>b.classList.toggle('active',b.dataset.impactView===view));
   if(!groupId){box.innerHTML='<div class="statsEmpty">Choisis un groupe.</div>';return}
 
   const selected=(statsState.impactMatchSelection||[])
@@ -8774,7 +9012,8 @@ async function renderStatsImpactSelection(){
   analysisState.offensiveReference=ref;
   const names=(ds.players||[]).filter(Boolean);
   const scope=statsImpactEffectiveScope();
-  const rows=statsImpactSortRows(names.map(name=>playerOffensiveImpact(ds.events,name,scope)));
+  const rawRows=names.map(name=>playerOffensiveImpact(ds.events,name,scope));
+  const rows=statsImpactSortRows(rawRows);
 
   const body=rows.map(x=>`<tr>
     <td>${escapeHtml(x.name)}</td>
@@ -8787,7 +9026,10 @@ async function renderStatsImpactSelection(){
    </tr>`).join('');
 
   const scopeLabel=statsImpactScopeLabel(scope);
-  box.innerHTML=`<div class="analysisSubtle" style="margin-bottom:8px">
+  if(view==='player'){
+    box.innerHTML=statsImpactPlayerViewHtml(ds,rawRows.filter(r=>r.total>0),scope);
+  }else{
+    box.innerHTML=`<div class="analysisSubtle" style="margin-bottom:8px">
       ${selected.length===1?'Match sélectionné':`Cumul de ${selected.length} matchs sélectionnés`} ·
       Vue : ${scopeLabel} ·
       Référentiel ${pop==='H'?'Hommes':'Femmes'} ·
@@ -8801,11 +9043,22 @@ async function renderStatsImpactSelection(){
       <th>Joueur</th><th>N</th><th>% points</th><th>% fautes</th><th>Création /100</th><th>Sécurité /100</th><th>Performance /100</th>
     </tr></thead><tbody>${body||'<tr><td colspan="7">Aucune attaque attribuée.</td></tr>'}</tbody></table></div>
     ${statsImpactEvolutionBlockHtml(ds,scope)}`;
+  }
+  const playerViewSelect=$('#statsImpactPlayerViewSelect');
+  if(playerViewSelect){
+    const players=(ds.players||[]).filter(Boolean).filter(name=>playerOffensiveImpact(ds.events||[],name,scope).total>0).sort((a,b)=>a.localeCompare(b,'fr'));
+    let selectedPlayer=statsState.impactPlayerName||'';
+    if(!players.includes(selectedPlayer))selectedPlayer=players[0]||'';
+    statsState.impactPlayerName=selectedPlayer;
+    playerViewSelect.innerHTML=players.map(name=>`<option value="${escapeHtml(name)}" ${name===selectedPlayer?'selected':''}>${escapeHtml(name)}</option>`).join('');
+    playerViewSelect.onchange=e=>{statsState.impactPlayerName=e.target.value||'';renderStatsImpactSelection().catch(err=>handleError('stats impact player view',err));};
+  }
   const playerSelect=$('#statsImpactPlayerSelect');
   if(playerSelect)playerSelect.onchange=e=>{
     statsState.impactPlayerName=e.target.value||'';
     renderStatsImpactSelection().catch(err=>handleError('stats impact player',err));
   };
+  if(view==='player')await statsImpactLoadCoachMessage(groupId,statsState.impactPlayerName);
   box.querySelectorAll('[data-impact-move]').forEach(b=>b.onclick=()=>{
     moveStatsImpactMatch(b.dataset.impactMove,Number(b.dataset.impactDelta)||0);
   });
@@ -9099,6 +9352,10 @@ if($('#statsImpactRestartLocation'))$('#statsImpactRestartLocation').onchange=()
   statsState.impactRestartLocation=$('#statsImpactRestartLocation').value||'all';
   renderStatsImpactSelection().catch(e=>handleError('stats impact restart location',e));
 };
+document.querySelectorAll('#statsImpactViewTabs [data-impact-view]').forEach(b=>b.onclick=()=>{
+  statsState.impactView=b.dataset.impactView||'staff';
+  renderStatsImpactSelection().catch(e=>handleError('stats impact view',e));
+});
 if($('#statsImpactLatest'))$('#statsImpactLatest').onclick=()=>{
   const list=statsState.impactMatchList||[];
   const latest=list[list.length-1];
@@ -9157,6 +9414,12 @@ function render(){
     controls.append(edit,del);d.append(controls);t.append(d)
   });
 }
+
+$('#playerPortalSelectAll').onclick=()=>{playerPortalState.selected=(playerPortalState.matches||[]).map(m=>m.id);playerPortalRenderMatches();playerPortalRender().catch(e=>handleError('player portal select all',e))};
+$('#playerPortalLatest').onclick=()=>{const m=(playerPortalState.matches||[])[0];playerPortalState.selected=m?[m.id]:[];playerPortalRenderMatches();playerPortalRender().catch(e=>handleError('player portal latest',e))};
+document.querySelectorAll('#playerPortalScopeTabs [data-player-scope]').forEach(btn=>btn.onclick=()=>{playerPortalState.scope=btn.dataset.playerScope||'all';document.querySelectorAll('#playerPortalScopeTabs [data-player-scope]').forEach(b=>b.classList.toggle('active',b===btn));$('#playerPortalRestartField').classList.toggle('hidden',playerPortalState.scope!=='restart');playerPortalRender().catch(e=>handleError('player portal scope',e))});
+$('#playerPortalRestart').onchange=e=>{playerPortalState.restartLocation=e.target.value||'all';playerPortalRender().catch(err=>handleError('player portal restart',err))};
+$('#groupPlayerSharedLink').onclick=()=>createSharedPlayerAccessLink();
 
 render();
 initVideoDesktopResizer();
