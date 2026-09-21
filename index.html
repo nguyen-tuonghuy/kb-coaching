@@ -1785,7 +1785,15 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
 .playerObjectiveActions{display:flex;gap:6px;flex-wrap:wrap}
 .playerObjectiveComposer{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:10px}
 .playerObjectiveComposer input{min-width:0}
-@media(max-width:620px){.playerObjectiveComposer{grid-template-columns:1fr}.playerObjectiveActions{width:100%}}
+@media(max-width:620px){
+  .playerObjectiveComposer{grid-template-columns:1fr}
+  .playerObjectiveItem{display:grid;grid-template-columns:1fr;gap:10px}
+  .playerObjectiveText{width:100%;min-width:0}
+  .playerObjectiveText strong{display:block;overflow-wrap:anywhere}
+  .playerObjectiveMeta{overflow-wrap:anywhere}
+  .playerObjectiveActions{width:100%}
+  .playerObjectiveActions button{width:100%;max-width:100%}
+}
 
 .playerPortalStaffPreviewBanner{border:1px solid var(--primary);border-radius:12px;padding:9px 11px;margin-bottom:12px;font-size:12px;color:var(--muted)}
 .messageUnreadBadge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#e05252;color:#fff;font-size:11px;font-weight:800;line-height:1}
