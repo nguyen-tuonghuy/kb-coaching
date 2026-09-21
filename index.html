@@ -1710,6 +1710,7 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
     <path d="M3 11.2 12 4l9 7.2v8.3a.5.5 0 0 1-.5.5H15v-6H9v6H3.5a.5.5 0 0 1-.5-.5v-8.3Z" fill="currentColor"/>
   </svg>
 </button>
+    <button class="ghost hidden" id="playerSpaceBtn">Mon espace joueur</button>
     <button class="ghost hidden" id="profileBtn">Profil</button>
     <button class="ghost hidden" id="logout">Déconnexion</button>
    </div>
@@ -1891,6 +1892,7 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
    <button type="button" class="ghost active" id="playerPortalNavHome">Accueil</button>
    <button type="button" class="ghost" id="playerPortalNavStats">Mes statistiques</button>
    <button type="button" class="ghost" id="playerPortalNavProfile">Mon profil</button>
+   <button type="button" class="ghost hidden" id="playerPortalBackStaff">Retour espace entraîneur</button>
   </div>
 
   <div id="playerPortalHomeView">
@@ -3542,6 +3544,26 @@ async function loadSharedPlayerInvite(){
 }
 async function claimPlayerInviteIfPresent(){const groupToken=playerGroupInviteToken();if(groupToken){const playerId=playerGroupInvitePlayerId();if(!playerId)throw new Error('Sélectionne ton prénom avant de te connecter.');const {error}=await db.rpc('claim_coaching_player_group_invite',{p_token:groupToken,p_player_id:playerId});if(error)throw error;clearPlayerInviteToken();return true}const token=playerInviteToken();if(!token)return false;const {error}=await db.rpc('claim_coaching_player_invite',{p_token:token});if(error)throw error;clearPlayerInviteToken();return true}
 async function fetchMyPlayerAccesses(){const {data,error}=await db.rpc('get_my_player_access');if(error)throw error;playerPortalState.accesses=data||[];return playerPortalState.accesses}
+async function enterMyPlayerPortal(){
+  const accesses=playerPortalState.accesses?.length?playerPortalState.accesses:await fetchMyPlayerAccesses();
+  if(!accesses.length){alert("Aucun espace joueur n'est lié à ce compte.");return false}
+  playerPortalState.hasStaffAccess=groupState.groups.length>0;
+  await openPlayerPortal(accesses);
+  return true;
+}
+function returnToStaffSpace(){
+  hideMainModules();
+  $('#playerPortal').classList.add('hidden');
+  $('#appHome').classList.remove('hidden');
+  $('#homeBtn').classList.remove('hidden');
+  $('#profileBtn').classList.remove('hidden');
+  $('#playerSpaceBtn').classList.toggle('hidden',!(playerPortalState.accesses||[]).length);
+  $('#logout').classList.remove('hidden');
+  $('#newMatchTop').classList.add('hidden');
+  setMatchHeaderMode(false);
+  setCloud('Synchronisé',true);
+  window.scrollTo({top:0,behavior:'instant'});
+}
 function playerPortalSetView(view){
   playerPortalState.view=view||'home';
   const views={home:'#playerPortalHomeView',stats:'#playerPortalStatsView',profile:'#playerPortalProfileView'};
@@ -3602,7 +3624,7 @@ function playerPortalSheetHtml(data,allDetails){
 }
 async function playerPortalRender(){const box=$('#playerPortalContent');if(!box||!playerPortalState.groupId)return;const ids=playerPortalState.selected||[];if(!ids.length){box.innerHTML='<div class="statsEmpty">Sélectionne au moins un match.</div>';return}if(playerPortalState.loading)return;playerPortalState.loading=true;box.innerHTML='<div class="statsEmpty">Calcul de tes statistiques…</div>';try{const scope=playerPortalEffectiveScope();const calls=[db.rpc('get_player_portal_metrics',{p_group_id:playerPortalState.groupId,p_match_ids:ids,p_scope:scope})];if(scope!=='all')calls.push(db.rpc('get_player_portal_metrics',{p_group_id:playerPortalState.groupId,p_match_ids:ids,p_scope:'all'}));const results=await Promise.all(calls);results.forEach(r=>{if(r.error)throw r.error});const data=results[0].data||{};const details=(results[1]?.data||data).details||[];box.innerHTML=playerPortalSheetHtml(data,details)}finally{playerPortalState.loading=false}}
 async function loadPlayerPortalGroup(groupId){playerPortalState.groupId=groupId;syncPlayerPortalRole(groupId);refreshPlayerPortalIdentity();playerPortalState.scope='all';playerPortalState.restartLocation='all';document.querySelectorAll('#playerPortalScopeTabs [data-player-scope]').forEach(b=>b.classList.toggle('active',b.dataset.playerScope==='all'));$('#playerPortalRestartField')?.classList.add('hidden');if($('#playerPortalRestart'))$('#playerPortalRestart').value='all';const {data,error}=await db.rpc('get_player_portal_metrics',{p_group_id:groupId,p_match_ids:null,p_scope:'all'});if(error)throw error;playerPortalState.matches=data?.matches||[];playerPortalState.selected=playerPortalState.matches.map(m=>m.id);$('#playerPortalTitle').textContent=data?.player_name?`Mes statistiques · ${data.player_name}`:'Mes statistiques';$('#playerPortalSubtitle').textContent=data?.group_name||'';playerPortalRenderMatches();$('#playerPortalContent').innerHTML=playerPortalSheetHtml(data,data?.details||[])}
-async function openPlayerPortal(accesses){playerPortalState.accesses=accesses||await fetchMyPlayerAccesses();if(!playerPortalState.accesses.length)return false;if($('#playerPortalAccountEmail'))$('#playerPortalAccountEmail').textContent=currentUser?.email||'';playerPortalState.view='home';hideMainModules();setMatchHeaderMode(false);$('#playerPortal').classList.remove('hidden');$('#homeBtn').classList.add('hidden');$('#profileBtn').classList.add('hidden');$('#logout').classList.remove('hidden');const sel=$('#playerPortalGroup'),field=$('#playerPortalGroupField');sel.innerHTML=playerPortalState.accesses.map(a=>`<option value="${escapeHtml(a.group_id)}">${escapeHtml(a.group_name)} · ${escapeHtml(a.player_name)}</option>`).join('');field.classList.toggle('hidden',playerPortalState.accesses.length<2);sel.onchange=()=>loadPlayerPortalGroup(sel.value).catch(e=>handleError('player portal group',e));await loadPlayerPortalGroup(playerPortalState.accesses[0].group_id);playerPortalSetView('home');setCloud('Synchronisé',true);window.scrollTo({top:0,behavior:'instant'});return true}
+async function openPlayerPortal(accesses){playerPortalState.accesses=accesses||await fetchMyPlayerAccesses();if(!playerPortalState.accesses.length)return false;if($('#playerPortalAccountEmail'))$('#playerPortalAccountEmail').textContent=currentUser?.email||'';playerPortalState.hasStaffAccess=groupState.groups.length>0;playerPortalState.view='home';hideMainModules();setMatchHeaderMode(false);$('#playerPortal').classList.remove('hidden');$('#homeBtn').classList.add('hidden');$('#profileBtn').classList.add('hidden');$('#playerSpaceBtn').classList.add('hidden');$('#playerPortalBackStaff')?.classList.toggle('hidden',!playerPortalState.hasStaffAccess);$('#logout').classList.remove('hidden');const sel=$('#playerPortalGroup'),field=$('#playerPortalGroupField');sel.innerHTML=playerPortalState.accesses.map(a=>`<option value="${escapeHtml(a.group_id)}">${escapeHtml(a.group_name)} · ${escapeHtml(a.player_name)}</option>`).join('');field.classList.toggle('hidden',playerPortalState.accesses.length<2);sel.onchange=()=>loadPlayerPortalGroup(sel.value).catch(e=>handleError('player portal group',e));await loadPlayerPortalGroup(playerPortalState.accesses[0].group_id);playerPortalSetView('home');setCloud('Synchronisé',true);window.scrollTo({top:0,behavior:'instant'});return true}
 
 async function initAuthenticated(user){
   currentUser=user;
@@ -3621,7 +3643,7 @@ async function initAuthenticated(user){
   const accesses=await fetchMyPlayerAccesses();
   await fetchMyGroups();
   if(accesses.length&&(invitedPlayerFlow||!groupState.groups.length)){await openPlayerPortal(accesses);return}
-  $('#appHome').classList.remove('hidden');$('#trainingHome').classList.add('hidden');$('#groupsHome').classList.add('hidden');$('#groupDetail').classList.add('hidden');$('#trainingSession').classList.add('hidden');$('#trainingHistory').classList.add('hidden');$('#homeBtn').classList.remove('hidden');$('#profileBtn').classList.remove('hidden');$('#newMatchTop').classList.add('hidden');
+  $('#appHome').classList.remove('hidden');$('#trainingHome').classList.add('hidden');$('#groupsHome').classList.add('hidden');$('#groupDetail').classList.add('hidden');$('#trainingSession').classList.add('hidden');$('#trainingHistory').classList.add('hidden');$('#homeBtn').classList.remove('hidden');$('#profileBtn').classList.remove('hidden');$('#playerSpaceBtn').classList.toggle('hidden',!accesses.length);$('#newMatchTop').classList.add('hidden');
   await ensureWorkspace();await ensureMyProfile();await refreshAdminAccess();await fetchMyGroups();
 }
 
@@ -3809,7 +3831,7 @@ $('#saveProfile').onclick=(ev)=>{
   });
 };
 
-$('#logout').onclick=async()=>{
+$('#logout').onclick=async()=>{$('#playerSpaceBtn')?.classList.add('hidden');
   await db.auth.signOut();
   hideMainModules();
   categoryState.categories=[];
@@ -5678,7 +5700,7 @@ $('#matchTypeCreateForm').onsubmit=event=>{
 };
 
 let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{}};
-let playerPortalState={accesses:[],groupId:null,matches:[],selected:[],scope:'all',restartLocation:'all',loading:false,view:'home'};
+let playerPortalState={accesses:[],groupId:null,matches:[],selected:[],scope:'all',restartLocation:'all',loading:false,view:'home',hasStaffAccess:false};
 let groupState={groups:[],currentGroupId:null,currentPlayers:[],matchPlayers:[],profiles:{}};
 let adminState={isAdmin:false,groups:[]};
 let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',impactRestartLocation:'all',impactView:'staff',impactSortField:'impact100',impactSortDirection:'desc',impactPlayerName:'',impactMatchManualOrder:[],statsMatchView:'summary',reference:null,referenceMeta:null,referenceSources:[],referenceVersions:[],impactReference:null};
@@ -9622,6 +9644,8 @@ $('#playerPortalNavStats').onclick=()=>playerPortalSetView('stats');
 $('#playerPortalNavProfile').onclick=()=>playerPortalSetView('profile');
 $('#playerPortalHomeStatsCard').onclick=()=>playerPortalSetView('stats');
 $('#playerPortalHomeProfileCard').onclick=()=>playerPortalSetView('profile');
+$('#playerSpaceBtn').onclick=()=>enterMyPlayerPortal().catch(err=>handleError('open player portal',err));
+$('#playerPortalBackStaff').onclick=returnToStaffSpace;
 
 $('#playerJoinContinue').onclick=async()=>{const playerId=playerGroupInvitePlayerId();if(!playerId){authMessage('Sélectionne d’abord ton prénom.',true);return}const {data:{session}}=await db.auth.getSession();if(!session?.user){authMessage('Connecte-toi ou crée ton compte pour continuer.',true);return}authMessage('Activation de ton accès…');try{await initAuthenticated(session.user);authMessage('')}catch(e){console.error('player join continue',e)}};
 $('#groupPlayerSharedLink').onclick=()=>createSharedPlayerAccessLink();
