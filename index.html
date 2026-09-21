@@ -2845,6 +2845,47 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
  </div>
 </div>
 
+
+<div class="popupBackdrop hidden" id="groupPlayerFollowupPopup">
+ <div class="sheet" style="max-width:680px">
+  <div class="sheetTop">
+   <div>
+    <h2 id="groupPlayerFollowupTitle">Suivi joueur</h2>
+    <div class="meta">Informations générales visibles ou utilisées dans l’espace joueur.</div>
+   </div>
+   <button class="closePopup" id="closeGroupPlayerFollowupPopup" aria-label="Fermer">×</button>
+  </div>
+  <div class="field" style="margin-top:12px">
+   <label>Poste préféré</label>
+   <select id="groupPlayerFollowupRole">
+    <option value="R">Rapproché (R)</option>
+    <option value="A">Ailier (A)</option>
+    <option value="P">Pointe (P)</option>
+    <option value="AP">A ou P</option>
+   </select>
+  </div>
+  <div class="field" style="margin-top:12px">
+   <label>Message des entraîneurs</label>
+   <textarea id="groupPlayerFollowupMessage" maxlength="2000" style="min-height:120px;resize:vertical" placeholder="Retour général, point fort, axe de travail ou consigne…"></textarea>
+   <div class="small" style="margin-top:5px">Ce message apparaît sur la page d’accueil du joueur.</div>
+  </div>
+  <div class="historyItem" style="margin-top:12px">
+   <div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+    <div>
+     <strong>Accès joueur</strong>
+     <div class="small" id="groupPlayerFollowupAccessStatus">—</div>
+    </div>
+    <button type="button" class="ghost hidden" id="groupPlayerFollowupUnlink">Délier l’accès</button>
+   </div>
+  </div>
+  <div class="authStatus" id="groupPlayerFollowupStatus"></div>
+  <div class="row" style="margin-top:14px">
+   <button class="ghost" style="flex:1" id="cancelGroupPlayerFollowup">Fermer</button>
+   <button class="primary" style="flex:2" id="saveGroupPlayerFollowup">Enregistrer</button>
+  </div>
+ </div>
+</div>
+
 <div class="popupBackdrop hidden" id="signupPopup">
  <div class="sheet" style="max-width:560px">
    <div class="sheetTop">
@@ -3599,7 +3640,7 @@ function playerPortalNum(v){const n=Number(v);return Number.isFinite(n)?n:null}
 function playerPortalSigned(v){const n=playerPortalNum(v);if(n==null)return '—';const x=Math.round(n*10)/10;return `${x>0?'+':''}${x.toFixed(1).replace('.',',')}`}
 function playerPortalPct(v){const n=playerPortalNum(v);if(n==null)return '—';return `${(Math.round(n*10)/10).toFixed(1).replace('.',',')} %`}
 function playerPortalImpactClass(v){const n=playerPortalNum(v)||0;return n>.05?'analysisImpactPositive':n<-.05?'analysisImpactNegative':'analysisImpactNeutral'}
-function playerPortalReliability(n){n=Number(n)||0;if(n<5)return {cls:'low',label:'Très faible'};if(n<=15)return {cls:'limited',label:'Limité'};return {cls:'ok',label:'Plus stable'}}
+function playerPortalReliability(n){n=Number(n)||0;if(n<5)return {cls:'low',label:'Très faible'};if(n<=15)return {cls:'limited',label:'Limité'};return {cls:'ok',label:''}}
 function playerPortalTakeawaysHtml(x,n){
   n=Number(n)||0;
   const creation=playerPortalNum(x?.creation100),safety=playerPortalNum(x?.safety100);
@@ -3629,7 +3670,7 @@ function playerPortalSheetHtml(data,allDetails){
   const x=data?.metrics||{},avg=data?.group_average||{},n=Number(x.n)||0;
   const referenceVersion=data?.reference_version||'référence active';
   const rel=playerPortalReliability(n);
-  return `<div class="statsImpactPlayerSheet"><div class="statsImpactPlayerHeader"><div><div class="analysisSubtle">${escapeHtml(playerPortalScopeLabel(playerPortalEffectiveScope()))}</div><h3>${escapeHtml(data.player_name||'')}</h3></div><div class="playerPortalVolumeBadge ${rel.cls}"><span class="small">Volume analysé</span><strong>N = ${n}</strong><span class="reliability">${escapeHtml(rel.label)}</span></div></div>${data?.is_test_mirror?`<div class="playerPortalTestDataNotice">Profil de test : les statistiques affichées sont une copie de celles de ${escapeHtml(data.stats_source_player_name||'un joueur source')} afin de tester un profil complet.</div>`:''}${playerVolumeWarningHtml(n)}${playerPortalTakeawaysHtml(x,n)}<div class="statsImpactPlayerMainMetrics"><div class="statsImpactPlayerMetric"><span>Création /100</span><strong class="${playerPortalImpactClass(x.creation100)}">${n?playerPortalSigned(x.creation100):'—'}</strong><small>Moyenne groupe ${playerPortalSigned(avg.creation100)}</small></div><div class="statsImpactPlayerMetric"><span>Sécurité /100</span><strong class="${playerPortalImpactClass(x.safety100)}">${n?playerPortalSigned(x.safety100):'—'}</strong><small>Moyenne groupe ${playerPortalSigned(avg.safety100)}</small></div></div><div class="statsImpactPlayerSecondaryMetrics"><div class="statsImpactPlayerSecondary"><span>% points</span><strong>${n?playerPortalPct(x.point_rate):'—'}</strong><small>Référentiel ${playerPortalPct(x.expected_point_rate)} · Moyenne groupe ${playerPortalPct(avg.point_rate)}</small></div><div class="statsImpactPlayerSecondary"><span>% fautes</span><strong>${n?playerPortalPct(x.fault_rate):'—'}</strong><small>Référentiel ${playerPortalPct(x.expected_fault_rate)} · Moyenne groupe ${playerPortalPct(avg.fault_rate)}</small></div></div><div class="analysisSubtle statsImpactPlayerBenchmarkNote">La moyenne du groupe est calculée sans afficher les résultats des autres joueurs. Elle sert uniquement de repère collectif.</div><details class="statsImpactPlayerExplainer" open><summary>Comprendre le référentiel et les scores</summary><div class="statsImpactPlayerExplainerBody"><p><strong>Le référentiel</strong> (${escapeHtml(referenceVersion)}) est construit à partir des attaques de la compétition de référence sélectionnées par le staff. Les données Hommes et Femmes sont séparées, ainsi que le jeu au centre et les remises au centre, sur ligne et sur coin.</p><p>Pour chaque situation, il donne le <strong>taux de points</strong> et le <strong>taux de fautes</strong> observés sur l'ensemble des attaques retenues.</p><div class="statsImpactPlayerExplainerFormula"><strong>Création /100</strong> : nombre de points produits en plus ou en moins sur 100 attaques par rapport au nombre attendu selon le référentiel.</div><div class="statsImpactPlayerExplainerFormula"><strong>Sécurité /100</strong> : nombre de fautes évitées ou ajoutées sur 100 attaques par rapport au nombre attendu selon le référentiel.</div><p><strong>Un score de 0</strong> signifie que ta performance correspond au niveau moyen de la compétition ayant servi à construire le référentiel, en tenant compte des situations que tu as réellement jouées. Positif = au-dessus du référentiel ; négatif = en dessous.</p><p><strong>Attention au volume analysé.</strong> Les scores sont ramenés à 100 attaques : avec peu d’actions, une seule action peut donc faire fortement bouger le résultat. En pratique, <strong>N &lt; 5</strong> est trop faible pour conclure ; entre <strong>5 et 15</strong>, le score donne seulement une tendance provisoire ; au-delà de <strong>15</strong>, il devient plus stable, sans pour autant supprimer l’incertitude.</p><p>Exemple : <strong>Création +5</strong> correspond à environ 5 points de plus que prévu sur 100 attaques ; <strong>Sécurité +3</strong> à environ 3 fautes de moins que prévu sur 100 attaques.</p></div></details>${playerPortalDetailsHtml(allDetails||data.details||[])}</div>`
+  return `<div class="statsImpactPlayerSheet"><div class="statsImpactPlayerHeader"><div><div class="analysisSubtle">${escapeHtml(playerPortalScopeLabel(playerPortalEffectiveScope()))}</div><h3>${escapeHtml(data.player_name||'')}</h3></div><div class="playerPortalVolumeBadge ${rel.cls}"><span class="small">Volume analysé</span><strong>N = ${n}</strong>${rel.label?`<span class="reliability">${escapeHtml(rel.label)}</span>`:''}</div></div>${data?.is_test_mirror?`<div class="playerPortalTestDataNotice">Profil de test : les statistiques affichées sont une copie de celles de ${escapeHtml(data.stats_source_player_name||'un joueur source')} afin de tester un profil complet.</div>`:''}${playerVolumeWarningHtml(n)}${playerPortalTakeawaysHtml(x,n)}<div class="statsImpactPlayerMainMetrics"><div class="statsImpactPlayerMetric"><span>Création /100</span><strong class="${playerPortalImpactClass(x.creation100)}">${n?playerPortalSigned(x.creation100):'—'}</strong><small>Moyenne groupe ${playerPortalSigned(avg.creation100)}</small></div><div class="statsImpactPlayerMetric"><span>Sécurité /100</span><strong class="${playerPortalImpactClass(x.safety100)}">${n?playerPortalSigned(x.safety100):'—'}</strong><small>Moyenne groupe ${playerPortalSigned(avg.safety100)}</small></div></div><div class="statsImpactPlayerSecondaryMetrics"><div class="statsImpactPlayerSecondary"><span>% points</span><strong>${n?playerPortalPct(x.point_rate):'—'}</strong><small>Référentiel ${playerPortalPct(x.expected_point_rate)} · Moyenne groupe ${playerPortalPct(avg.point_rate)}</small></div><div class="statsImpactPlayerSecondary"><span>% fautes</span><strong>${n?playerPortalPct(x.fault_rate):'—'}</strong><small>Référentiel ${playerPortalPct(x.expected_fault_rate)} · Moyenne groupe ${playerPortalPct(avg.fault_rate)}</small></div></div><div class="analysisSubtle statsImpactPlayerBenchmarkNote">La moyenne du groupe est calculée sans afficher les résultats des autres joueurs. Elle sert uniquement de repère collectif.</div><details class="statsImpactPlayerExplainer" open><summary>Comprendre le référentiel et les scores</summary><div class="statsImpactPlayerExplainerBody"><p><strong>Le référentiel</strong> (${escapeHtml(referenceVersion)}) est construit à partir des attaques de la compétition de référence sélectionnées par le staff. Les données Hommes et Femmes sont séparées, ainsi que le jeu au centre et les remises au centre, sur ligne et sur coin.</p><p>Pour chaque situation, il donne le <strong>taux de points</strong> et le <strong>taux de fautes</strong> observés sur l'ensemble des attaques retenues.</p><div class="statsImpactPlayerExplainerFormula"><strong>Création /100</strong> : nombre de points produits en plus ou en moins sur 100 attaques par rapport au nombre attendu selon le référentiel.</div><div class="statsImpactPlayerExplainerFormula"><strong>Sécurité /100</strong> : nombre de fautes évitées ou ajoutées sur 100 attaques par rapport au nombre attendu selon le référentiel.</div><p><strong>Un score de 0</strong> signifie que ta performance correspond au niveau moyen de la compétition ayant servi à construire le référentiel, en tenant compte des situations que tu as réellement jouées. Positif = au-dessus du référentiel ; négatif = en dessous.</p><p><strong>Attention au volume analysé.</strong> Les scores sont ramenés à 100 attaques : avec peu d’actions, une seule action peut donc faire fortement bouger le résultat. En pratique, <strong>N &lt; 5</strong> est trop faible pour conclure ; entre <strong>5 et 15</strong>, le score donne seulement une tendance provisoire ; au-delà de <strong>15</strong>, il devient plus stable, sans pour autant supprimer l’incertitude.</p><p>Exemple : <strong>Création +5</strong> correspond à environ 5 points de plus que prévu sur 100 attaques ; <strong>Sécurité +3</strong> à environ 3 fautes de moins que prévu sur 100 attaques.</p></div></details>${playerPortalDetailsHtml(allDetails||data.details||[])}</div>`
 }
 async function playerPortalRender(){const box=$('#playerPortalContent');if(!box||!playerPortalState.groupId)return;const ids=playerPortalState.selected||[];if(!ids.length){box.innerHTML='<div class="statsEmpty">Sélectionne au moins un match.</div>';return}if(playerPortalState.loading)return;playerPortalState.loading=true;box.innerHTML='<div class="statsEmpty">Calcul de tes statistiques…</div>';try{const scope=playerPortalEffectiveScope();const calls=[db.rpc('get_player_portal_metrics',{p_group_id:playerPortalState.groupId,p_match_ids:ids,p_scope:scope})];if(scope!=='all')calls.push(db.rpc('get_player_portal_metrics',{p_group_id:playerPortalState.groupId,p_match_ids:ids,p_scope:'all'}));const results=await Promise.all(calls);results.forEach(r=>{if(r.error)throw r.error});const data=results[0].data||{};const details=(results[1]?.data||data).details||[];box.innerHTML=playerPortalSheetHtml(data,details)}finally{playerPortalState.loading=false}}
 async function loadPlayerPortalGroup(groupId){playerPortalState.groupId=groupId;syncPlayerPortalRole(groupId);refreshPlayerPortalIdentity();playerPortalState.scope='all';playerPortalState.restartLocation='all';document.querySelectorAll('#playerPortalScopeTabs [data-player-scope]').forEach(b=>b.classList.toggle('active',b.dataset.playerScope==='all'));$('#playerPortalRestartField')?.classList.add('hidden');if($('#playerPortalRestart'))$('#playerPortalRestart').value='all';const {data,error}=await db.rpc('get_player_portal_metrics',{p_group_id:groupId,p_match_ids:null,p_scope:'all'});if(error)throw error;playerPortalState.matches=data?.matches||[];playerPortalState.selected=playerPortalState.matches.map(m=>m.id);$('#playerPortalTitle').textContent=data?.player_name?`Mes statistiques · ${data.player_name}`:'Mes statistiques';$('#playerPortalSubtitle').textContent=data?.group_name||'';const homeMsg=$('#playerPortalHomeCoachMessage');if(homeMsg){const msg=(data?.message||'').trim();homeMsg.innerHTML=msg?escapeHtml(msg):'<span class="analysisSubtle">Aucun message pour le moment.</span>'}playerPortalRenderMatches();$('#playerPortalContent').innerHTML=playerPortalSheetHtml(data,data?.details||[])}
@@ -5947,6 +5988,11 @@ async function fetchGroupPlayers(groupId){
 async function openGroupsModule(){
   try{
     await fetchMyGroups();
+    if(groupState.groups.length){
+      const target=groupState.groups.find(g=>g.id===groupState.currentGroupId)||groupState.groups[0];
+      await openGroupDetail(target.id);
+      return;
+    }
     hideMainModules();
     setMatchHeaderMode(false);$('#groupsHome').classList.remove('hidden');
     renderGroupsList();
@@ -6070,11 +6116,69 @@ async function saveCurrentGroupName(){
 function renderGroupPlayers(){
   const box=$('#groupPlayersList');if(!box)return;box.innerHTML='';if(!groupState.currentPlayers.length){box.innerHTML='<div class="small">Aucun joueur dans ce groupe.</div>';return}
   const roleLabel={R:'Rapproché (R)',A:'Ailier (A)',P:'Pointe (P)',AP:'A ou P'};
-  groupState.currentPlayers.forEach(p=>{const d=document.createElement('div');d.className='historyItem';const row=document.createElement('div');row.className='row';row.style.alignItems='center';row.style.gap='8px';const info=document.createElement('div');info.style.flex='1';info.style.minWidth='140px';const name=document.createElement('strong');name.textContent=p.display_name;info.append(name);const linked=!!groupState.playerAccess?.[p.id];const access=document.createElement('div');access.className='playerPortalAccessBadge';access.textContent=linked?'Compte joueur lié':'Accès joueur non encore activé';info.append(access);const sel=document.createElement('select');sel.style.maxWidth='180px';sel.setAttribute('aria-label',`Poste habituel de ${p.display_name}`);['R','A','P','AP'].forEach(value=>{const o=document.createElement('option');o.value=value;o.textContent=roleLabel[value];sel.append(o)});sel.value=p.preferred_role||'AP';sel.onchange=()=>updateGroupPlayerPreference(p.id,sel.value);row.append(info,sel);if(linked){const unlink=document.createElement('button');unlink.type='button';unlink.className='ghost';unlink.textContent='Délier l’accès';unlink.onclick=()=>unlinkPlayerAccount(p.id,p.display_name);row.append(unlink)}d.append(row);box.append(d)})
+  groupState.currentPlayers.forEach(p=>{
+    const d=document.createElement('div');d.className='historyItem';
+    const row=document.createElement('div');row.className='row';row.style.alignItems='center';row.style.gap='8px';
+    const info=document.createElement('div');info.style.flex='1';info.style.minWidth='140px';
+    info.innerHTML=`<strong>${escapeHtml(p.display_name)}</strong><div class="small">${escapeHtml(roleLabel[p.preferred_role||'AP'])} · ${groupState.playerAccess?.[p.id]?'Compte joueur lié':'Accès joueur non encore activé'}</div>`;
+    const open=document.createElement('button');open.type='button';open.className='ghost';open.textContent='Fiche joueur';
+    open.onclick=()=>openGroupPlayerFollowup(p.id);
+    row.append(info,open);d.append(row);box.append(d);
+  })
 }
+
+let groupPlayerFollowupState={playerId:null};
+
+async function openGroupPlayerFollowup(playerId){
+  const groupId=groupState.currentGroupId;
+  const p=groupState.currentPlayers.find(x=>x.id===playerId);
+  if(!groupId||!p)return;
+  groupPlayerFollowupState.playerId=playerId;
+  $('#groupPlayerFollowupTitle').textContent=`Suivi joueur · ${p.display_name}`;
+  $('#groupPlayerFollowupRole').value=p.preferred_role||'AP';
+  const linked=!!groupState.playerAccess?.[playerId];
+  $('#groupPlayerFollowupAccessStatus').textContent=linked?'Compte joueur lié':'Accès joueur non encore activé';
+  $('#groupPlayerFollowupUnlink').classList.toggle('hidden',!linked);
+  $('#groupPlayerFollowupStatus').textContent='Chargement…';
+  $('#groupPlayerFollowupMessage').value='';
+  $('#groupPlayerFollowupPopup').classList.remove('hidden');
+  try{
+    const {data,error}=await db.from('coaching_player_messages').select('message,updated_at').eq('group_id',groupId).eq('player_id',playerId).maybeSingle();
+    if(error)throw error;
+    $('#groupPlayerFollowupMessage').value=data?.message||'';
+    $('#groupPlayerFollowupStatus').textContent=data?.updated_at?'Message existant chargé.':'';
+  }catch(e){
+    $('#groupPlayerFollowupStatus').textContent='Impossible de charger le message.';
+    handleError('load group player followup',e);
+  }
+}
+
+async function saveGroupPlayerFollowup(){
+  const groupId=groupState.currentGroupId,playerId=groupPlayerFollowupState.playerId;
+  if(!groupId||!playerId)return;
+  const role=$('#groupPlayerFollowupRole').value||'AP';
+  const message=$('#groupPlayerFollowupMessage').value.trim();
+  const status=$('#groupPlayerFollowupStatus');
+  const save=$('#saveGroupPlayerFollowup');
+  save.disabled=true;status.textContent='Enregistrement…';
+  try{
+    const {error:roleError}=await db.from('coaching_group_players').update({preferred_role:role}).eq('group_id',groupId).eq('player_id',playerId);
+    if(roleError)throw roleError;
+    const {error:msgError}=await db.from('coaching_player_messages').upsert({group_id:groupId,player_id:playerId,message,updated_at:new Date().toISOString()},{onConflict:'group_id,player_id'});
+    if(msgError)throw msgError;
+    const p=groupState.currentPlayers.find(x=>x.id===playerId);if(p)p.preferred_role=role;
+    status.textContent='Suivi joueur enregistré ✓';
+    renderGroupPlayers();
+    setCloud('Synchronisé',true);
+  }catch(e){
+    status.textContent='Erreur lors de l’enregistrement.';
+    handleError('save group player followup',e);
+  }finally{save.disabled=false}
+}
+
 async function createSharedPlayerAccessLink(){if(!groupState.currentGroupId)return;const button=$('#groupPlayerSharedLink'),status=$('#groupPlayerSharedLinkStatus');const old=button?.textContent;if(button){button.disabled=true;button.textContent='Création…'}if(status)status.textContent='';try{const {data,error}=await db.rpc('create_coaching_player_group_invite',{p_group_id:groupState.currentGroupId});if(error)throw error;const token=data?.[0]?.token;if(!token)throw new Error('Lien non généré');const u=new URL(location.href);u.search='';u.hash='';u.searchParams.set('player_group_invite',token);const link=u.toString();let copied=false;try{await navigator.clipboard.writeText(link);copied=true}catch{}if(status)status.textContent=copied?'Lien commun copié.':'Lien commun créé.';prompt(`${copied?'Lien copié dans le presse-papiers. ':''}Transmets ce même lien à tous les joueurs du groupe. Chacun sélectionnera son prénom avant de créer ou connecter son compte.`,link)}catch(e){handleError('create shared player access link',e);if(status)status.textContent='Erreur lors de la création du lien.'}finally{if(button){button.disabled=false;button.textContent=old}}}
 
-async function unlinkPlayerAccount(playerId,playerName){if(!groupState.currentGroupId||!playerId)return;if(!confirm(`Délier le compte joueur de ${playerName} ?\n\nLe joueur pourra ensuite réactiver son accès avec le lien commun du groupe.`))return;try{const {error}=await db.rpc('unlink_coaching_player_account',{p_group_id:groupState.currentGroupId,p_player_id:playerId});if(error)throw error;groupState.playerAccess[playerId]=false;renderGroupPlayers();setCloud('Synchronisé',true)}catch(e){handleError('unlink player account',e)}}
+async function unlinkPlayerAccount(playerId,playerName){if(!groupState.currentGroupId||!playerId)return;if(!confirm(`Délier le compte joueur de ${playerName} ?\n\nLe joueur pourra ensuite réactiver son accès avec le lien commun du groupe.`))return;try{const {error}=await db.rpc('unlink_coaching_player_account',{p_group_id:groupState.currentGroupId,p_player_id:playerId});if(error)throw error;groupState.playerAccess[playerId]=false;renderGroupPlayers();if(groupPlayerFollowupState.playerId===playerId){$('#groupPlayerFollowupAccessStatus').textContent='Accès joueur non encore activé';$('#groupPlayerFollowupUnlink').classList.add('hidden')}setCloud('Synchronisé',true)}catch(e){handleError('unlink player account',e)}}
 
 async function updateGroupPlayerPreference(playerId,preferredRole){
   if(!groupState.currentGroupId)return;
@@ -9158,11 +9262,6 @@ function statsImpactPlayerViewHtml(ds,allRows,scope){
         <p>Exemple : <strong>Création +5</strong> signifie environ 5 points de plus que prévu sur 100 attaques ; <strong>Sécurité +3</strong> signifie environ 3 fautes de moins que prévu sur 100 attaques.</p>
       </div>
     </details>
-    <div class="statsImpactCoachMessage" id="statsImpactCoachMessageBox">
-      <div class="statsImpactCoachMessageHeader"><strong>Message des entraîneurs</strong><span class="analysisSubtle">Visible dans la vue joueur</span></div>
-      <textarea id="statsImpactCoachMessageInput" maxlength="2000" placeholder="Écrire ici un retour, un point fort, un axe de travail ou une consigne pour le joueur…"></textarea>
-      <div class="statsImpactCoachMessageActions"><button type="button" class="primary" id="statsImpactCoachMessageSave">Enregistrer le message</button><span class="statsImpactCoachMessageStatus" id="statsImpactCoachMessageStatus"></span></div>
-    </div>
     ${statsImpactPlayerContextTableHtml(ds,playerName)}
   </div>`;
 }
@@ -9285,7 +9384,6 @@ async function renderStatsImpactSelection(){
     statsState.impactPlayerName=e.target.value||'';
     renderStatsImpactSelection().catch(err=>handleError('stats impact player',err));
   };
-  if(view==='player')await statsImpactLoadCoachMessage(groupId,statsState.impactPlayerName);
   box.querySelectorAll('[data-impact-move]').forEach(b=>b.onclick=()=>{
     moveStatsImpactMatch(b.dataset.impactMove,Number(b.dataset.impactDelta)||0);
   });
@@ -9437,6 +9535,14 @@ $('#trainingBackHome').onclick=showAppHome;
 
 $('#groupsBackHome').onclick=showAppHome;
 $('#groupDetailBack').onclick=()=>openGroupsModule();
+$('#closeGroupPlayerFollowupPopup').onclick=()=>$('#groupPlayerFollowupPopup').classList.add('hidden');
+$('#cancelGroupPlayerFollowup').onclick=()=>$('#groupPlayerFollowupPopup').classList.add('hidden');
+$('#saveGroupPlayerFollowup').onclick=()=>saveGroupPlayerFollowup();
+$('#groupPlayerFollowupUnlink').onclick=()=>{
+  const p=groupState.currentPlayers.find(x=>x.id===groupPlayerFollowupState.playerId);
+  if(p)unlinkPlayerAccount(p.id,p.display_name);
+};
+
 $('#editGroupNameBtn').onclick=()=>{
   const g=groupState.groups.find(x=>x.id===groupState.currentGroupId);
   if(!g||g.role!=='owner')return;
