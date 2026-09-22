@@ -121,7 +121,7 @@ input,textarea,select{width:100%;border:1px solid var(--line);border-radius:11px
           <div class="small">Le repère utilise le timestamp courant.</div>
         </div>
 
-        <div class="composer" id="composer">
+        <div class="composer hidden" id="composer">
           <div class="tools">
             <label class="small" for="drawTool">Outil</label>
             <select id="drawTool">
@@ -138,6 +138,7 @@ input,textarea,select{width:100%;border:1px solid var(--line);border-radius:11px
         </div>
 
         <div class="readonly hidden" id="readonly"></div>
+        <div class="readonly hidden" id="playerAnnotationInfo">Les outils de dessin et de commentaire horodaté sont réservés aux entraîneurs. Les repères validés apparaissent ici une fois la vidéo analysée.</div>
         <div class="noteList" id="noteList"><div class="small">Sélectionne une vidéo.</div></div>
       </div>
     </section>
@@ -370,9 +371,15 @@ function captureComposite(){
 async function loadNotes(videoId){
   state.shapes=[];drawOverlay();resetDraft();
   const item=state.videos.find(v=>v.id===videoId),list=$('#noteList');
-  $('#composer').classList.toggle('hidden',!state.isCoach);$('#overlay').style.pointerEvents=state.isCoach?'auto':'none';
+  $('#composer').classList.toggle('hidden',!state.isCoach);
+  $('#overlay').style.pointerEvents=state.isCoach?'auto':'none';
+  $('#playerAnnotationInfo').classList.toggle('hidden',state.isCoach);
   $('#readonly').classList.toggle('hidden',state.isCoach||item?.status==='reviewed');
-  if(!state.isCoach&&item?.status!=='reviewed'){list.innerHTML='<div class="small">Les repères seront visibles lorsque la vidéo sera marquée comme analysée.</div>';return}
+  if(!state.isCoach&&item?.status!=='reviewed'){
+    $('#readonly').textContent="L’analyse détaillée sera visible lorsque la vidéo sera marquée comme analysée.";
+    list.innerHTML='<div class="small">Les repères seront visibles lorsque la vidéo sera marquée comme analysée.</div>';
+    return
+  }
   $('#readonly').textContent="L’analyse détaillée sera visible lorsque la vidéo sera marquée comme analysée.";
   list.innerHTML='<div class="small">Chargement des repères…</div>';
   const {data,error}=await db.rpc('get_player_video_notes',{p_group_id:state.groupId,p_video_id:videoId});if(error)throw error;state.notes=data||[];renderNotes()
