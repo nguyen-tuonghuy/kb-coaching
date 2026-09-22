@@ -160,43 +160,16 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escapeHtml=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const params=new URLSearchParams(location.search);
 
-function sameOriginReferrer(){
-  try{return document.referrer && new URL(document.referrer).origin===location.origin}catch{return false}
-}
-function referrerFile(){
-  try{return new URL(document.referrer).pathname.split('/').pop()||'index.html'}catch{return ''}
-}
-function returnToIndexWithoutReload(){
-  if(sameOriginReferrer() && (referrerFile()==='index.html' || referrerFile()==='')){
-    history.back();
-    return;
-  }
-  location.href='index.html';
-}
-
 function returnFromVideoToHome(){
-  if(state?.isCoach && history.length>1){
-    // Revenir en deux étapes via l'historique évite de recharger index.html :
-    // videos -> coach-videos -> accueil.
-    sessionStorage.setItem('kb_return_home_from_video','1');
-    history.back();
-    return;
-  }
-  if(sameOriginReferrer() && (referrerFile()==='index.html' || referrerFile()==='')){
-    history.back();
-    return;
-  }
-  location.href='index.html#player-home';
+  location.href='./';
 }
 function returnFromVideoToDashboard(){
-  if(sameOriginReferrer() && referrerFile()==='coach-videos.html'){history.back();return}
   if(state?.isCoach && state.groupId){
     location.href=`coach-videos.html?group=${encodeURIComponent(state.groupId)}`;
     return;
   }
-  returnFromVideoToHome();
+  location.href='./';
 }
-
 
 const state={
   user:null,groupId:null,playerId:null,playerName:'',groupName:'',
@@ -267,13 +240,13 @@ function configureUI(){
   // In coach mode, return directly to the player's group page on index.
   if(state.isCoach){
     const coachBack=`coach-videos.html?group=${encodeURIComponent(state.groupId)}`;
-    $('#globalHomeLink').href='index.html';
+    $('#globalHomeLink').href='./';
     $('#videosBackLink').href=coachBack;
     $('#videosBackLink').textContent='← Vidéos';
     $('#nav').innerHTML=`<a href="index.html">Accueil entraîneur</a><a href="${coachBack}">Vidéos</a><a href="#" class="active" onclick="return false">Analyse vidéo · ${escapeHtml(state.playerName)}</a>`;
   }else{
-    $('#globalHomeLink').href='index.html#player-home';
-    $('#videosBackLink').href='index.html#player-home';
+    $('#globalHomeLink').href='./';
+    $('#videosBackLink').href='./';
     $('#videosBackLink').textContent='← Accueil';
   }
 }

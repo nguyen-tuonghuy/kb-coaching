@@ -66,32 +66,6 @@ const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=s=>document.querySelector(s);
 const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const params=new URLSearchParams(location.search);
-
-const VIDEO_HOME_RETURN_FLAG='kb_return_home_from_video';
-function relayVideoHomeReturn(){
-  if(sessionStorage.getItem(VIDEO_HOME_RETURN_FLAG)!=='1')return false;
-  sessionStorage.removeItem(VIDEO_HOME_RETURN_FLAG);
-  if(history.length>1)history.back();
-  else location.href='index.html';
-  return true;
-}
-window.addEventListener('pageshow',()=>relayVideoHomeReturn());
-
-
-function sameOriginReferrer(){
-  try{return document.referrer && new URL(document.referrer).origin===location.origin}catch{return false}
-}
-function referrerFile(){
-  try{return new URL(document.referrer).pathname.split('/').pop()||'index.html'}catch{return ''}
-}
-function returnToIndexWithoutReload(){
-  if(sameOriginReferrer() && (referrerFile()==='index.html' || referrerFile()==='')){
-    history.back();
-    return;
-  }
-  location.href='index.html';
-}
-
 let groups=[],currentGroup='',rows=[];
 
 function fmtDate(v){
@@ -141,13 +115,11 @@ async function init(){
   select.onchange=()=>{currentGroup=select.value;history.replaceState(null,'',currentGroup?`coach-videos.html?group=${encodeURIComponent(currentGroup)}`:'coach-videos.html');loadDashboard()};
   await loadDashboard();
 }
-$('#topHomeLink').onclick=e=>{e.preventDefault();returnToIndexWithoutReload()};
-$('#backHomeLink').onclick=e=>{e.preventDefault();returnToIndexWithoutReload()};
+$('#topHomeLink').onclick=e=>{e.preventDefault();location.href='./'};
+$('#backHomeLink').onclick=e=>{e.preventDefault();location.href='./'};
 $('#refreshBtn').onclick=()=>loadDashboard();
 $('#logout').onclick=async()=>{await db.auth.signOut();location.href='index.html'};
-if(!relayVideoHomeReturn()){
-  init().catch(e=>setStatus(e.message||String(e),true));
-}
+init().catch(e=>setStatus(e.message||String(e),true));
 </script>
 </body>
 </html>
