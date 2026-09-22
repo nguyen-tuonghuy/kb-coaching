@@ -175,16 +175,18 @@ function returnToIndexWithoutReload(){
 }
 
 function returnFromVideoToHome(){
-  if(sameOriginReferrer()){
-    const f=referrerFile();
-    if(f==='index.html' || f===''){history.back();return}
-    if(f==='coach-videos.html'){
-      // Normal coach path: index -> coach-videos -> videos.
-      history.go(-2);
-      return;
-    }
+  if(state?.isCoach && history.length>1){
+    // Revenir en deux étapes via l'historique évite de recharger index.html :
+    // videos -> coach-videos -> accueil.
+    sessionStorage.setItem('kb_return_home_from_video','1');
+    history.back();
+    return;
   }
-  location.href='index.html';
+  if(sameOriginReferrer() && (referrerFile()==='index.html' || referrerFile()==='')){
+    history.back();
+    return;
+  }
+  location.href='index.html#player-home';
 }
 function returnFromVideoToDashboard(){
   if(sameOriginReferrer() && referrerFile()==='coach-videos.html'){history.back();return}
