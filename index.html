@@ -3301,7 +3301,28 @@ if(!window.supabase){
   document.body.innerHTML='<div style="padding:24px;font-family:sans-serif;color:white;background:#111;min-height:100vh"><h2>Erreur de chargement</h2><p>La bibliothèque Supabase ne s’est pas chargée. Recharge la page avec une connexion Internet active.</p></div>';
   throw new Error('Supabase library failed to load');
 }
-const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
+  auth:{
+    persistSession:true,
+    autoRefreshToken:true,
+    detectSessionInUrl:true,
+    // Evite un blocage navigator.locks observé lors des navigations entre pages.
+    lock:async(_name,_acquireTimeout,fn)=>await fn()
+  }
+});
+async function safeGetSession(timeoutMs=5000){
+  let timer;
+  try{
+    return await Promise.race([
+      db.auth.getSession(),
+      new Promise((_,reject)=>{
+        timer=setTimeout(()=>reject(new Error('Délai dépassé pendant la restauration de la session.')),timeoutMs);
+      })
+    ]);
+  }finally{
+    if(timer)clearTimeout(timer);
+  }
+}
 
 let state={
   matchName:'',matchTypeId:null,teamName:'',opponentTeams:[],opponentTeamIds:{},matchDate:'',players:[],activePlayers:[],events:[],
@@ -3782,7 +3803,7 @@ async function loadSharedPlayerInvite(){
     else if(available.length===1){sel.value=available[0].player_id;setPlayerGroupInvitePlayerId(sel.value)}
     sel.onchange=()=>{setPlayerGroupInvitePlayerId(sel.value);if(status)status.textContent=sel.value?'Ton prénom est sélectionné.':'Sélectionne ton prénom.'}
   }
-  const {data:{session}}=await db.auth.getSession();
+  const {data:{session}}=await safeGetSession();
   const signedIn=!!session?.user;
   if(cont)cont.classList.toggle('hidden',!signedIn);
   $('#playerLoginBox')?.classList.toggle('hidden',signedIn);
@@ -4223,7 +4244,7 @@ async function initAuth(){
   const hashParams=new URLSearchParams(location.hash.replace(/^#/,'')||'');
   const queryParams=new URLSearchParams(location.search||'');
   const recoveryLink=hashParams.get('type')==='recovery'||queryParams.get('type')==='recovery';
-  const {data:{session}}=await db.auth.getSession();
+  const {data:{session}}=await safeGetSession();
   if(session?.user){
     if(playerGroupInviteToken()&&!playerGroupInvitePlayerId()){
       currentUser=session.user;
@@ -10548,7 +10569,7 @@ $('#playerPortalMessageInput').addEventListener('keydown',e=>{if((e.ctrlKey||e.m
 $('#playerSpaceBtn').onclick=()=>enterMyPlayerPortal().catch(err=>handleError('open player portal',err));
 $('#playerPortalBackStaff').onclick=()=>returnToStaffSpace().catch(e=>handleError('return staff space',e));
 
-$('#playerJoinContinue').onclick=async()=>{const playerId=playerGroupInvitePlayerId();if(!playerId){authMessage('Sélectionne d’abord ton prénom.',true);return}const {data:{session}}=await db.auth.getSession();if(!session?.user){authMessage('Connecte-toi ou crée ton compte pour continuer.',true);return}authMessage('Activation de ton accès…');try{await initAuthenticated(session.user);authMessage('')}catch(e){console.error('player join continue',e)}};
+$('#playerJoinContinue').onclick=async()=>{const playerId=playerGroupInvitePlayerId();if(!playerId){authMessage('Sélectionne d’abord ton prénom.',true);return}const {data:{session}}=await safeGetSession();if(!session?.user){authMessage('Connecte-toi ou crée ton compte pour continuer.',true);return}authMessage('Activation de ton accès…');try{await initAuthenticated(session.user);authMessage('')}catch(e){console.error('player join continue',e)}};
 $('#groupPlayerSharedLink').onclick=()=>createSharedPlayerAccessLink();
 
 render();
@@ -10556,7 +10577,7 @@ initVideoDesktopResizer();
 initAuth().catch(e=>{
   console.error('initAuth',e);
   finishStartup();
-  const hasSessionPromise=db.auth.getSession();
+  const hasSessionPromise=safeGetSession();
   hasSessionPromise.then(({data:{session}})=>{
     if(session?.user){
       $('#authPanel')?.classList.add('hidden');

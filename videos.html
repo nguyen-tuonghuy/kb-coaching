@@ -155,7 +155,28 @@ input,textarea,select{width:100%;border:1px solid var(--line);border-radius:11px
 <script>
 const SUPABASE_URL='https://chrbzchthloxowlzdvpe.supabase.co';
 const SUPABASE_KEY='sb_publishable_4pQGJ5DSzMRBuHLrAUb30g_MGZVYvEY';
-const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
+  auth:{
+    persistSession:true,
+    autoRefreshToken:true,
+    detectSessionInUrl:true,
+    // Evite un blocage navigator.locks observé lors des navigations entre pages.
+    lock:async(_name,_acquireTimeout,fn)=>await fn()
+  }
+});
+async function safeGetSession(timeoutMs=5000){
+  let timer;
+  try{
+    return await Promise.race([
+      db.auth.getSession(),
+      new Promise((_,reject)=>{
+        timer=setTimeout(()=>reject(new Error('Délai dépassé pendant la restauration de la session.')),timeoutMs);
+      })
+    ]);
+  }finally{
+    if(timer)clearTimeout(timer);
+  }
+}
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escapeHtml=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const params=new URLSearchParams(location.search);
@@ -176,7 +197,7 @@ function currentVideo(){return state.videos.find(v=>v.id===state.currentVideoId)
 
 async function init(){
   if(!window.supabase)throw new Error('Supabase indisponible.');
-  const {data:{session}}=await db.auth.getSession();
+  const {data:{session}}=await safeGetSession();
   if(!session?.user){location.href='index.html';return}
   state.user=session.user;
   $('#cloudText').textContent='Synchronisé';
