@@ -1737,13 +1737,13 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
 .playerPortalAccountBox .accountText{display:grid;gap:2px}
 .playerPortalPrivacyNote{font-size:12px;color:var(--muted);margin-top:8px}
 .playerPortalTopNav{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
-.playerPortalTopNav button.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.playerPortalTopNav button.active,.playerPortalTopNav a.active{background:var(--primary);border-color:var(--primary);color:#fff}.playerPortalTopNav a{display:inline-flex;align-items:center;text-decoration:none}
 .playerPortalHomeHero{padding:4px 0 8px}
 .playerPortalHomeHero h2{margin:0 0 4px;font-size:24px}
 .playerPortalHomeGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}
 .playerPortalHomeCard{border:1px solid var(--line);border-radius:16px;background:var(--panel2);padding:16px;display:flex;flex-direction:column;gap:8px;min-height:150px;text-align:left}
-button.playerPortalHomeCard{cursor:pointer;color:var(--text);font:inherit}
-button.playerPortalHomeCard:hover{border-color:var(--primary)}
+button.playerPortalHomeCard,a.playerPortalHomeCard{cursor:pointer;color:var(--text);font:inherit;text-decoration:none}
+button.playerPortalHomeCard:hover,a.playerPortalHomeCard:hover{border-color:var(--primary)}
 .playerPortalHomeCard h3{margin:0;font-size:18px}
 .playerPortalHomeCard p{margin:0;color:var(--muted);line-height:1.45;font-size:13px}
 .playerPortalHomeCard .cardAction{margin-top:auto;font-weight:700;color:var(--primary)}
@@ -1855,26 +1855,6 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
 .playerJoinBox h3{font-size:16px;margin:0 0 5px}.playerJoinBox .field{margin-top:10px}
 @media(max-width:900px){.playerPortalMatchList{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.playerPortalMatchList{grid-template-columns:1fr}.playerPortalScopeTabs{grid-template-columns:1fr}}
 
-.playerVideoStage{position:relative}
-.playerVideoOverlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;border-radius:10px}
-.playerVideoAnnotationPanel{display:grid;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
-.playerVideoAnnotationHeader{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
-.playerVideoAnnotationComposer{display:grid;gap:10px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#121821}
-.playerVideoAnnotationTools{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
-.playerVideoAnnotationTools select,.playerVideoAnnotationTools button{flex:0 0 auto}
-.playerVideoAnnotationStatus{font-size:12px;color:var(--muted)}
-.playerVideoAnnotationReadonly{font-size:12px;color:var(--muted);padding:10px 12px;border:1px dashed var(--line);border-radius:12px;background:#121821}
-.playerVideoNotesList{display:grid;gap:10px}
-.playerVideoNoteCard{display:grid;gap:8px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#151b24}
-.playerVideoNoteTop{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
-.playerVideoNoteMeta{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.playerVideoNoteTime{font-variant-numeric:tabular-nums;font-weight:800}
-.playerVideoNoteThumb{width:180px;max-width:100%;border:1px solid var(--line);border-radius:10px;display:block;background:#000}
-.playerVideoNoteBody{display:grid;gap:8px}
-.playerVideoNoteText{white-space:pre-wrap}
-.playerVideoNoteActions{display:flex;gap:7px;flex-wrap:wrap}
-.playerVideoNoteBadge{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:700;background:#252b35;color:var(--muted)}
-.playerVideoAnnotationCaptureHint{font-size:12px;color:var(--muted)}
 
 </style>
 </head>
@@ -2065,10 +2045,10 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
 
  <section class="panel hidden" id="playerPortal">
   <div class="playerPortalTopNav">
-   <button type="button" class="ghost active" id="playerPortalNavHome">Accueil <span class="messageUnreadBadge hidden" id="playerUnreadBadge">0</span></button>
-   <button type="button" class="ghost" id="playerPortalNavStats">Mes statistiques</button>
-   <button type="button" class="ghost" id="playerPortalNavVideos">Mes vidéos <span class="videoUnreadBadge hidden" id="playerVideoNavBadge">0</span></button>
-   <button type="button" class="ghost" id="playerPortalNavProfile">Mon profil</button>
+   <button type="button" class="ghost active" id="playerPortalNavHome" onclick="playerPortalSetView(\'home\')">Accueil <span class="messageUnreadBadge hidden" id="playerUnreadBadge">0</span></button>
+   <button type="button" class="ghost" id="playerPortalNavStats" onclick="playerPortalSetView(\'stats\')">Mes statistiques</button>
+   <a class="ghost" id="playerPortalNavVideos" href="videos.html">Mes vidéos <span class="videoUnreadBadge hidden" id="playerVideoNavBadge">0</span></a>
+   <button type="button" class="ghost" id="playerPortalNavProfile" onclick="playerPortalSetView(\'profile\')">Mon profil</button>
    <button type="button" class="ghost hidden" id="playerPortalBackStaff">Retour espace entraîneur</button>
   </div>
 
@@ -2100,19 +2080,19 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
     <div class="small" id="playerObjectiveStatus" style="margin-top:7px"></div>
    </div>
    <div class="playerPortalHomeGrid">
-    <button type="button" class="playerPortalHomeCard" id="playerPortalHomeStatsCard">
+    <button type="button" class="playerPortalHomeCard" id="playerPortalHomeStatsCard" onclick="playerPortalSetView(\'stats\')">
      <div class="analysisSubtle">Matchs</div>
      <h3>Mes statistiques</h3>
      <p>Consulte tes indicateurs offensifs, le référentiel, les repères anonymisés du groupe et le message des entraîneurs.</p>
      <span class="cardAction">Voir mes statistiques →</span>
     </button>
-    <button type="button" class="playerPortalHomeCard" id="playerPortalHomeVideosCard">
+    <a class="playerPortalHomeCard" id="playerPortalHomeVideosCard" href="videos.html">
      <div class="analysisSubtle">Vidéo</div>
      <h3>Mes vidéos</h3>
      <p>Ajoute tes vidéos dans ton dossier Drive, suis leur analyse et consulte les retours du staff.</p>
      <span class="cardAction">Ouvrir mes vidéos →</span>
-    </button>
-    <button type="button" class="playerPortalHomeCard" id="playerPortalHomeProfileCard">
+    </a>
+    <button type="button" class="playerPortalHomeCard" id="playerPortalHomeProfileCard" onclick="playerPortalSetView(\'profile\')">
      <div class="analysisSubtle">Compte</div>
      <h3>Mon profil</h3>
      <p>Gère ton poste préféré et les informations liées à ton compte joueur.</p>
@@ -2130,58 +2110,6 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
    <div class="playerPortalScopeTabs" id="playerPortalScopeTabs"><button type="button" class="ghost active" data-player-scope="all">Cumulé</button><button type="button" class="ghost" data-player-scope="center">Jeu au centre</button><button type="button" class="ghost" data-player-scope="restart">Remise en jeu</button></div>
    <div class="field hidden" id="playerPortalRestartField" style="max-width:260px;margin:8px 0 12px"><label>Type de remise en jeu</label><select id="playerPortalRestart"><option value="all">Toutes les remises</option><option value="center">Au centre</option><option value="line">Sur ligne</option><option value="corner">Sur coin</option></select></div>
    <div id="playerPortalContent"><div class="statsEmpty">Chargement…</div></div>
-  </div>
-
-  <div class="hidden playerVideosView" id="playerPortalVideosView">
-   <div class="playerPortalStatsHeader">
-    <div><div class="analysisSubtle">Suivi technique</div><h2 id="playerVideosTitle">Mes vidéos</h2><div class="small" id="playerVideosSubtitle"></div></div>
-   </div>
-   <div class="playerVideosToolbar">
-    <button type="button" class="ghost" id="playerVideoSync">↻ Synchroniser le dossier Drive</button>
-    <a class="ghost hidden" id="playerVideoDriveFolderLink" target="_blank" rel="noopener">Ouvrir le dossier Drive</a>
-    <a class="ghost hidden" id="playerVideoFeedbackDocLink" target="_blank" rel="noopener">Historique « Retours staff »</a>
-    <span class="small" id="playerVideoStatus"></span>
-   </div>
-
-   <div class="playerVideoUpload" id="playerVideoUploadCard">
-    <div><strong>Ajouter une vidéo</strong><div class="small" style="margin-top:3px">Le fichier sera envoyé directement dans ton dossier Google Drive existant.</div></div>
-    <div class="playerVideoUploadGrid">
-     <div class="field"><label>Vidéo</label><input id="playerVideoFile" type="file" accept="video/*"></div>
-     <div class="field"><label>Titre (facultatif)</label><input id="playerVideoTitleInput" maxlength="180" placeholder="Ex. Frappes ligne · entraînement"></div>
-    </div>
-    <div class="field"><label>Message au staff (facultatif)</label><textarea id="playerVideoCommentInput" maxlength="1500" placeholder="Ce que tu veux faire regarder, sensation, question…"></textarea></div>
-    <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap">
-     <button type="button" class="primary" id="playerVideoUploadBtn">Envoyer la vidéo</button>
-     <span class="small" id="playerVideoUploadStatus"></span>
-    </div>
-    <div class="playerVideoUploadProgress hidden" id="playerVideoUploadProgress"><div></div></div>
-   </div>
-
-   <div class="playerVideoPlayer hidden" id="playerVideoPlayer">
-    <div class="playerVideoPlayerHeader">
-     <div><strong id="playerVideoPlayerTitle">Lecture vidéo</strong><div class="playerVideoTimeDisplay" id="playerVideoTimeDisplay">00:00.000 / 00:00.000</div></div>
-     <button type="button" class="ghost" id="playerVideoPlayerClose">Fermer</button>
-    </div>
-    <video id="playerVideoHtml5" controls playsinline preload="metadata"></video>
-    <div class="playerVideoAdvancedControls">
-     <div class="playerVideoControlRow">
-      <button type="button" class="ghost" id="playerVideoPrevFrame">◀ Image</button>
-      <button type="button" class="ghost" id="playerVideoPlayPause">Lecture / Pause</button>
-      <button type="button" class="ghost" id="playerVideoNextFrame">Image ▶</button>
-      <span class="playerVideoRateDisplay" id="playerVideoRateDisplay">1×</span>
-     </div>
-     <div class="playerVideoControlRow" id="playerVideoSpeedButtons">
-      <span class="small">Vitesse de lecture</span>
-      <button type="button" class="ghost playerVideoSpeedButton" data-video-rate="0.1">0,1×</button>
-      <button type="button" class="ghost playerVideoSpeedButton" data-video-rate="0.25">0,25×</button>
-      <button type="button" class="ghost playerVideoSpeedButton" data-video-rate="0.5">0,5×</button>
-      <button type="button" class="ghost playerVideoSpeedButton active" data-video-rate="1">1×</button>
-     </div>
-     <div class="playerVideoHint">← / → ou les boutons « ◀ Image » / « Image ▶ » : reculer ou avancer d’une image (pas ≈ 1/30 s) · Espace : lecture/pause. La vitesse de lecture reste indépendante.</div>
-    </div>
-   </div>
-
-   <div class="playerVideoList" id="playerVideoList"><div class="small">Chargement…</div></div>
   </div>
 
   <div class="hidden" id="playerPortalProfileView">
@@ -3907,13 +3835,27 @@ async function returnToStaffSpace(){
 }
 function playerPortalSetView(view){
   playerPortalState.view=view||'home';
-  const views={home:'#playerPortalHomeView',stats:'#playerPortalStatsView',videos:'#playerPortalVideosView',profile:'#playerPortalProfileView'};
+  const views={home:'#playerPortalHomeView',stats:'#playerPortalStatsView',profile:'#playerPortalProfileView'};
   Object.entries(views).forEach(([k,sel])=>$(sel)?.classList.toggle('hidden',k!==playerPortalState.view));
-  const nav={home:'#playerPortalNavHome',stats:'#playerPortalNavStats',videos:'#playerPortalNavVideos',profile:'#playerPortalNavProfile'};
+  const nav={home:'#playerPortalNavHome',stats:'#playerPortalNavStats',profile:'#playerPortalNavProfile'};
   Object.entries(nav).forEach(([k,sel])=>$(sel)?.classList.toggle('active',k===playerPortalState.view));
-  if(playerPortalState.view==='videos')loadPlayerVideos().catch(e=>handleError('player videos',e));
   window.scrollTo({top:0,behavior:'instant'});
 }
+function syncStandaloneVideoLinks(){
+  const groupId=playerPortalState.groupId;
+  const playerId=playerPortalTargetPlayerId();
+  const href=playerPortalState.staffPreview&&groupId&&playerId
+    ?`videos.html?group=${encodeURIComponent(groupId)}&player=${encodeURIComponent(playerId)}`
+    :(groupId?`videos.html?group=${encodeURIComponent(groupId)}`:'videos.html');
+  const nav=$('#playerPortalNavVideos'),card=$('#playerPortalHomeVideosCard');
+  if(nav)nav.href=href;
+  if(card)card.href=href;
+}
+window.addEventListener('hashchange',()=>{
+  if($('#playerPortal')?.classList.contains('hidden'))return;
+  const wanted=location.hash==='#player-stats'?'stats':location.hash==='#player-profile'?'profile':location.hash==='#player-home'?'home':null;
+  if(wanted)playerPortalSetView(wanted);
+});
 function refreshPlayerPortalIdentity(){
   const access=playerPortalAccessForGroup(playerPortalState.groupId)||playerPortalState.accesses?.[0];
   const player=access?.player_name||'';
@@ -4080,236 +4022,6 @@ async function updatePlayerObjectiveStatus(objectiveId,action,currentText=''){
   }
 }
 
-function playerVideoDate(v){
-  if(!v)return '';
-  try{return new Date(v).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'})}catch{return String(v)}
-}
-function playerVideoStatusLabel(v){
-  return v.status==='reviewed'?'Analysée':v.status==='seen'?'Vue par le staff':'Nouvelle';
-}
-function playerVideoDriveUrl(fileId){return `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/view`}
-const PLAYER_VIDEO_RATES=[0.1,0.25,0.5,1];
-const PLAYER_VIDEO_FRAME_STEP=1/30;
-let playerVideoCurrentId=null;
-function playerVideoFormatTime(seconds){
-  const n=Number(seconds);
-  if(!Number.isFinite(n)||n<0)return '00:00.000';
-  const m=Math.floor(n/60),s=n-m*60;
-  return `${String(m).padStart(2,'0')}:${s.toFixed(3).padStart(6,'0')}`;
-}
-function updatePlayerVideoTime(){
-  const video=$('#playerVideoHtml5'),el=$('#playerVideoTimeDisplay');if(!video||!el)return;
-  el.textContent=`${playerVideoFormatTime(video.currentTime)} / ${playerVideoFormatTime(video.duration)}`;
-}
-function updatePlayerVideoRateUI(){
-  const video=$('#playerVideoHtml5'),display=$('#playerVideoRateDisplay');if(!video)return;
-  if(display)display.textContent=`${String(video.playbackRate).replace('.',',')}×`;
-  $$('#playerVideoSpeedButtons [data-video-rate]').forEach(b=>{
-    b.classList.toggle('active',Math.abs(Number(b.dataset.videoRate)-video.playbackRate)<0.001);
-  });
-}
-function setPlayerVideoRate(rate){
-  const video=$('#playerVideoHtml5');if(!video)return;
-  const nearest=PLAYER_VIDEO_RATES.reduce((best,x)=>Math.abs(x-rate)<Math.abs(best-rate)?x:best,PLAYER_VIDEO_RATES[0]);
-  video.playbackRate=nearest;
-  updatePlayerVideoRateUI();
-}
-function changePlayerVideoRate(direction){
-  const video=$('#playerVideoHtml5');if(!video)return;
-  let i=PLAYER_VIDEO_RATES.findIndex(x=>Math.abs(x-video.playbackRate)<0.001);
-  if(i<0)i=PLAYER_VIDEO_RATES.reduce((best,x,idx)=>Math.abs(x-video.playbackRate)<Math.abs(PLAYER_VIDEO_RATES[best]-video.playbackRate)?idx:best,0);
-  i=Math.max(0,Math.min(PLAYER_VIDEO_RATES.length-1,i+direction));
-  setPlayerVideoRate(PLAYER_VIDEO_RATES[i]);
-}
-function stepPlayerVideo(frameDelta){
-  const video=$('#playerVideoHtml5');if(!video||!Number.isFinite(video.duration))return;
-  video.pause();
-  const frames=Number(frameDelta)||0;
-  video.currentTime=Math.max(0,Math.min(video.duration,video.currentTime+(frames*PLAYER_VIDEO_FRAME_STEP)));
-  updatePlayerVideoTime();
-}
-function togglePlayerVideoPlayback(){
-  const video=$('#playerVideoHtml5');if(!video)return;
-  if(video.paused)video.play().catch(()=>{});else video.pause();
-}
-function closePlayerVideo(){
-  const video=$('#playerVideoHtml5');
-  if(video){video.pause();video.removeAttribute('src');video.load()}
-  playerVideoCurrentId=null;
-  $('#playerVideoPlayer')?.classList.add('hidden');
-}
-async function openPlayerVideo(videoId){
-  const v=(playerPortalState.videos||[]).find(x=>x.id===videoId);if(!v)return;
-  const box=$('#playerVideoPlayer'),video=$('#playerVideoHtml5'),status=$('#playerVideoStatus');
-  if(!box||!video)return;
-  playerVideoCurrentId=videoId;
-  $('#playerVideoPlayerTitle').textContent=v.title||v.file_name||'Lecture vidéo';
-  box.classList.remove('hidden');
-  box.scrollIntoView({behavior:'smooth',block:'start'});
-  if(status)status.textContent='Préparation du lecteur…';
-  try{
-    const {data,error}=await db.functions.invoke('player-drive',{body:{
-      action:'get_stream_url',group_id:playerPortalState.groupId,video_id:videoId
-    }});
-    if(error)throw error;
-    if(data?.error)throw new Error(data.error);
-    if(!data?.stream_url)throw new Error('Lien de lecture indisponible.');
-    video.src=data.stream_url;
-    video.playbackRate=1;
-    updatePlayerVideoRateUI();
-    updatePlayerVideoTime();
-    video.load();
-    if(status)status.textContent='';
-    if(playerPortalState.staffPreview&&!v.seen_by_me)markPlayerVideoSeen(v.id).catch(e=>handleError('mark video seen',e));
-  }catch(e){
-    if(status)status.textContent=e?.message||'Impossible de préparer la vidéo.';
-    handleError('open advanced video',e);
-  }
-}
-function playerVideoCardHtml(v){
-  const label=playerVideoStatusLabel(v);
-  const badgeClass=v.status==='reviewed'?'reviewed':v.status==='seen'?'seen':'new';
-  const title=escapeHtml(v.title||v.file_name||'Vidéo');
-  const comment=v.player_comment?`<div class="small"><strong>Message joueur :</strong> ${escapeHtml(v.player_comment)}</div>`:'';
-  const review=v.status==='reviewed'&&v.review_text?`<div class="playerVideoReview"><div class="analysisSubtle">Retour du staff</div><div style="white-space:pre-wrap">${escapeHtml(v.review_text)}</div></div>`:'';
-  const staffReview=playerPortalState.staffPreview?`<div class="playerVideoReview">
-    <textarea data-video-review="${escapeHtml(v.id)}" maxlength="5000" placeholder="Écrire le retour d’analyse…">${escapeHtml(v.review_text||'')}</textarea>
-    <div class="row" style="gap:7px;flex-wrap:wrap">
-      <button type="button" class="primary" data-video-reviewed="${escapeHtml(v.id)}">${v.status==='reviewed'?'Mettre à jour le retour':'Marquer comme analysée'}</button>
-      ${!v.seen_by_me?`<button type="button" class="ghost" data-video-seen="${escapeHtml(v.id)}">Marquer vue</button>`:''}
-    </div>
-  </div>`:'';
-  return `<div class="playerVideoCard">
-    <div class="playerVideoHeader">
-      <div><strong>${title}</strong><div class="playerVideoMeta">${escapeHtml(playerVideoDate(v.uploaded_at))} · ${v.file_name?escapeHtml(v.file_name):''}</div></div>
-      <div class="playerVideoBadges"><span class="playerVideoBadge ${badgeClass}">${escapeHtml(label)}</span>${playerPortalState.staffPreview&&!v.seen_by_me?'<span class="playerVideoBadge new">Non lue</span>':''}</div>
-    </div>
-    ${comment}
-    <div class="playerVideoActions">
-      <button type="button" class="ghost" data-video-play="${escapeHtml(v.id)}">▶ Lire</button>
-      <a class="ghost" target="_blank" rel="noopener" href="${playerVideoDriveUrl(v.drive_file_id)}">Ouvrir dans Drive</a>
-    </div>
-    ${playerPortalState.staffPreview?staffReview:review}
-  </div>`;
-}
-async function loadPlayerVideoConfig(){
-  const groupId=playerPortalState.groupId,playerId=playerPortalTargetPlayerId();if(!groupId||!playerId)return null;
-  const {data,error}=await db.rpc('get_player_video_config',{p_group_id:groupId,p_player_id:playerId});
-  if(error)throw error;
-  playerPortalState.videoConfig=data?.[0]||null;
-  const cfg=playerPortalState.videoConfig;
-  const folder=$('#playerVideoDriveFolderLink'),doc=$('#playerVideoFeedbackDocLink');
-  if(folder){
-    folder.classList.toggle('hidden',!cfg?.drive_folder_id);
-    if(cfg?.drive_folder_id)folder.href=`https://drive.google.com/drive/folders/${encodeURIComponent(cfg.drive_folder_id)}`;
-  }
-  if(doc){
-    doc.classList.toggle('hidden',!cfg?.feedback_doc_id);
-    if(cfg?.feedback_doc_id)doc.href=`https://docs.google.com/document/d/${encodeURIComponent(cfg.feedback_doc_id)}/edit`;
-  }
-  return cfg;
-}
-async function loadPlayerVideos(){
-  const groupId=playerPortalState.groupId,playerId=playerPortalTargetPlayerId();
-  const list=$('#playerVideoList');if(!groupId||!playerId||!list)return;
-  $('#playerVideosTitle').textContent=playerPortalState.staffPreview?'Vidéos du joueur':'Mes vidéos';
-  $('#playerVideosSubtitle').textContent=(playerPortalAccessForGroup(groupId)?.group_name||'');
-  $('#playerVideoUploadCard')?.classList.toggle('hidden',playerPortalState.staffPreview);
-  list.innerHTML='<div class="small">Chargement…</div>';
-  await loadPlayerVideoConfig();
-  const {data,error}=await db.rpc('get_player_videos',{p_group_id:groupId,p_player_id:playerId});
-  if(error)throw error;
-  playerPortalState.videos=data||[];
-  list.innerHTML=playerPortalState.videos.length?playerPortalState.videos.map(playerVideoCardHtml).join(''):'<div class="small">Aucune vidéo indexée pour le moment. Utilise « Synchroniser le dossier Drive » pour reprendre les vidéos déjà présentes.</div>';
-  list.querySelectorAll('[data-video-play]').forEach(b=>b.onclick=()=>openPlayerVideo(b.dataset.videoPlay));
-  list.querySelectorAll('[data-video-seen]').forEach(b=>b.onclick=()=>markPlayerVideoSeen(b.dataset.videoSeen).catch(e=>handleError('mark video seen',e)));
-  list.querySelectorAll('[data-video-reviewed]').forEach(b=>b.onclick=()=>reviewPlayerVideo(b.dataset.videoReviewed).catch(e=>handleError('review video',e)));
-}
-async function syncPlayerDriveVideos(){
-  const status=$('#playerVideoStatus');if(status)status.textContent='Synchronisation Drive…';
-  const {data,error}=await db.functions.invoke('player-drive',{body:{action:'sync',group_id:playerPortalState.groupId,player_id:playerPortalState.staffPreview?playerPortalTargetPlayerId():null}});
-  if(error)throw error;
-  if(data?.error)throw new Error(data.error);
-  if(status)status.textContent=`${Number(data?.count||0)} vidéo(s) trouvée(s) dans Drive.`;
-  await loadPlayerVideos();
-}
-async function uploadMyPlayerVideo(){
-  if(playerPortalState.staffPreview)return;
-  const input=$('#playerVideoFile'),file=input?.files?.[0],status=$('#playerVideoUploadStatus'),button=$('#playerVideoUploadBtn');
-  if(!file){if(status)status.textContent='Choisis une vidéo.';return}
-  if(!String(file.type||'').startsWith('video/')){if(status)status.textContent='Le fichier sélectionné n’est pas une vidéo.';return}
-  button.disabled=true;if(status)status.textContent='Préparation de l’envoi…';
-  try{
-    const title=($('#playerVideoTitleInput')?.value||'').trim(),comment=($('#playerVideoCommentInput')?.value||'').trim();
-    const {data:init,error:initError}=await db.functions.invoke('player-drive',{body:{
-      action:'init_upload',group_id:playerPortalState.groupId,file_name:file.name,mime_type:file.type||'application/octet-stream',size_bytes:file.size
-    }});
-    if(initError)throw initError;
-    if(init?.error)throw new Error(init.error);
-
-    const progress=$('#playerVideoUploadProgress'),bar=progress?.querySelector('div');
-    progress?.classList.remove('hidden');
-
-    let browserUploadReportedError=false;
-    await new Promise((resolve,reject)=>{
-      const xhr=new XMLHttpRequest();
-      xhr.open('PUT',init.upload_url,true);
-      xhr.setRequestHeader('Content-Type',file.type||'application/octet-stream');
-      xhr.upload.onprogress=e=>{
-        if(e.lengthComputable&&bar)bar.style.width=`${Math.round(e.loaded/e.total*100)}%`;
-        if(status&&e.lengthComputable)status.textContent=`Envoi ${Math.round(e.loaded/e.total*100)} %`;
-      };
-      xhr.onerror=()=>{browserUploadReportedError=true;resolve()};
-      xhr.onload=()=>{
-        if(xhr.status>=200&&xhr.status<300)resolve();
-        else if(xhr.status===0){browserUploadReportedError=true;resolve()}
-        else reject(new Error(`Google Drive a refusé l’envoi (${xhr.status}).`));
-      };
-      xhr.send(file);
-    });
-
-    if(status)status.textContent='Vérification dans Google Drive…';
-
-    // Google Drive peut terminer correctement l'upload tout en empêchant le navigateur
-    // de lire la réponse finale cross-origin. On finalise donc côté serveur en retrouvant
-    // le fichier dans le dossier Drive du joueur.
-    const {data:finalize,error:finalizeError}=await db.functions.invoke('player-drive',{body:{
-      action:'finalize_upload',
-      group_id:playerPortalState.groupId,
-      file_name:file.name,
-      mime_type:file.type||'application/octet-stream',
-      size_bytes:file.size,
-      title:title||null,
-      comment:comment||null
-    }});
-    if(finalizeError)throw finalizeError;
-    if(finalize?.error)throw new Error(finalize.error);
-
-    input.value='';$('#playerVideoTitleInput').value='';$('#playerVideoCommentInput').value='';
-    if(bar)bar.style.width='100%';
-    if(status)status.textContent='Vidéo envoyée au staff.';
-    await loadPlayerVideos();await refreshVideoNotifications().catch(()=>{});
-  }catch(e){
-    if(status)status.textContent=e?.message||'Impossible d’envoyer la vidéo.';
-    handleError('upload player video',e);
-  }finally{button.disabled=false}
-}
-async function markPlayerVideoSeen(videoId){
-  const {error}=await db.rpc('mark_player_video_seen',{p_group_id:playerPortalState.groupId,p_video_id:videoId});
-  if(error)throw error;
-  await refreshVideoNotifications().catch(()=>{});
-  await loadPlayerVideos();
-}
-async function reviewPlayerVideo(videoId){
-  const textarea=document.querySelector(`[data-video-review="${CSS.escape(videoId)}"]`);
-  const text=(textarea?.value||'').trim();if(!text){alert('Écris le retour avant de marquer la vidéo comme analysée.');return}
-  const status=$('#playerVideoStatus');if(status)status.textContent='Enregistrement du retour…';
-  const {error}=await db.rpc('review_player_video',{p_group_id:playerPortalState.groupId,p_video_id:videoId,p_review_text:text});
-  if(error)throw error;
-  if(status)status.textContent='Vidéo marquée comme analysée.';
-  await refreshVideoNotifications().catch(()=>{});
-  await loadPlayerVideos();
-}
 let videoNotificationState=[];
 function videoNotificationCountFor(groupId,playerId){
   return (videoNotificationState||[]).filter(x=>x.group_id===groupId&&x.player_id===playerId).length;
@@ -4389,7 +4101,7 @@ function playerPortalSheetHtml(data,allDetails){
   return `<div class="statsImpactPlayerSheet"><div class="statsImpactPlayerHeader"><div><div class="analysisSubtle">${escapeHtml(playerPortalScopeLabel(playerPortalEffectiveScope()))}</div><h3>${escapeHtml(data.player_name||'')}</h3></div></div>${data?.is_test_mirror?`<div class="playerPortalTestDataNotice">Profil de test : les statistiques affichées sont une copie de celles de ${escapeHtml(data.stats_source_player_name||'un joueur source')} afin de tester un profil complet.</div>`:''}<div class="playerPortalExactCounts"><div class="playerPortalExactCount"><span>Nombre de frappes</span><strong>${n}</strong>${rel.label?`<span class="reliability">${escapeHtml(rel.label)}</span>`:''}</div><div class="playerPortalExactCount"><span>Points marqués</span><strong>${Number(x.points)||0}</strong></div><div class="playerPortalExactCount"><span>Fautes</span><strong>${Number(x.faults)||0}</strong></div></div>${playerVolumeWarningHtml(n)}${playerPortalTakeawaysHtml(x,n)}<div class="statsImpactPlayerMainMetrics"><div class="statsImpactPlayerMetric"><span>Création /100</span><strong class="${playerPortalImpactClass(x.creation100)}">${n?playerPortalSigned(x.creation100):'—'}</strong><small>Moyenne groupe ${playerPortalSigned(avg.creation100)}</small></div><div class="statsImpactPlayerMetric"><span>Sécurité /100</span><strong class="${playerPortalImpactClass(x.safety100)}">${n?playerPortalSigned(x.safety100):'—'}</strong><small>Moyenne groupe ${playerPortalSigned(avg.safety100)}</small></div></div><div class="statsImpactPlayerSecondaryMetrics"><div class="statsImpactPlayerSecondary"><span>% points</span><strong>${n?playerPortalPct(x.point_rate):'—'}</strong><small>${Number(x.points)||0} point${Number(x.points)===1?'':'s'} marqué${Number(x.points)===1?'':'s'} · Référentiel ${playerPortalPct(x.expected_point_rate)} · Moyenne groupe ${playerPortalPct(avg.point_rate)}</small></div><div class="statsImpactPlayerSecondary"><span>% fautes</span><strong>${n?playerPortalPct(x.fault_rate):'—'}</strong><small>${Number(x.faults)||0} faute${Number(x.faults)===1?'':'s'} · Référentiel ${playerPortalPct(x.expected_fault_rate)} · Moyenne groupe ${playerPortalPct(avg.fault_rate)}</small></div></div><div class="analysisSubtle statsImpactPlayerBenchmarkNote">La moyenne du groupe est calculée sans afficher les résultats des autres joueurs. Elle sert uniquement de repère collectif.</div><details class="statsImpactPlayerExplainer" open><summary>Comprendre le référentiel et les scores</summary><div class="statsImpactPlayerExplainerBody"><p><strong>Le référentiel</strong> (${escapeHtml(referenceVersion)}) est construit à partir des attaques de la compétition de référence sélectionnées par le staff. Les données Hommes et Femmes sont séparées, ainsi que le jeu au centre et les remises au centre, sur ligne et sur coin.</p><p>Pour chaque situation, il donne le <strong>taux de points</strong> et le <strong>taux de fautes</strong> observés sur l'ensemble des attaques retenues.</p><div class="statsImpactPlayerExplainerFormula"><strong>Création /100</strong> : nombre de points produits en plus ou en moins sur 100 attaques par rapport au nombre attendu selon le référentiel.</div><div class="statsImpactPlayerExplainerFormula"><strong>Sécurité /100</strong> : nombre de fautes évitées ou ajoutées sur 100 attaques par rapport au nombre attendu selon le référentiel.</div><p><strong>Un score de 0</strong> signifie que ta performance correspond au niveau moyen de la compétition ayant servi à construire le référentiel, en tenant compte des situations que tu as réellement jouées. Positif = au-dessus du référentiel ; négatif = en dessous.</p><p><strong>Attention au volume analysé.</strong> Les scores sont ramenés à 100 attaques : avec peu d’actions, une seule action peut donc faire fortement bouger le résultat. En pratique, <strong>N &lt; 5</strong> est trop faible pour conclure ; entre <strong>5 et 15</strong>, le score donne seulement une tendance provisoire ; au-delà de <strong>15</strong>, il devient plus stable, sans pour autant supprimer l’incertitude.</p><p>Exemple : <strong>Création +5</strong> correspond à environ 5 points de plus que prévu sur 100 attaques ; <strong>Sécurité +3</strong> à environ 3 fautes de moins que prévu sur 100 attaques.</p></div></details>${playerPortalDetailsHtml(allDetails||data.details||[])}</div>`
 }
 async function playerPortalRender(){const box=$('#playerPortalContent');if(!box||!playerPortalState.groupId)return;const ids=playerPortalState.selected||[];if(!ids.length){box.innerHTML='<div class="statsEmpty">Sélectionne au moins un match.</div>';return}if(playerPortalState.loading)return;playerPortalState.loading=true;box.innerHTML='<div class="statsEmpty">Calcul de tes statistiques…</div>';try{const scope=playerPortalEffectiveScope();const calls=[db.rpc('get_player_portal_metrics',playerPortalMetricsArgs(playerPortalState.groupId,ids,scope))];if(scope!=='all')calls.push(db.rpc('get_player_portal_metrics',playerPortalMetricsArgs(playerPortalState.groupId,ids,'all')));const results=await Promise.all(calls);results.forEach(r=>{if(r.error)throw r.error});const data=results[0].data||{};const details=(results[1]?.data||data).details||[];box.innerHTML=playerPortalSheetHtml(data,details)}finally{playerPortalState.loading=false}}
-async function loadPlayerPortalGroup(groupId){playerPortalState.groupId=groupId;syncPlayerPortalRole(groupId);refreshPlayerPortalIdentity();playerPortalState.scope='all';playerPortalState.restartLocation='all';document.querySelectorAll('#playerPortalScopeTabs [data-player-scope]').forEach(b=>b.classList.toggle('active',b.dataset.playerScope==='all'));$('#playerPortalRestartField')?.classList.add('hidden');if($('#playerPortalRestart'))$('#playerPortalRestart').value='all';const {data,error}=await db.rpc('get_player_portal_metrics',playerPortalMetricsArgs(groupId,null,'all'));if(error)throw error;playerPortalState.matches=data?.matches||[];playerPortalState.selected=playerPortalState.matches.map(m=>m.id);$('#playerPortalTitle').textContent=data?.player_name?`Mes statistiques · ${data.player_name}`:'Mes statistiques';$('#playerPortalSubtitle').textContent=data?.group_name||'';await refreshMessageNotifications(playerPortalState.staffPreview?'coach':'player').catch(e=>handleError('message notifications',e));await loadPlayerPortalConversation();await loadPlayerObjectives().catch(e=>handleError('player objectives',e));await loadPlayerVideos().catch(e=>handleError('player videos',e));playerPortalRenderMatches();$('#playerPortalContent').innerHTML=playerPortalSheetHtml(data,data?.details||[])}
+async function loadPlayerPortalGroup(groupId){playerPortalState.groupId=groupId;syncPlayerPortalRole(groupId);refreshPlayerPortalIdentity();playerPortalState.scope='all';playerPortalState.restartLocation='all';document.querySelectorAll('#playerPortalScopeTabs [data-player-scope]').forEach(b=>b.classList.toggle('active',b.dataset.playerScope==='all'));$('#playerPortalRestartField')?.classList.add('hidden');if($('#playerPortalRestart'))$('#playerPortalRestart').value='all';const {data,error}=await db.rpc('get_player_portal_metrics',playerPortalMetricsArgs(groupId,null,'all'));if(error)throw error;playerPortalState.matches=data?.matches||[];playerPortalState.selected=playerPortalState.matches.map(m=>m.id);$('#playerPortalTitle').textContent=data?.player_name?`Mes statistiques · ${data.player_name}`:'Mes statistiques';$('#playerPortalSubtitle').textContent=data?.group_name||'';await refreshMessageNotifications(playerPortalState.staffPreview?'coach':'player').catch(e=>handleError('message notifications',e));await loadPlayerPortalConversation();await loadPlayerObjectives().catch(e=>handleError('player objectives',e));syncStandaloneVideoLinks();playerPortalRenderMatches();$('#playerPortalContent').innerHTML=playerPortalSheetHtml(data,data?.details||[])}
 async function openPlayerPortal(accesses){
   playerPortalState.accesses=accesses||await fetchMyPlayerAccesses();
   if(!playerPortalState.accesses.length)return false;
@@ -4407,7 +4119,8 @@ async function openPlayerPortal(accesses){
   field.classList.toggle('hidden',playerPortalState.staffPreview||playerPortalState.accesses.length<2);
   sel.onchange=()=>loadPlayerPortalGroup(sel.value).catch(e=>handleError('player portal group',e));
   await loadPlayerPortalGroup(playerPortalState.accesses[0].group_id);
-  playerPortalSetView('home');setCloud('Synchronisé',true);window.scrollTo({top:0,behavior:'instant'});return true
+  const wanted=location.hash==='#player-stats'?'stats':location.hash==='#player-profile'?'profile':'home';
+  playerPortalSetView(wanted);syncStandaloneVideoLinks();setCloud('Synchronisé',true);window.scrollTo({top:0,behavior:'instant'});return true
 }
 
 async function initAuthenticated(user){
@@ -10541,424 +10254,8 @@ render();
 initVideoDesktopResizer();
 initAuth().catch(e=>handleError('initAuth',e));
 
-function bindPlayerPortalNavigation(){
-  const bind=(selector,view)=>{
-    const el=$(selector);
-    if(!el)return;
-    el.onclick=()=>playerPortalSetView(view);
-  };
-  bind('#playerPortalNavHome','home');
-  bind('#playerPortalNavStats','stats');
-  bind('#playerPortalNavVideos','videos');
-  bind('#playerPortalNavProfile','profile');
-  bind('#playerPortalHomeStatsCard','stats');
-  bind('#playerPortalHomeVideosCard','videos');
-  bind('#playerPortalHomeProfileCard','profile');
-
-  const back=$('#playerPortalBackStaff');
-  if(back)back.onclick=()=>returnToStaffSpace().catch(e=>handleError('return staff space',e));
-}
-bindPlayerPortalNavigation();
 
 
-/* --- Vidéo : annotations horodatées, capture d'image et dessin --- */
-(function(){
-  if(window.__kbVideoNotesEnhanced)return;
-  window.__kbVideoNotesEnhanced=true;
-
-  const videoNoteState={
-    currentVideoId:null,
-    notes:[],
-    shapes:[],
-    activeShape:null,
-    tool:'arrow',
-    color:'#ff4d4f',
-    width:4
-  };
-
-  function videoNoteCurrentVideo(){
-    return (playerPortalState?.videos||[]).find(v=>v.id===videoNoteState.currentVideoId)||null;
-  }
-  function videoNoteCanEdit(){
-    return !!playerPortalState?.staffPreview;
-  }
-  function videoNoteFormatTimeMs(ms){
-    return playerVideoFormatTime((Number(ms)||0)/1000);
-  }
-  function videoNoteEnsureUI(){
-    const player=$('#playerVideoPlayer');
-    const video=$('#playerVideoHtml5');
-    const controls=$('.playerVideoAdvancedControls');
-    if(!player||!video||!controls)return;
-    video.crossOrigin='anonymous';
-    if(!$('#playerVideoStage')){
-      const stage=document.createElement('div');
-      stage.className='playerVideoStage';
-      stage.id='playerVideoStage';
-      video.parentNode.insertBefore(stage,video);
-      stage.appendChild(video);
-      const canvas=document.createElement('canvas');
-      canvas.id='playerVideoOverlay';
-      canvas.className='playerVideoOverlay';
-      stage.appendChild(canvas);
-    }
-    if(!$('#playerVideoAnnotationPanel')){
-      controls.insertAdjacentHTML('afterend',`
-        <div class="playerVideoAnnotationPanel" id="playerVideoAnnotationPanel">
-          <div class="playerVideoAnnotationHeader">
-            <div>
-              <strong>Repères d’analyse</strong>
-              <div class="small">Commentaires horodatés avec capture d’image et dessin.</div>
-            </div>
-            <div class="playerVideoAnnotationCaptureHint">Le repère est enregistré au timestamp courant de la vidéo.</div>
-          </div>
-          <div class="playerVideoAnnotationComposer" id="playerVideoAnnotationComposer">
-            <div class="playerVideoAnnotationTools">
-              <label class="small" for="playerVideoDrawTool">Outil</label>
-              <select id="playerVideoDrawTool">
-                <option value="arrow">Flèche</option>
-                <option value="line">Ligne</option>
-                <option value="circle">Cercle</option>
-                <option value="pen">Crayon</option>
-              </select>
-              <button type="button" class="ghost" id="playerVideoClearDrawing">Effacer le dessin</button>
-              <button type="button" class="ghost" id="playerVideoNewNote">Nouveau repère</button>
-            </div>
-            <div class="field">
-              <label for="playerVideoNoteText">Commentaire horodaté</label>
-              <textarea id="playerVideoNoteText" maxlength="4000" placeholder="Ex. 00:03.420 — coude trop tôt déplié"></textarea>
-            </div>
-            <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap">
-              <button type="button" class="primary" id="playerVideoSaveNote">Ajouter le repère</button>
-              <span class="playerVideoAnnotationStatus" id="playerVideoAnnotationStatus"></span>
-            </div>
-          </div>
-          <div class="playerVideoAnnotationReadonly hidden" id="playerVideoAnnotationReadonly"></div>
-          <div class="playerVideoNotesList" id="playerVideoNotesList"><div class="small">Sélectionne une vidéo pour voir ses repères.</div></div>
-        </div>
-      `);
-    }
-    videoNoteSyncCanvas();
-    const canvas=$('#playerVideoOverlay');
-    if(canvas && !canvas.dataset.bound){
-      canvas.dataset.bound='1';
-      canvas.addEventListener('pointerdown',videoNotePointerDown);
-      canvas.addEventListener('pointermove',videoNotePointerMove);
-      canvas.addEventListener('pointerup',videoNotePointerUp);
-      canvas.addEventListener('pointerleave',videoNotePointerUp);
-      canvas.addEventListener('pointercancel',videoNotePointerUp);
-    }
-    if(!$('#playerVideoSaveNote').dataset.bound){
-      $('#playerVideoSaveNote').dataset.bound='1';
-      $('#playerVideoSaveNote').onclick=()=>videoNoteSave().catch(e=>handleError('save video note',e));
-      $('#playerVideoClearDrawing').onclick=()=>videoNoteClearDrawing();
-      $('#playerVideoNewNote').onclick=()=>videoNoteResetDraft();
-      $('#playerVideoDrawTool').onchange=e=>videoNoteState.tool=e.target.value;
-      video.addEventListener('loadedmetadata',videoNoteSyncCanvas);
-      video.addEventListener('loadeddata',videoNoteSyncCanvas);
-      video.addEventListener('seeked',videoNoteSyncCanvas);
-      window.addEventListener('resize',videoNoteSyncCanvas);
-    }
-    videoNoteSyncPermissions();
-  }
-
-  function videoNoteSyncPermissions(){
-    const canEdit=videoNoteCanEdit();
-    const composer=$('#playerVideoAnnotationComposer');
-    const readonly=$('#playerVideoAnnotationReadonly');
-    const canvas=$('#playerVideoOverlay');
-    const currentVideo=videoNoteCurrentVideo();
-    const canPlayerSee=currentVideo && currentVideo.status==='reviewed';
-    if(composer)composer.classList.toggle('hidden',!canEdit);
-    if(readonly){
-      readonly.classList.toggle('hidden',canEdit || !currentVideo || canPlayerSee);
-      if(!canEdit && currentVideo && !canPlayerSee){
-        readonly.textContent="L’analyse détaillée sera visible au joueur lorsque la vidéo sera marquée comme analysée.";
-      }
-    }
-    if(canvas)canvas.style.pointerEvents=canEdit?'auto':'none';
-  }
-
-  function videoNoteSyncCanvas(){
-    const video=$('#playerVideoHtml5');
-    const canvas=$('#playerVideoOverlay');
-    if(!video||!canvas)return;
-    const rect=video.getBoundingClientRect();
-    if(rect.width<=0 || rect.height<=0)return;
-    const ratio=window.devicePixelRatio||1;
-    canvas.width=Math.round(rect.width*ratio);
-    canvas.height=Math.round(rect.height*ratio);
-    canvas.style.width=rect.width+'px';
-    canvas.style.height=rect.height+'px';
-    const ctx=canvas.getContext('2d');
-    ctx.setTransform(ratio,0,0,ratio,0,0);
-    videoNoteRender();
-  }
-
-  function videoNoteCanvasPoint(evt){
-    const canvas=$('#playerVideoOverlay');
-    const rect=canvas.getBoundingClientRect();
-    const x=Math.max(0,Math.min(rect.width,evt.clientX-rect.left));
-    const y=Math.max(0,Math.min(rect.height,evt.clientY-rect.top));
-    return {x:x/rect.width,y:y/rect.height};
-  }
-
-  function videoNoteDrawShape(ctx,shape,w,h){
-    const color=shape.color||'#ff4d4f';
-    const width=shape.width||4;
-    ctx.save();
-    ctx.strokeStyle=color;
-    ctx.fillStyle=color;
-    ctx.lineWidth=width;
-    ctx.lineCap='round';
-    ctx.lineJoin='round';
-    if(shape.tool==='pen'){
-      const pts=shape.points||[];
-      if(pts.length>1){
-        ctx.beginPath();
-        ctx.moveTo(pts[0].x*w,pts[0].y*h);
-        for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x*w,pts[i].y*h);
-        ctx.stroke();
-      }
-    }else if(shape.tool==='line' || shape.tool==='arrow'){
-      const x1=shape.x1*w,y1=shape.y1*h,x2=shape.x2*w,y2=shape.y2*h;
-      ctx.beginPath();
-      ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
-      if(shape.tool==='arrow'){
-        const angle=Math.atan2(y2-y1,x2-x1);
-        const size=Math.max(12,width*3);
-        ctx.beginPath();
-        ctx.moveTo(x2,y2);
-        ctx.lineTo(x2-size*Math.cos(angle-Math.PI/6), y2-size*Math.sin(angle-Math.PI/6));
-        ctx.lineTo(x2-size*Math.cos(angle+Math.PI/6), y2-size*Math.sin(angle+Math.PI/6));
-        ctx.closePath();
-        ctx.fill();
-      }
-    }else if(shape.tool==='circle'){
-      const x1=shape.x1*w,y1=shape.y1*h,x2=shape.x2*w,y2=shape.y2*h;
-      const cx=(x1+x2)/2,cy=(y1+y2)/2,rx=Math.abs(x2-x1)/2,ry=Math.abs(y2-y1)/2;
-      ctx.beginPath();
-      ctx.ellipse(cx,cy,Math.max(rx,1),Math.max(ry,1),0,0,Math.PI*2);
-      ctx.stroke();
-    }
-    ctx.restore();
-  }
-
-  function videoNoteRender(extraShape=null){
-    const canvas=$('#playerVideoOverlay');
-    if(!canvas)return;
-    const ctx=canvas.getContext('2d');
-    const w=canvas.clientWidth,h=canvas.clientHeight;
-    ctx.clearRect(0,0,w,h);
-    const shapes=[...(videoNoteState.shapes||[])];
-    if(extraShape)shapes.push(extraShape);
-    shapes.forEach(shape=>videoNoteDrawShape(ctx,shape,w,h));
-  }
-
-  function videoNotePointerDown(evt){
-    if(!videoNoteCanEdit())return;
-    const video=$('#playerVideoHtml5');
-    if(video)video.pause();
-    const p=videoNoteCanvasPoint(evt);
-    const tool=$('#playerVideoDrawTool')?.value||videoNoteState.tool||'arrow';
-    videoNoteState.tool=tool;
-    if(tool==='pen'){
-      videoNoteState.activeShape={tool,color:videoNoteState.color,width:videoNoteState.width,points:[p]};
-    }else{
-      videoNoteState.activeShape={tool,color:videoNoteState.color,width:videoNoteState.width,x1:p.x,y1:p.y,x2:p.x,y2:p.y};
-    }
-    evt.target.setPointerCapture?.(evt.pointerId);
-    videoNoteRender(videoNoteState.activeShape);
-  }
-  function videoNotePointerMove(evt){
-    if(!videoNoteCanEdit() || !videoNoteState.activeShape)return;
-    const p=videoNoteCanvasPoint(evt);
-    if(videoNoteState.activeShape.tool==='pen'){
-      videoNoteState.activeShape.points.push(p);
-    }else{
-      videoNoteState.activeShape.x2=p.x;
-      videoNoteState.activeShape.y2=p.y;
-    }
-    videoNoteRender(videoNoteState.activeShape);
-  }
-  function videoNotePointerUp(evt){
-    if(!videoNoteCanEdit() || !videoNoteState.activeShape)return;
-    if(videoNoteState.activeShape.tool==='pen'){
-      if((videoNoteState.activeShape.points||[]).length>1)videoNoteState.shapes.push(videoNoteState.activeShape);
-    }else{
-      videoNoteState.shapes.push(videoNoteState.activeShape);
-    }
-    videoNoteState.activeShape=null;
-    videoNoteRender();
-    evt.target.releasePointerCapture?.(evt.pointerId);
-  }
-
-  function videoNoteClearDrawing(){
-    videoNoteState.shapes=[];
-    videoNoteState.activeShape=null;
-    videoNoteRender();
-  }
-  function videoNoteResetDraft(){
-    videoNoteClearDrawing();
-    const note=$('#playerVideoNoteText'); if(note)note.value='';
-    const status=$('#playerVideoAnnotationStatus'); if(status)status.textContent='';
-  }
-
-  function videoNoteCaptureSnapshot(){
-    const video=$('#playerVideoHtml5');
-    if(!video || !video.videoWidth || !video.videoHeight)return null;
-    const maxWidth=480;
-    const scale=Math.min(1,maxWidth/video.videoWidth);
-    const width=Math.round(video.videoWidth*scale);
-    const height=Math.round(video.videoHeight*scale);
-    const c=document.createElement('canvas');
-    c.width=width; c.height=height;
-    const ctx=c.getContext('2d');
-    ctx.drawImage(video,0,0,width,height);
-    return c.toDataURL('image/jpeg',0.82);
-  }
-
-  async function loadPlayerVideoNotes(videoId){
-    videoNoteEnsureUI();
-    videoNoteState.currentVideoId=videoId;
-    videoNoteResetDraft();
-    videoNoteSyncPermissions();
-    const list=$('#playerVideoNotesList');
-    const currentVideo=videoNoteCurrentVideo();
-    if(!list || !videoId)return;
-    if(!playerPortalState.staffPreview && currentVideo && currentVideo.status!=='reviewed'){
-      list.innerHTML='<div class="small">Les repères d’analyse détaillés seront visibles lorsque la vidéo sera marquée comme analysée.</div>';
-      return;
-    }
-    list.innerHTML='<div class="small">Chargement des repères…</div>';
-    try{
-      const {data,error}=await db.rpc('get_player_video_notes',{p_group_id:playerPortalState.groupId,p_video_id:videoId});
-      if(error)throw error;
-      videoNoteState.notes=data||[];
-      renderPlayerVideoNotes();
-    }catch(e){
-      list.innerHTML='<div class="small">Impossible de charger les repères.</div>';
-      handleError('load player video notes',e);
-    }
-  }
-
-  function renderPlayerVideoNotes(){
-    const list=$('#playerVideoNotesList');
-    if(!list)return;
-    if(!videoNoteState.notes.length){
-      list.innerHTML='<div class="small">Aucun repère enregistré pour cette vidéo.</div>';
-      return;
-    }
-    list.innerHTML=videoNoteState.notes.map(note=>{
-      const hasDrawing=Array.isArray(note.drawing_data) ? note.drawing_data.length>0 : !!note.drawing_data;
-      return `
-        <div class="playerVideoNoteCard" data-video-note-id="${escapeHtml(note.id)}">
-          <div class="playerVideoNoteTop">
-            <div class="playerVideoNoteMeta">
-              <span class="playerVideoNoteTime">${escapeHtml(videoNoteFormatTimeMs(note.note_time_ms))}</span>
-              ${hasDrawing?'<span class="playerVideoNoteBadge">Dessin</span>':''}
-              ${note.author_name?`<span class="small">${escapeHtml(note.author_name)}</span>`:''}
-              <span class="small">${escapeHtml(playerObjectiveDate(note.created_at))}</span>
-            </div>
-          </div>
-          <div class="playerVideoNoteBody">
-            ${note.snapshot_data_url?`<img class="playerVideoNoteThumb" src="${note.snapshot_data_url}" alt="Capture vidéo au moment du repère">`:''}
-            ${note.note_text?`<div class="playerVideoNoteText">${escapeHtml(note.note_text)}</div>`:'<div class="small">Repère visuel sans commentaire textuel.</div>'}
-            <div class="playerVideoNoteActions">
-              <button type="button" class="ghost" data-note-open="${escapeHtml(note.id)}">Ouvrir le repère</button>
-              ${videoNoteCanEdit()?`<button type="button" class="ghost" data-note-delete="${escapeHtml(note.id)}">Supprimer</button>`:''}
-            </div>
-          </div>
-        </div>`;
-    }).join('');
-    list.querySelectorAll('[data-note-open]').forEach(b=>b.onclick=()=>openPlayerVideoNote(b.dataset.noteOpen));
-    list.querySelectorAll('[data-note-delete]').forEach(b=>b.onclick=()=>deletePlayerVideoNote(b.dataset.noteDelete).catch(e=>handleError('delete video note',e)));
-  }
-
-  function openPlayerVideoNote(noteId){
-    const note=(videoNoteState.notes||[]).find(x=>x.id===noteId);
-    const video=$('#playerVideoHtml5');
-    if(!note || !video)return;
-    video.pause();
-    video.currentTime=(Number(note.note_time_ms)||0)/1000;
-    updatePlayerVideoTime();
-    videoNoteState.shapes=Array.isArray(note.drawing_data)?note.drawing_data:[];
-    videoNoteRender();
-    if(videoNoteCanEdit()){
-      const input=$('#playerVideoNoteText');
-      if(input)input.value=note.note_text||'';
-    }
-  }
-
-  async function deletePlayerVideoNote(noteId){
-    if(!confirm('Supprimer ce repère d’analyse ?'))return;
-    const {error}=await db.rpc('delete_player_video_note',{p_group_id:playerPortalState.groupId,p_note_id:noteId});
-    if(error)throw error;
-    await loadPlayerVideoNotes(videoNoteState.currentVideoId);
-  }
-
-  async function videoNoteSave(){
-    if(!videoNoteCanEdit())return;
-    const video=$('#playerVideoHtml5');
-    const status=$('#playerVideoAnnotationStatus');
-    const text=($('#playerVideoNoteText')?.value||'').trim();
-    const drawing=(videoNoteState.shapes||[]);
-    if(!videoNoteState.currentVideoId || !video){
-      if(status)status.textContent='Ouvre d’abord une vidéo.';
-      return;
-    }
-    if(!text && !drawing.length){
-      if(status)status.textContent='Ajoute un commentaire ou un dessin avant d’enregistrer le repère.';
-      return;
-    }
-    if(status)status.textContent='Enregistrement du repère…';
-    try{
-      video.pause();
-      const snapshot=videoNoteCaptureSnapshot();
-      const {error}=await db.rpc('add_player_video_note',{
-        p_group_id:playerPortalState.groupId,
-        p_video_id:videoNoteState.currentVideoId,
-        p_note_time_ms:Math.round((video.currentTime||0)*1000),
-        p_note_text:text||null,
-        p_snapshot_data_url:snapshot||null,
-        p_drawing_data:drawing
-      });
-      if(error)throw error;
-      videoNoteResetDraft();
-      if(status)status.textContent='Repère ajouté.';
-      await loadPlayerVideoNotes(videoNoteState.currentVideoId);
-    }catch(e){
-      if(status)status.textContent=e?.message||'Impossible d’enregistrer le repère.';
-      handleError('save player video note',e);
-    }
-  }
-
-  const _oldOpenPlayerVideo=window.openPlayerVideo;
-  window.openPlayerVideo=async function(videoId){
-    videoNoteEnsureUI();
-    await _oldOpenPlayerVideo(videoId);
-    await loadPlayerVideoNotes(videoId);
-  };
-
-  const _oldClosePlayerVideo=window.closePlayerVideo;
-  window.closePlayerVideo=function(){
-    videoNoteState.currentVideoId=null;
-    videoNoteResetDraft();
-    const list=$('#playerVideoNotesList');
-    if(list)list.innerHTML='<div class="small">Sélectionne une vidéo pour voir ses repères.</div>';
-    _oldClosePlayerVideo();
-  };
-
-  const _oldLoadPlayerVideos=window.loadPlayerVideos;
-  window.loadPlayerVideos=async function(){
-    const result=await _oldLoadPlayerVideos();
-    videoNoteSyncPermissions();
-    return result;
-  };
-
-  // Ensure UI exists once the page is ready
-  setTimeout(videoNoteEnsureUI,0);
-})();
 </script>
 
 </body>
