@@ -2110,7 +2110,7 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
    <div class="playerVideosToolbar">
     <button type="button" class="ghost" id="playerVideoSync">↻ Synchroniser le dossier Drive</button>
     <a class="ghost hidden" id="playerVideoDriveFolderLink" target="_blank" rel="noopener">Ouvrir le dossier Drive</a>
-    <a class="ghost hidden" id="playerVideoFeedbackDocLink" target="_blank" rel="noopener">Ouvrir « Retours staff »</a>
+    <a class="ghost hidden" id="playerVideoFeedbackDocLink" target="_blank" rel="noopener">Historique « Retours staff »</a>
     <span class="small" id="playerVideoStatus"></span>
    </div>
 
@@ -4127,32 +4127,54 @@ async function uploadMyPlayerVideo(){
   if(!String(file.type||'').startsWith('video/')){if(status)status.textContent='Le fichier sélectionné n’est pas une vidéo.';return}
   button.disabled=true;if(status)status.textContent='Préparation de l’envoi…';
   try{
+    const title=($('#playerVideoTitleInput')?.value||'').trim(),comment=($('#playerVideoCommentInput')?.value||'').trim();
     const {data:init,error:initError}=await db.functions.invoke('player-drive',{body:{
       action:'init_upload',group_id:playerPortalState.groupId,file_name:file.name,mime_type:file.type||'application/octet-stream',size_bytes:file.size
     }});
     if(initError)throw initError;
     if(init?.error)throw new Error(init.error);
+
     const progress=$('#playerVideoUploadProgress'),bar=progress?.querySelector('div');
     progress?.classList.remove('hidden');
-    const driveFile=await new Promise((resolve,reject)=>{
+
+    let browserUploadReportedError=false;
+    await new Promise((resolve,reject)=>{
       const xhr=new XMLHttpRequest();
       xhr.open('PUT',init.upload_url,true);
       xhr.setRequestHeader('Content-Type',file.type||'application/octet-stream');
-      xhr.upload.onprogress=e=>{if(e.lengthComputable&&bar)bar.style.width=`${Math.round(e.loaded/e.total*100)}%`;if(status&&e.lengthComputable)status.textContent=`Envoi ${Math.round(e.loaded/e.total*100)} %`};
-      xhr.onerror=()=>reject(new Error('Échec de l’envoi vers Google Drive.'));
-      xhr.onload=()=>{if(xhr.status>=200&&xhr.status<300){try{resolve(JSON.parse(xhr.responseText||'{}'))}catch{resolve({})}}else reject(new Error(`Google Drive a refusé l’envoi (${xhr.status}).`))};
+      xhr.upload.onprogress=e=>{
+        if(e.lengthComputable&&bar)bar.style.width=`${Math.round(e.loaded/e.total*100)}%`;
+        if(status&&e.lengthComputable)status.textContent=`Envoi ${Math.round(e.loaded/e.total*100)} %`;
+      };
+      xhr.onerror=()=>{browserUploadReportedError=true;resolve()};
+      xhr.onload=()=>{
+        if(xhr.status>=200&&xhr.status<300)resolve();
+        else if(xhr.status===0){browserUploadReportedError=true;resolve()}
+        else reject(new Error(`Google Drive a refusé l’envoi (${xhr.status}).`));
+      };
       xhr.send(file);
     });
-    if(!driveFile?.id)throw new Error('Google Drive n’a pas renvoyé l’identifiant du fichier.');
-    const title=($('#playerVideoTitleInput')?.value||'').trim(),comment=($('#playerVideoCommentInput')?.value||'').trim();
-    const {error:regError}=await db.rpc('register_my_player_video',{
-      p_group_id:playerPortalState.groupId,p_drive_file_id:driveFile.id,p_file_name:driveFile.name||file.name,
-      p_mime_type:driveFile.mimeType||file.type||null,p_size_bytes:Number(driveFile.size||file.size)||null,
-      p_title:title||null,p_comment:comment||null
-    });
-    if(regError)throw regError;
+
+    if(status)status.textContent='Vérification dans Google Drive…';
+
+    // Google Drive peut terminer correctement l'upload tout en empêchant le navigateur
+    // de lire la réponse finale cross-origin. On finalise donc côté serveur en retrouvant
+    // le fichier dans le dossier Drive du joueur.
+    const {data:finalize,error:finalizeError}=await db.functions.invoke('player-drive',{body:{
+      action:'finalize_upload',
+      group_id:playerPortalState.groupId,
+      file_name:file.name,
+      mime_type:file.type||'application/octet-stream',
+      size_bytes:file.size,
+      title:title||null,
+      comment:comment||null
+    }});
+    if(finalizeError)throw finalizeError;
+    if(finalize?.error)throw new Error(finalize.error);
+
     input.value='';$('#playerVideoTitleInput').value='';$('#playerVideoCommentInput').value='';
-    if(bar)bar.style.width='100%';if(status)status.textContent='Vidéo envoyée au staff.';
+    if(bar)bar.style.width='100%';
+    if(status)status.textContent='Vidéo envoyée au staff.';
     await loadPlayerVideos();await refreshVideoNotifications().catch(()=>{});
   }catch(e){
     if(status)status.textContent=e?.message||'Impossible d’envoyer la vidéo.';
@@ -4171,12 +4193,7 @@ async function reviewPlayerVideo(videoId){
   const status=$('#playerVideoStatus');if(status)status.textContent='Enregistrement du retour…';
   const {error}=await db.rpc('review_player_video',{p_group_id:playerPortalState.groupId,p_video_id:videoId,p_review_text:text});
   if(error)throw error;
-  let driveWarning='';
-  try{
-    const {data,error:fnError}=await db.functions.invoke('player-drive',{body:{action:'append_review',group_id:playerPortalState.groupId,video_id:videoId}});
-    if(fnError)throw fnError;if(data?.error)throw new Error(data.error);
-  }catch(e){driveWarning=' Le retour est bien enregistré dans Kinball Coach, mais la copie dans « Retours staff » a échoué.';console.warn(e)}
-  if(status)status.textContent='Vidéo marquée comme analysée.'+driveWarning;
+  if(status)status.textContent='Vidéo marquée comme analysée.';
   await refreshVideoNotifications().catch(()=>{});
   await loadPlayerVideos();
 }
