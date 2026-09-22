@@ -4194,8 +4194,34 @@ async function initAuthenticated(user){
 }
 
 
+
+function authStorageSnapshot(){
+  return {
+    at:new Date().toISOString(),
+    localStorageKeys:Object.keys(localStorage).filter(k=>k.startsWith('sb-')),
+    sessionStorageKeys:Object.keys(sessionStorage),
+    handoffPresent:sessionStorage.getItem('kb_video_auth_handoff')!==null
+  };
+}
+function renderAuthDiagnostic(extra={}){
+  const query=new URLSearchParams(location.search);
+  if(query.get('authdiag')!=='1')return;
+  let fromVideo=null;
+  try{fromVideo=JSON.parse(sessionStorage.getItem('kb_auth_diag_from_video')||'null')}catch{}
+  const snapshot={fromVideo,index:authStorageSnapshot(),...extra};
+  let box=document.getElementById('authDiagBox');
+  if(!box){
+    box=document.createElement('pre');
+    box.id='authDiagBox';
+    box.style.cssText='white-space:pre-wrap;word-break:break-word;font:12px/1.45 monospace;background:#111827;color:#e5e7eb;border:1px solid #475569;border-radius:12px;padding:12px;margin:12px 0;max-width:100%;overflow:auto';
+    const host=document.getElementById('authPanel')||document.body;
+    host.prepend(box);
+  }
+  box.textContent='DIAGNOSTIC AUTH (aucun jeton affiché)\\n'+JSON.stringify(snapshot,null,2);
+}
 async function getSessionWithVideoHandoff(){
   let result=await db.auth.getSession();
+  renderAuthDiagnostic({initialGetSessionUser:!!result?.data?.session?.user});
   if(result?.data?.session?.user)return result;
   try{
     const raw=sessionStorage.getItem('kb_video_auth_handoff');
@@ -4212,9 +4238,11 @@ async function getSessionWithVideoHandoff(){
       refresh_token:saved.refresh_token
     });
     if(restored?.data?.session?.user){
+      renderAuthDiagnostic({initialGetSessionUser:false,handoffRestoreUser:true});
       sessionStorage.removeItem('kb_video_auth_handoff');
       return restored;
     }
+    renderAuthDiagnostic({initialGetSessionUser:false,handoffRestoreUser:false});
   }catch(e){
     console.warn('Video auth handoff restore failed',e);
   }
@@ -4247,6 +4275,7 @@ async function initAuth(){
     $('#authPanel').classList.remove('hidden');
     $('#setup').classList.add('hidden');
     setCloud('Non connecté',false);
+    renderAuthDiagnostic({finalSessionUser:false});
     if(playerInviteToken())authMessage('Invitation joueur détectée : connecte-toi ou crée ton compte pour accéder à ta page personnelle.');
     if(playerGroupInviteToken()){authMessage('Accès joueur détecté : sélectionne ton prénom puis connecte-toi ou crée ton compte.');await loadSharedPlayerInvite()}
   }

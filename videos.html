@@ -160,16 +160,37 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escapeHtml=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const params=new URLSearchParams(location.search);
 
-function returnFromVideoToHome(){
-  const s=state.session;
-  if(s?.access_token&&s?.refresh_token){
-    sessionStorage.setItem('kb_video_auth_handoff',JSON.stringify({
-      access_token:s.access_token,
-      refresh_token:s.refresh_token,
-      saved_at:Date.now()
-    }));
+async function returnFromVideoToHome(){
+  const diag={
+    page:'videos',
+    at:new Date().toISOString(),
+    stateUser:!!state.user,
+    stateSession:!!state.session,
+    stateAccessToken:!!state.session?.access_token,
+    stateRefreshToken:!!state.session?.refresh_token,
+    localStorageKeys:Object.keys(localStorage).filter(k=>k.startsWith('sb-')),
+    sessionStorageKeys:Object.keys(sessionStorage)
+  };
+  try{
+    const fresh=await Promise.race([
+      db.auth.getSession(),
+      new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),2500))
+    ]);
+    diag.freshSession=!!fresh?.data?.session;
+    diag.freshUser=!!fresh?.data?.session?.user;
+    if(fresh?.data?.session?.access_token&&fresh?.data?.session?.refresh_token){
+      sessionStorage.setItem('kb_video_auth_handoff',JSON.stringify({
+        access_token:fresh.data.session.access_token,
+        refresh_token:fresh.data.session.refresh_token,
+        saved_at:Date.now()
+      }));
+    }
+  }catch(e){
+    diag.freshSessionError=e?.message||String(e);
   }
-  location.href='./';
+  diag.handoffPresent=sessionStorage.getItem('kb_video_auth_handoff')!==null;
+  sessionStorage.setItem('kb_auth_diag_from_video',JSON.stringify(diag));
+  location.href='./?authdiag=1';
 }
 function returnFromVideoToDashboard(){
   if(state?.isCoach && state.groupId){
