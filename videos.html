@@ -155,31 +155,46 @@ input,textarea,select{width:100%;border:1px solid var(--line);border-radius:11px
 <script>
 const SUPABASE_URL='https://chrbzchthloxowlzdvpe.supabase.co';
 const SUPABASE_KEY='sb_publishable_4pQGJ5DSzMRBuHLrAUb30g_MGZVYvEY';
-const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
-  auth:{
-    persistSession:true,
-    autoRefreshToken:true,
-    detectSessionInUrl:true,
-    // Evite un blocage navigator.locks observé lors des navigations entre pages.
-    lock:async(_name,_acquireTimeout,fn)=>await fn()
-  }
-});
-async function safeGetSession(timeoutMs=5000){
-  let timer;
-  try{
-    return await Promise.race([
-      db.auth.getSession(),
-      new Promise((_,reject)=>{
-        timer=setTimeout(()=>reject(new Error('Délai dépassé pendant la restauration de la session.')),timeoutMs);
-      })
-    ]);
-  }finally{
-    if(timer)clearTimeout(timer);
-  }
-}
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escapeHtml=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const params=new URLSearchParams(location.search);
+
+function sameOriginReferrer(){
+  try{return document.referrer && new URL(document.referrer).origin===location.origin}catch{return false}
+}
+function referrerFile(){
+  try{return new URL(document.referrer).pathname.split('/').pop()||'index.html'}catch{return ''}
+}
+function returnToIndexWithoutReload(){
+  if(sameOriginReferrer() && (referrerFile()==='index.html' || referrerFile()==='')){
+    history.back();
+    return;
+  }
+  location.href='index.html';
+}
+
+function returnFromVideoToHome(){
+  if(sameOriginReferrer()){
+    const f=referrerFile();
+    if(f==='index.html' || f===''){history.back();return}
+    if(f==='coach-videos.html'){
+      // Normal coach path: index -> coach-videos -> videos.
+      history.go(-2);
+      return;
+    }
+  }
+  location.href='index.html';
+}
+function returnFromVideoToDashboard(){
+  if(sameOriginReferrer() && referrerFile()==='coach-videos.html'){history.back();return}
+  if(state?.isCoach && state.groupId){
+    location.href=`coach-videos.html?group=${encodeURIComponent(state.groupId)}`;
+    return;
+  }
+  returnFromVideoToHome();
+}
+
 
 const state={
   user:null,groupId:null,playerId:null,playerName:'',groupName:'',
@@ -197,7 +212,7 @@ function currentVideo(){return state.videos.find(v=>v.id===state.currentVideoId)
 
 async function init(){
   if(!window.supabase)throw new Error('Supabase indisponible.');
-  const {data:{session}}=await safeGetSession();
+  const {data:{session}}=await db.auth.getSession();
   if(!session?.user){location.href='index.html';return}
   state.user=session.user;
   $('#cloudText').textContent='Synchronisé';
@@ -442,6 +457,12 @@ async function saveNote(){
 }
 
 /* Events */
+$('#globalHomeLink').onclick=e=>{e.preventDefault();returnFromVideoToHome()};
+$('#videosBackLink').onclick=e=>{
+  e.preventDefault();
+  if(state.isCoach)returnFromVideoToDashboard();
+  else returnFromVideoToHome();
+};
 $('#logout').onclick=async()=>{await db.auth.signOut();location.href='index.html'};
 $('#syncBtn').onclick=()=>syncDrive().catch(e=>setStatus(errorText(e),'error'));
 $('#uploadBtn').onclick=uploadVideo;

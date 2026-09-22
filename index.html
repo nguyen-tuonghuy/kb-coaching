@@ -1903,13 +1903,7 @@ button.playerPortalHomeCard:hover,a.playerPortalHomeCard:hover{border-color:var(
 
 
  
- <section class="panel" id="startupPanel">
-   <div style="display:flex;align-items:center;gap:10px">
-    <div class="badge"><span class="statusDot"></span><span>Restauration de la session…</span></div>
-   </div>
- </section>
-
- <section class="panel hidden" id="authPanel">
+ <section class="panel" id="authPanel">
    <h2 style="font-size:20px;margin-bottom:6px">Bienvenue sur Kinball Coach</h2>
    <p class="small" style="margin-bottom:16px">
      Connectez-vous pour retrouver vos matchs enregistrés. Si vous utilisez Kinball Coach pour la première fois, créez votre compte depuis le bouton dédié.
@@ -3301,28 +3295,7 @@ if(!window.supabase){
   document.body.innerHTML='<div style="padding:24px;font-family:sans-serif;color:white;background:#111;min-height:100vh"><h2>Erreur de chargement</h2><p>La bibliothèque Supabase ne s’est pas chargée. Recharge la page avec une connexion Internet active.</p></div>';
   throw new Error('Supabase library failed to load');
 }
-const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
-  auth:{
-    persistSession:true,
-    autoRefreshToken:true,
-    detectSessionInUrl:true,
-    // Evite un blocage navigator.locks observé lors des navigations entre pages.
-    lock:async(_name,_acquireTimeout,fn)=>await fn()
-  }
-});
-async function safeGetSession(timeoutMs=5000){
-  let timer;
-  try{
-    return await Promise.race([
-      db.auth.getSession(),
-      new Promise((_,reject)=>{
-        timer=setTimeout(()=>reject(new Error('Délai dépassé pendant la restauration de la session.')),timeoutMs);
-      })
-    ]);
-  }finally{
-    if(timer)clearTimeout(timer);
-  }
-}
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
 let state={
   matchName:'',matchTypeId:null,teamName:'',opponentTeams:[],opponentTeamIds:{},matchDate:'',players:[],activePlayers:[],events:[],
@@ -3803,7 +3776,7 @@ async function loadSharedPlayerInvite(){
     else if(available.length===1){sel.value=available[0].player_id;setPlayerGroupInvitePlayerId(sel.value)}
     sel.onchange=()=>{setPlayerGroupInvitePlayerId(sel.value);if(status)status.textContent=sel.value?'Ton prénom est sélectionné.':'Sélectionne ton prénom.'}
   }
-  const {data:{session}}=await safeGetSession();
+  const {data:{session}}=await db.auth.getSession();
   const signedIn=!!session?.user;
   if(cont)cont.classList.toggle('hidden',!signedIn);
   $('#playerLoginBox')?.classList.toggle('hidden',signedIn);
@@ -4196,24 +4169,8 @@ async function openPlayerPortal(accesses){
   playerPortalSetView(wanted);syncStandaloneVideoLinks();setCloud('Synchronisé',true);window.scrollTo({top:0,behavior:'instant'});return true
 }
 
-
-function finishStartup(){
-  $('#startupPanel')?.classList.add('hidden');
-}
-function showLoginScreen(message=''){
-  finishStartup();
-  hideMainModules();
-  $('#authPanel')?.classList.remove('hidden');
-  $('#setup')?.classList.add('hidden');
-  $('#logout')?.classList.add('hidden');
-  $('#homeBtn')?.classList.add('hidden');
-  $('#profileBtn')?.classList.add('hidden');
-  $('#playerSpaceBtn')?.classList.add('hidden');
-  if(message)authMessage(message,true);
-}
 async function initAuthenticated(user){
   currentUser=user;
-  finishStartup();
   const pendingInvite=pendingPlayerInviteFromUser(user);
   const invitedPlayerFlow=!!(playerGroupInviteToken()||playerInviteToken()||pendingInvite.group||pendingInvite.direct);
   $('#authPanel').classList.add('hidden');
@@ -4244,11 +4201,10 @@ async function initAuth(){
   const hashParams=new URLSearchParams(location.hash.replace(/^#/,'')||'');
   const queryParams=new URLSearchParams(location.search||'');
   const recoveryLink=hashParams.get('type')==='recovery'||queryParams.get('type')==='recovery';
-  const {data:{session}}=await safeGetSession();
+  const {data:{session}}=await db.auth.getSession();
   if(session?.user){
     if(playerGroupInviteToken()&&!playerGroupInvitePlayerId()){
       currentUser=session.user;
-      finishStartup();
       $('#authPanel').classList.remove('hidden');
       $('#setup').classList.add('hidden');
       $('#logout').classList.remove('hidden');
@@ -4260,7 +4216,8 @@ async function initAuth(){
     }
     if(recoveryLink) openResetPasswordPopup(true);
   }else{
-    showLoginScreen();
+    $('#authPanel').classList.remove('hidden');
+    $('#setup').classList.add('hidden');
     setCloud('Non connecté',false);
     if(playerInviteToken())authMessage('Invitation joueur détectée : connecte-toi ou crée ton compte pour accéder à ta page personnelle.');
     if(playerGroupInviteToken()){authMessage('Accès joueur détecté : sélectionne ton prénom puis connecte-toi ou crée ton compte.');await loadSharedPlayerInvite()}
@@ -10569,40 +10526,12 @@ $('#playerPortalMessageInput').addEventListener('keydown',e=>{if((e.ctrlKey||e.m
 $('#playerSpaceBtn').onclick=()=>enterMyPlayerPortal().catch(err=>handleError('open player portal',err));
 $('#playerPortalBackStaff').onclick=()=>returnToStaffSpace().catch(e=>handleError('return staff space',e));
 
-$('#playerJoinContinue').onclick=async()=>{const playerId=playerGroupInvitePlayerId();if(!playerId){authMessage('Sélectionne d’abord ton prénom.',true);return}const {data:{session}}=await safeGetSession();if(!session?.user){authMessage('Connecte-toi ou crée ton compte pour continuer.',true);return}authMessage('Activation de ton accès…');try{await initAuthenticated(session.user);authMessage('')}catch(e){console.error('player join continue',e)}};
+$('#playerJoinContinue').onclick=async()=>{const playerId=playerGroupInvitePlayerId();if(!playerId){authMessage('Sélectionne d’abord ton prénom.',true);return}const {data:{session}}=await db.auth.getSession();if(!session?.user){authMessage('Connecte-toi ou crée ton compte pour continuer.',true);return}authMessage('Activation de ton accès…');try{await initAuthenticated(session.user);authMessage('')}catch(e){console.error('player join continue',e)}};
 $('#groupPlayerSharedLink').onclick=()=>createSharedPlayerAccessLink();
 
 render();
 initVideoDesktopResizer();
-initAuth().catch(e=>{
-  console.error('initAuth',e);
-  finishStartup();
-  const hasSessionPromise=safeGetSession();
-  hasSessionPromise.then(({data:{session}})=>{
-    if(session?.user){
-      $('#authPanel')?.classList.add('hidden');
-      setCloud('Erreur de chargement',false);
-      const home=$('#appHome');
-      if(home){
-        hideMainModules();
-        home.classList.remove('hidden');
-        const hint=document.createElement('div');
-        hint.className='authStatus cloudErr';
-        hint.style.marginTop='12px';
-        hint.textContent='La session est bien conservée, mais une partie des données n’a pas pu se charger. Recharge la page pour réessayer.';
-        if(!home.querySelector('[data-startup-error]')){hint.dataset.startupError='1';home.prepend(hint)}
-      }
-    }else{
-      showLoginScreen('La session a expiré. Reconnecte-toi.');
-      setCloud('Non connecté',false);
-    }
-    handleError('initAuth',e);
-  }).catch(()=>{
-    showLoginScreen('Impossible de restaurer la session.');
-    setCloud('Erreur de connexion',false);
-    handleError('initAuth',e);
-  });
-});
+initAuth().catch(e=>handleError('initAuth',e));
 
 
 

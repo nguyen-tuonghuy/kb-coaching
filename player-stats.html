@@ -57,7 +57,7 @@ details{border:1px solid var(--line);border-radius:14px;background:#151b24;paddi
 
   <main class="panel">
     <nav class="nav" id="nav">
-      <a href="index.html#player-home">Accueil</a>
+      <a href="index.html#player-home" id="statsHomeLink">Accueil</a>
       <a href="player-stats.html" class="active">Mes statistiques</a>
       <a href="videos.html" id="videosLink">Mes vidéos</a>
       <a href="index.html#player-profile">Mon profil</a>
@@ -107,31 +107,25 @@ details{border:1px solid var(--line);border-radius:14px;background:#151b24;paddi
 <script>
 const SUPABASE_URL='https://chrbzchthloxowlzdvpe.supabase.co';
 const SUPABASE_KEY='sb_publishable_4pQGJ5DSzMRBuHLrAUb30g_MGZVYvEY';
-const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
-  auth:{
-    persistSession:true,
-    autoRefreshToken:true,
-    detectSessionInUrl:true,
-    // Evite un blocage navigator.locks observé lors des navigations entre pages.
-    lock:async(_name,_acquireTimeout,fn)=>await fn()
-  }
-});
-async function safeGetSession(timeoutMs=5000){
-  let timer;
-  try{
-    return await Promise.race([
-      db.auth.getSession(),
-      new Promise((_,reject)=>{
-        timer=setTimeout(()=>reject(new Error('Délai dépassé pendant la restauration de la session.')),timeoutMs);
-      })
-    ]);
-  }finally{
-    if(timer)clearTimeout(timer);
-  }
-}
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const params=new URLSearchParams(location.search);
+
+function sameOriginReferrer(){
+  try{return document.referrer && new URL(document.referrer).origin===location.origin}catch{return false}
+}
+function referrerFile(){
+  try{return new URL(document.referrer).pathname.split('/').pop()||'index.html'}catch{return ''}
+}
+function returnToIndexWithoutReload(){
+  if(sameOriginReferrer() && (referrerFile()==='index.html' || referrerFile()==='')){
+    history.back();
+    return;
+  }
+  location.href='index.html';
+}
+
 
 const state={user:null,accesses:[],groupId:null,playerId:null,playerName:'',groupName:'',isCoach:false,matches:[],selected:[],scope:'all',restartLocation:'all',loading:false};
 
@@ -285,7 +279,7 @@ async function loadGroup(groupId){
   $('#videosLink').href='videos.html'+q
 }
 async function init(){
-  const {data:{session}}=await safeGetSession();if(!session?.user){location.href='index.html';return}state.user=session.user;$('#cloudText').textContent='Synchronisé';
+  const {data:{session}}=await db.auth.getSession();if(!session?.user){location.href='index.html';return}state.user=session.user;$('#cloudText').textContent='Synchronisé';
   const requestedGroup=params.get('group'),requestedPlayer=params.get('player');
   if(requestedGroup&&requestedPlayer){
     const {data,error}=await db.rpc('get_player_portal_metrics',{p_group_id:requestedGroup,p_match_ids:null,p_scope:'all',p_player_id:requestedPlayer});
@@ -296,7 +290,7 @@ async function init(){
     const chosen=(requestedGroup&&state.accesses.find(a=>a.group_id===requestedGroup))||state.accesses[0];state.groupId=chosen.group_id;state.playerId=chosen.player_id;state.playerName=chosen.player_name||'';state.groupName=chosen.group_name||'';
     if(state.accesses.length>1){$('#groupField').classList.remove('hidden');$('#groupSelect').innerHTML=state.accesses.map(a=>`<option value="${esc(a.group_id)}">${esc(a.group_name)} · ${esc(a.player_name)}</option>`).join('');$('#groupSelect').value=state.groupId;$('#groupSelect').onchange=()=>loadGroup($('#groupSelect').value).catch(showError)}
   }
-  if(state.isCoach){$('#nav').innerHTML=`<a href="index.html">Accueil entraîneur</a><a href="player-stats.html?group=${encodeURIComponent(state.groupId)}&player=${encodeURIComponent(state.playerId)}" class="active">Statistiques · ${esc(state.playerName)}</a><a href="videos.html?group=${encodeURIComponent(state.groupId)}&player=${encodeURIComponent(state.playerId)}">Vidéos</a>`}
+  if(state.isCoach){$('#nav').innerHTML=`<a href="index.html" id="statsHomeLink">Accueil entraîneur</a><a href="player-stats.html?group=${encodeURIComponent(state.groupId)}&player=${encodeURIComponent(state.playerId)}" class="active">Statistiques · ${esc(state.playerName)}</a><a href="videos.html?group=${encodeURIComponent(state.groupId)}&player=${encodeURIComponent(state.playerId)}">Vidéos</a>`}
   await loadGroup(state.groupId)
 }
 $('#selectAll').onclick=()=>{state.selected=state.matches.map(m=>m.id);renderMatches();render().catch(showError)};
@@ -304,6 +298,12 @@ $('#latest').onclick=()=>{state.selected=state.matches[0]?.id?[state.matches[0].
 $$('[data-scope]').forEach(b=>b.onclick=()=>{state.scope=b.dataset.scope;$$('[data-scope]').forEach(x=>x.classList.toggle('active',x===b));$('#restartField').classList.toggle('hidden',state.scope!=='restart');render().catch(showError)});
 $('#restart').onchange=e=>{state.restartLocation=e.target.value;render().catch(showError)};
 $('#logout').onclick=async()=>{await db.auth.signOut();location.href='index.html'};
+document.addEventListener('click',e=>{
+  const link=e.target.closest?.('#statsHomeLink');
+  if(!link)return;
+  e.preventDefault();
+  returnToIndexWithoutReload();
+});
 init().catch(showError);
 </script>
 </body>
