@@ -29,7 +29,11 @@ button:hover,a.button:hover{border-color:#587197}.hidden{display:none!important}
 .mainMetrics,.secondaryMetrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.metric,.secondary{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--panel2);display:grid;gap:5px}.metric span,.secondary span{font-size:12px;color:var(--muted)}.metric strong{font-size:30px}.secondary strong{font-size:25px}.metric small,.secondary small{color:var(--muted);line-height:1.45}
 .positive{color:#7ce2a9}.negative{color:#ff9696}.neutral{color:var(--text)}.benchmark{padding:0 2px}
 details{border:1px solid var(--line);border-radius:14px;background:#151b24;padding:0 13px}summary{cursor:pointer;padding:12px 0;font-weight:800}.explain{padding:0 0 13px;color:#c7cfda;line-height:1.55}.formula{border-left:3px solid var(--primary);padding:8px 10px;margin:8px 0;background:#121720;border-radius:8px}
-.tableWrap{overflow:auto;padding-bottom:12px}.table{width:100%;border-collapse:collapse;min-width:760px}.table th,.table td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.table th{font-size:11px;color:var(--muted)}.testNotice{border:1px dashed var(--primary);border-radius:12px;padding:10px 12px;font-size:12px;color:var(--muted)}
+.tableWrap{overflow:auto;padding-bottom:12px}.table{width:100%;border-collapse:collapse;min-width:760px}.table th,.table td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.table th{font-size:11px;color:var(--muted)}
+.opponentBlock{border:1px solid var(--line);border-radius:14px;background:#151b24;padding:13px}
+.opponentBlock h4{margin:0 0 4px;font-size:17px}
+.opponentIntro{margin-bottom:10px}
+.testNotice{border:1px dashed var(--primary);border-radius:12px;padding:10px 12px;font-size:12px;color:var(--muted)}
 .error{color:#ffc4c8}
 @media(max-width:680px){.shell{padding:10px}.panel{padding:12px}.counts,.mainMetrics,.secondaryMetrics{grid-template-columns:1fr}.nav{gap:6px}.nav a{padding:9px 10px}.header h1{font-size:22px}}
 </style>
@@ -135,6 +139,35 @@ function sheet(data,allDetails){
   const x=data?.metrics||{},avg=data?.group_average||{},n=Number(x.n)||0,ref=data?.reference_version||'référence active',rel=reliability(n);
   return`<div class="sheet"><div class="sheetHeader"><div><div class="analysisSubtle">${esc(scopeLabel(effectiveScope()))}</div><h3>${esc(data.player_name||'')}</h3></div></div>${data?.is_test_mirror?`<div class="testNotice">Profil de test : les statistiques affichées sont une copie de celles de ${esc(data.stats_source_player_name||'un joueur source')} afin de tester un profil complet.</div>`:''}<div class="counts"><div class="count"><span>Nombre de frappes</span><strong>${n}</strong>${rel.label?`<span class="reliability">${esc(rel.label)}</span>`:''}</div><div class="count"><span>Points marqués</span><strong>${Number(x.points)||0}</strong></div><div class="count"><span>Fautes</span><strong>${Number(x.faults)||0}</strong></div></div>${warning(n)}${takeaways(x,n)}<div class="mainMetrics"><div class="metric"><span>Création /100</span><strong class="${impactClass(x.creation100)}">${n?signed(x.creation100):'—'}</strong><small>Moyenne groupe ${signed(avg.creation100)}</small></div><div class="metric"><span>Sécurité /100</span><strong class="${impactClass(x.safety100)}">${n?signed(x.safety100):'—'}</strong><small>Moyenne groupe ${signed(avg.safety100)}</small></div></div><div class="secondaryMetrics"><div class="secondary"><span>% points</span><strong>${n?pct(x.point_rate):'—'}</strong><small>${Number(x.points)||0} point${Number(x.points)===1?'':'s'} marqué${Number(x.points)===1?'':'s'} · Référentiel ${pct(x.expected_point_rate)} · Moyenne groupe ${pct(avg.point_rate)}</small></div><div class="secondary"><span>% fautes</span><strong>${n?pct(x.fault_rate):'—'}</strong><small>${Number(x.faults)||0} faute${Number(x.faults)===1?'':'s'} · Référentiel ${pct(x.expected_fault_rate)} · Moyenne groupe ${pct(avg.fault_rate)}</small></div></div><div class="small benchmark">La moyenne du groupe est calculée sans afficher les résultats des autres joueurs. Elle sert uniquement de repère collectif.</div><details open><summary>Comprendre le référentiel et les scores</summary><div class="explain"><p><strong>Le référentiel</strong> (${esc(ref)}) est construit à partir des attaques de la compétition de référence sélectionnées par le staff. Les données Hommes et Femmes sont séparées, ainsi que les différents contextes d’attaque.</p><div class="formula"><strong>Création /100</strong> : nombre de points produits en plus ou en moins sur 100 attaques par rapport au nombre attendu.</div><div class="formula"><strong>Sécurité /100</strong> : nombre de fautes évitées ou ajoutées sur 100 attaques par rapport au nombre attendu.</div><p>Un score de 0 correspond au niveau attendu du référentiel pour les situations réellement jouées. Positif = au-dessus du référentiel ; négatif = en dessous.</p><p>Le volume reste important : N &lt; 5 est trop faible pour conclure ; entre 5 et 15, le score donne surtout une tendance ; au-delà de 15 il devient plus stable.</p></div></details>${detailsHtml(allDetails||data.details||[])}</div>`
 }
+
+function opponentHtml(rows){
+  const data=rows||[];
+  if(!data.length){
+    return `<div class="opponentBlock"><h4>Performance par adversaire</h4><div class="small">Aucune attaque exploitable avec adversaire renseigné sur la sélection actuelle.</div></div>`;
+  }
+  return `<div class="opponentBlock">
+    <h4>Performance par adversaire</h4>
+    <div class="small opponentIntro">Les mêmes filtres de matchs et de contexte s’appliquent. Avec un seul match sélectionné, ce tableau correspond donc à l’analyse de ce match.</div>
+    <div class="tableWrap"><table class="table">
+      <thead><tr>
+        <th>Adversaire</th><th>N</th><th>Points</th><th>Fautes</th><th>Défendus</th>
+        <th>% points</th><th>% fautes</th><th>Création /100</th><th>Sécurité /100</th>
+      </tr></thead>
+      <tbody>${data.map(r=>`<tr>
+        <td><strong>${esc(r.opponent_name||'Adversaire')}</strong></td>
+        <td>${Number(r.n)||0}</td>
+        <td>${Number(r.points)||0}</td>
+        <td>${Number(r.faults)||0}</td>
+        <td>${Number(r.defended)||0}</td>
+        <td>${pct(r.point_rate)}</td>
+        <td>${pct(r.fault_rate)}</td>
+        <td class="${impactClass(r.creation100)}">${signed(r.creation100)}</td>
+        <td class="${impactClass(r.safety100)}">${signed(r.safety100)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>
+  </div>`;
+}
+
 function renderMatches(){
   const selected=new Set(state.selected||[]),box=$('#matches');
   box.innerHTML=(state.matches||[]).map(m=>`<label class="matchItem ${selected.has(m.id)?'checked':''}"><input type="checkbox" data-match="${esc(m.id)}" ${selected.has(m.id)?'checked':''}><span><strong>${esc(m.label||'Match')}</strong><span class="small">${esc(formatDateShort(m.played_on)||'Date ?')}${m.competition?' · '+esc(m.competition):''}</span></span></label>`).join('');
@@ -143,21 +176,50 @@ function renderMatches(){
 }
 function args(ids,scope){return{p_group_id:state.groupId,p_match_ids:ids,p_scope:scope,p_player_id:state.isCoach?state.playerId:null}}
 async function render(){
-  const box=$('#content'),ids=state.selected||[];if(!ids.length){box.innerHTML='<div class="statsEmpty">Sélectionne au moins un match.</div>';return}if(state.loading)return;
-  state.loading=true;box.innerHTML='<div class="statsEmpty">Calcul de tes statistiques…</div>';
+  const box=$('#content'),ids=state.selected||[];
+  if(!ids.length){box.innerHTML='<div class="statsEmpty">Sélectionne au moins un match.</div>';return}
+  if(state.loading)return;
+  state.loading=true;
+  box.innerHTML='<div class="statsEmpty">Calcul de tes statistiques…</div>';
   try{
-    const scope=effectiveScope(),calls=[db.rpc('get_player_portal_metrics',args(ids,scope))];if(scope!=='all')calls.push(db.rpc('get_player_portal_metrics',args(ids,'all')));
-    const results=await Promise.all(calls);results.forEach(r=>{if(r.error)throw r.error});const data=results[0].data||{},details=(results[1]?.data||data).details||[];box.innerHTML=sheet(data,details)
+    const scope=effectiveScope();
+    const metricCalls=[
+      db.rpc('get_player_portal_metrics',args(ids,scope)),
+      db.rpc('get_player_portal_opponent_metrics',args(ids,scope))
+    ];
+    if(scope!=='all')metricCalls.push(db.rpc('get_player_portal_metrics',args(ids,'all')));
+    const results=await Promise.all(metricCalls);
+    results.forEach(r=>{if(r.error)throw r.error});
+    const data=results[0].data||{};
+    const opponents=results[1].data||[];
+    const details=(scope!=='all'?(results[2]?.data||data):data).details||[];
+    box.innerHTML=sheet(data,details)+opponentHtml(opponents);
   }finally{state.loading=false}
 }
 function showError(e){console.error(e);$('#content').innerHTML=`<div class="statsEmpty error">${esc(err(e))}</div>`}
 
 async function loadGroup(groupId){
-  state.groupId=groupId;state.scope='all';state.restartLocation='all';$$('[data-scope]').forEach(b=>b.classList.toggle('active',b.dataset.scope==='all'));$('#restartField').classList.add('hidden');$('#restart').value='all';
-  const {data,error}=await db.rpc('get_player_portal_metrics',args(null,'all'));if(error)throw error;
-  state.matches=data?.matches||[];state.selected=state.matches.map(m=>m.id);state.playerName=data?.player_name||state.playerName;state.groupName=data?.group_name||state.groupName;
-  $('#title').textContent=state.isCoach?`Statistiques · ${state.playerName}`:'Mes statistiques';$('#subtitle').textContent=state.groupName||'';renderMatches();$('#content').innerHTML=sheet(data,data?.details||[]);
-  const q=state.isCoach?`?group=${encodeURIComponent(state.groupId)}&player=${encodeURIComponent(state.playerId)}`:`?group=${encodeURIComponent(state.groupId)}`;$('#videosLink').href='videos.html'+q
+  state.groupId=groupId;state.scope='all';state.restartLocation='all';
+  $$('[data-scope]').forEach(b=>b.classList.toggle('active',b.dataset.scope==='all'));
+  $('#restartField').classList.add('hidden');$('#restart').value='all';
+
+  const [metricsRes,opponentsRes]=await Promise.all([
+    db.rpc('get_player_portal_metrics',args(null,'all')),
+    db.rpc('get_player_portal_opponent_metrics',args(null,'all'))
+  ]);
+  if(metricsRes.error)throw metricsRes.error;
+  if(opponentsRes.error)throw opponentsRes.error;
+  const data=metricsRes.data||{};
+  state.matches=data?.matches||[];
+  state.selected=state.matches.map(m=>m.id);
+  state.playerName=data?.player_name||state.playerName;
+  state.groupName=data?.group_name||state.groupName;
+  $('#title').textContent=state.isCoach?`Statistiques · ${state.playerName}`:'Mes statistiques';
+  $('#subtitle').textContent=state.groupName||'';
+  renderMatches();
+  $('#content').innerHTML=sheet(data,data?.details||[])+opponentHtml(opponentsRes.data||[]);
+  const q=state.isCoach?`?group=${encodeURIComponent(state.groupId)}&player=${encodeURIComponent(state.playerId)}`:`?group=${encodeURIComponent(state.groupId)}`;
+  $('#videosLink').href='videos.html'+q
 }
 async function init(){
   const {data:{session}}=await db.auth.getSession();if(!session?.user){location.href='index.html';return}state.user=session.user;$('#cloudText').textContent='Synchronisé';
