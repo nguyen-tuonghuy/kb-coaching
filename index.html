@@ -1903,7 +1903,13 @@ button.playerPortalHomeCard:hover,a.playerPortalHomeCard:hover{border-color:var(
 
 
  
- <section class="panel" id="authPanel">
+ <section class="panel" id="startupPanel">
+   <div style="display:flex;align-items:center;gap:10px">
+    <div class="badge"><span class="statusDot"></span><span>Restauration de la session…</span></div>
+   </div>
+ </section>
+
+ <section class="panel hidden" id="authPanel">
    <h2 style="font-size:20px;margin-bottom:6px">Bienvenue sur Kinball Coach</h2>
    <p class="small" style="margin-bottom:16px">
      Connectez-vous pour retrouver vos matchs enregistrés. Si vous utilisez Kinball Coach pour la première fois, créez votre compte depuis le bouton dédié.
@@ -4169,8 +4175,24 @@ async function openPlayerPortal(accesses){
   playerPortalSetView(wanted);syncStandaloneVideoLinks();setCloud('Synchronisé',true);window.scrollTo({top:0,behavior:'instant'});return true
 }
 
+
+function finishStartup(){
+  $('#startupPanel')?.classList.add('hidden');
+}
+function showLoginScreen(message=''){
+  finishStartup();
+  hideMainModules();
+  $('#authPanel')?.classList.remove('hidden');
+  $('#setup')?.classList.add('hidden');
+  $('#logout')?.classList.add('hidden');
+  $('#homeBtn')?.classList.add('hidden');
+  $('#profileBtn')?.classList.add('hidden');
+  $('#playerSpaceBtn')?.classList.add('hidden');
+  if(message)authMessage(message,true);
+}
 async function initAuthenticated(user){
   currentUser=user;
+  finishStartup();
   const pendingInvite=pendingPlayerInviteFromUser(user);
   const invitedPlayerFlow=!!(playerGroupInviteToken()||playerInviteToken()||pendingInvite.group||pendingInvite.direct);
   $('#authPanel').classList.add('hidden');
@@ -4205,6 +4227,7 @@ async function initAuth(){
   if(session?.user){
     if(playerGroupInviteToken()&&!playerGroupInvitePlayerId()){
       currentUser=session.user;
+      finishStartup();
       $('#authPanel').classList.remove('hidden');
       $('#setup').classList.add('hidden');
       $('#logout').classList.remove('hidden');
@@ -4216,8 +4239,7 @@ async function initAuth(){
     }
     if(recoveryLink) openResetPasswordPopup(true);
   }else{
-    $('#authPanel').classList.remove('hidden');
-    $('#setup').classList.add('hidden');
+    showLoginScreen();
     setCloud('Non connecté',false);
     if(playerInviteToken())authMessage('Invitation joueur détectée : connecte-toi ou crée ton compte pour accéder à ta page personnelle.');
     if(playerGroupInviteToken()){authMessage('Accès joueur détecté : sélectionne ton prénom puis connecte-toi ou crée ton compte.');await loadSharedPlayerInvite()}
@@ -10531,7 +10553,35 @@ $('#groupPlayerSharedLink').onclick=()=>createSharedPlayerAccessLink();
 
 render();
 initVideoDesktopResizer();
-initAuth().catch(e=>handleError('initAuth',e));
+initAuth().catch(e=>{
+  console.error('initAuth',e);
+  finishStartup();
+  const hasSessionPromise=db.auth.getSession();
+  hasSessionPromise.then(({data:{session}})=>{
+    if(session?.user){
+      $('#authPanel')?.classList.add('hidden');
+      setCloud('Erreur de chargement',false);
+      const home=$('#appHome');
+      if(home){
+        hideMainModules();
+        home.classList.remove('hidden');
+        const hint=document.createElement('div');
+        hint.className='authStatus cloudErr';
+        hint.style.marginTop='12px';
+        hint.textContent='La session est bien conservée, mais une partie des données n’a pas pu se charger. Recharge la page pour réessayer.';
+        if(!home.querySelector('[data-startup-error]')){hint.dataset.startupError='1';home.prepend(hint)}
+      }
+    }else{
+      showLoginScreen('La session a expiré. Reconnecte-toi.');
+      setCloud('Non connecté',false);
+    }
+    handleError('initAuth',e);
+  }).catch(()=>{
+    showLoginScreen('Impossible de restaurer la session.');
+    setCloud('Erreur de connexion',false);
+    handleError('initAuth',e);
+  });
+});
 
 
 
