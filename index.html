@@ -3725,7 +3725,44 @@ async function loadSharedPlayerInvite(){
   }
   return true
 }
-async function claimPlayerInviteIfPresent(){const groupToken=playerGroupInviteToken();if(groupToken){const playerId=playerGroupInvitePlayerId();if(!playerId)throw new Error('Sélectionne ton prénom avant de te connecter.');const {error}=await db.rpc('claim_coaching_player_group_invite',{p_token:groupToken,p_player_id:playerId});if(error)throw error;clearPlayerInviteToken();return true}const token=playerInviteToken();if(!token)return false;const {error}=await db.rpc('claim_coaching_player_invite',{p_token:token});if(error)throw error;clearPlayerInviteToken();return true}
+function pendingPlayerInviteFromUser(user=currentUser){
+  const meta=user?.user_metadata||{};
+  return {
+    direct:meta.pending_player_invite||'',
+    group:meta.pending_player_group_invite||'',
+    playerId:meta.pending_player_id||''
+  };
+}
+async function clearPendingPlayerInviteMetadata(){
+  try{
+    const {error}=await db.auth.updateUser({data:{
+      pending_player_invite:null,
+      pending_player_group_invite:null,
+      pending_player_id:null
+    }});
+    if(error)throw error;
+  }catch(e){console.warn('Unable to clear pending player invite metadata',e)}
+}
+async function claimPlayerInviteIfPresent(user=currentUser){
+  const pending=pendingPlayerInviteFromUser(user);
+  const groupToken=playerGroupInviteToken()||pending.group;
+  if(groupToken){
+    const playerId=playerGroupInvitePlayerId()||pending.playerId;
+    if(!playerId)throw new Error('Sélectionne ton prénom avant de te connecter.');
+    const {error}=await db.rpc('claim_coaching_player_group_invite',{p_token:groupToken,p_player_id:playerId});
+    if(error)throw error;
+    clearPlayerInviteToken();
+    await clearPendingPlayerInviteMetadata();
+    return true
+  }
+  const token=playerInviteToken()||pending.direct;
+  if(!token)return false;
+  const {error}=await db.rpc('claim_coaching_player_invite',{p_token:token});
+  if(error)throw error;
+  clearPlayerInviteToken();
+  await clearPendingPlayerInviteMetadata();
+  return true
+}
 async function fetchMyPlayerAccesses(){const {data,error}=await db.rpc('get_my_player_access');if(error)throw error;playerPortalState.accesses=data||[];return playerPortalState.accesses}
 async function enterMyPlayerPortal(){
   // Toujours relire les accès réellement liés au compte courant.
@@ -3976,12 +4013,13 @@ async function openPlayerPortal(accesses){
 
 async function initAuthenticated(user){
   currentUser=user;
-  const invitedPlayerFlow=!!(playerGroupInviteToken()||playerInviteToken());
+  const pendingInvite=pendingPlayerInviteFromUser(user);
+  const invitedPlayerFlow=!!(playerGroupInviteToken()||playerInviteToken()||pendingInvite.group||pendingInvite.direct);
   $('#authPanel').classList.add('hidden');
   $('#setup').classList.add('hidden');
   $('#logout').classList.remove('hidden');
   setCloud('Synchronisé',true);
-  try{await claimPlayerInviteIfPresent()}catch(e){
+  try{await claimPlayerInviteIfPresent(user)}catch(e){
     $('#authPanel').classList.remove('hidden');
     await loadSharedPlayerInvite().catch(()=>{});
     authMessage(e.message||'Impossible d’activer cet accès joueur.',true);
@@ -4076,9 +4114,20 @@ $('#confirmSignup').onclick=async()=>{
   if(!email){signupMessage('Saisis une adresse e-mail.',true);return}
   if(!password){signupMessage('Choisis un mot de passe.',true);return}
   signupMessage('Création du compte…');
+  const pendingGroupInvite=playerGroupInviteToken();
+  const pendingPlayerId=playerGroupInvitePlayerId();
+  const pendingDirectInvite=playerInviteToken();
   const {data,error}=await db.auth.signUp({
     email,password,
-    options:{emailRedirectTo:authRedirectWithPlayerInvite(),data:{first_name:firstName}}
+    options:{
+      emailRedirectTo:authRedirectWithPlayerInvite(),
+      data:{
+        first_name:firstName,
+        pending_player_group_invite:pendingGroupInvite||null,
+        pending_player_id:pendingPlayerId||null,
+        pending_player_invite:pendingDirectInvite||null
+      }
+    }
   });
   $('#signupPassword').value='';
   if(error){signupMessage(error.message,true);return}
