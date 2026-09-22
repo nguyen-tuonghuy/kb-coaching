@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kinball Coach · Vidéos</title>
+<style>
+:root{
+  --bg:#0f1217;--panel:#171c24;--panel2:#1d232d;--line:#303845;--text:#f4f6f8;
+  --muted:#9aa5b4;--primary:#3478f6;--danger:#e15b64;--success:#4ed28b
+}
+*{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,input,textarea,select{font:inherit}button,a.button{border:1px solid var(--line);border-radius:12px;background:#171c24;color:var(--text);padding:10px 13px;text-decoration:none;cursor:pointer}
+button:hover,a.button:hover{border-color:#587197}button.primary{background:var(--primary);border-color:var(--primary);color:white;font-weight:700}
+button.ghost,a.ghost{background:transparent}.hidden{display:none!important}.small{font-size:12px;color:var(--muted);line-height:1.45}.muted{color:var(--muted)}
+.shell{max-width:1180px;margin:0 auto;padding:18px}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.brand{font-size:22px;font-weight:800}.topActions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.status{display:inline-flex;align-items:center;gap:7px;border-radius:999px;background:#1e2530;padding:8px 11px;font-size:13px}.dot{width:9px;height:9px;border-radius:50%;background:var(--success)}
+.panel{border:1px solid var(--line);border-radius:20px;background:var(--panel);padding:16px}
+.nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}.nav a{border:1px solid var(--line);border-radius:12px;padding:10px 13px;color:var(--text);text-decoration:none}.nav a.active{border-color:#fff;background:#212833;font-weight:700}
+.head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap}.head h1{font-size:25px;margin:3px 0 2px}.headActions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.notice{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#121720;margin:12px 0;font-size:13px;color:var(--muted)}
+.upload{border:1px solid var(--line);border-radius:16px;padding:14px;background:var(--panel2);display:grid;gap:10px;margin:14px 0}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}.field{display:grid;gap:5px}.field label{font-size:12px;color:var(--muted)}
+input,textarea,select{width:100%;border:1px solid var(--line);border-radius:11px;background:#121720;color:var(--text);padding:10px 11px}textarea{min-height:116px;resize:vertical}
+.progress{height:7px;border-radius:999px;background:#20252e;overflow:hidden}.progress>div{height:100%;width:0;background:var(--primary);transition:width .15s ease}
+.videoList{display:grid;gap:10px}.card{border:1px solid var(--line);border-radius:14px;padding:12px;background:#181d25;display:grid;gap:9px}
+.cardHead{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}.meta{font-size:12px;color:var(--muted)}.badges{display:flex;gap:6px;flex-wrap:wrap}
+.badge{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:700;background:#252b35;color:var(--muted)}
+.badge.new{background:#57302f;color:#ffd3d0}.badge.seen{background:#293751;color:#d9e8ff}.badge.reviewed{background:#244736;color:#ccefdc}
+.actions{display:flex;gap:7px;flex-wrap:wrap}.review{display:grid;gap:7px;padding-top:8px;border-top:1px solid var(--line)}.review textarea{min-height:92px}
+.player{border:1px solid var(--line);border-radius:16px;background:#0d0f13;padding:10px;margin:14px 0}
+.playerHeader{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+.videoStage{position:relative}.videoStage video{display:block;width:100%;max-height:min(68vh,760px);background:#000;border-radius:10px}
+.overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;border-radius:10px}
+.controls{display:grid;gap:9px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}.controlRow{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.rate.active{border-color:var(--primary);background:#22304d}.rateDisplay{font-weight:800;min-width:52px;text-align:center}.time{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px}.hint{color:var(--muted);font-size:11px;line-height:1.4}
+.annotationPanel{display:grid;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}.annotationHeader{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.composer{display:grid;gap:10px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#121821}.tools{display:flex;gap:7px;flex-wrap:wrap;align-items:center}.tools select{width:auto}
+.noteList{display:grid;gap:10px}.note{display:grid;gap:8px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#151b24}
+.noteTop{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}.noteMeta{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.noteTime{font-variant-numeric:tabular-nums;font-weight:800}
+.noteThumb{width:220px;max-width:100%;border:1px solid var(--line);border-radius:10px;display:block;background:#000}.noteText{white-space:pre-wrap}.readonly{font-size:12px;color:var(--muted);padding:10px 12px;border:1px dashed var(--line);border-radius:12px;background:#121821}
+.error{color:#ffc4c8}.ok{color:#aeeecb}
+@media(max-width:680px){.shell{padding:10px}.panel{padding:12px}.grid2{grid-template-columns:1fr}.nav{gap:6px}.nav a{padding:9px 10px}.head h1{font-size:22px}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <div class="brand">Kinball Coach</div>
+    <div class="topActions">
+      <span class="status"><span class="dot"></span><span id="cloudText">Connexion…</span></span>
+      <button id="logout">Déconnexion</button>
+    </div>
+  </div>
+
+  <main class="panel">
+    <nav class="nav" id="nav">
+      <a href="index.html#player-home">Accueil</a>
+      <a href="index.html#player-stats">Mes statistiques</a>
+      <a href="videos.html" class="active">Mes vidéos</a>
+      <a href="index.html#player-profile">Mon profil</a>
+    </nav>
+
+    <div class="head">
+      <div>
+        <div class="small" id="modeLabel">Suivi technique</div>
+        <h1 id="title">Mes vidéos</h1>
+        <div class="small" id="subtitle"></div>
+      </div>
+      <div class="headActions">
+        <button class="ghost" id="syncBtn">↻ Synchroniser Drive</button>
+        <a class="button ghost hidden" id="driveLink" target="_blank" rel="noopener">Ouvrir le dossier Drive</a>
+        <a class="button ghost hidden" id="historyLink" target="_blank" rel="noopener">Historique « Retours staff »</a>
+      </div>
+    </div>
+
+    <div class="notice hidden" id="staffNotice">Vue entraîneur : analyse vidéo et commentaires horodatés pour ce joueur.</div>
+    <div class="small" id="status"></div>
+
+    <section class="upload" id="uploadCard">
+      <div><strong>Ajouter une vidéo</strong><div class="small" style="margin-top:3px">Le fichier est envoyé directement dans ton dossier Google Drive existant.</div></div>
+      <div class="grid2">
+        <div class="field"><label>Vidéo</label><input id="fileInput" type="file" accept="video/*"></div>
+        <div class="field"><label>Titre (facultatif)</label><input id="titleInput" maxlength="180" placeholder="Ex. Frappes ligne · entraînement"></div>
+      </div>
+      <div class="field"><label>Message au staff (facultatif)</label><textarea id="commentInput" maxlength="1500" placeholder="Ce que tu veux faire regarder, sensation, question…"></textarea></div>
+      <div class="actions"><button class="primary" id="uploadBtn">Envoyer la vidéo</button><span class="small" id="uploadStatus"></span></div>
+      <div class="progress hidden" id="uploadProgress"><div></div></div>
+    </section>
+
+    <section class="player hidden" id="playerBox">
+      <div class="playerHeader">
+        <div><strong id="playerTitle">Lecture vidéo</strong><div class="time" id="timeDisplay">00:00.000 / 00:00.000</div></div>
+        <button class="ghost" id="closePlayer">Fermer</button>
+      </div>
+      <div class="videoStage" id="videoStage">
+        <video id="video" controls playsinline preload="metadata" crossorigin="anonymous"></video>
+        <canvas class="overlay" id="overlay"></canvas>
+      </div>
+      <div class="controls">
+        <div class="controlRow">
+          <button class="ghost" id="prevFrame">◀ Image</button>
+          <button class="ghost" id="playPause">Lecture / Pause</button>
+          <button class="ghost" id="nextFrame">Image ▶</button>
+          <span class="rateDisplay" id="rateDisplay">1×</span>
+        </div>
+        <div class="controlRow" id="rateButtons">
+          <span class="small">Vitesse de lecture</span>
+          <button class="ghost rate" data-rate="0.1">0,1×</button>
+          <button class="ghost rate" data-rate="0.25">0,25×</button>
+          <button class="ghost rate" data-rate="0.5">0,5×</button>
+          <button class="ghost rate active" data-rate="1">1×</button>
+        </div>
+        <div class="hint">← / → ou les boutons : reculer / avancer d’une image (pas ≈ 1/30 s) · Espace : lecture/pause.</div>
+      </div>
+
+      <div class="annotationPanel">
+        <div class="annotationHeader">
+          <div><strong>Repères d’analyse</strong><div class="small">Commentaires horodatés avec capture d’image et dessin.</div></div>
+          <div class="small">Le repère utilise le timestamp courant.</div>
+        </div>
+
+        <div class="composer" id="composer">
+          <div class="tools">
+            <label class="small" for="drawTool">Outil</label>
+            <select id="drawTool">
+              <option value="arrow">Flèche</option>
+              <option value="line">Ligne</option>
+              <option value="circle">Cercle</option>
+              <option value="pen">Crayon</option>
+            </select>
+            <button class="ghost" id="clearDrawing">Effacer le dessin</button>
+            <button class="ghost" id="newNote">Nouveau repère</button>
+          </div>
+          <div class="field"><label>Commentaire horodaté</label><textarea id="noteText" maxlength="4000" placeholder="Ex. Coude trop tôt déplié"></textarea></div>
+          <div class="actions"><button class="primary" id="saveNote">Ajouter le repère</button><span class="small" id="noteStatus"></span></div>
+        </div>
+
+        <div class="readonly hidden" id="readonly"></div>
+        <div class="noteList" id="noteList"><div class="small">Sélectionne une vidéo.</div></div>
+      </div>
+    </section>
+
+    <section class="videoList" id="videoList"><div class="small">Chargement…</div></section>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL='https://chrbzchthloxowlzdvpe.supabase.co';
+const SUPABASE_KEY='sb_publishable_4pQGJ5DSzMRBuHLrAUb30g_MGZVYvEY';
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const escapeHtml=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const params=new URLSearchParams(location.search);
+
+const state={
+  user:null,groupId:null,playerId:null,playerName:'',groupName:'',
+  isCoach:false,config:null,videos:[],currentVideoId:null,notes:[],
+  shapes:[],activeShape:null
+};
+
+function setStatus(text,cls=''){const el=$('#status');el.textContent=text||'';el.className='small '+cls}
+function errorText(e){return e?.message||String(e)||'Erreur'}
+function formatDate(v){try{return new Date(v).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'})}catch{return String(v||'')}}
+function statusLabel(v){return v.status==='reviewed'?'Analysée':v.status==='seen'?'Vue par le staff':'Nouvelle'}
+function formatTime(s){const n=Number(s);if(!Number.isFinite(n)||n<0)return'00:00.000';const m=Math.floor(n/60),sec=n-m*60;return`${String(m).padStart(2,'0')}:${sec.toFixed(3).padStart(6,'0')}`}
+function driveUrl(id){return`https://drive.google.com/file/d/${encodeURIComponent(id)}/view`}
+function currentVideo(){return state.videos.find(v=>v.id===state.currentVideoId)||null}
+
+async function init(){
+  if(!window.supabase)throw new Error('Supabase indisponible.');
+  const {data:{session}}=await db.auth.getSession();
+  if(!session?.user){location.href='index.html';return}
+  state.user=session.user;
+  $('#cloudText').textContent='Synchronisé';
+
+  const requestedGroup=params.get('group');
+  const requestedPlayer=params.get('player');
+
+  if(requestedGroup && requestedPlayer){
+    const {data,error}=await db.rpc('get_player_video_config',{p_group_id:requestedGroup,p_player_id:requestedPlayer});
+    if(!error && data?.[0]){
+      state.isCoach=true;
+      state.groupId=requestedGroup;
+      state.playerId=data[0].player_id;
+      state.playerName=data[0].player_name||'Joueur';
+      state.config=data[0];
+      // Group name is optional in coach mode; keep a useful label.
+      state.groupName='Suivi entraîneur';
+    }
+  }
+
+  if(!state.groupId){
+    const {data,error}=await db.rpc('get_my_player_access');
+    if(error)throw error;
+    const accesses=data||[];
+    if(!accesses.length)throw new Error("Aucun espace joueur n'est lié à ce compte.");
+    const chosen=(requestedGroup && accesses.find(a=>a.group_id===requestedGroup))||accesses[0];
+    state.groupId=chosen.group_id;state.playerId=chosen.player_id;state.playerName=chosen.player_name||'Joueur';state.groupName=chosen.group_name||'';
+    const {data:cfg,error:cfgError}=await db.rpc('get_player_video_config',{p_group_id:state.groupId,p_player_id:state.playerId});
+    if(cfgError)throw cfgError;
+    state.config=cfg?.[0]||null;
+  }
+
+  configureUI();
+  await loadVideos();
+}
+
+function configureUI(){
+  $('#title').textContent=state.isCoach?`Vidéos · ${state.playerName}`:'Mes vidéos';
+  $('#subtitle').textContent=state.groupName||'';
+  $('#modeLabel').textContent=state.isCoach?'Analyse entraîneur':'Espace joueur';
+  $('#staffNotice').classList.toggle('hidden',!state.isCoach);
+  $('#uploadCard').classList.toggle('hidden',state.isCoach);
+
+  const cfg=state.config||{};
+  $('#driveLink').classList.toggle('hidden',!cfg.drive_folder_id);
+  if(cfg.drive_folder_id)$('#driveLink').href=`https://drive.google.com/drive/folders/${encodeURIComponent(cfg.drive_folder_id)}`;
+  $('#historyLink').classList.toggle('hidden',!cfg.feedback_doc_id);
+  if(cfg.feedback_doc_id)$('#historyLink').href=`https://docs.google.com/document/d/${encodeURIComponent(cfg.feedback_doc_id)}/edit`;
+
+  // In coach mode, return directly to the player's group page on index.
+  if(state.isCoach){
+    $('#nav').innerHTML=`<a href="index.html">Accueil entraîneur</a><a href="index.html" class="active">Analyse vidéo · ${escapeHtml(state.playerName)}</a>`;
+  }
+}
+
+async function loadVideos(){
+  setStatus('Chargement des vidéos…');
+  const {data,error}=await db.rpc('get_player_videos',{p_group_id:state.groupId,p_player_id:state.playerId});
+  if(error)throw error;
+  state.videos=data||[];
+  renderVideos();
+  setStatus('');
+}
+
+function renderVideos(){
+  const box=$('#videoList');
+  if(!state.videos.length){box.innerHTML='<div class="small">Aucune vidéo indexée pour le moment.</div>';return}
+  box.innerHTML=state.videos.map(v=>{
+    const label=statusLabel(v),cls=v.status==='reviewed'?'reviewed':v.status==='seen'?'seen':'new';
+    const msg=v.player_comment?`<div class="small"><strong>Message joueur :</strong> ${escapeHtml(v.player_comment)}</div>`:'';
+    const review=!state.isCoach && v.status==='reviewed' && v.review_text?`<div class="review"><div class="small">Retour du staff</div><div style="white-space:pre-wrap">${escapeHtml(v.review_text)}</div></div>`:'';
+    const coachReview=state.isCoach?`<div class="review">
+      <textarea data-review="${escapeHtml(v.id)}" maxlength="5000" placeholder="Retour global d’analyse…">${escapeHtml(v.review_text||'')}</textarea>
+      <div class="actions">
+        <button class="primary" data-reviewed="${escapeHtml(v.id)}">${v.status==='reviewed'?'Mettre à jour le retour':'Marquer comme analysée'}</button>
+        ${!v.seen_by_me?`<button class="ghost" data-seen="${escapeHtml(v.id)}">Marquer vue</button>`:''}
+      </div>
+    </div>`:'';
+    return`<article class="card">
+      <div class="cardHead">
+        <div><strong>${escapeHtml(v.title||v.file_name||'Vidéo')}</strong><div class="meta">${escapeHtml(formatDate(v.uploaded_at))} · ${escapeHtml(v.file_name||'')}</div></div>
+        <div class="badges"><span class="badge ${cls}">${escapeHtml(label)}</span>${state.isCoach&&!v.seen_by_me?'<span class="badge new">Non lue</span>':''}</div>
+      </div>
+      ${msg}
+      <div class="actions"><button class="ghost" data-play="${escapeHtml(v.id)}">▶ Lire / analyser</button><a class="button ghost" target="_blank" rel="noopener" href="${driveUrl(v.drive_file_id)}">Ouvrir dans Drive</a></div>
+      ${coachReview}${review}
+    </article>`;
+  }).join('');
+  box.querySelectorAll('[data-play]').forEach(b=>b.onclick=()=>openVideo(b.dataset.play));
+  box.querySelectorAll('[data-seen]').forEach(b=>b.onclick=()=>markSeen(b.dataset.seen));
+  box.querySelectorAll('[data-reviewed]').forEach(b=>b.onclick=()=>reviewVideo(b.dataset.reviewed));
+}
+
+async function syncDrive(){
+  setStatus('Synchronisation Drive…');
+  const {data,error}=await db.functions.invoke('player-drive',{body:{action:'sync',group_id:state.groupId,player_id:state.isCoach?state.playerId:null}});
+  if(error)throw error;if(data?.error)throw new Error(data.error);
+  setStatus(`${Number(data?.count||0)} vidéo(s) trouvée(s) dans Drive.`,'ok');
+  await loadVideos();
+}
+
+async function uploadVideo(){
+  const file=$('#fileInput').files?.[0],status=$('#uploadStatus'),button=$('#uploadBtn');
+  if(!file){status.textContent='Choisis une vidéo.';return}
+  if(!String(file.type||'').startsWith('video/')){status.textContent='Le fichier sélectionné n’est pas une vidéo.';return}
+  button.disabled=true;status.textContent='Préparation de l’envoi…';
+  try{
+    const title=$('#titleInput').value.trim(),comment=$('#commentInput').value.trim();
+    const {data:init,error:initError}=await db.functions.invoke('player-drive',{body:{action:'init_upload',group_id:state.groupId,file_name:file.name,mime_type:file.type||'application/octet-stream',size_bytes:file.size}});
+    if(initError)throw initError;if(init?.error)throw new Error(init.error);
+
+    const progress=$('#uploadProgress'),bar=progress.querySelector('div');progress.classList.remove('hidden');
+    await new Promise((resolve,reject)=>{
+      const xhr=new XMLHttpRequest();xhr.open('PUT',init.upload_url,true);xhr.setRequestHeader('Content-Type',file.type||'application/octet-stream');
+      xhr.upload.onprogress=e=>{if(e.lengthComputable){const p=Math.round(e.loaded/e.total*100);bar.style.width=p+'%';status.textContent=`Envoi ${p} %`}};
+      xhr.onerror=()=>resolve();
+      xhr.onload=()=>{if((xhr.status>=200&&xhr.status<300)||xhr.status===0)resolve();else reject(new Error(`Google Drive a refusé l’envoi (${xhr.status}).`))};
+      xhr.send(file);
+    });
+
+    status.textContent='Vérification dans Google Drive…';
+    const {data:finalize,error:finalizeError}=await db.functions.invoke('player-drive',{body:{action:'finalize_upload',group_id:state.groupId,file_name:file.name,mime_type:file.type||'application/octet-stream',size_bytes:file.size,title:title||null,comment:comment||null}});
+    if(finalizeError)throw finalizeError;if(finalize?.error)throw new Error(finalize.error);
+
+    $('#fileInput').value='';$('#titleInput').value='';$('#commentInput').value='';bar.style.width='100%';status.textContent='Vidéo envoyée au staff.';
+    await loadVideos();
+  }catch(e){status.textContent=errorText(e);console.error(e)}
+  finally{button.disabled=false}
+}
+
+async function markSeen(videoId){
+  const {error}=await db.rpc('mark_player_video_seen',{p_group_id:state.groupId,p_video_id:videoId});if(error)throw error;await loadVideos()
+}
+async function reviewVideo(videoId){
+  const ta=document.querySelector(`[data-review="${CSS.escape(videoId)}"]`),text=(ta?.value||'').trim();
+  if(!text){alert('Écris le retour avant de marquer la vidéo comme analysée.');return}
+  setStatus('Enregistrement du retour…');
+  const {error}=await db.rpc('review_player_video',{p_group_id:state.groupId,p_video_id:videoId,p_review_text:text});if(error)throw error;
+  setStatus('Vidéo marquée comme analysée.','ok');await loadVideos();
+  if(state.currentVideoId===videoId)await loadNotes(videoId);
+}
+
+/* Lecteur avancé */
+const RATES=[0.1,0.25,0.5,1],FRAME=1/30;
+function updateTime(){const v=$('#video');$('#timeDisplay').textContent=`${formatTime(v.currentTime)} / ${formatTime(v.duration)}`}
+function updateRate(){const v=$('#video');$('#rateDisplay').textContent=String(v.playbackRate).replace('.',',')+'×';$$('[data-rate]').forEach(b=>b.classList.toggle('active',Math.abs(Number(b.dataset.rate)-v.playbackRate)<.001))}
+function setRate(r){$('#video').playbackRate=RATES.includes(r)?r:1;updateRate()}
+function step(frames){const v=$('#video');if(!Number.isFinite(v.duration))return;v.pause();v.currentTime=Math.max(0,Math.min(v.duration,v.currentTime+frames*FRAME));updateTime()}
+function togglePlay(){const v=$('#video');v.paused?v.play().catch(()=>{}):v.pause()}
+
+async function openVideo(videoId){
+  const item=state.videos.find(v=>v.id===videoId);if(!item)return;
+  state.currentVideoId=videoId;state.shapes=[];drawOverlay();
+  $('#playerTitle').textContent=item.title||item.file_name||'Lecture vidéo';
+  $('#playerBox').classList.remove('hidden');$('#playerBox').scrollIntoView({behavior:'smooth',block:'start'});
+  setStatus('Préparation du lecteur…');
+  try{
+    const {data,error}=await db.functions.invoke('player-drive',{body:{action:'get_stream_url',group_id:state.groupId,video_id:videoId}});
+    if(error)throw error;if(data?.error)throw new Error(data.error);
+    const v=$('#video');v.pause();v.crossOrigin='anonymous';v.src=data.stream_url;v.playbackRate=1;v.load();updateRate();
+    if(state.isCoach&&!item.seen_by_me)await db.rpc('mark_player_video_seen',{p_group_id:state.groupId,p_video_id:videoId});
+    await loadNotes(videoId);setStatus('');
+  }catch(e){setStatus(errorText(e),'error');console.error(e)}
+}
+function closeVideo(){const v=$('#video');v.pause();v.removeAttribute('src');v.load();state.currentVideoId=null;state.notes=[];state.shapes=[];$('#playerBox').classList.add('hidden')}
+
+/* Annotations */
+function canEdit(){return state.isCoach}
+function syncCanvas(){
+  const v=$('#video'),c=$('#overlay'),r=v.getBoundingClientRect();if(!r.width||!r.height)return;
+  const dpr=window.devicePixelRatio||1;c.width=Math.round(r.width*dpr);c.height=Math.round(r.height*dpr);c.style.width=r.width+'px';c.style.height=r.height+'px';
+  const ctx=c.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);drawOverlay();
+}
+function point(e){const c=$('#overlay'),r=c.getBoundingClientRect();return{x:Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),y:Math.max(0,Math.min(1,(e.clientY-r.top)/r.height))}}
+function drawShape(ctx,s,w,h){
+  ctx.save();ctx.strokeStyle=s.color||'#ff4d4f';ctx.fillStyle=s.color||'#ff4d4f';ctx.lineWidth=s.width||4;ctx.lineCap='round';ctx.lineJoin='round';
+  if(s.tool==='pen'){const pts=s.points||[];if(pts.length>1){ctx.beginPath();ctx.moveTo(pts[0].x*w,pts[0].y*h);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x*w,pts[i].y*h);ctx.stroke()}}
+  else if(s.tool==='line'||s.tool==='arrow'){const x1=s.x1*w,y1=s.y1*h,x2=s.x2*w,y2=s.y2*h;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();if(s.tool==='arrow'){const a=Math.atan2(y2-y1,x2-x1),z=Math.max(12,(s.width||4)*3);ctx.beginPath();ctx.moveTo(x2,y2);ctx.lineTo(x2-z*Math.cos(a-Math.PI/6),y2-z*Math.sin(a-Math.PI/6));ctx.lineTo(x2-z*Math.cos(a+Math.PI/6),y2-z*Math.sin(a+Math.PI/6));ctx.closePath();ctx.fill()}}
+  else if(s.tool==='circle'){const x1=s.x1*w,y1=s.y1*h,x2=s.x2*w,y2=s.y2*h;ctx.beginPath();ctx.ellipse((x1+x2)/2,(y1+y2)/2,Math.max(Math.abs(x2-x1)/2,1),Math.max(Math.abs(y2-y1)/2,1),0,0,Math.PI*2);ctx.stroke()}
+  ctx.restore()
+}
+function drawOverlay(extra=null){const c=$('#overlay');if(!c)return;const ctx=c.getContext('2d'),w=c.clientWidth,h=c.clientHeight;ctx.clearRect(0,0,w,h);[...state.shapes,...(extra?[extra]:[])].forEach(s=>drawShape(ctx,s,w,h))}
+function pointerDown(e){if(!canEdit())return;$('#video').pause();const p=point(e),tool=$('#drawTool').value;if(tool==='pen')state.activeShape={tool,color:'#ff4d4f',width:4,points:[p]};else state.activeShape={tool,color:'#ff4d4f',width:4,x1:p.x,y1:p.y,x2:p.x,y2:p.y};e.target.setPointerCapture?.(e.pointerId);drawOverlay(state.activeShape)}
+function pointerMove(e){if(!canEdit()||!state.activeShape)return;const p=point(e);if(state.activeShape.tool==='pen')state.activeShape.points.push(p);else{state.activeShape.x2=p.x;state.activeShape.y2=p.y}drawOverlay(state.activeShape)}
+function pointerUp(e){if(!canEdit()||!state.activeShape)return;const s=state.activeShape;state.activeShape=null;if(s.tool!=='pen'||(s.points||[]).length>1)state.shapes.push(s);drawOverlay();e.target.releasePointerCapture?.(e.pointerId)}
+function clearDrawing(){state.shapes=[];state.activeShape=null;drawOverlay()}
+function resetDraft(){clearDrawing();$('#noteText').value='';$('#noteStatus').textContent=''}
+
+function drawShapesOnCanvas(ctx,shapes,w,h){(shapes||[]).forEach(s=>drawShape(ctx,s,w,h))}
+function captureComposite(){
+  const v=$('#video');if(!v.videoWidth||!v.videoHeight)return null;
+  const maxW=560,scale=Math.min(1,maxW/v.videoWidth),w=Math.round(v.videoWidth*scale),h=Math.round(v.videoHeight*scale);
+  const c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d');ctx.drawImage(v,0,0,w,h);drawShapesOnCanvas(ctx,state.shapes,w,h);return c.toDataURL('image/jpeg',.82)
+}
+
+async function loadNotes(videoId){
+  state.shapes=[];drawOverlay();resetDraft();
+  const item=state.videos.find(v=>v.id===videoId),list=$('#noteList');
+  $('#composer').classList.toggle('hidden',!state.isCoach);$('#overlay').style.pointerEvents=state.isCoach?'auto':'none';
+  $('#readonly').classList.toggle('hidden',state.isCoach||item?.status==='reviewed');
+  if(!state.isCoach&&item?.status!=='reviewed'){list.innerHTML='<div class="small">Les repères seront visibles lorsque la vidéo sera marquée comme analysée.</div>';return}
+  $('#readonly').textContent="L’analyse détaillée sera visible lorsque la vidéo sera marquée comme analysée.";
+  list.innerHTML='<div class="small">Chargement des repères…</div>';
+  const {data,error}=await db.rpc('get_player_video_notes',{p_group_id:state.groupId,p_video_id:videoId});if(error)throw error;state.notes=data||[];renderNotes()
+}
+function renderNotes(){
+  const list=$('#noteList');if(!state.notes.length){list.innerHTML='<div class="small">Aucun repère enregistré pour cette vidéo.</div>';return}
+  list.innerHTML=state.notes.map(n=>`<article class="note">
+    <div class="noteTop"><div class="noteMeta"><span class="noteTime">${formatTime((Number(n.note_time_ms)||0)/1000)}</span>${n.author_name?`<span class="small">${escapeHtml(n.author_name)}</span>`:''}<span class="small">${formatDate(n.created_at)}</span></div></div>
+    ${n.snapshot_data_url?`<img class="noteThumb" src="${n.snapshot_data_url}" alt="Capture annotée">`:''}
+    <div class="noteText">${n.note_text?escapeHtml(n.note_text):'<span class="small">Repère visuel sans commentaire.</span>'}</div>
+    <div class="actions"><button class="ghost" data-open-note="${escapeHtml(n.id)}">Ouvrir le repère</button>${state.isCoach?`<button class="ghost" data-delete-note="${escapeHtml(n.id)}">Supprimer</button>`:''}</div>
+  </article>`).join('');
+  list.querySelectorAll('[data-open-note]').forEach(b=>b.onclick=()=>openNote(b.dataset.openNote));
+  list.querySelectorAll('[data-delete-note]').forEach(b=>b.onclick=()=>deleteNote(b.dataset.deleteNote))
+}
+function openNote(id){const n=state.notes.find(x=>x.id===id),v=$('#video');if(!n)return;v.pause();v.currentTime=(Number(n.note_time_ms)||0)/1000;state.shapes=Array.isArray(n.drawing_data)?n.drawing_data:[];drawOverlay();if(state.isCoach)$('#noteText').value=n.note_text||''}
+async function deleteNote(id){if(!confirm('Supprimer ce repère ?'))return;const {error}=await db.rpc('delete_player_video_note',{p_group_id:state.groupId,p_note_id:id});if(error){alert(errorText(error));return}await loadNotes(state.currentVideoId)}
+async function saveNote(){
+  if(!state.isCoach||!state.currentVideoId)return;
+  const text=$('#noteText').value.trim(),st=$('#noteStatus'),v=$('#video');if(!text&&!state.shapes.length){st.textContent='Ajoute un commentaire ou un dessin.';return}
+  st.textContent='Enregistrement…';v.pause();
+  try{
+    const snapshot=captureComposite();
+    const {error}=await db.rpc('add_player_video_note',{p_group_id:state.groupId,p_video_id:state.currentVideoId,p_note_time_ms:Math.round((v.currentTime||0)*1000),p_note_text:text||null,p_snapshot_data_url:snapshot||null,p_drawing_data:state.shapes});
+    if(error)throw error;resetDraft();st.textContent='Repère ajouté.';await loadNotes(state.currentVideoId)
+  }catch(e){st.textContent=errorText(e);console.error(e)}
+}
+
+/* Events */
+$('#logout').onclick=async()=>{await db.auth.signOut();location.href='index.html'};
+$('#syncBtn').onclick=()=>syncDrive().catch(e=>setStatus(errorText(e),'error'));
+$('#uploadBtn').onclick=uploadVideo;
+$('#closePlayer').onclick=closeVideo;$('#prevFrame').onclick=()=>step(-1);$('#nextFrame').onclick=()=>step(1);$('#playPause').onclick=togglePlay;
+$$('[data-rate]').forEach(b=>b.onclick=()=>setRate(Number(b.dataset.rate)));
+$('#video').addEventListener('timeupdate',updateTime);$('#video').addEventListener('loadedmetadata',()=>{updateTime();syncCanvas()});$('#video').addEventListener('loadeddata',syncCanvas);$('#video').addEventListener('seeked',syncCanvas);$('#video').addEventListener('ratechange',updateRate);
+$('#overlay').addEventListener('pointerdown',pointerDown);$('#overlay').addEventListener('pointermove',pointerMove);$('#overlay').addEventListener('pointerup',pointerUp);$('#overlay').addEventListener('pointercancel',pointerUp);$('#overlay').addEventListener('pointerleave',pointerUp);
+$('#clearDrawing').onclick=clearDrawing;$('#newNote').onclick=resetDraft;$('#saveNote').onclick=saveNote;
+window.addEventListener('resize',syncCanvas);
+document.addEventListener('keydown',e=>{if($('#playerBox').classList.contains('hidden'))return;const tag=(document.activeElement?.tagName||'').toLowerCase();if(['input','textarea','select'].includes(tag))return;if(e.key==='ArrowLeft'){e.preventDefault();step(-1)}else if(e.key==='ArrowRight'){e.preventDefault();step(1)}else if(e.key===' '){e.preventDefault();togglePlay()}});
+
+init().catch(e=>{console.error(e);setStatus(errorText(e),'error');$('#videoList').innerHTML='<div class="error">Impossible de charger le module vidéo.</div>'});
+</script>
+</body>
+</html>
