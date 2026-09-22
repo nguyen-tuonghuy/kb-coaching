@@ -1785,6 +1785,33 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
 .playerObjectiveActions{display:flex;gap:6px;flex-wrap:wrap}
 .playerObjectiveComposer{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:10px}
 .playerObjectiveComposer input{min-width:0}
+
+.playerVideosView{display:grid;gap:14px}
+.playerVideosToolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.playerVideoUpload{border:1px solid var(--line);border-radius:16px;padding:14px;background:var(--panel2);display:grid;gap:10px}
+.playerVideoUploadGrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.playerVideoUploadProgress{height:7px;border-radius:999px;background:#20252e;overflow:hidden}
+.playerVideoUploadProgress>div{height:100%;width:0;background:var(--primary);transition:width .15s ease}
+.playerVideoList{display:grid;gap:10px}
+.playerVideoCard{border:1px solid var(--line);border-radius:14px;padding:12px;background:#181d25;display:grid;gap:9px}
+.playerVideoHeader{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.playerVideoMeta{font-size:12px;color:var(--muted)}
+.playerVideoBadges{display:flex;gap:6px;flex-wrap:wrap}
+.playerVideoBadge{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:700;background:#252b35;color:var(--muted)}
+.playerVideoBadge.new{background:#57302f;color:#ffd3d0}
+.playerVideoBadge.seen{background:#293751;color:#d9e8ff}
+.playerVideoBadge.reviewed{background:#244736;color:#ccefdc}
+.playerVideoActions{display:flex;gap:7px;flex-wrap:wrap}
+.playerVideoReview{display:grid;gap:7px;padding-top:8px;border-top:1px solid var(--line)}
+.playerVideoReview textarea{min-height:92px;resize:vertical}
+.playerVideoPlayer{border:1px solid var(--line);border-radius:16px;background:#0d0f13;padding:10px}
+.playerVideoPlayerHeader{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:8px}
+.playerVideoPlayer iframe{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;background:#000}
+.videoUnreadBadge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#7557d9;color:#fff;font-size:11px;font-weight:800;line-height:1;margin-left:5px}
+@media(max-width:620px){
+  .playerVideoUploadGrid{grid-template-columns:1fr}
+}
+
 @media(max-width:620px){
   .playerObjectiveComposer{grid-template-columns:1fr}
   .playerObjectiveItem{display:grid;grid-template-columns:1fr;gap:10px}
@@ -1886,7 +1913,7 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
     <button class="moduleCard primary" id="openMatchModule"><strong>🏐 Matchs</strong><span>Prise de notes et statistiques partagées du groupe</span></button>
     <button class="moduleCard" id="openTrainingModule"><strong>🎯 Entraînements</strong><span>Séances, exercices, résultats et progression des joueurs</span></button>
     <button class="moduleCard" id="openStatsModule"><strong>📊 Statistiques</strong><span>Entraînements, matchs, performance joueurs et référentiel offensif</span></button>
-    <button class="moduleCard" id="openGroupsModule"><strong>👥 Groupes <span class="messageUnreadBadge hidden" id="groupsUnreadBadge">0</span></strong><span>Effectifs et entraîneurs partageant les mêmes données</span></button>
+    <button class="moduleCard" id="openGroupsModule"><strong>👥 Groupes <span class="messageUnreadBadge hidden" id="groupsUnreadBadge">0</span><span class="videoUnreadBadge hidden" id="videoUnreadBadge">0</span></strong><span>Effectifs, messages et vidéos joueurs</span></button>
     <button class="moduleCard" id="openSettingsModule"><strong>⚙️ Paramètres</strong><span>Catégories d’exercices · Types de match</span></button>
     <button class="moduleCard hidden" id="openAdminModule"><strong>🛡️ Administration</strong><span>Voir tous les groupes et leurs entraîneurs</span></button>
    </div>
@@ -2011,6 +2038,7 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
   <div class="playerPortalTopNav">
    <button type="button" class="ghost active" id="playerPortalNavHome">Accueil <span class="messageUnreadBadge hidden" id="playerUnreadBadge">0</span></button>
    <button type="button" class="ghost" id="playerPortalNavStats">Mes statistiques</button>
+   <button type="button" class="ghost" id="playerPortalNavVideos">Mes vidéos <span class="videoUnreadBadge hidden" id="playerVideoNavBadge">0</span></button>
    <button type="button" class="ghost" id="playerPortalNavProfile">Mon profil</button>
    <button type="button" class="ghost hidden" id="playerPortalBackStaff">Retour espace entraîneur</button>
   </div>
@@ -2034,10 +2062,10 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
     </div>
    </div>
    <div class="playerObjectives">
-    <div class="playerObjectivesHeader"><strong>Objectifs individuels</strong><span class="analysisSubtle" id="playerObjectivesHint">Définis par les entraîneurs</span></div>
+    <div class="playerObjectivesHeader"><strong>Objectifs individuels</strong><span class="analysisSubtle" id="playerObjectivesHint">Objectifs coach et personnels</span></div>
     <div class="playerObjectivesList" id="playerObjectivesList"><div class="small">Chargement…</div></div>
     <div class="playerObjectiveComposer hidden" id="playerObjectiveComposer">
-     <input id="playerObjectiveInput" maxlength="500" placeholder="Ajouter un objectif individuel…">
+     <input id="playerObjectiveInput" maxlength="500" placeholder="Ajouter un objectif…">
      <button type="button" class="primary" id="playerObjectiveAdd">Ajouter</button>
     </div>
     <div class="small" id="playerObjectiveStatus" style="margin-top:7px"></div>
@@ -2049,12 +2077,12 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
      <p>Consulte tes indicateurs offensifs, le référentiel, les repères anonymisés du groupe et le message des entraîneurs.</p>
      <span class="cardAction">Voir mes statistiques →</span>
     </button>
-    <div class="playerPortalHomeCard disabled">
-     <div class="analysisSubtle">À venir</div>
-     <h3>Entraînements</h3>
-     <p>Les résultats de tes séances d’entraînement seront disponibles ici dans une prochaine évolution.</p>
-     <span class="cardAction">Bientôt disponible</span>
-    </div>
+    <button type="button" class="playerPortalHomeCard" id="playerPortalHomeVideosCard">
+     <div class="analysisSubtle">Vidéo</div>
+     <h3>Mes vidéos</h3>
+     <p>Ajoute tes vidéos dans ton dossier Drive, suis leur analyse et consulte les retours du staff.</p>
+     <span class="cardAction">Ouvrir mes vidéos →</span>
+    </button>
     <button type="button" class="playerPortalHomeCard" id="playerPortalHomeProfileCard">
      <div class="analysisSubtle">Compte</div>
      <h3>Mon profil</h3>
@@ -2073,6 +2101,40 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
    <div class="playerPortalScopeTabs" id="playerPortalScopeTabs"><button type="button" class="ghost active" data-player-scope="all">Cumulé</button><button type="button" class="ghost" data-player-scope="center">Jeu au centre</button><button type="button" class="ghost" data-player-scope="restart">Remise en jeu</button></div>
    <div class="field hidden" id="playerPortalRestartField" style="max-width:260px;margin:8px 0 12px"><label>Type de remise en jeu</label><select id="playerPortalRestart"><option value="all">Toutes les remises</option><option value="center">Au centre</option><option value="line">Sur ligne</option><option value="corner">Sur coin</option></select></div>
    <div id="playerPortalContent"><div class="statsEmpty">Chargement…</div></div>
+  </div>
+
+  <div class="hidden playerVideosView" id="playerPortalVideosView">
+   <div class="playerPortalStatsHeader">
+    <div><div class="analysisSubtle">Suivi technique</div><h2 id="playerVideosTitle">Mes vidéos</h2><div class="small" id="playerVideosSubtitle"></div></div>
+   </div>
+   <div class="playerVideosToolbar">
+    <button type="button" class="ghost" id="playerVideoSync">↻ Synchroniser le dossier Drive</button>
+    <a class="ghost hidden" id="playerVideoDriveFolderLink" target="_blank" rel="noopener">Ouvrir le dossier Drive</a>
+    <a class="ghost hidden" id="playerVideoFeedbackDocLink" target="_blank" rel="noopener">Ouvrir « Retours staff »</a>
+    <span class="small" id="playerVideoStatus"></span>
+   </div>
+
+   <div class="playerVideoUpload" id="playerVideoUploadCard">
+    <div><strong>Ajouter une vidéo</strong><div class="small" style="margin-top:3px">Le fichier sera envoyé directement dans ton dossier Google Drive existant.</div></div>
+    <div class="playerVideoUploadGrid">
+     <div class="field"><label>Vidéo</label><input id="playerVideoFile" type="file" accept="video/*"></div>
+     <div class="field"><label>Titre (facultatif)</label><input id="playerVideoTitleInput" maxlength="180" placeholder="Ex. Frappes ligne · entraînement"></div>
+    </div>
+    <div class="field"><label>Message au staff (facultatif)</label><textarea id="playerVideoCommentInput" maxlength="1500" placeholder="Ce que tu veux faire regarder, sensation, question…"></textarea></div>
+    <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap">
+     <button type="button" class="primary" id="playerVideoUploadBtn">Envoyer la vidéo</button>
+     <span class="small" id="playerVideoUploadStatus"></span>
+    </div>
+    <div class="playerVideoUploadProgress hidden" id="playerVideoUploadProgress"><div></div></div>
+   </div>
+
+   <div class="playerVideoPlayer hidden" id="playerVideoPlayer">
+    <div class="playerVideoPlayerHeader"><strong id="playerVideoPlayerTitle">Lecture vidéo</strong><button type="button" class="ghost" id="playerVideoPlayerClose">Fermer</button></div>
+    <iframe id="playerVideoFrame" allow="autoplay; fullscreen" allowfullscreen></iframe>
+    <div class="small" style="margin-top:7px">Lecture Drive intégrée. Un mode d’analyse avancé (vitesse à la molette, image par image, annotations et comparaison) pourra être ajouté ensuite.</div>
+   </div>
+
+   <div class="playerVideoList" id="playerVideoList"><div class="small">Chargement…</div></div>
   </div>
 
   <div class="hidden" id="playerPortalProfileView">
@@ -3797,10 +3859,11 @@ async function returnToStaffSpace(){
 }
 function playerPortalSetView(view){
   playerPortalState.view=view||'home';
-  const views={home:'#playerPortalHomeView',stats:'#playerPortalStatsView',profile:'#playerPortalProfileView'};
+  const views={home:'#playerPortalHomeView',stats:'#playerPortalStatsView',videos:'#playerPortalVideosView',profile:'#playerPortalProfileView'};
   Object.entries(views).forEach(([k,sel])=>$(sel)?.classList.toggle('hidden',k!==playerPortalState.view));
-  const nav={home:'#playerPortalNavHome',stats:'#playerPortalNavStats',profile:'#playerPortalNavProfile'};
+  const nav={home:'#playerPortalNavHome',stats:'#playerPortalNavStats',videos:'#playerPortalNavVideos',profile:'#playerPortalNavProfile'};
   Object.entries(nav).forEach(([k,sel])=>$(sel)?.classList.toggle('active',k===playerPortalState.view));
+  if(playerPortalState.view==='videos')loadPlayerVideos().catch(e=>handleError('player videos',e));
   window.scrollTo({top:0,behavior:'instant'});
 }
 function refreshPlayerPortalIdentity(){
@@ -3872,61 +3935,267 @@ function playerObjectiveDate(v){
   if(!v)return '';
   try{return new Date(v).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'})}catch{return String(v)}
 }
-function playerObjectivesHtml(rows){
-  const active=(rows||[]).filter(x=>x.status==='active');
-  const completed=(rows||[]).filter(x=>x.status==='completed').slice(0,5);
-  const item=(o,isCompleted=false)=>`<div class="playerObjectiveItem ${isCompleted?'completed':''}">
-    <div class="playerObjectiveText"><strong>${escapeHtml(o.objective||'')}</strong><div class="playerObjectiveMeta">${isCompleted?`Atteint le ${escapeHtml(playerObjectiveDate(o.completed_at))}`:`Ajouté le ${escapeHtml(playerObjectiveDate(o.created_at))}${o.created_by_name?' · '+escapeHtml(o.created_by_name):''}`}</div></div>
-    ${playerPortalState.staffPreview?`<div class="playerObjectiveActions"><button type="button" class="ghost" data-objective-action="${isCompleted?'reopen':'complete'}" data-objective-id="${escapeHtml(o.id)}">${isCompleted?'Réouvrir':'Marquer atteint'}</button></div>`:''}
+function playerObjectiveItemHtml(o,isCompleted=false){
+  const source=o.source==='player'?'player':'coach';
+  const sourceLabel=source==='player'?'Objectif personnel':'Objectif coach';
+  const canEditPersonal=!playerPortalState.staffPreview&&source==='player';
+  const canEditCoach=playerPortalState.staffPreview&&source==='coach';
+  const actions=[];
+  if(canEditCoach)actions.push(`<button type="button" class="ghost" data-objective-action="${isCompleted?'reopen':'complete'}" data-objective-id="${escapeHtml(o.id)}">${isCompleted?'Réouvrir':'Marquer atteint'}</button>`);
+  if(canEditPersonal){
+    actions.push(`<button type="button" class="ghost" data-objective-action="${isCompleted?'reopen':'complete'}" data-objective-id="${escapeHtml(o.id)}">${isCompleted?'Réouvrir':'Marquer atteint'}</button>`);
+    actions.push(`<button type="button" class="ghost" data-objective-action="edit" data-objective-id="${escapeHtml(o.id)}" data-objective-text="${escapeHtml(o.objective||'')}">Modifier</button>`);
+    actions.push(`<button type="button" class="ghost" data-objective-action="delete" data-objective-id="${escapeHtml(o.id)}">Supprimer</button>`);
+  }
+  return `<div class="playerObjectiveItem ${isCompleted?'completed':''}">
+    <div class="playerObjectiveText"><strong>${escapeHtml(o.objective||'')}</strong><div class="playerObjectiveMeta">${escapeHtml(sourceLabel)} · ${isCompleted?`Atteint le ${escapeHtml(playerObjectiveDate(o.completed_at))}`:`Ajouté le ${escapeHtml(playerObjectiveDate(o.created_at))}${o.created_by_name?' · '+escapeHtml(o.created_by_name):''}`}</div></div>
+    ${actions.length?`<div class="playerObjectiveActions">${actions.join('')}</div>`:''}
   </div>`;
-  let html=active.length?active.map(o=>item(o,false)).join(''):'<div class="small">Aucun objectif actif pour le moment.</div>';
-  if(completed.length)html+=`<details style="margin-top:4px"><summary class="small">Objectifs atteints (${completed.length})</summary><div class="playerObjectivesList" style="margin-top:8px">${completed.map(o=>item(o,true)).join('')}</div></details>`;
-  return html;
+}
+function playerObjectivesHtml(rows){
+  const all=rows||[];
+  const sections=[
+    {source:'coach',title:'Objectifs fixés par le staff'},
+    {source:'player',title:'Objectifs personnels'}
+  ];
+  return sections.map(section=>{
+    const active=all.filter(x=>(x.source||'coach')===section.source&&x.status==='active');
+    const completed=all.filter(x=>(x.source||'coach')===section.source&&x.status==='completed').slice(0,5);
+    let body=active.length?active.map(o=>playerObjectiveItemHtml(o,false)).join(''):'<div class="small">Aucun objectif actif.</div>';
+    if(completed.length)body+=`<details style="margin-top:6px"><summary class="small">Objectifs atteints (${completed.length})</summary><div class="playerObjectivesList" style="margin-top:8px">${completed.map(o=>playerObjectiveItemHtml(o,true)).join('')}</div></details>`;
+    return `<div style="display:grid;gap:7px"><div class="analysisSubtle">${section.title}</div>${body}</div>`;
+  }).join('<div style="height:10px"></div>');
 }
 async function loadPlayerObjectives(){
   const groupId=playerPortalState.groupId,playerId=playerPortalTargetPlayerId();
-  const box=$('#playerObjectivesList'),composer=$('#playerObjectiveComposer'),hint=$('#playerObjectivesHint');
+  const box=$('#playerObjectivesList'),composer=$('#playerObjectiveComposer'),hint=$('#playerObjectivesHint'),input=$('#playerObjectiveInput');
   if(!groupId||!playerId||!box)return;
-  if(composer)composer.classList.toggle('hidden',!playerPortalState.staffPreview);
-  if(hint)hint.textContent=playerPortalState.staffPreview?'Tu peux définir jusqu’à 3 objectifs actifs.':'Définis par les entraîneurs';
+  if(composer)composer.classList.remove('hidden');
+  if(hint)hint.textContent=playerPortalState.staffPreview?'3 objectifs coach actifs maximum · les objectifs personnels restent sous le contrôle du joueur.':'Tu peux gérer jusqu’à 3 objectifs personnels, en plus de ceux fixés par le staff.';
+  if(input)input.placeholder=playerPortalState.staffPreview?'Ajouter un objectif coach…':'Ajouter un objectif personnel…';
   box.innerHTML='<div class="small">Chargement…</div>';
   const {data,error}=await db.rpc('get_player_objectives',{p_group_id:groupId,p_player_id:playerId});
   if(error)throw error;
+  playerPortalState.objectives=data||[];
   box.innerHTML=playerObjectivesHtml(data||[]);
-  box.querySelectorAll('[data-objective-action]').forEach(b=>b.onclick=()=>updatePlayerObjectiveStatus(b.dataset.objectiveId,b.dataset.objectiveAction));
+  box.querySelectorAll('[data-objective-action]').forEach(b=>b.onclick=()=>updatePlayerObjectiveStatus(b.dataset.objectiveId,b.dataset.objectiveAction,b.dataset.objectiveText||''));
 }
 async function addPlayerObjective(){
-  if(!playerPortalState.staffPreview)return;
   const groupId=playerPortalState.groupId,playerId=playerPortalTargetPlayerId();
   const input=$('#playerObjectiveInput'),status=$('#playerObjectiveStatus'),button=$('#playerObjectiveAdd');
   const objective=(input?.value||'').trim();
-  if(!objective)return;
+  if(!objective||!groupId||!playerId)return;
   button.disabled=true;if(status)status.textContent='Ajout…';
   try{
-    const {error}=await db.rpc('add_player_objective',{p_group_id:groupId,p_player_id:playerId,p_objective:objective});
+    const call=playerPortalState.staffPreview
+      ? db.rpc('add_player_objective',{p_group_id:groupId,p_player_id:playerId,p_objective:objective})
+      : db.rpc('add_my_player_objective',{p_group_id:groupId,p_objective:objective});
+    const {error}=await call;
     if(error)throw error;
-    input.value='';if(status)status.textContent='Objectif ajouté.';
+    input.value='';if(status)status.textContent=playerPortalState.staffPreview?'Objectif coach ajouté.':'Objectif personnel ajouté.';
     await loadPlayerObjectives();
   }catch(e){
-    if(status)status.textContent=e?.message?.includes('Maximum de 3')?'Maximum de 3 objectifs actifs.':'Impossible d’ajouter l’objectif.';
+    if(status)status.textContent=e?.message?.includes('Maximum de 3')?'Maximum de 3 objectifs actifs pour cette catégorie.':'Impossible d’ajouter l’objectif.';
     handleError('add player objective',e);
   }finally{button.disabled=false}
 }
-async function updatePlayerObjectiveStatus(objectiveId,action){
-  if(!playerPortalState.staffPreview||!objectiveId)return;
+async function updatePlayerObjectiveStatus(objectiveId,action,currentText=''){
+  if(!objectiveId)return;
   const status=$('#playerObjectiveStatus');
-  if(status)status.textContent=action==='complete'?'Mise à jour…':'Réouverture…';
   try{
-    const rpc=action==='complete'?'complete_player_objective':'reopen_player_objective';
-    const {error}=await db.rpc(rpc,{p_group_id:playerPortalState.groupId,p_objective_id:objectiveId});
-    if(error)throw error;
-    if(status)status.textContent=action==='complete'?'Objectif marqué comme atteint.':'Objectif réouvert.';
+    if(playerPortalState.staffPreview){
+      if(!['complete','reopen'].includes(action))return;
+      const rpc=action==='complete'?'complete_player_objective':'reopen_player_objective';
+      const {error}=await db.rpc(rpc,{p_group_id:playerPortalState.groupId,p_objective_id:objectiveId});
+      if(error)throw error;
+    }else{
+      if(action==='edit'){
+        const next=prompt('Modifier ton objectif personnel :',currentText||'');
+        if(next===null)return;
+        const {error}=await db.rpc('update_my_player_objective',{p_group_id:playerPortalState.groupId,p_objective_id:objectiveId,p_objective:next});
+        if(error)throw error;
+      }else if(action==='delete'){
+        if(!confirm('Supprimer cet objectif personnel ?'))return;
+        const {error}=await db.rpc('delete_my_player_objective',{p_group_id:playerPortalState.groupId,p_objective_id:objectiveId});
+        if(error)throw error;
+      }else{
+        const rpc=action==='complete'?'complete_my_player_objective':'reopen_my_player_objective';
+        const {error}=await db.rpc(rpc,{p_group_id:playerPortalState.groupId,p_objective_id:objectiveId});
+        if(error)throw error;
+      }
+    }
+    if(status)status.textContent='Objectif mis à jour.';
     await loadPlayerObjectives();
   }catch(e){
-    if(status)status.textContent=e?.message?.includes('Maximum de 3')?'Maximum de 3 objectifs actifs.':'Impossible de modifier l’objectif.';
+    if(status)status.textContent=e?.message?.includes('Maximum de 3')?'Maximum de 3 objectifs actifs pour cette catégorie.':'Impossible de modifier l’objectif.';
     handleError('update player objective',e);
   }
 }
+
+function playerVideoDate(v){
+  if(!v)return '';
+  try{return new Date(v).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'})}catch{return String(v)}
+}
+function playerVideoStatusLabel(v){
+  return v.status==='reviewed'?'Analysée':v.status==='seen'?'Vue par le staff':'Nouvelle';
+}
+function playerVideoDriveUrl(fileId){return `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/view`}
+function playerVideoPreviewUrl(fileId){return `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/preview`}
+function closePlayerVideo(){
+  $('#playerVideoFrame')?.setAttribute('src','about:blank');
+  $('#playerVideoPlayer')?.classList.add('hidden');
+}
+function openPlayerVideo(videoId){
+  const v=(playerPortalState.videos||[]).find(x=>x.id===videoId);if(!v)return;
+  $('#playerVideoPlayerTitle').textContent=v.title||v.file_name||'Lecture vidéo';
+  $('#playerVideoFrame').src=playerVideoPreviewUrl(v.drive_file_id);
+  $('#playerVideoPlayer').classList.remove('hidden');
+  $('#playerVideoPlayer').scrollIntoView({behavior:'smooth',block:'start'});
+  if(playerPortalState.staffPreview&&!v.seen_by_me)markPlayerVideoSeen(v.id).catch(e=>handleError('mark video seen',e));
+}
+function playerVideoCardHtml(v){
+  const label=playerVideoStatusLabel(v);
+  const badgeClass=v.status==='reviewed'?'reviewed':v.status==='seen'?'seen':'new';
+  const title=escapeHtml(v.title||v.file_name||'Vidéo');
+  const comment=v.player_comment?`<div class="small"><strong>Message joueur :</strong> ${escapeHtml(v.player_comment)}</div>`:'';
+  const review=v.status==='reviewed'&&v.review_text?`<div class="playerVideoReview"><div class="analysisSubtle">Retour du staff</div><div style="white-space:pre-wrap">${escapeHtml(v.review_text)}</div></div>`:'';
+  const staffReview=playerPortalState.staffPreview?`<div class="playerVideoReview">
+    <textarea data-video-review="${escapeHtml(v.id)}" maxlength="5000" placeholder="Écrire le retour d’analyse…">${escapeHtml(v.review_text||'')}</textarea>
+    <div class="row" style="gap:7px;flex-wrap:wrap">
+      <button type="button" class="primary" data-video-reviewed="${escapeHtml(v.id)}">${v.status==='reviewed'?'Mettre à jour le retour':'Marquer comme analysée'}</button>
+      ${!v.seen_by_me?`<button type="button" class="ghost" data-video-seen="${escapeHtml(v.id)}">Marquer vue</button>`:''}
+    </div>
+  </div>`:'';
+  return `<div class="playerVideoCard">
+    <div class="playerVideoHeader">
+      <div><strong>${title}</strong><div class="playerVideoMeta">${escapeHtml(playerVideoDate(v.uploaded_at))} · ${v.file_name?escapeHtml(v.file_name):''}</div></div>
+      <div class="playerVideoBadges"><span class="playerVideoBadge ${badgeClass}">${escapeHtml(label)}</span>${playerPortalState.staffPreview&&!v.seen_by_me?'<span class="playerVideoBadge new">Non lue</span>':''}</div>
+    </div>
+    ${comment}
+    <div class="playerVideoActions">
+      <button type="button" class="ghost" data-video-play="${escapeHtml(v.id)}">▶ Lire</button>
+      <a class="ghost" target="_blank" rel="noopener" href="${playerVideoDriveUrl(v.drive_file_id)}">Ouvrir dans Drive</a>
+    </div>
+    ${playerPortalState.staffPreview?staffReview:review}
+  </div>`;
+}
+async function loadPlayerVideoConfig(){
+  const groupId=playerPortalState.groupId,playerId=playerPortalTargetPlayerId();if(!groupId||!playerId)return null;
+  const {data,error}=await db.rpc('get_player_video_config',{p_group_id:groupId,p_player_id:playerId});
+  if(error)throw error;
+  playerPortalState.videoConfig=data?.[0]||null;
+  const cfg=playerPortalState.videoConfig;
+  const folder=$('#playerVideoDriveFolderLink'),doc=$('#playerVideoFeedbackDocLink');
+  if(folder){
+    folder.classList.toggle('hidden',!cfg?.drive_folder_id);
+    if(cfg?.drive_folder_id)folder.href=`https://drive.google.com/drive/folders/${encodeURIComponent(cfg.drive_folder_id)}`;
+  }
+  if(doc){
+    doc.classList.toggle('hidden',!cfg?.feedback_doc_id);
+    if(cfg?.feedback_doc_id)doc.href=`https://docs.google.com/document/d/${encodeURIComponent(cfg.feedback_doc_id)}/edit`;
+  }
+  return cfg;
+}
+async function loadPlayerVideos(){
+  const groupId=playerPortalState.groupId,playerId=playerPortalTargetPlayerId();
+  const list=$('#playerVideoList');if(!groupId||!playerId||!list)return;
+  $('#playerVideosTitle').textContent=playerPortalState.staffPreview?'Vidéos du joueur':'Mes vidéos';
+  $('#playerVideosSubtitle').textContent=(playerPortalAccessForGroup(groupId)?.group_name||'');
+  $('#playerVideoUploadCard')?.classList.toggle('hidden',playerPortalState.staffPreview);
+  list.innerHTML='<div class="small">Chargement…</div>';
+  await loadPlayerVideoConfig();
+  const {data,error}=await db.rpc('get_player_videos',{p_group_id:groupId,p_player_id:playerId});
+  if(error)throw error;
+  playerPortalState.videos=data||[];
+  list.innerHTML=playerPortalState.videos.length?playerPortalState.videos.map(playerVideoCardHtml).join(''):'<div class="small">Aucune vidéo indexée pour le moment. Utilise « Synchroniser le dossier Drive » pour reprendre les vidéos déjà présentes.</div>';
+  list.querySelectorAll('[data-video-play]').forEach(b=>b.onclick=()=>openPlayerVideo(b.dataset.videoPlay));
+  list.querySelectorAll('[data-video-seen]').forEach(b=>b.onclick=()=>markPlayerVideoSeen(b.dataset.videoSeen).catch(e=>handleError('mark video seen',e)));
+  list.querySelectorAll('[data-video-reviewed]').forEach(b=>b.onclick=()=>reviewPlayerVideo(b.dataset.videoReviewed).catch(e=>handleError('review video',e)));
+}
+async function syncPlayerDriveVideos(){
+  const status=$('#playerVideoStatus');if(status)status.textContent='Synchronisation Drive…';
+  const {data,error}=await db.functions.invoke('player-drive',{body:{action:'sync',group_id:playerPortalState.groupId,player_id:playerPortalState.staffPreview?playerPortalTargetPlayerId():null}});
+  if(error)throw error;
+  if(data?.error)throw new Error(data.error);
+  if(status)status.textContent=`${Number(data?.count||0)} vidéo(s) trouvée(s) dans Drive.`;
+  await loadPlayerVideos();
+}
+async function uploadMyPlayerVideo(){
+  if(playerPortalState.staffPreview)return;
+  const input=$('#playerVideoFile'),file=input?.files?.[0],status=$('#playerVideoUploadStatus'),button=$('#playerVideoUploadBtn');
+  if(!file){if(status)status.textContent='Choisis une vidéo.';return}
+  if(!String(file.type||'').startsWith('video/')){if(status)status.textContent='Le fichier sélectionné n’est pas une vidéo.';return}
+  button.disabled=true;if(status)status.textContent='Préparation de l’envoi…';
+  try{
+    const {data:init,error:initError}=await db.functions.invoke('player-drive',{body:{
+      action:'init_upload',group_id:playerPortalState.groupId,file_name:file.name,mime_type:file.type||'application/octet-stream',size_bytes:file.size
+    }});
+    if(initError)throw initError;
+    if(init?.error)throw new Error(init.error);
+    const progress=$('#playerVideoUploadProgress'),bar=progress?.querySelector('div');
+    progress?.classList.remove('hidden');
+    const driveFile=await new Promise((resolve,reject)=>{
+      const xhr=new XMLHttpRequest();
+      xhr.open('PUT',init.upload_url,true);
+      xhr.setRequestHeader('Content-Type',file.type||'application/octet-stream');
+      xhr.upload.onprogress=e=>{if(e.lengthComputable&&bar)bar.style.width=`${Math.round(e.loaded/e.total*100)}%`;if(status&&e.lengthComputable)status.textContent=`Envoi ${Math.round(e.loaded/e.total*100)} %`};
+      xhr.onerror=()=>reject(new Error('Échec de l’envoi vers Google Drive.'));
+      xhr.onload=()=>{if(xhr.status>=200&&xhr.status<300){try{resolve(JSON.parse(xhr.responseText||'{}'))}catch{resolve({})}}else reject(new Error(`Google Drive a refusé l’envoi (${xhr.status}).`))};
+      xhr.send(file);
+    });
+    if(!driveFile?.id)throw new Error('Google Drive n’a pas renvoyé l’identifiant du fichier.');
+    const title=($('#playerVideoTitleInput')?.value||'').trim(),comment=($('#playerVideoCommentInput')?.value||'').trim();
+    const {error:regError}=await db.rpc('register_my_player_video',{
+      p_group_id:playerPortalState.groupId,p_drive_file_id:driveFile.id,p_file_name:driveFile.name||file.name,
+      p_mime_type:driveFile.mimeType||file.type||null,p_size_bytes:Number(driveFile.size||file.size)||null,
+      p_title:title||null,p_comment:comment||null
+    });
+    if(regError)throw regError;
+    input.value='';$('#playerVideoTitleInput').value='';$('#playerVideoCommentInput').value='';
+    if(bar)bar.style.width='100%';if(status)status.textContent='Vidéo envoyée au staff.';
+    await loadPlayerVideos();await refreshVideoNotifications().catch(()=>{});
+  }catch(e){
+    if(status)status.textContent=e?.message||'Impossible d’envoyer la vidéo.';
+    handleError('upload player video',e);
+  }finally{button.disabled=false}
+}
+async function markPlayerVideoSeen(videoId){
+  const {error}=await db.rpc('mark_player_video_seen',{p_group_id:playerPortalState.groupId,p_video_id:videoId});
+  if(error)throw error;
+  await refreshVideoNotifications().catch(()=>{});
+  await loadPlayerVideos();
+}
+async function reviewPlayerVideo(videoId){
+  const textarea=document.querySelector(`[data-video-review="${CSS.escape(videoId)}"]`);
+  const text=(textarea?.value||'').trim();if(!text){alert('Écris le retour avant de marquer la vidéo comme analysée.');return}
+  const status=$('#playerVideoStatus');if(status)status.textContent='Enregistrement du retour…';
+  const {error}=await db.rpc('review_player_video',{p_group_id:playerPortalState.groupId,p_video_id:videoId,p_review_text:text});
+  if(error)throw error;
+  let driveWarning='';
+  try{
+    const {data,error:fnError}=await db.functions.invoke('player-drive',{body:{action:'append_review',group_id:playerPortalState.groupId,video_id:videoId}});
+    if(fnError)throw fnError;if(data?.error)throw new Error(data.error);
+  }catch(e){driveWarning=' Le retour est bien enregistré dans Kinball Coach, mais la copie dans « Retours staff » a échoué.';console.warn(e)}
+  if(status)status.textContent='Vidéo marquée comme analysée.'+driveWarning;
+  await refreshVideoNotifications().catch(()=>{});
+  await loadPlayerVideos();
+}
+let videoNotificationState=[];
+function videoNotificationCountFor(groupId,playerId){
+  return (videoNotificationState||[]).filter(x=>x.group_id===groupId&&x.player_id===playerId).length;
+}
+function renderVideoNotifications(){
+  const total=(videoNotificationState||[]).length;
+  const badge=$('#videoUnreadBadge');if(badge){badge.textContent=String(total);badge.classList.toggle('hidden',!total)}
+  if(groupState.currentGroupId&&groupState.currentPlayers?.length)renderGroupPlayers();
+}
+async function refreshVideoNotifications(){
+  if(!currentUser)return [];
+  const {data,error}=await db.rpc('get_my_video_notifications');
+  if(error)throw error;
+  videoNotificationState=data||[];renderVideoNotifications();return videoNotificationState;
+}
+
 function syncPlayerPortalRole(groupId){const access=playerPortalAccessForGroup(groupId);const sel=$('#playerPortalRole'),status=$('#playerPortalRoleStatus');if(!sel)return;sel.value=access?.preferred_role||'AP';if(status)status.textContent=playerPortalState.staffPreview?'Modifiable par l’entraîneur ou le joueur.':'Modifiable par le joueur.'}
 async function saveMyPreferredRole(role){
   const groupId=playerPortalState.groupId;if(!groupId)return;
@@ -3990,7 +4259,7 @@ function playerPortalSheetHtml(data,allDetails){
   return `<div class="statsImpactPlayerSheet"><div class="statsImpactPlayerHeader"><div><div class="analysisSubtle">${escapeHtml(playerPortalScopeLabel(playerPortalEffectiveScope()))}</div><h3>${escapeHtml(data.player_name||'')}</h3></div></div>${data?.is_test_mirror?`<div class="playerPortalTestDataNotice">Profil de test : les statistiques affichées sont une copie de celles de ${escapeHtml(data.stats_source_player_name||'un joueur source')} afin de tester un profil complet.</div>`:''}<div class="playerPortalExactCounts"><div class="playerPortalExactCount"><span>Nombre de frappes</span><strong>${n}</strong>${rel.label?`<span class="reliability">${escapeHtml(rel.label)}</span>`:''}</div><div class="playerPortalExactCount"><span>Points marqués</span><strong>${Number(x.points)||0}</strong></div><div class="playerPortalExactCount"><span>Fautes</span><strong>${Number(x.faults)||0}</strong></div></div>${playerVolumeWarningHtml(n)}${playerPortalTakeawaysHtml(x,n)}<div class="statsImpactPlayerMainMetrics"><div class="statsImpactPlayerMetric"><span>Création /100</span><strong class="${playerPortalImpactClass(x.creation100)}">${n?playerPortalSigned(x.creation100):'—'}</strong><small>Moyenne groupe ${playerPortalSigned(avg.creation100)}</small></div><div class="statsImpactPlayerMetric"><span>Sécurité /100</span><strong class="${playerPortalImpactClass(x.safety100)}">${n?playerPortalSigned(x.safety100):'—'}</strong><small>Moyenne groupe ${playerPortalSigned(avg.safety100)}</small></div></div><div class="statsImpactPlayerSecondaryMetrics"><div class="statsImpactPlayerSecondary"><span>% points</span><strong>${n?playerPortalPct(x.point_rate):'—'}</strong><small>${Number(x.points)||0} point${Number(x.points)===1?'':'s'} marqué${Number(x.points)===1?'':'s'} · Référentiel ${playerPortalPct(x.expected_point_rate)} · Moyenne groupe ${playerPortalPct(avg.point_rate)}</small></div><div class="statsImpactPlayerSecondary"><span>% fautes</span><strong>${n?playerPortalPct(x.fault_rate):'—'}</strong><small>${Number(x.faults)||0} faute${Number(x.faults)===1?'':'s'} · Référentiel ${playerPortalPct(x.expected_fault_rate)} · Moyenne groupe ${playerPortalPct(avg.fault_rate)}</small></div></div><div class="analysisSubtle statsImpactPlayerBenchmarkNote">La moyenne du groupe est calculée sans afficher les résultats des autres joueurs. Elle sert uniquement de repère collectif.</div><details class="statsImpactPlayerExplainer" open><summary>Comprendre le référentiel et les scores</summary><div class="statsImpactPlayerExplainerBody"><p><strong>Le référentiel</strong> (${escapeHtml(referenceVersion)}) est construit à partir des attaques de la compétition de référence sélectionnées par le staff. Les données Hommes et Femmes sont séparées, ainsi que le jeu au centre et les remises au centre, sur ligne et sur coin.</p><p>Pour chaque situation, il donne le <strong>taux de points</strong> et le <strong>taux de fautes</strong> observés sur l'ensemble des attaques retenues.</p><div class="statsImpactPlayerExplainerFormula"><strong>Création /100</strong> : nombre de points produits en plus ou en moins sur 100 attaques par rapport au nombre attendu selon le référentiel.</div><div class="statsImpactPlayerExplainerFormula"><strong>Sécurité /100</strong> : nombre de fautes évitées ou ajoutées sur 100 attaques par rapport au nombre attendu selon le référentiel.</div><p><strong>Un score de 0</strong> signifie que ta performance correspond au niveau moyen de la compétition ayant servi à construire le référentiel, en tenant compte des situations que tu as réellement jouées. Positif = au-dessus du référentiel ; négatif = en dessous.</p><p><strong>Attention au volume analysé.</strong> Les scores sont ramenés à 100 attaques : avec peu d’actions, une seule action peut donc faire fortement bouger le résultat. En pratique, <strong>N &lt; 5</strong> est trop faible pour conclure ; entre <strong>5 et 15</strong>, le score donne seulement une tendance provisoire ; au-delà de <strong>15</strong>, il devient plus stable, sans pour autant supprimer l’incertitude.</p><p>Exemple : <strong>Création +5</strong> correspond à environ 5 points de plus que prévu sur 100 attaques ; <strong>Sécurité +3</strong> à environ 3 fautes de moins que prévu sur 100 attaques.</p></div></details>${playerPortalDetailsHtml(allDetails||data.details||[])}</div>`
 }
 async function playerPortalRender(){const box=$('#playerPortalContent');if(!box||!playerPortalState.groupId)return;const ids=playerPortalState.selected||[];if(!ids.length){box.innerHTML='<div class="statsEmpty">Sélectionne au moins un match.</div>';return}if(playerPortalState.loading)return;playerPortalState.loading=true;box.innerHTML='<div class="statsEmpty">Calcul de tes statistiques…</div>';try{const scope=playerPortalEffectiveScope();const calls=[db.rpc('get_player_portal_metrics',playerPortalMetricsArgs(playerPortalState.groupId,ids,scope))];if(scope!=='all')calls.push(db.rpc('get_player_portal_metrics',playerPortalMetricsArgs(playerPortalState.groupId,ids,'all')));const results=await Promise.all(calls);results.forEach(r=>{if(r.error)throw r.error});const data=results[0].data||{};const details=(results[1]?.data||data).details||[];box.innerHTML=playerPortalSheetHtml(data,details)}finally{playerPortalState.loading=false}}
-async function loadPlayerPortalGroup(groupId){playerPortalState.groupId=groupId;syncPlayerPortalRole(groupId);refreshPlayerPortalIdentity();playerPortalState.scope='all';playerPortalState.restartLocation='all';document.querySelectorAll('#playerPortalScopeTabs [data-player-scope]').forEach(b=>b.classList.toggle('active',b.dataset.playerScope==='all'));$('#playerPortalRestartField')?.classList.add('hidden');if($('#playerPortalRestart'))$('#playerPortalRestart').value='all';const {data,error}=await db.rpc('get_player_portal_metrics',playerPortalMetricsArgs(groupId,null,'all'));if(error)throw error;playerPortalState.matches=data?.matches||[];playerPortalState.selected=playerPortalState.matches.map(m=>m.id);$('#playerPortalTitle').textContent=data?.player_name?`Mes statistiques · ${data.player_name}`:'Mes statistiques';$('#playerPortalSubtitle').textContent=data?.group_name||'';await refreshMessageNotifications(playerPortalState.staffPreview?'coach':'player').catch(e=>handleError('message notifications',e));await loadPlayerPortalConversation();await loadPlayerObjectives().catch(e=>handleError('player objectives',e));playerPortalRenderMatches();$('#playerPortalContent').innerHTML=playerPortalSheetHtml(data,data?.details||[])}
+async function loadPlayerPortalGroup(groupId){playerPortalState.groupId=groupId;syncPlayerPortalRole(groupId);refreshPlayerPortalIdentity();playerPortalState.scope='all';playerPortalState.restartLocation='all';document.querySelectorAll('#playerPortalScopeTabs [data-player-scope]').forEach(b=>b.classList.toggle('active',b.dataset.playerScope==='all'));$('#playerPortalRestartField')?.classList.add('hidden');if($('#playerPortalRestart'))$('#playerPortalRestart').value='all';const {data,error}=await db.rpc('get_player_portal_metrics',playerPortalMetricsArgs(groupId,null,'all'));if(error)throw error;playerPortalState.matches=data?.matches||[];playerPortalState.selected=playerPortalState.matches.map(m=>m.id);$('#playerPortalTitle').textContent=data?.player_name?`Mes statistiques · ${data.player_name}`:'Mes statistiques';$('#playerPortalSubtitle').textContent=data?.group_name||'';await refreshMessageNotifications(playerPortalState.staffPreview?'coach':'player').catch(e=>handleError('message notifications',e));await loadPlayerPortalConversation();await loadPlayerObjectives().catch(e=>handleError('player objectives',e));await loadPlayerVideos().catch(e=>handleError('player videos',e));playerPortalRenderMatches();$('#playerPortalContent').innerHTML=playerPortalSheetHtml(data,data?.details||[])}
 async function openPlayerPortal(accesses){
   playerPortalState.accesses=accesses||await fetchMyPlayerAccesses();
   if(!playerPortalState.accesses.length)return false;
@@ -4029,6 +4298,7 @@ async function initAuthenticated(user){
   const accesses=await fetchMyPlayerAccesses();
   await fetchMyGroups();
   await refreshMessageNotifications('coach').catch(e=>handleError('message notifications',e));
+  await refreshVideoNotifications().catch(e=>handleError('video notifications',e));
   if(accesses.length&&(invitedPlayerFlow||!groupState.groups.length)){await openPlayerPortal(accesses);return}
   $('#appHome').classList.remove('hidden');$('#trainingHome').classList.add('hidden');$('#groupsHome').classList.add('hidden');$('#groupDetail').classList.add('hidden');$('#trainingSession').classList.add('hidden');$('#trainingHistory').classList.add('hidden');$('#homeBtn').classList.remove('hidden');$('#profileBtn').classList.remove('hidden');$('#playerSpaceBtn').classList.toggle('hidden',!accesses.length);$('#newMatchTop').classList.add('hidden');
   await ensureWorkspace();await ensureMyProfile();await refreshAdminAccess();await fetchMyGroups();
@@ -6098,7 +6368,7 @@ $('#matchTypeCreateForm').onsubmit=event=>{
 };
 
 let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{}};
-let playerPortalState={accesses:[],groupId:null,matches:[],selected:[],scope:'all',restartLocation:'all',loading:false,view:'home',hasStaffAccess:false,staffPreview:false,staffPlayerId:null,staffReturnGroupId:null,messageNotifications:[]};
+let playerPortalState={accesses:[],groupId:null,matches:[],selected:[],scope:'all',restartLocation:'all',loading:false,view:'home',hasStaffAccess:false,staffPreview:false,staffPlayerId:null,staffReturnGroupId:null,messageNotifications:[],objectives:[],videos:[],videoConfig:null};
 let groupState={groups:[],currentGroupId:null,currentPlayers:[],matchPlayers:[],profiles:{},messageNotifications:[]};
 let adminState={isAdmin:false,groups:[]};
 let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',impactRestartLocation:'all',impactView:'staff',impactSortField:'impact100',impactSortDirection:'desc',impactPlayerName:'',impactMatchManualOrder:[],statsMatchView:'summary',reference:null,referenceMeta:null,referenceSources:[],referenceVersions:[],impactReference:null};
@@ -6431,6 +6701,7 @@ async function openGroupDetail(groupId){
     groupState.playerAccess=Object.fromEntries((playerAccessRows||[]).map(x=>[x.player_id,!!x.linked]));
     $('#groupNameEditStatus').textContent='';
     await refreshMessageNotifications('coach').catch(e=>handleError('message notifications',e));
+    await refreshVideoNotifications().catch(e=>handleError('video notifications',e));
     renderGroupPlayers();
     const {data:coaches,error}=await db.from('coaching_group_coaches').select('user_id,role,joined_at').eq('group_id',groupId).order('joined_at');
     if(error)throw error;
@@ -6528,7 +6799,8 @@ function renderGroupPlayers(){
     const row=document.createElement('div');row.className='row';row.style.alignItems='center';row.style.gap='8px';
     const info=document.createElement('div');info.style.flex='1';info.style.minWidth='140px';
     const notif=messageNotificationFor(groupState.currentGroupId,p.id);const unread=Number(notif?.unread_count||0);
-    info.innerHTML=`<strong>${escapeHtml(p.display_name)}${unread?`<span class="groupPlayerUnread">💬 ${unread} nouveau${unread>1?'x':''}</span>`:''}</strong><div class="small">${escapeHtml(roleLabel[p.preferred_role||'AP'])} · ${groupState.playerAccess?.[p.id]?'Compte joueur lié':'Accès joueur non encore activé'}</div>`;
+    const videoUnread=videoNotificationCountFor(groupState.currentGroupId,p.id);
+    info.innerHTML=`<strong>${escapeHtml(p.display_name)}${unread?`<span class="groupPlayerUnread">💬 ${unread} nouveau${unread>1?'x':''}</span>`:''}${videoUnread?`<span class="videoUnreadBadge">📹 ${videoUnread}</span>`:''}</strong><div class="small">${escapeHtml(roleLabel[p.preferred_role||'AP'])} · ${groupState.playerAccess?.[p.id]?'Compte joueur lié':'Accès joueur non encore activé'}</div>`;
     const open=document.createElement('button');open.type='button';open.className='ghost';open.textContent='Fiche joueur';
     open.onclick=()=>openStaffPlayerPortal(p.id).catch(e=>handleError('open staff player portal',e));
     row.append(info,open);d.append(row);box.append(d);
@@ -10222,10 +10494,15 @@ $('#playerPortalRole').onchange=e=>saveMyPreferredRole(e.target.value||'AP').cat
 $('#playerPortalChangePassword').onclick=()=>openResetPasswordPopup(false);
 $('#playerPortalNavHome').onclick=()=>playerPortalSetView('home');
 $('#playerPortalNavStats').onclick=()=>playerPortalSetView('stats');
+$('#playerPortalNavVideos').onclick=()=>playerPortalSetView('videos');
 $('#playerPortalNavProfile').onclick=()=>playerPortalSetView('profile');
 $('#playerPortalHomeStatsCard').onclick=()=>playerPortalSetView('stats');
+$('#playerPortalHomeVideosCard').onclick=()=>playerPortalSetView('videos');
 $('#playerPortalHomeProfileCard').onclick=()=>playerPortalSetView('profile');
 $('#playerPortalMessageSend').onclick=()=>sendPlayerPortalMessage();
+$('#playerVideoSync').onclick=()=>syncPlayerDriveVideos().catch(e=>{const s=$('#playerVideoStatus');if(s)s.textContent=e?.message||'Synchronisation impossible.';handleError('sync drive videos',e)});
+$('#playerVideoUploadBtn').onclick=()=>uploadMyPlayerVideo();
+$('#playerVideoPlayerClose').onclick=()=>closePlayerVideo();
 $('#playerObjectiveAdd').onclick=()=>addPlayerObjective();
 $('#playerObjectiveInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addPlayerObjective()}});
 $('#playerPortalMessageInput').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();sendPlayerPortalMessage()}});
