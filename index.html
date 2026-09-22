@@ -9875,13 +9875,13 @@ function statsImpactPlayerOpponentRows(ds,playerName,scope){
         };
       }).filter(x=>x.total>0)
         .sort((a,b)=>(a.playedOn||'').localeCompare(b.playedOn||'')||(a.matchLabel||'').localeCompare(b.matchLabel||'','fr'));
-      return {name,...total,matches};
+      return {opponentName:name,...total,matches};
     })
     .filter(x=>x.total>0)
     .sort((a,b)=>{
-      if(a.name==='Équipe non précisée')return 1;
-      if(b.name==='Équipe non précisée')return -1;
-      return a.name.localeCompare(b.name,'fr');
+      if(a.opponentName==='Équipe non précisée')return 1;
+      if(b.opponentName==='Équipe non précisée')return -1;
+      return a.opponentName.localeCompare(b.opponentName,'fr');
     });
 }
 function statsImpactPlayerOpponentTableHtml(ds,playerName,scope){
@@ -9895,7 +9895,7 @@ function statsImpactPlayerOpponentTableHtml(ds,playerName,scope){
     const expandable=x.matches.length>1;
     const parent=`<tr>
       <td>${expandable
-        ?`<div class="statsImpactOpponentToggle" data-stats-impact-opponent-toggle="${idx}"><span class="chev">▶</span><strong>${escapeHtml(x.name)}</strong><span class="small">${x.matches.length} matchs</span></div>`
+        ?`<div class="statsImpactOpponentToggle" data-stats-impact-opponent-toggle="${idx}"><span class="chev">▶</span><strong>${escapeHtml(x.opponentName)}</strong><span class="small">${x.matches.length} matchs</span></div>`
         :`<strong>${escapeHtml(x.name)}</strong>`}
       </td>
       <td>${x.total}</td>
