@@ -1883,6 +1883,43 @@ button.playerPortalHomeCard:hover,a.playerPortalHomeCard:hover{border-color:var(
 </style>
 </head>
 <body>
+
+<script>
+(function(){
+  const q=new URLSearchParams(location.search);
+  if(q.get('authdiag')!=='1')return;
+  function safeKeys(storage){
+    try{return Object.keys(storage)}catch(e){return ['[storage inaccessible: '+(e&&e.message||e)+']']}
+  }
+  const box=document.createElement('pre');
+  box.id='bootAuthDiag';
+  box.style.cssText='position:relative;z-index:2147483647;display:block!important;white-space:pre-wrap;word-break:break-word;font:12px/1.45 monospace;background:#241b0b;color:#fff3c4;border:3px solid #f59e0b;border-radius:12px;padding:12px;margin:12px;max-width:calc(100% - 24px);overflow:auto';
+  function snapshot(extra){
+    let fromVideo=null;
+    try{fromVideo=JSON.parse(sessionStorage.getItem('kb_auth_diag_from_video')||'null')}catch(e){fromVideo={parseError:String(e)}}
+    box.textContent='BOOT DIAGNOSTIC AUTH\n'+JSON.stringify({
+      url:location.href,
+      fromVideo,
+      localStorageKeys:safeKeys(localStorage).filter(k=>String(k).startsWith('sb-')),
+      sessionStorageKeys:safeKeys(sessionStorage),
+      ...extra
+    },null,2);
+  }
+  document.addEventListener('DOMContentLoaded',()=>{
+    document.body.insertBefore(box,document.body.firstChild);
+    snapshot({stage:'DOMContentLoaded'});
+  },{once:true});
+  window.addEventListener('error',e=>{
+    if(!box.isConnected&&document.body)document.body.insertBefore(box,document.body.firstChild);
+    snapshot({stage:'window.error',message:e.message,source:e.filename,line:e.lineno,column:e.colno});
+  });
+  window.addEventListener('unhandledrejection',e=>{
+    if(!box.isConnected&&document.body)document.body.insertBefore(box,document.body.firstChild);
+    snapshot({stage:'unhandledrejection',reason:String(e.reason?.message||e.reason||'unknown')});
+  });
+})();
+</script>
+
 <div class="app">
  <div class="top">
    <div><h1>Kinball Coach</h1></div>
