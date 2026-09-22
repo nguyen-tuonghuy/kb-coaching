@@ -1646,6 +1646,14 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
 .statsImpactPlayerExplainerFormula{padding:9px 11px;border-radius:10px;background:#171c24;border:1px solid var(--line);color:var(--text)}
 .statsImpactPlayerDetails{margin-top:2px}
 .statsImpactPlayerDetails>summary{cursor:pointer;font-weight:700;margin-bottom:8px}
+.statsImpactOpponentBlock{margin-top:2px}
+.statsImpactOpponentToggle{cursor:pointer;user-select:none;display:flex;align-items:center;gap:7px}
+.statsImpactOpponentToggle .chev{display:inline-block;transition:transform .15s ease}
+.statsImpactOpponentToggle.open .chev{transform:rotate(90deg)}
+.statsImpactOpponentMatchRow td{background:#151a22}
+.statsImpactOpponentMatchLabel{padding-left:28px!important}
+.statsImpactOpponentMatchMeta{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+
 @media(max-width:720px){.statsImpactPlayerMainMetrics,.statsImpactPlayerSecondaryMetrics{grid-template-columns:1fr}.statsImpactPlayerVolume{align-items:flex-start}.statsImpactPlayerMetric>strong{font-size:30px}}
 
 .playerPortalHeader{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px}
@@ -9838,6 +9846,102 @@ function statsImpactPlayerContextTableHtml(ds,playerName){
     </table></div>
   </details>`;
 }
+
+function statsImpactPlayerOpponentRows(ds,playerName,scope){
+  const grouped=new Map();
+  (ds.events||[]).forEach(e=>{
+    const name=e.opponent_name||'Équipe non précisée';
+    if(!grouped.has(name))grouped.set(name,[]);
+    grouped.get(name).push(e);
+  });
+  return [...grouped.entries()]
+    .map(([name,events])=>{
+      const total=playerOffensiveImpact(events,playerName,scope);
+      const byMatch=new Map();
+      events.forEach(e=>{
+        const id=e.match_id||e.match?.id||'unknown';
+        if(!byMatch.has(id))byMatch.set(id,[]);
+        byMatch.get(id).push(e);
+      });
+      const matches=[...byMatch.entries()].map(([matchId,matchEvents])=>{
+        const impact=playerOffensiveImpact(matchEvents,playerName,scope);
+        const m=matchEvents[0]?.match||null;
+        return {
+          matchId,
+          matchLabel:m?.label||m?.match_type?.name||'Match',
+          playedOn:m?.played_on||'',
+          competition:m?.match_type?.name||'',
+          ...impact
+        };
+      }).filter(x=>x.total>0)
+        .sort((a,b)=>(a.playedOn||'').localeCompare(b.playedOn||'')||(a.matchLabel||'').localeCompare(b.matchLabel||'','fr'));
+      return {name,...total,matches};
+    })
+    .filter(x=>x.total>0)
+    .sort((a,b)=>{
+      if(a.name==='Équipe non précisée')return 1;
+      if(b.name==='Équipe non précisée')return -1;
+      return a.name.localeCompare(b.name,'fr');
+    });
+}
+function statsImpactPlayerOpponentTableHtml(ds,playerName,scope){
+  const rows=statsImpactPlayerOpponentRows(ds,playerName,scope);
+  if(!rows.length)return `<details class="statsImpactPlayerDetails statsImpactOpponentBlock" open>
+    <summary>Performance par adversaire</summary>
+    <div class="statsEmpty">Aucune attaque attribuée contre un adversaire dans cette sélection.</div>
+  </details>`;
+
+  const body=rows.map((x,idx)=>{
+    const expandable=x.matches.length>1;
+    const parent=`<tr>
+      <td>${expandable
+        ?`<div class="statsImpactOpponentToggle" data-stats-impact-opponent-toggle="${idx}"><span class="chev">▶</span><strong>${escapeHtml(x.name)}</strong><span class="small">${x.matches.length} matchs</span></div>`
+        :`<strong>${escapeHtml(x.name)}</strong>`}
+      </td>
+      <td>${x.total}</td>
+      <td>${x.total?actualVsReferencePctHtml(x.pointRate,x.expectedPointRate):'—'}</td>
+      <td>${x.total?actualVsReferencePctHtml(x.faultRate,x.expectedFaultRate):'—'}</td>
+      <td class="${impactClass(x.creation100||0)}">${x.total?signed1(x.creation100):'—'}</td>
+      <td class="${impactClass(x.safety100||0)}">${x.total?signed1(x.safety100):'—'}</td>
+    </tr>`;
+
+    const children=expandable?x.matches.map(m=>`<tr class="statsImpactOpponentMatchRow hidden" data-stats-impact-opponent-child="${idx}">
+      <td class="statsImpactOpponentMatchLabel">
+        <strong>${escapeHtml(m.matchLabel||'Match')}</strong>
+        <span class="statsImpactOpponentMatchMeta">${escapeHtml(formatDateShort(m.playedOn)||'')}${m.competition?' · '+escapeHtml(m.competition):''}</span>
+      </td>
+      <td>${m.total}</td>
+      <td>${m.total?actualVsReferencePctHtml(m.pointRate,m.expectedPointRate):'—'}</td>
+      <td>${m.total?actualVsReferencePctHtml(m.faultRate,m.expectedFaultRate):'—'}</td>
+      <td class="${impactClass(m.creation100||0)}">${m.total?signed1(m.creation100):'—'}</td>
+      <td class="${impactClass(m.safety100||0)}">${m.total?signed1(m.safety100):'—'}</td>
+    </tr>`).join(''):'';
+    return parent+children;
+  }).join('');
+
+  return `<details class="statsImpactPlayerDetails statsImpactOpponentBlock" open>
+    <summary>Performance par adversaire</summary>
+    <div class="analysisSubtle" style="margin:8px 0">
+      Les filtres de matchs et de contexte s’appliquent aussi ici. Si un adversaire a été rencontré plusieurs fois, clique sur son nom pour afficher le détail match par match.
+    </div>
+    <div class="analysisTableWrap"><table class="analysisTable">
+      <thead><tr><th>Adversaire</th><th>N</th><th>% points</th><th>% fautes</th><th>Création /100</th><th>Sécurité /100</th></tr></thead>
+      <tbody>${body}</tbody>
+    </table></div>
+  </details>`;
+}
+function bindStatsImpactOpponentBreakdowns(root){
+  (root||document).querySelectorAll('[data-stats-impact-opponent-toggle]').forEach(el=>{
+    el.onclick=()=>{
+      const id=el.dataset.statsImpactOpponentToggle;
+      const rows=(root||document).querySelectorAll(`[data-stats-impact-opponent-child="${CSS.escape(id)}"]`);
+      const opening=[...rows].some(r=>r.classList.contains('hidden'));
+      rows.forEach(r=>r.classList.toggle('hidden',!opening));
+      el.classList.toggle('open',opening);
+    };
+  });
+}
+
 function statsImpactPlayerViewHtml(ds,allRows,scope){
   const players=(ds.players||[]).filter(Boolean).filter(name=>playerOffensiveImpact(ds.events||[],name,scope).total>0).sort((a,b)=>a.localeCompare(b,'fr'));
   if(!players.length)return '<div class="statsEmpty">Aucune attaque attribuée à un joueur dans cette vue.</div>';
@@ -9878,6 +9982,7 @@ function statsImpactPlayerViewHtml(ds,allRows,scope){
       </div>
     </details>
     ${statsImpactPlayerContextTableHtml(ds,playerName)}
+    ${statsImpactPlayerOpponentTableHtml(ds,playerName,scope)}
   </div>`;
 }
 
@@ -9969,6 +10074,7 @@ async function renderStatsImpactSelection(){
   const scopeLabel=statsImpactScopeLabel(scope);
   if(view==='player'){
     box.innerHTML=statsImpactPlayerViewHtml(ds,rawRows.filter(r=>r.total>0),scope);
+    bindStatsImpactOpponentBreakdowns(box);
   }else{
     box.innerHTML=`<div class="analysisSubtle" style="margin-bottom:8px">
       ${selected.length===1?'Match sélectionné':`Cumul de ${selected.length} matchs sélectionnés`} ·
