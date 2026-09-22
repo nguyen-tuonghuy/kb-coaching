@@ -1814,6 +1814,24 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
 .playerVideoRateDisplay{font-weight:800;min-width:52px;text-align:center}
 .playerVideoTimeDisplay{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px}
 .playerVideoHint{color:var(--muted);font-size:11px;line-height:1.4}
+.playerVideoJogWrap{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.playerVideoJog{
+  width:112px;height:112px;border-radius:50%;
+  border:2px solid var(--line);background:radial-gradient(circle at 50% 50%,#202733 0 34%,#161b22 35% 100%);
+  position:relative;cursor:grab;touch-action:none;user-select:none;flex:0 0 auto;
+  box-shadow:inset 0 0 0 8px rgba(255,255,255,.015)
+}
+.playerVideoJog:active{cursor:grabbing}
+.playerVideoJog::before{
+  content:"";position:absolute;left:50%;top:8px;width:4px;height:22px;border-radius:3px;
+  transform:translateX(-50%);background:var(--primary)
+}
+.playerVideoJogCenter{
+  position:absolute;inset:35%;display:flex;align-items:center;justify-content:center;
+  border-radius:50%;border:1px solid var(--line);font-size:11px;font-weight:800;color:var(--muted)
+}
+.playerVideoJogInfo{display:grid;gap:4px;min-width:180px}
+.playerVideoJogDelta{font-variant-numeric:tabular-nums;font-weight:800}
 .videoUnreadBadge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#7557d9;color:#fff;font-size:11px;font-weight:800;line-height:1;margin-left:5px}
 @media(max-width:620px){
   .playerVideoUploadGrid{grid-template-columns:1fr}
@@ -2149,15 +2167,23 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
       <span class="playerVideoRateDisplay" id="playerVideoRateDisplay">1×</span>
      </div>
      <div class="playerVideoControlRow" id="playerVideoSpeedButtons">
-      <span class="small">Vitesse</span>
+      <span class="small">Vitesse de lecture</span>
       <button type="button" class="ghost playerVideoSpeedButton" data-video-rate="0.1">0,1×</button>
       <button type="button" class="ghost playerVideoSpeedButton" data-video-rate="0.25">0,25×</button>
       <button type="button" class="ghost playerVideoSpeedButton" data-video-rate="0.5">0,5×</button>
       <button type="button" class="ghost playerVideoSpeedButton active" data-video-rate="1">1×</button>
-      <button type="button" class="ghost playerVideoSpeedButton" data-video-rate="1.5">1,5×</button>
-      <button type="button" class="ghost playerVideoSpeedButton" data-video-rate="2">2×</button>
      </div>
-     <div class="playerVideoHint">Molette sur la vidéo : ralentir / accélérer · ← / → : image précédente / suivante (pas ≈ 1/30 s) · Espace : lecture / pause. La boucle A-B n’est pas activée.</div>
+     <div class="playerVideoJogWrap">
+      <div class="playerVideoJog" id="playerVideoJog" role="slider" aria-label="Molette d'analyse image par image" tabindex="0">
+       <div class="playerVideoJogCenter">JOG</div>
+      </div>
+      <div class="playerVideoJogInfo">
+       <strong>Molette d’analyse</strong>
+       <span class="small">Tourne-la pour avancer ou reculer dans la vidéo. Un petit mouvement = quelques images ; un mouvement rapide = défilement plus rapide.</span>
+       <span class="playerVideoJogDelta" id="playerVideoJogDelta">± 0 image</span>
+      </div>
+     </div>
+     <div class="playerVideoHint">Molette virtuelle ou molette de souris sur la vidéo : avance/recul image par image · ← / → : 1 image · Espace : lecture/pause. La vitesse de lecture reste indépendante.</div>
     </div>
    </div>
 
@@ -4067,7 +4093,7 @@ function playerVideoStatusLabel(v){
   return v.status==='reviewed'?'Analysée':v.status==='seen'?'Vue par le staff':'Nouvelle';
 }
 function playerVideoDriveUrl(fileId){return `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/view`}
-const PLAYER_VIDEO_RATES=[0.1,0.25,0.5,1,1.5,2];
+const PLAYER_VIDEO_RATES=[0.1,0.25,0.5,1];
 const PLAYER_VIDEO_FRAME_STEP=1/30;
 let playerVideoCurrentId=null;
 function playerVideoFormatTime(seconds){
@@ -4100,10 +4126,13 @@ function changePlayerVideoRate(direction){
   i=Math.max(0,Math.min(PLAYER_VIDEO_RATES.length-1,i+direction));
   setPlayerVideoRate(PLAYER_VIDEO_RATES[i]);
 }
-function stepPlayerVideo(direction){
+function stepPlayerVideo(frameDelta){
   const video=$('#playerVideoHtml5');if(!video||!Number.isFinite(video.duration))return;
   video.pause();
-  video.currentTime=Math.max(0,Math.min(video.duration,video.currentTime+(direction*PLAYER_VIDEO_FRAME_STEP)));
+  const frames=Number(frameDelta)||0;
+  video.currentTime=Math.max(0,Math.min(video.duration,video.currentTime+(frames*PLAYER_VIDEO_FRAME_STEP)));
+  const jogDelta=$('#playerVideoJogDelta');
+  if(jogDelta)jogDelta.textContent=`${frames>=0?'+':''}${frames} image${Math.abs(frames)>1?'s':''}`;
   updatePlayerVideoTime();
 }
 function togglePlayerVideoPlayback(){
@@ -10497,6 +10526,18 @@ document.addEventListener('click',e=>{
   if(!backdrop)return;
   if(e.target?.id==='statsHelpClose'||e.target===backdrop)backdrop.classList.add('hidden');
 });
+const playerVideoJogEl=$('#playerVideoJog');
+if(playerVideoJogEl){
+  playerVideoJogEl.addEventListener('pointerdown',playerVideoJogStart);
+  playerVideoJogEl.addEventListener('pointermove',playerVideoJogMove);
+  playerVideoJogEl.addEventListener('pointerup',playerVideoJogEnd);
+  playerVideoJogEl.addEventListener('pointercancel',playerVideoJogEnd);
+  playerVideoJogEl.addEventListener('keydown',e=>{
+    if(e.key==='ArrowLeft'){e.preventDefault();stepPlayerVideo(-1)}
+    else if(e.key==='ArrowRight'){e.preventDefault();stepPlayerVideo(1)}
+  });
+}
+
 document.addEventListener('keydown',e=>{
   const backdrop=$('#statsHelpBackdrop');
   if(e.key==='Escape'&&backdrop&&!backdrop.classList.contains('hidden'))backdrop.classList.add('hidden');
@@ -10609,6 +10650,47 @@ $('#playerPortalHomeVideosCard').onclick=()=>playerPortalSetView('videos');
 $('#playerPortalHomeProfileCard').onclick=()=>playerPortalSetView('profile');
 $('#playerPortalMessageSend').onclick=()=>sendPlayerPortalMessage();
 $('#playerVideoSync').onclick=()=>syncPlayerDriveVideos().catch(e=>{const s=$('#playerVideoStatus');if(s)s.textContent=e?.message||'Synchronisation impossible.';handleError('sync drive videos',e)});
+
+let playerVideoJogPointerId=null;
+let playerVideoJogLastAngle=null;
+let playerVideoJogAccum=0;
+function playerVideoJogAngle(e,el){
+  const r=el.getBoundingClientRect();
+  const x=e.clientX-(r.left+r.width/2),y=e.clientY-(r.top+r.height/2);
+  return Math.atan2(y,x)*180/Math.PI;
+}
+function playerVideoJogStart(e){
+  const el=$('#playerVideoJog');if(!el)return;
+  playerVideoJogPointerId=e.pointerId;
+  playerVideoJogLastAngle=playerVideoJogAngle(e,el);
+  playerVideoJogAccum=0;
+  el.setPointerCapture?.(e.pointerId);
+}
+function playerVideoJogMove(e){
+  const el=$('#playerVideoJog');
+  if(!el||playerVideoJogPointerId!==e.pointerId||playerVideoJogLastAngle===null)return;
+  let angle=playerVideoJogAngle(e,el);
+  let delta=angle-playerVideoJogLastAngle;
+  if(delta>180)delta-=360;
+  if(delta<-180)delta+=360;
+  playerVideoJogLastAngle=angle;
+  playerVideoJogAccum+=delta;
+  // ~8 degrees of rotation = 1 frame. Faster/larger rotations naturally advance more frames.
+  const frames=Math.trunc(playerVideoJogAccum/8);
+  if(frames){
+    stepPlayerVideo(frames);
+    playerVideoJogAccum-=frames*8;
+  }
+  el.style.transform=`rotate(${angle+90}deg)`;
+}
+function playerVideoJogEnd(e){
+  const el=$('#playerVideoJog');
+  if(el&&playerVideoJogPointerId===e.pointerId)el.releasePointerCapture?.(e.pointerId);
+  playerVideoJogPointerId=null;
+  playerVideoJogLastAngle=null;
+  playerVideoJogAccum=0;
+}
+
 $('#playerVideoUploadBtn').onclick=()=>uploadMyPlayerVideo();
 $('#playerVideoPlayerClose').onclick=()=>closePlayerVideo();
 $('#playerVideoPrevFrame').onclick=()=>stepPlayerVideo(-1);
@@ -10623,7 +10705,9 @@ if(playerVideoEl){
   playerVideoEl.addEventListener('ratechange',updatePlayerVideoRateUI);
   playerVideoEl.addEventListener('wheel',e=>{
     e.preventDefault();
-    changePlayerVideoRate(e.deltaY<0?1:-1);
+    const direction=e.deltaY<0?-1:1;
+    const magnitude=Math.max(1,Math.min(8,Math.round(Math.abs(e.deltaY)/35)||1));
+    stepPlayerVideo(direction*magnitude);
   },{passive:false});
 }
 document.addEventListener('keydown',e=>{
