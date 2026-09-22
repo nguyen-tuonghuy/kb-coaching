@@ -4262,32 +4262,46 @@ function renderAuthDiagnostic(extra={}){
   box.textContent='DIAGNOSTIC AUTH (aucun jeton affiché)\\n'+JSON.stringify(snapshot,null,2);
 }
 async function getSessionWithVideoHandoff(){
-  let result=await db.auth.getSession();
-  renderAuthDiagnostic({initialGetSessionUser:!!result?.data?.session?.user});
-  if(result?.data?.session?.user)return result;
+  // Important: on the problematic return from videos.html, getSession() itself can hang.
+  // So restore the known-good session handoff FIRST, and only then fall back to getSession().
   try{
     const raw=sessionStorage.getItem('kb_video_auth_handoff');
-    if(!raw)return result;
-    const saved=JSON.parse(raw);
-    if(!saved?.access_token||!saved?.refresh_token)return result;
-    // Only accept a recent handoff from the video page.
-    if(Date.now()-Number(saved.saved_at||0)>120000){
-      sessionStorage.removeItem('kb_video_auth_handoff');
-      return result;
+    renderAuthDiagnostic({stage:'before-handoff-restore',handoffPresent:!!raw});
+    if(raw){
+      const saved=JSON.parse(raw);
+      if(saved?.access_token&&saved?.refresh_token&&Date.now()-Number(saved.saved_at||0)<=120000){
+        const restored=await Promise.race([
+          db.auth.setSession({
+            access_token:saved.access_token,
+            refresh_token:saved.refresh_token
+          }),
+          new Promise((_,reject)=>setTimeout(()=>reject(new Error('setSession timeout')),3000))
+        ]);
+        renderAuthDiagnostic({
+          stage:'after-handoff-restore',
+          handoffRestoreUser:!!restored?.data?.session?.user,
+          handoffRestoreError:restored?.error?.message||null
+        });
+        if(restored?.data?.session?.user){
+          sessionStorage.removeItem('kb_video_auth_handoff');
+          return restored;
+        }
+      }
     }
-    const restored=await db.auth.setSession({
-      access_token:saved.access_token,
-      refresh_token:saved.refresh_token
-    });
-    if(restored?.data?.session?.user){
-      renderAuthDiagnostic({initialGetSessionUser:false,handoffRestoreUser:true});
-      sessionStorage.removeItem('kb_video_auth_handoff');
-      return restored;
-    }
-    renderAuthDiagnostic({initialGetSessionUser:false,handoffRestoreUser:false});
   }catch(e){
-    console.warn('Video auth handoff restore failed',e);
+    renderAuthDiagnostic({stage:'handoff-restore-error',message:e?.message||String(e)});
   }
+
+  renderAuthDiagnostic({stage:'before-normal-getSession'});
+  const result=await Promise.race([
+    db.auth.getSession(),
+    new Promise((_,reject)=>setTimeout(()=>reject(new Error('getSession timeout')),3000))
+  ]);
+  renderAuthDiagnostic({
+    stage:'after-normal-getSession',
+    initialGetSessionUser:!!result?.data?.session?.user,
+    initialGetSessionError:result?.error?.message||null
+  });
   return result;
 }
 
@@ -10631,7 +10645,10 @@ $('#groupPlayerSharedLink').onclick=()=>createSharedPlayerAccessLink();
 render();
 renderAuthDiagnostic({stage:'script-start'});
 initVideoDesktopResizer();
-initAuth().catch(e=>handleError('initAuth',e));
+initAuth().catch(e=>{
+  renderAuthDiagnostic({stage:'initAuth-catch',message:e?.message||String(e)});
+  handleError('initAuth',e);
+});
 
 
 
