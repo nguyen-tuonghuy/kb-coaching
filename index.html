@@ -4205,17 +4205,22 @@ function authStorageSnapshot(){
 }
 function renderAuthDiagnostic(extra={}){
   const query=new URLSearchParams(location.search);
-  if(query.get('authdiag')!=='1')return;
+  const rawFromVideo=sessionStorage.getItem('kb_auth_diag_from_video');
+  if(query.get('authdiag')!=='1'&&!rawFromVideo)return;
   let fromVideo=null;
-  try{fromVideo=JSON.parse(sessionStorage.getItem('kb_auth_diag_from_video')||'null')}catch{}
-  const snapshot={fromVideo,index:authStorageSnapshot(),...extra};
+  try{fromVideo=JSON.parse(rawFromVideo||'null')}catch{}
+  const snapshot={
+    pageUrl:location.pathname+location.search+location.hash,
+    fromVideo,
+    index:authStorageSnapshot(),
+    ...extra
+  };
   let box=document.getElementById('authDiagBox');
   if(!box){
     box=document.createElement('pre');
     box.id='authDiagBox';
-    box.style.cssText='white-space:pre-wrap;word-break:break-word;font:12px/1.45 monospace;background:#111827;color:#e5e7eb;border:1px solid #475569;border-radius:12px;padding:12px;margin:12px 0;max-width:100%;overflow:auto';
-    const host=document.getElementById('authPanel')||document.body;
-    host.prepend(box);
+    box.style.cssText='position:relative;z-index:99999;display:block!important;white-space:pre-wrap;word-break:break-word;font:12px/1.45 monospace;background:#111827;color:#e5e7eb;border:2px solid #f59e0b;border-radius:12px;padding:12px;margin:12px 24px;max-width:calc(100% - 48px);overflow:auto';
+    document.body.insertBefore(box,document.body.firstChild);
   }
   box.textContent='DIAGNOSTIC AUTH (aucun jeton affiché)\\n'+JSON.stringify(snapshot,null,2);
 }
@@ -10587,6 +10592,7 @@ $('#playerJoinContinue').onclick=async()=>{const playerId=playerGroupInvitePlaye
 $('#groupPlayerSharedLink').onclick=()=>createSharedPlayerAccessLink();
 
 render();
+renderAuthDiagnostic({stage:'script-start'});
 initVideoDesktopResizer();
 initAuth().catch(e=>handleError('initAuth',e));
 
