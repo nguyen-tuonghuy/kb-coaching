@@ -1946,6 +1946,7 @@ button.playerPortalHomeCard:hover,a.playerPortalHomeCard:hover{border-color:var(
     <button class="moduleCard primary" id="openMatchModule"><strong>🏐 Matchs</strong><span>Prise de notes et statistiques partagées du groupe</span></button>
     <button class="moduleCard" id="openTrainingModule"><strong>🎯 Entraînements</strong><span>Séances, exercices, résultats et progression des joueurs</span></button>
     <button class="moduleCard" id="openStatsModule"><strong>📊 Statistiques</strong><span>Entraînements, matchs, performance joueurs et référentiel offensif</span></button>
+    <button class="moduleCard" id="openVideosDashboardModule"><strong>🎥 Vidéos <span class="videoUnreadBadge hidden" id="homeVideoUnreadBadge">0</span></strong><span>Vidéos déposées par les joueurs et analyse vidéo</span></button>
     <button class="moduleCard" id="openGroupsModule"><strong>👥 Groupes <span class="messageUnreadBadge hidden" id="groupsUnreadBadge">0</span><span class="videoUnreadBadge hidden" id="videoUnreadBadge">0</span></strong><span>Effectifs, messages et vidéos joueurs</span></button>
     <button class="moduleCard" id="openSettingsModule"><strong>⚙️ Paramètres</strong><span>Catégories d’exercices · Types de match</span></button>
     <button class="moduleCard hidden" id="openAdminModule"><strong>🛡️ Administration</strong><span>Voir tous les groupes et leurs entraîneurs</span></button>
@@ -4070,7 +4071,10 @@ function videoNotificationCountFor(groupId,playerId){
 }
 function renderVideoNotifications(){
   const total=(videoNotificationState||[]).length;
-  const badge=$('#videoUnreadBadge');if(badge){badge.textContent=String(total);badge.classList.toggle('hidden',!total)}
+  ['#videoUnreadBadge','#homeVideoUnreadBadge'].forEach(sel=>{
+    const badge=$(sel);
+    if(badge){badge.textContent=String(total);badge.classList.toggle('hidden',!total)}
+  });
   if(groupState.currentGroupId&&groupState.currentPlayers?.length)renderGroupPlayers();
 }
 async function refreshVideoNotifications(){
@@ -10478,6 +10482,7 @@ function bindStatsControls(){
 bindStatsControls();
 
 $('#openStatsModule').onclick=()=>openStatsModule();
+$('#openVideosDashboardModule').onclick=()=>{window.location.href='coach-videos.html'};
 if($('#openQuickCollectionFromReference'))$('#openQuickCollectionFromReference').onclick=()=>{window.location.href='quick-collection.html'};
 $('#statsBackHome').onclick=showAppHome;
 if($('#statsMatchLatest'))$('#statsMatchLatest').onclick=()=>{
