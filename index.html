@@ -10541,6 +10541,26 @@ render();
 initVideoDesktopResizer();
 initAuth().catch(e=>handleError('initAuth',e));
 
+function bindPlayerPortalNavigation(){
+  const bind=(selector,view)=>{
+    const el=$(selector);
+    if(!el)return;
+    el.onclick=()=>playerPortalSetView(view);
+  };
+  bind('#playerPortalNavHome','home');
+  bind('#playerPortalNavStats','stats');
+  bind('#playerPortalNavVideos','videos');
+  bind('#playerPortalNavProfile','profile');
+  bind('#playerPortalHomeStatsCard','stats');
+  bind('#playerPortalHomeVideosCard','videos');
+  bind('#playerPortalHomeProfileCard','profile');
+
+  const back=$('#playerPortalBackStaff');
+  if(back)back.onclick=()=>returnToStaffSpace().catch(e=>handleError('return staff space',e));
+}
+bindPlayerPortalNavigation();
+
+
 /* --- Vidéo : annotations horodatées, capture d'image et dessin --- */
 (function(){
   if(window.__kbVideoNotesEnhanced)return;
