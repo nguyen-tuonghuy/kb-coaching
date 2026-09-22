@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kinball Coach · Mes statistiques</title>
+<style>
+:root{
+  --bg:#0f1217;--panel:#171c24;--panel2:#1d232d;--line:#303845;--text:#f4f6f8;--muted:#9aa5b4;
+  --primary:#3478f6;--good:#5ac98b;--bad:#ff7a7a;--warn:#f3c65f
+}
+*{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,input,select{font:inherit}button,a.button{border:1px solid var(--line);border-radius:12px;background:#171c24;color:var(--text);padding:10px 13px;text-decoration:none;cursor:pointer}
+button:hover,a.button:hover{border-color:#587197}.hidden{display:none!important}.small{font-size:12px;color:var(--muted);line-height:1.45}.analysisSubtle{font-size:11px;color:var(--muted)}
+.shell{max-width:1180px;margin:0 auto;padding:18px}.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.brand{font-size:22px;font-weight:800}.topActions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.status{display:inline-flex;align-items:center;gap:7px;border-radius:999px;background:#1e2530;padding:8px 11px;font-size:13px}.dot{width:9px;height:9px;border-radius:50%;background:#4ed28b}
+.panel{border:1px solid var(--line);border-radius:20px;background:var(--panel);padding:16px}.nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.nav a{border:1px solid var(--line);border-radius:12px;padding:10px 13px;color:var(--text);text-decoration:none;font-weight:700}.nav a.active{border-color:#fff;background:#212833}
+.header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}.header h1{margin:3px 0 2px;font-size:25px}
+.field{display:grid;gap:5px}.field label{font-size:12px;color:var(--muted)}select{width:100%;border:1px solid var(--line);border-radius:11px;background:#121720;color:var(--text);padding:10px}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:14px 0}.matches{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-bottom:12px}
+.matchItem{border:1px solid var(--line);border-radius:12px;padding:10px;background:#181d25;display:flex;gap:9px;align-items:flex-start}.matchItem.checked{border-color:#65769a}.matchItem input{margin-top:3px}.matchItem span{display:grid;gap:2px}
+.tabs{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0 12px}.tabs button.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.statsEmpty{border:1px dashed var(--line);border-radius:14px;padding:18px;color:var(--muted);text-align:center}
+.sheet{display:grid;gap:14px}.sheet h3{margin:2px 0 0;font-size:22px}.sheetHeader{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.counts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.count{border:1px solid var(--line);border-radius:14px;padding:13px;background:var(--panel2);display:grid;gap:4px}.count span{font-size:12px;color:var(--muted)}.count strong{font-size:24px}
+.reliability{font-size:11px!important;font-weight:700}.warning{border:1px solid #66592f;border-radius:13px;background:#252213;padding:12px;color:#e9dca5;font-size:12px;line-height:1.5}.warning.critical{border-color:#6a3939;background:#281a1d;color:#ffd0d0}
+.takeaways{border:1px solid var(--line);border-radius:14px;background:#151b24;padding:13px;display:grid;gap:8px}.takeaways h4{margin:0}.takeaway{display:flex;gap:8px;align-items:flex-start}.takeawayDot{width:7px;height:7px;border-radius:50%;background:var(--primary);margin-top:7px;flex:none}
+.mainMetrics,.secondaryMetrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.metric,.secondary{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--panel2);display:grid;gap:5px}.metric span,.secondary span{font-size:12px;color:var(--muted)}.metric strong{font-size:30px}.secondary strong{font-size:25px}.metric small,.secondary small{color:var(--muted);line-height:1.45}
+.positive{color:#7ce2a9}.negative{color:#ff9696}.neutral{color:var(--text)}.benchmark{padding:0 2px}
+details{border:1px solid var(--line);border-radius:14px;background:#151b24;padding:0 13px}summary{cursor:pointer;padding:12px 0;font-weight:800}.explain{padding:0 0 13px;color:#c7cfda;line-height:1.55}.formula{border-left:3px solid var(--primary);padding:8px 10px;margin:8px 0;background:#121720;border-radius:8px}
+.tableWrap{overflow:auto;padding-bottom:12px}.table{width:100%;border-collapse:collapse;min-width:760px}.table th,.table td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.table th{font-size:11px;color:var(--muted)}.testNotice{border:1px dashed var(--primary);border-radius:12px;padding:10px 12px;font-size:12px;color:var(--muted)}
+.error{color:#ffc4c8}
+@media(max-width:680px){.shell{padding:10px}.panel{padding:12px}.counts,.mainMetrics,.secondaryMetrics{grid-template-columns:1fr}.nav{gap:6px}.nav a{padding:9px 10px}.header h1{font-size:22px}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <div class="brand">Kinball Coach</div>
+    <div class="topActions">
+      <span class="status"><span class="dot"></span><span id="cloudText">Connexion…</span></span>
+      <button id="logout">Déconnexion</button>
+    </div>
+  </div>
+
+  <main class="panel">
+    <nav class="nav" id="nav">
+      <a href="index.html#player-home">Accueil</a>
+      <a href="player-stats.html" class="active">Mes statistiques</a>
+      <a href="videos.html" id="videosLink">Mes vidéos</a>
+      <a href="index.html#player-profile">Mon profil</a>
+    </nav>
+
+    <div class="header">
+      <div>
+        <div class="analysisSubtle" id="modeLabel">Espace joueur</div>
+        <h1 id="title">Mes statistiques</h1>
+        <div class="small" id="subtitle"></div>
+      </div>
+      <div class="field hidden" id="groupField" style="min-width:260px">
+        <label>Groupe</label>
+        <select id="groupSelect"></select>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <button id="selectAll">Tous les matchs</button>
+      <button id="latest">Dernier match</button>
+      <span class="small" id="selectionStatus"></span>
+    </div>
+
+    <div class="matches" id="matches"></div>
+
+    <div class="tabs" id="scopeTabs">
+      <button class="active" data-scope="all">Cumulé</button>
+      <button data-scope="center">Jeu au centre</button>
+      <button data-scope="restart">Remise en jeu</button>
+    </div>
+
+    <div class="field hidden" id="restartField" style="max-width:280px;margin-bottom:12px">
+      <label>Type de remise en jeu</label>
+      <select id="restart">
+        <option value="all">Toutes les remises</option>
+        <option value="center">Au centre</option>
+        <option value="line">Sur ligne</option>
+        <option value="corner">Sur coin</option>
+      </select>
+    </div>
+
+    <section id="content"><div class="statsEmpty">Chargement…</div></section>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL='https://chrbzchthloxowlzdvpe.supabase.co';
+const SUPABASE_KEY='sb_publishable_4pQGJ5DSzMRBuHLrAUb30g_MGZVYvEY';
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const params=new URLSearchParams(location.search);
+
+const state={user:null,accesses:[],groupId:null,playerId:null,playerName:'',groupName:'',isCoach:false,matches:[],selected:[],scope:'all',restartLocation:'all',loading:false};
+
+function err(e){return e?.message||String(e)||'Erreur'}
+function formatDateShort(v){if(!v)return'';try{return new Date(v+'T12:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'})}catch{return String(v)}}
+function num(v){const n=Number(v);return Number.isFinite(n)?n:null}
+function signed(v){const n=num(v);if(n==null)return'—';const x=Math.round(n*10)/10;return`${x>0?'+':''}${x.toFixed(1).replace('.',',')}`}
+function pct(v){const n=num(v);if(n==null)return'—';return`${(Math.round(n*10)/10).toFixed(1).replace('.',',')} %`}
+function impactClass(v){const n=num(v)||0;return n>.05?'positive':n<-.05?'negative':'neutral'}
+function reliability(n){n=Number(n)||0;if(n<5)return{cls:'low',label:'Très faible'};if(n<=15)return{cls:'limited',label:'Limité'};return{cls:'ok',label:''}}
+function scopeLabel(s){return s==='center'?'Jeu au centre':s==='restart_center'?'Remise en jeu · centre':s==='restart_line'?'Remise en jeu · ligne':s==='restart_corner'?'Remise en jeu · coin':s==='restart'?'Remise en jeu · toutes':'Cumulé'}
+function contextLabel(c){return({game_center:'Jeu au centre',restart_center:'Remise · centre',restart_line:'Remise · ligne',restart_corner:'Remise · coin'})[c]||c}
+function effectiveScope(){if(state.scope!=='restart')return state.scope||'all';const l=state.restartLocation||'all';return l==='center'?'restart_center':l==='line'?'restart_line':l==='corner'?'restart_corner':'restart'}
+
+function takeaways(x,n){
+  n=Number(n)||0;const creation=num(x?.creation100),safety=num(x?.safety100),items=[];
+  if(n<5){items.push('Le volume est trop faible pour interpréter Création et Sécurité comme un niveau établi.');items.push('Le principal objectif pour l’instant est d’accumuler davantage d’actions analysées.')}
+  else{
+    if(n<=15)items.push('Le volume donne une première tendance seulement : quelques actions peuvent encore modifier nettement les scores.');
+    const describe=(value,positive,neutral,negative)=>value==null?null:value>=3?positive:value<=-3?negative:neutral;
+    const c=describe(creation,'Tu marques plus de points que ce que le référentiel prévoit pour les situations que tu as jouées.','Ton nombre de points marqués est proche de ce que le référentiel prévoit pour les situations que tu as jouées.','Tu marques moins de points que ce que le référentiel prévoit pour les situations que tu as jouées.');
+    const s=describe(safety,'Ta sécurité offensive est au-dessus du référentiel : tu fais moins de fautes qu’attendu.','Ta sécurité offensive est proche du référentiel sur la sélection actuelle.','La réduction des fautes ressort comme un axe de travail sur la sélection actuelle.');
+    if(c)items.push(c);if(s)items.push(s)
+  }
+  return`<div class="takeaways"><h4>À retenir</h4>${items.slice(0,3).map(t=>`<div class="takeaway"><span class="takeawayDot"></span><span>${esc(t)}</span></div>`).join('')}</div>`
+}
+function warning(n){n=Number(n)||0;if(n<5)return`<div class="warning critical"><strong>⚠ Très faible volume (N = ${n}).</strong> Ces scores peuvent varier fortement avec une seule action et ne doivent pas être interprétés comme un niveau établi.</div>`;if(n<=15)return`<div class="warning"><strong>⚠ Volume encore limité (N = ${n}).</strong> Les scores donnent une première tendance mais restent sensibles à quelques actions.</div>`;return''}
+function detailsHtml(details){
+  const map=Object.fromEntries((details||[]).map(d=>[d.context,d])),contexts=['game_center','restart_center','restart_line','restart_corner'];
+  return`<details open><summary>Détail par situation</summary><div class="small" style="margin:0 0 8px">Jeu au centre et remises en jeu séparés. Le référentiel est indiqué sous tes taux.</div><div class="tableWrap"><table class="table"><thead><tr><th>Situation</th><th>N</th><th>% points</th><th>% fautes</th><th>Création /100</th><th>Sécurité /100</th></tr></thead><tbody>${contexts.map(c=>{const d=map[c]||{},n=Number(d.n)||0;return`<tr><td>${esc(contextLabel(c))}</td><td>${n}</td><td>${n?`<div>${pct(d.point_rate)}</div><div class="small">Réf. ${pct(d.expected_point_rate)}</div>`:'—'}</td><td>${n?`<div>${pct(d.fault_rate)}</div><div class="small">Réf. ${pct(d.expected_fault_rate)}</div>`:'—'}</td><td class="${impactClass(d.creation100)}">${n?signed(d.creation100):'—'}</td><td class="${impactClass(d.safety100)}">${n?signed(d.safety100):'—'}</td></tr>`}).join('')}</tbody></table></div></details>`
+}
+function sheet(data,allDetails){
+  const x=data?.metrics||{},avg=data?.group_average||{},n=Number(x.n)||0,ref=data?.reference_version||'référence active',rel=reliability(n);
+  return`<div class="sheet"><div class="sheetHeader"><div><div class="analysisSubtle">${esc(scopeLabel(effectiveScope()))}</div><h3>${esc(data.player_name||'')}</h3></div></div>${data?.is_test_mirror?`<div class="testNotice">Profil de test : les statistiques affichées sont une copie de celles de ${esc(data.stats_source_player_name||'un joueur source')} afin de tester un profil complet.</div>`:''}<div class="counts"><div class="count"><span>Nombre de frappes</span><strong>${n}</strong>${rel.label?`<span class="reliability">${esc(rel.label)}</span>`:''}</div><div class="count"><span>Points marqués</span><strong>${Number(x.points)||0}</strong></div><div class="count"><span>Fautes</span><strong>${Number(x.faults)||0}</strong></div></div>${warning(n)}${takeaways(x,n)}<div class="mainMetrics"><div class="metric"><span>Création /100</span><strong class="${impactClass(x.creation100)}">${n?signed(x.creation100):'—'}</strong><small>Moyenne groupe ${signed(avg.creation100)}</small></div><div class="metric"><span>Sécurité /100</span><strong class="${impactClass(x.safety100)}">${n?signed(x.safety100):'—'}</strong><small>Moyenne groupe ${signed(avg.safety100)}</small></div></div><div class="secondaryMetrics"><div class="secondary"><span>% points</span><strong>${n?pct(x.point_rate):'—'}</strong><small>${Number(x.points)||0} point${Number(x.points)===1?'':'s'} marqué${Number(x.points)===1?'':'s'} · Référentiel ${pct(x.expected_point_rate)} · Moyenne groupe ${pct(avg.point_rate)}</small></div><div class="secondary"><span>% fautes</span><strong>${n?pct(x.fault_rate):'—'}</strong><small>${Number(x.faults)||0} faute${Number(x.faults)===1?'':'s'} · Référentiel ${pct(x.expected_fault_rate)} · Moyenne groupe ${pct(avg.fault_rate)}</small></div></div><div class="small benchmark">La moyenne du groupe est calculée sans afficher les résultats des autres joueurs. Elle sert uniquement de repère collectif.</div><details open><summary>Comprendre le référentiel et les scores</summary><div class="explain"><p><strong>Le référentiel</strong> (${esc(ref)}) est construit à partir des attaques de la compétition de référence sélectionnées par le staff. Les données Hommes et Femmes sont séparées, ainsi que les différents contextes d’attaque.</p><div class="formula"><strong>Création /100</strong> : nombre de points produits en plus ou en moins sur 100 attaques par rapport au nombre attendu.</div><div class="formula"><strong>Sécurité /100</strong> : nombre de fautes évitées ou ajoutées sur 100 attaques par rapport au nombre attendu.</div><p>Un score de 0 correspond au niveau attendu du référentiel pour les situations réellement jouées. Positif = au-dessus du référentiel ; négatif = en dessous.</p><p>Le volume reste important : N &lt; 5 est trop faible pour conclure ; entre 5 et 15, le score donne surtout une tendance ; au-delà de 15 il devient plus stable.</p></div></details>${detailsHtml(allDetails||data.details||[])}</div>`
+}
+function renderMatches(){
+  const selected=new Set(state.selected||[]),box=$('#matches');
+  box.innerHTML=(state.matches||[]).map(m=>`<label class="matchItem ${selected.has(m.id)?'checked':''}"><input type="checkbox" data-match="${esc(m.id)}" ${selected.has(m.id)?'checked':''}><span><strong>${esc(m.label||'Match')}</strong><span class="small">${esc(formatDateShort(m.played_on)||'Date ?')}${m.competition?' · '+esc(m.competition):''}</span></span></label>`).join('');
+  $('#selectionStatus').textContent=`${selected.size} match${selected.size>1?'s':''} sélectionné${selected.size>1?'s':''}`;
+  box.querySelectorAll('[data-match]').forEach(i=>i.onchange=()=>{const s=new Set(state.selected);i.checked?s.add(i.dataset.match):s.delete(i.dataset.match);state.selected=[...s];renderMatches();render().catch(showError)})
+}
+function args(ids,scope){return{p_group_id:state.groupId,p_match_ids:ids,p_scope:scope,p_player_id:state.isCoach?state.playerId:null}}
+async function render(){
+  const box=$('#content'),ids=state.selected||[];if(!ids.length){box.innerHTML='<div class="statsEmpty">Sélectionne au moins un match.</div>';return}if(state.loading)return;
+  state.loading=true;box.innerHTML='<div class="statsEmpty">Calcul de tes statistiques…</div>';
+  try{
+    const scope=effectiveScope(),calls=[db.rpc('get_player_portal_metrics',args(ids,scope))];if(scope!=='all')calls.push(db.rpc('get_player_portal_metrics',args(ids,'all')));
+    const results=await Promise.all(calls);results.forEach(r=>{if(r.error)throw r.error});const data=results[0].data||{},details=(results[1]?.data||data).details||[];box.innerHTML=sheet(data,details)
+  }finally{state.loading=false}
+}
+function showError(e){console.error(e);$('#content').innerHTML=`<div class="statsEmpty error">${esc(err(e))}</div>`}
+
+async function loadGroup(groupId){
+  state.groupId=groupId;state.scope='all';state.restartLocation='all';$$('[data-scope]').forEach(b=>b.classList.toggle('active',b.dataset.scope==='all'));$('#restartField').classList.add('hidden');$('#restart').value='all';
+  const {data,error}=await db.rpc('get_player_portal_metrics',args(null,'all'));if(error)throw error;
+  state.matches=data?.matches||[];state.selected=state.matches.map(m=>m.id);state.playerName=data?.player_name||state.playerName;state.groupName=data?.group_name||state.groupName;
+  $('#title').textContent=state.isCoach?`Statistiques · ${state.playerName}`:'Mes statistiques';$('#subtitle').textContent=state.groupName||'';renderMatches();$('#content').innerHTML=sheet(data,data?.details||[]);
+  const q=state.isCoach?`?group=${encodeURIComponent(state.groupId)}&player=${encodeURIComponent(state.playerId)}`:`?group=${encodeURIComponent(state.groupId)}`;$('#videosLink').href='videos.html'+q
+}
+async function init(){
+  const {data:{session}}=await db.auth.getSession();if(!session?.user){location.href='index.html';return}state.user=session.user;$('#cloudText').textContent='Synchronisé';
+  const requestedGroup=params.get('group'),requestedPlayer=params.get('player');
+  if(requestedGroup&&requestedPlayer){
+    const {data,error}=await db.rpc('get_player_portal_metrics',{p_group_id:requestedGroup,p_match_ids:null,p_scope:'all',p_player_id:requestedPlayer});
+    if(!error&&data?.player_id){state.isCoach=true;state.groupId=requestedGroup;state.playerId=requestedPlayer;state.playerName=data.player_name||'Joueur';state.groupName=data.group_name||'';$('#modeLabel').textContent='Vue entraîneur'}
+  }
+  if(!state.groupId){
+    const {data,error}=await db.rpc('get_my_player_access');if(error)throw error;state.accesses=data||[];if(!state.accesses.length)throw new Error("Aucun espace joueur n'est lié à ce compte.");
+    const chosen=(requestedGroup&&state.accesses.find(a=>a.group_id===requestedGroup))||state.accesses[0];state.groupId=chosen.group_id;state.playerId=chosen.player_id;state.playerName=chosen.player_name||'';state.groupName=chosen.group_name||'';
+    if(state.accesses.length>1){$('#groupField').classList.remove('hidden');$('#groupSelect').innerHTML=state.accesses.map(a=>`<option value="${esc(a.group_id)}">${esc(a.group_name)} · ${esc(a.player_name)}</option>`).join('');$('#groupSelect').value=state.groupId;$('#groupSelect').onchange=()=>loadGroup($('#groupSelect').value).catch(showError)}
+  }
+  if(state.isCoach){$('#nav').innerHTML=`<a href="index.html">Accueil entraîneur</a><a href="player-stats.html?group=${encodeURIComponent(state.groupId)}&player=${encodeURIComponent(state.playerId)}" class="active">Statistiques · ${esc(state.playerName)}</a><a href="videos.html?group=${encodeURIComponent(state.groupId)}&player=${encodeURIComponent(state.playerId)}">Vidéos</a>`}
+  await loadGroup(state.groupId)
+}
+$('#selectAll').onclick=()=>{state.selected=state.matches.map(m=>m.id);renderMatches();render().catch(showError)};
+$('#latest').onclick=()=>{state.selected=state.matches[0]?.id?[state.matches[0].id]:[];renderMatches();render().catch(showError)};
+$$('[data-scope]').forEach(b=>b.onclick=()=>{state.scope=b.dataset.scope;$$('[data-scope]').forEach(x=>x.classList.toggle('active',x===b));$('#restartField').classList.toggle('hidden',state.scope!=='restart');render().catch(showError)});
+$('#restart').onchange=e=>{state.restartLocation=e.target.value;render().catch(showError)};
+$('#logout').onclick=async()=>{await db.auth.signOut();location.href='index.html'};
+init().catch(showError);
+</script>
+</body>
+</html>

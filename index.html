@@ -2061,10 +2061,10 @@ button.playerPortalHomeCard:hover,a.playerPortalHomeCard:hover{border-color:var(
 
  <section class="panel hidden" id="playerPortal">
   <div class="playerPortalTopNav">
-   <button type="button" class="ghost active" id="playerPortalNavHome" onclick="playerPortalSetView(\'home\')">Accueil <span class="messageUnreadBadge hidden" id="playerUnreadBadge">0</span></button>
-   <button type="button" class="ghost" id="playerPortalNavStats" onclick="playerPortalSetView(\'stats\')">Mes statistiques</button>
+   <a class="ghost active" id="playerPortalNavHome" href="index.html#player-home">Accueil <span class="messageUnreadBadge hidden" id="playerUnreadBadge">0</span></a>
+   <a class="ghost" id="playerPortalNavStats" href="player-stats.html">Mes statistiques</a>
    <a class="ghost" id="playerPortalNavVideos" href="videos.html">Mes vidéos <span class="videoUnreadBadge hidden" id="playerVideoNavBadge">0</span></a>
-   <button type="button" class="ghost" id="playerPortalNavProfile" onclick="playerPortalSetView(\'profile\')">Mon profil</button>
+   <a class="ghost" id="playerPortalNavProfile" href="index.html#player-profile">Mon profil</a>
    <button type="button" class="ghost hidden" id="playerPortalBackStaff">Retour espace entraîneur</button>
   </div>
 
@@ -2096,24 +2096,24 @@ button.playerPortalHomeCard:hover,a.playerPortalHomeCard:hover{border-color:var(
     <div class="small" id="playerObjectiveStatus" style="margin-top:7px"></div>
    </div>
    <div class="playerPortalHomeGrid">
-    <button type="button" class="playerPortalHomeCard" id="playerPortalHomeStatsCard" onclick="playerPortalSetView(\'stats\')">
+    <a class="playerPortalHomeCard" id="playerPortalHomeStatsCard" href="player-stats.html">
      <div class="analysisSubtle">Matchs</div>
      <h3>Mes statistiques</h3>
      <p>Consulte tes indicateurs offensifs, le référentiel, les repères anonymisés du groupe et le message des entraîneurs.</p>
      <span class="cardAction">Voir mes statistiques →</span>
-    </button>
+    </a>
     <a class="playerPortalHomeCard" id="playerPortalHomeVideosCard" href="videos.html">
      <div class="analysisSubtle">Vidéo</div>
      <h3>Mes vidéos</h3>
      <p>Ajoute tes vidéos dans ton dossier Drive, suis leur analyse et consulte les retours du staff.</p>
      <span class="cardAction">Ouvrir mes vidéos →</span>
     </a>
-    <button type="button" class="playerPortalHomeCard" id="playerPortalHomeProfileCard" onclick="playerPortalSetView(\'profile\')">
+    <a class="playerPortalHomeCard" id="playerPortalHomeProfileCard" href="index.html#player-profile">
      <div class="analysisSubtle">Compte</div>
      <h3>Mon profil</h3>
      <p>Gère ton poste préféré et les informations liées à ton compte joueur.</p>
      <span class="cardAction">Ouvrir mon profil →</span>
-    </button>
+    </a>
    </div>
   </div>
 
@@ -3860,18 +3860,36 @@ function playerPortalSetView(view){
 function syncStandaloneVideoLinks(){
   const groupId=playerPortalState.groupId;
   const playerId=playerPortalTargetPlayerId();
-  const href=playerPortalState.staffPreview&&groupId&&playerId
-    ?`videos.html?group=${encodeURIComponent(groupId)}&player=${encodeURIComponent(playerId)}`
-    :(groupId?`videos.html?group=${encodeURIComponent(groupId)}`:'videos.html');
-  const nav=$('#playerPortalNavVideos'),card=$('#playerPortalHomeVideosCard');
-  if(nav)nav.href=href;
-  if(card)card.href=href;
+  const suffix=playerPortalState.staffPreview&&groupId&&playerId
+    ?`?group=${encodeURIComponent(groupId)}&player=${encodeURIComponent(playerId)}`
+    :(groupId?`?group=${encodeURIComponent(groupId)}`:'');
+  const videoHref=`videos.html${suffix}`;
+  const statsHref=`player-stats.html${suffix}`;
+  const navVideo=$('#playerPortalNavVideos'),cardVideo=$('#playerPortalHomeVideosCard');
+  const navStats=$('#playerPortalNavStats'),cardStats=$('#playerPortalHomeStatsCard');
+  if(navVideo)navVideo.href=videoHref;
+  if(cardVideo)cardVideo.href=videoHref;
+  if(navStats)navStats.href=statsHref;
+  if(cardStats)cardStats.href=statsHref;
 }
 window.addEventListener('hashchange',()=>{
   if($('#playerPortal')?.classList.contains('hidden'))return;
-  const wanted=location.hash==='#player-stats'?'stats':location.hash==='#player-profile'?'profile':location.hash==='#player-home'?'home':null;
+  const wanted=location.hash==='#player-profile'?'profile':location.hash==='#player-home'?'home':null;
   if(wanted)playerPortalSetView(wanted);
 });
+document.addEventListener('click',e=>{
+  const link=e.target.closest?.('#playerPortalNavHome,#playerPortalNavStats,#playerPortalNavProfile,#playerPortalHomeStatsCard,#playerPortalHomeProfileCard');
+  if(!link)return;
+  const href=link.getAttribute('href')||'';
+  const hash=href.includes('#')?'#'+href.split('#').pop():'';
+  const wanted=hash==='#player-stats'?'stats':hash==='#player-profile'?'profile':hash==='#player-home'?'home':null;
+  if(!wanted)return;
+  if(location.hash===hash){
+    e.preventDefault();
+    playerPortalSetView(wanted);
+  }
+});
+
 function refreshPlayerPortalIdentity(){
   const access=playerPortalAccessForGroup(playerPortalState.groupId)||playerPortalState.accesses?.[0];
   const player=access?.player_name||'';
@@ -4135,7 +4153,7 @@ async function openPlayerPortal(accesses){
   field.classList.toggle('hidden',playerPortalState.staffPreview||playerPortalState.accesses.length<2);
   sel.onchange=()=>loadPlayerPortalGroup(sel.value).catch(e=>handleError('player portal group',e));
   await loadPlayerPortalGroup(playerPortalState.accesses[0].group_id);
-  const wanted=location.hash==='#player-stats'?'stats':location.hash==='#player-profile'?'profile':'home';
+  const wanted=location.hash==='#player-profile'?'profile':'home';
   playerPortalSetView(wanted);syncStandaloneVideoLinks();setCloud('Synchronisé',true);window.scrollTo({top:0,behavior:'instant'});return true
 }
 
