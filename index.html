@@ -9896,9 +9896,12 @@ function statsImpactPlayerOpponentTableHtml(ds,playerName,scope){
     const parent=`<tr>
       <td>${expandable
         ?`<div class="statsImpactOpponentToggle" data-stats-impact-opponent-toggle="${idx}"><span class="chev">▶</span><strong>${escapeHtml(x.opponentName)}</strong><span class="small">${x.matches.length} matchs</span></div>`
-        :`<strong>${escapeHtml(x.name)}</strong>`}
+        :`<strong>${escapeHtml(x.opponentName)}</strong>`}
       </td>
       <td>${x.total}</td>
+      <td>${x.points}</td>
+      <td>${x.faults}</td>
+      <td>${x.defended}</td>
       <td>${x.total?actualVsReferencePctHtml(x.pointRate,x.expectedPointRate):'—'}</td>
       <td>${x.total?actualVsReferencePctHtml(x.faultRate,x.expectedFaultRate):'—'}</td>
       <td class="${impactClass(x.creation100||0)}">${x.total?signed1(x.creation100):'—'}</td>
@@ -9911,25 +9914,40 @@ function statsImpactPlayerOpponentTableHtml(ds,playerName,scope){
         <span class="statsImpactOpponentMatchMeta">${escapeHtml(formatDateShort(m.playedOn)||'')}${m.competition?' · '+escapeHtml(m.competition):''}</span>
       </td>
       <td>${m.total}</td>
+      <td>${m.points}</td>
+      <td>${m.faults}</td>
+      <td>${m.defended}</td>
       <td>${m.total?actualVsReferencePctHtml(m.pointRate,m.expectedPointRate):'—'}</td>
       <td>${m.total?actualVsReferencePctHtml(m.faultRate,m.expectedFaultRate):'—'}</td>
       <td class="${impactClass(m.creation100||0)}">${m.total?signed1(m.creation100):'—'}</td>
       <td class="${impactClass(m.safety100||0)}">${m.total?signed1(m.safety100):'—'}</td>
     </tr>`).join(''):'';
+
     return parent+children;
   }).join('');
 
   return `<details class="statsImpactPlayerDetails statsImpactOpponentBlock" open>
     <summary>Performance par adversaire</summary>
     <div class="analysisSubtle" style="margin:8px 0">
-      Les filtres de matchs et de contexte s’appliquent aussi ici. Si un adversaire a été rencontré plusieurs fois, clique sur son nom pour afficher le détail match par match.
+      Les mêmes filtres de matchs et de contexte s’appliquent. Quand un adversaire a été rencontré plusieurs fois, clique sur son nom pour afficher le détail de chaque match.
     </div>
     <div class="analysisTableWrap"><table class="analysisTable">
-      <thead><tr><th>Adversaire</th><th>N</th><th>% points</th><th>% fautes</th><th>Création /100</th><th>Sécurité /100</th></tr></thead>
+      <thead><tr>
+        <th>Adversaire</th>
+        <th>N</th>
+        <th>Points</th>
+        <th>Fautes</th>
+        <th>Défendus</th>
+        <th>% points</th>
+        <th>% fautes</th>
+        <th>Création /100</th>
+        <th>Sécurité /100</th>
+      </tr></thead>
       <tbody>${body}</tbody>
     </table></div>
   </details>`;
 }
+
 function bindStatsImpactOpponentBreakdowns(root){
   (root||document).querySelectorAll('[data-stats-impact-opponent-toggle]').forEach(el=>{
     el.onclick=()=>{
