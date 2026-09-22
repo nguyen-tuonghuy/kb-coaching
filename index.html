@@ -4006,123 +4006,7 @@ async function loadPlayerObjectives(){
 }
 async function addPlayerObjective(){
   const groupId=playerPortalState.groupId,playerId=playerPortalTargetPlayerId();
-  const input=$('#playerObjectiveInput'),status=$('#playerObjectiveStatus'),button=
-function bindStatsControls(){
-  const statsGroup=$('#statsGroup');
-  if(statsGroup)statsGroup.onchange=async()=>{
-    try{
-      await loadStatsData(statsGroup.value);
-      const group=groupState.groups.find(g=>g.id===statsGroup.value);
-      const pop=groupPopulationFromName(group?.name)||'H';
-      if($('#statsReferencePopulation'))$('#statsReferencePopulation').value=pop;
-      if($('#statsImpactPopulation'))$('#statsImpactPopulation').value=pop;
-      if(statsState.domain==='matches')await loadStatsMatches();
-      if(statsState.domain==='impact')await loadStatsImpact();
-      if(statsState.domain==='reference')await loadStatsReference();
-    }catch(e){
-      handleError('stats group',e);
-      if($('#statsStatus'))$('#statsStatus').textContent=e.message||String(e);
-    }
-  };
-
-  $$('.statsDomainTab').forEach(b=>b.onclick=()=>switchStatsDomain(b.dataset.statsDomain));
-  $$('.statsTab').forEach(b=>b.onclick=()=>switchStatsTab(b.dataset.statsTab));
-
-  const refPopulation=$('#statsReferencePopulation');
-  if(refPopulation)refPopulation.onchange=()=>loadStatsReference().catch(e=>handleError('stats reference population',e));
-
-  const reloadSources=$('#statsReferenceReloadSources');
-  if(reloadSources)reloadSources.onclick=()=>loadReferenceSources().catch(e=>handleError('reference sources',e));
-
-  const saveSources=$('#statsReferenceSaveSources');
-  if(saveSources)saveSources.onclick=()=>saveReferenceSources().catch(e=>{handleError('save reference sources',e);setCloud('Erreur',false)});
-
-  const createVersion=$('#statsReferenceCreateVersion');
-  if(createVersion)createVersion.onclick=()=>createReferenceVersion().catch(e=>{handleError('create reference version',e);setCloud('Erreur',false)});
-
-  const impactPopulation=$('#statsImpactPopulation');
-  if(impactPopulation)impactPopulation.onchange=()=>renderStatsImpactSelection().catch(e=>handleError('stats impact population',e));
-
-  const impactSortField=$('#statsImpactSortField');
-  if(impactSortField)impactSortField.onchange=()=>{
-    statsState.impactSortField=impactSortField.value||'impact100';
-    renderStatsImpactSelection().catch(e=>handleError('stats impact sort field',e));
-  };
-
-  const impactSortDirection=$('#statsImpactSortDirection');
-  if(impactSortDirection)impactSortDirection.onchange=()=>{
-    statsState.impactSortDirection=impactSortDirection.value||'desc';
-    renderStatsImpactSelection().catch(e=>handleError('stats impact sort direction',e));
-  };
-
-  $$('#statsImpactScopeTabs [data-impact-scope]').forEach(b=>b.onclick=()=>{
-    statsState.impactScope=b.dataset.impactScope||'all';
-    $$('#statsImpactScopeTabs [data-impact-scope]').forEach(x=>x.classList.toggle('active',x===b));
-    $('#statsImpactRestartFilter')?.classList.toggle('hidden',statsState.impactScope!=='restart');
-    renderStatsImpactSelection().catch(e=>handleError('stats impact scope',e));
-  });
-
-  const impactRestartLocation=$('#statsImpactRestartLocation');
-  if(impactRestartLocation)impactRestartLocation.onchange=()=>{
-    statsState.impactRestartLocation=impactRestartLocation.value||'all';
-    renderStatsImpactSelection().catch(e=>handleError('stats impact restart location',e));
-  };
-
-  document.querySelectorAll('#statsImpactViewTabs [data-impact-view]').forEach(b=>b.onclick=()=>{
-    statsState.impactView=b.dataset.impactView||'staff';
-    document.querySelectorAll('#statsImpactViewTabs [data-impact-view]').forEach(x=>x.classList.toggle('active',x===b));
-    renderStatsImpactSelection().catch(e=>handleError('stats impact view',e));
-  });
-
-  const impactLatest=$('#statsImpactLatest');
-  if(impactLatest)impactLatest.onclick=()=>{
-    const list=statsState.impactMatchList||[];
-    const latest=list[list.length-1];
-    statsState.impactMatchSelection=latest?[latest.id]:[];
-    renderStatsImpactMatchSelector();
-    renderStatsImpactSelection().catch(e=>handleError('stats impact latest',e));
-  };
-
-  const impactClear=$('#statsImpactClear');
-  if(impactClear)impactClear.onclick=()=>{
-    statsState.impactMatchSelection=[];
-    renderStatsImpactMatchSelector();
-    renderStatsImpactSelection().catch(e=>handleError('stats impact clear',e));
-  };
-
-  const impactSearch=$('#statsImpactMatchSearch');
-  if(impactSearch)impactSearch.oninput=e=>{
-    statsState.impactMatchSearch=e.target.value||'';
-    renderStatsImpactMatchSelector();
-  };
-
-  const impactType=$('#statsImpactMatchTypeFilter');
-  if(impactType)impactType.onchange=e=>{
-    statsState.impactMatchTypeFilter=e.target.value||'';
-    renderStatsImpactMatchSelector();
-  };
-
-  const statsPlayer=$('#statsPlayer');
-  if(statsPlayer)statsPlayer.onchange=()=>{populateStatsPlayerExercises();renderStatsPlayer()};
-
-  const statsPlayerExercise=$('#statsPlayerExercise');
-  if(statsPlayerExercise)statsPlayerExercise.onchange=renderStatsPlayer;
-
-  const statsExercise=$('#statsExercise');
-  if(statsExercise)statsExercise.onchange=renderStatsExercise;
-
-  const statsExerciseFocus=$('#statsExerciseFocus');
-  if(statsExerciseFocus)statsExerciseFocus.onchange=renderStatsExercise;
-
-  $$('.statsLeaderboardMode').forEach(b=>b.onclick=()=>{
-    statsState.leaderMode=b.dataset.leaderMode;
-    $$('.statsLeaderboardMode').forEach(x=>x.classList.toggle('active',x===b));
-    renderStatsExercise();
-  });
-}
-bindStatsControls();
-
-$('#playerObjectiveAdd');
+  const input=$('#playerObjectiveInput'),status=$('#playerObjectiveStatus'),button=$('#playerObjectiveAdd');
   const objective=(input?.value||'').trim();
   if(!objective||!groupId||!playerId)return;
   button.disabled=true;if(status)status.textContent='Ajout…';
@@ -10352,6 +10236,122 @@ $('#openTrainingHistory').onclick=async()=>{try{await fetchTrainingPlayers();hid
 $('#historyBack').onclick=()=>openTrainingModule();
 $('#historyPlayer').onchange=()=>loadPlayerHistory($('#historyPlayer').value).catch(e=>handleError('history player',e));
 
+
+
+function bindStatsControls(){
+  const statsGroup=$('#statsGroup');
+  if(statsGroup)statsGroup.onchange=async()=>{
+    try{
+      await loadStatsData(statsGroup.value);
+      const group=groupState.groups.find(g=>g.id===statsGroup.value);
+      const pop=groupPopulationFromName(group?.name)||'H';
+      if($('#statsReferencePopulation'))$('#statsReferencePopulation').value=pop;
+      if($('#statsImpactPopulation'))$('#statsImpactPopulation').value=pop;
+      if(statsState.domain==='matches')await loadStatsMatches();
+      if(statsState.domain==='impact')await loadStatsImpact();
+      if(statsState.domain==='reference')await loadStatsReference();
+    }catch(e){
+      handleError('stats group',e);
+      if($('#statsStatus'))$('#statsStatus').textContent=e.message||String(e);
+    }
+  };
+
+  $$('.statsDomainTab').forEach(b=>b.onclick=()=>switchStatsDomain(b.dataset.statsDomain));
+  $$('.statsTab').forEach(b=>b.onclick=()=>switchStatsTab(b.dataset.statsTab));
+
+  const refPopulation=$('#statsReferencePopulation');
+  if(refPopulation)refPopulation.onchange=()=>loadStatsReference().catch(e=>handleError('stats reference population',e));
+
+  const reloadSources=$('#statsReferenceReloadSources');
+  if(reloadSources)reloadSources.onclick=()=>loadReferenceSources().catch(e=>handleError('reference sources',e));
+
+  const saveSources=$('#statsReferenceSaveSources');
+  if(saveSources)saveSources.onclick=()=>saveReferenceSources().catch(e=>{handleError('save reference sources',e);setCloud('Erreur',false)});
+
+  const createVersion=$('#statsReferenceCreateVersion');
+  if(createVersion)createVersion.onclick=()=>createReferenceVersion().catch(e=>{handleError('create reference version',e);setCloud('Erreur',false)});
+
+  const impactPopulation=$('#statsImpactPopulation');
+  if(impactPopulation)impactPopulation.onchange=()=>renderStatsImpactSelection().catch(e=>handleError('stats impact population',e));
+
+  const impactSortField=$('#statsImpactSortField');
+  if(impactSortField)impactSortField.onchange=()=>{
+    statsState.impactSortField=impactSortField.value||'impact100';
+    renderStatsImpactSelection().catch(e=>handleError('stats impact sort field',e));
+  };
+
+  const impactSortDirection=$('#statsImpactSortDirection');
+  if(impactSortDirection)impactSortDirection.onchange=()=>{
+    statsState.impactSortDirection=impactSortDirection.value||'desc';
+    renderStatsImpactSelection().catch(e=>handleError('stats impact sort direction',e));
+  };
+
+  $$('#statsImpactScopeTabs [data-impact-scope]').forEach(b=>b.onclick=()=>{
+    statsState.impactScope=b.dataset.impactScope||'all';
+    $$('#statsImpactScopeTabs [data-impact-scope]').forEach(x=>x.classList.toggle('active',x===b));
+    $('#statsImpactRestartFilter')?.classList.toggle('hidden',statsState.impactScope!=='restart');
+    renderStatsImpactSelection().catch(e=>handleError('stats impact scope',e));
+  });
+
+  const impactRestartLocation=$('#statsImpactRestartLocation');
+  if(impactRestartLocation)impactRestartLocation.onchange=()=>{
+    statsState.impactRestartLocation=impactRestartLocation.value||'all';
+    renderStatsImpactSelection().catch(e=>handleError('stats impact restart location',e));
+  };
+
+  document.querySelectorAll('#statsImpactViewTabs [data-impact-view]').forEach(b=>b.onclick=()=>{
+    statsState.impactView=b.dataset.impactView||'staff';
+    document.querySelectorAll('#statsImpactViewTabs [data-impact-view]').forEach(x=>x.classList.toggle('active',x===b));
+    renderStatsImpactSelection().catch(e=>handleError('stats impact view',e));
+  });
+
+  const impactLatest=$('#statsImpactLatest');
+  if(impactLatest)impactLatest.onclick=()=>{
+    const list=statsState.impactMatchList||[];
+    const latest=list[list.length-1];
+    statsState.impactMatchSelection=latest?[latest.id]:[];
+    renderStatsImpactMatchSelector();
+    renderStatsImpactSelection().catch(e=>handleError('stats impact latest',e));
+  };
+
+  const impactClear=$('#statsImpactClear');
+  if(impactClear)impactClear.onclick=()=>{
+    statsState.impactMatchSelection=[];
+    renderStatsImpactMatchSelector();
+    renderStatsImpactSelection().catch(e=>handleError('stats impact clear',e));
+  };
+
+  const impactSearch=$('#statsImpactMatchSearch');
+  if(impactSearch)impactSearch.oninput=e=>{
+    statsState.impactMatchSearch=e.target.value||'';
+    renderStatsImpactMatchSelector();
+  };
+
+  const impactType=$('#statsImpactMatchTypeFilter');
+  if(impactType)impactType.onchange=e=>{
+    statsState.impactMatchTypeFilter=e.target.value||'';
+    renderStatsImpactMatchSelector();
+  };
+
+  const statsPlayer=$('#statsPlayer');
+  if(statsPlayer)statsPlayer.onchange=()=>{populateStatsPlayerExercises();renderStatsPlayer()};
+
+  const statsPlayerExercise=$('#statsPlayerExercise');
+  if(statsPlayerExercise)statsPlayerExercise.onchange=renderStatsPlayer;
+
+  const statsExercise=$('#statsExercise');
+  if(statsExercise)statsExercise.onchange=renderStatsExercise;
+
+  const statsExerciseFocus=$('#statsExerciseFocus');
+  if(statsExerciseFocus)statsExerciseFocus.onchange=renderStatsExercise;
+
+  $$('.statsLeaderboardMode').forEach(b=>b.onclick=()=>{
+    statsState.leaderMode=b.dataset.leaderMode;
+    $$('.statsLeaderboardMode').forEach(x=>x.classList.toggle('active',x===b));
+    renderStatsExercise();
+  });
+}
+bindStatsControls();
 
 $('#openStatsModule').onclick=()=>openStatsModule();
 if($('#openQuickCollectionFromReference'))$('#openQuickCollectionFromReference').onclick=()=>{window.location.href='quick-collection.html'};
