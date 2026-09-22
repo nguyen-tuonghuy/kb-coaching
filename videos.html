@@ -160,7 +160,7 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escapeHtml=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const params=new URLSearchParams(location.search);
 
-async function returnFromVideoToHome(){
+function returnFromVideoToHome(){
   const diag={
     page:'videos',
     at:new Date().toISOString(),
@@ -172,24 +172,20 @@ async function returnFromVideoToHome(){
     sessionStorageKeys:Object.keys(sessionStorage)
   };
   try{
-    const fresh=await Promise.race([
-      db.auth.getSession(),
-      new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),2500))
-    ]);
-    diag.freshSession=!!fresh?.data?.session;
-    diag.freshUser=!!fresh?.data?.session?.user;
-    if(fresh?.data?.session?.access_token&&fresh?.data?.session?.refresh_token){
+    if(state.session?.access_token&&state.session?.refresh_token){
       sessionStorage.setItem('kb_video_auth_handoff',JSON.stringify({
-        access_token:fresh.data.session.access_token,
-        refresh_token:fresh.data.session.refresh_token,
+        access_token:state.session.access_token,
+        refresh_token:state.session.refresh_token,
         saved_at:Date.now()
       }));
+      diag.handoffPresent=true;
+    }else{
+      diag.handoffPresent=false;
     }
+    sessionStorage.setItem('kb_auth_diag_from_video',JSON.stringify(diag));
   }catch(e){
-    diag.freshSessionError=e?.message||String(e);
+    // Query parameter still guarantees the diagnostic page is shown even if storage fails.
   }
-  diag.handoffPresent=sessionStorage.getItem('kb_video_auth_handoff')!==null;
-  sessionStorage.setItem('kb_auth_diag_from_video',JSON.stringify(diag));
   location.href='./?authdiag=1';
 }
 function returnFromVideoToDashboard(){
@@ -270,10 +266,11 @@ function configureUI(){
   // In coach mode, return directly to the player's group page on index.
   if(state.isCoach){
     const coachBack=`coach-videos.html?group=${encodeURIComponent(state.groupId)}`;
-    $('#globalHomeLink').href='./';
+    $('#globalHomeLink').href='./?authdiag=1';
     $('#videosBackLink').href=coachBack;
     $('#videosBackLink').textContent='← Vidéos';
-    $('#nav').innerHTML=`<a href="index.html">Accueil entraîneur</a><a href="${coachBack}">Vidéos</a><a href="#" class="active" onclick="return false">Analyse vidéo · ${escapeHtml(state.playerName)}</a>`;
+    $('#nav').innerHTML=`<a href="./?authdiag=1" id="coachHomeNav">Accueil entraîneur</a><a href="${coachBack}">Vidéos</a><a href="#" class="active" onclick="return false">Analyse vidéo · ${escapeHtml(state.playerName)}</a>`;
+    $('#coachHomeNav').onclick=e=>{e.preventDefault();returnFromVideoToHome()};
   }else{
     $('#globalHomeLink').href='./';
     $('#videosBackLink').href='./';
