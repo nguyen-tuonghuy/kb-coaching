@@ -161,6 +161,14 @@ const escapeHtml=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;'
 const params=new URLSearchParams(location.search);
 
 function returnFromVideoToHome(){
+  const s=state.session;
+  if(s?.access_token&&s?.refresh_token){
+    sessionStorage.setItem('kb_video_auth_handoff',JSON.stringify({
+      access_token:s.access_token,
+      refresh_token:s.refresh_token,
+      saved_at:Date.now()
+    }));
+  }
   location.href='./';
 }
 function returnFromVideoToDashboard(){
@@ -172,7 +180,7 @@ function returnFromVideoToDashboard(){
 }
 
 const state={
-  user:null,groupId:null,playerId:null,playerName:'',groupName:'',
+  user:null,session:null,groupId:null,playerId:null,playerName:'',groupName:'',
   isCoach:false,config:null,videos:[],currentVideoId:null,notes:[],
   shapes:[],activeShape:null
 };
@@ -189,6 +197,7 @@ async function init(){
   if(!window.supabase)throw new Error('Supabase indisponible.');
   const {data:{session}}=await db.auth.getSession();
   if(!session?.user){location.href='index.html';return}
+  state.session=session;
   state.user=session.user;
   $('#cloudText').textContent='Synchronisé';
 

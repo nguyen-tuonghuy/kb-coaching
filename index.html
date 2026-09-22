@@ -4193,6 +4193,34 @@ async function initAuthenticated(user){
   await ensureWorkspace();await ensureMyProfile();await refreshAdminAccess();await fetchMyGroups();
 }
 
+
+async function getSessionWithVideoHandoff(){
+  let result=await db.auth.getSession();
+  if(result?.data?.session?.user)return result;
+  try{
+    const raw=sessionStorage.getItem('kb_video_auth_handoff');
+    if(!raw)return result;
+    const saved=JSON.parse(raw);
+    if(!saved?.access_token||!saved?.refresh_token)return result;
+    // Only accept a recent handoff from the video page.
+    if(Date.now()-Number(saved.saved_at||0)>120000){
+      sessionStorage.removeItem('kb_video_auth_handoff');
+      return result;
+    }
+    const restored=await db.auth.setSession({
+      access_token:saved.access_token,
+      refresh_token:saved.refresh_token
+    });
+    if(restored?.data?.session?.user){
+      sessionStorage.removeItem('kb_video_auth_handoff');
+      return restored;
+    }
+  }catch(e){
+    console.warn('Video auth handoff restore failed',e);
+  }
+  return result;
+}
+
 async function initAuth(){
   $('#matchDate').value=isoToFrInput(today());
   $('#matchGroup').value=groupState.groups[0]?.id||'';
@@ -4201,7 +4229,7 @@ async function initAuth(){
   const hashParams=new URLSearchParams(location.hash.replace(/^#/,'')||'');
   const queryParams=new URLSearchParams(location.search||'');
   const recoveryLink=hashParams.get('type')==='recovery'||queryParams.get('type')==='recovery';
-  const {data:{session}}=await db.auth.getSession();
+  const {data:{session}}=await getSessionWithVideoHandoff();
   if(session?.user){
     if(playerGroupInviteToken()&&!playerGroupInvitePlayerId()){
       currentUser=session.user;
