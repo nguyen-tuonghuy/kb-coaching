@@ -1721,7 +1721,7 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
     grid-template-columns:repeat(3,minmax(0,1fr));
     gap:7px;
   }
-  .playerPortalTopNav button{
+  .playerPortalTopNav button,.playerPortalTopNav a{
     min-width:0;
     padding:11px 7px;
     font-size:14px;
@@ -1737,7 +1737,23 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
 .playerPortalAccountBox .accountText{display:grid;gap:2px}
 .playerPortalPrivacyNote{font-size:12px;color:var(--muted);margin-top:8px}
 .playerPortalTopNav{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
-.playerPortalTopNav button.active,.playerPortalTopNav a.active{background:var(--primary);border-color:var(--primary);color:#fff}.playerPortalTopNav a{display:inline-flex;align-items:center;text-decoration:none}
+.playerPortalTopNav button,.playerPortalTopNav a{
+  min-width:0;
+  padding:13px 11px;
+  border-radius:14px;
+  background:transparent;
+  border:1px solid var(--line);
+  color:var(--text);
+  font:inherit;
+  font-weight:750;
+  cursor:pointer;
+  text-decoration:none;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+.playerPortalTopNav button:active,.playerPortalTopNav a:active{transform:scale(.985)}
+.playerPortalTopNav button.active,.playerPortalTopNav a.active{background:var(--primary);border-color:var(--primary);color:#fff}
 .playerPortalHomeHero{padding:4px 0 8px}
 .playerPortalHomeHero h2{margin:0 0 4px;font-size:24px}
 .playerPortalHomeGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}
