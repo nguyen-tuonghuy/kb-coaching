@@ -10522,6 +10522,7 @@ document.addEventListener('keydown',e=>{
 });
 $('#playerObjectiveAdd').onclick=()=>addPlayerObjective();
 $('#playerObjectiveInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addPlayerObjective()}});
+$('#playerPortalMessageSend').onclick=()=>sendPlayerPortalMessage();
 $('#playerPortalMessageInput').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();sendPlayerPortalMessage()}});
 $('#playerSpaceBtn').onclick=()=>enterMyPlayerPortal().catch(err=>handleError('open player portal',err));
 $('#playerPortalBackStaff').onclick=()=>returnToStaffSpace().catch(e=>handleError('return staff space',e));
