@@ -1806,8 +1806,14 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
 .playerVideoReview{display:grid;gap:7px;padding-top:8px;border-top:1px solid var(--line)}
 .playerVideoReview textarea{min-height:92px;resize:vertical}
 .playerVideoPlayer{border:1px solid var(--line);border-radius:16px;background:#0d0f13;padding:10px}
-.playerVideoPlayerHeader{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:8px}
-.playerVideoPlayer iframe{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;background:#000}
+.playerVideoPlayerHeader{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+.playerVideoPlayer video{display:block;width:100%;max-height:min(68vh,760px);background:#000;border-radius:10px}
+.playerVideoAdvancedControls{display:grid;gap:9px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.playerVideoControlRow{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.playerVideoSpeedButton.active{border-color:var(--primary);background:#22304d}
+.playerVideoRateDisplay{font-weight:800;min-width:52px;text-align:center}
+.playerVideoTimeDisplay{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px}
+.playerVideoHint{color:var(--muted);font-size:11px;line-height:1.4}
 .videoUnreadBadge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#7557d9;color:#fff;font-size:11px;font-weight:800;line-height:1;margin-left:5px}
 @media(max-width:620px){
   .playerVideoUploadGrid{grid-template-columns:1fr}
@@ -2130,9 +2136,29 @@ button.playerPortalHomeCard:hover{border-color:var(--primary)}
    </div>
 
    <div class="playerVideoPlayer hidden" id="playerVideoPlayer">
-    <div class="playerVideoPlayerHeader"><strong id="playerVideoPlayerTitle">Lecture vidéo</strong><button type="button" class="ghost" id="playerVideoPlayerClose">Fermer</button></div>
-    <iframe id="playerVideoFrame" allow="autoplay; fullscreen" allowfullscreen></iframe>
-    <div class="small" style="margin-top:7px">Lecture Drive intégrée. Un mode d’analyse avancé (vitesse à la molette, image par image, annotations et comparaison) pourra être ajouté ensuite.</div>
+    <div class="playerVideoPlayerHeader">
+     <div><strong id="playerVideoPlayerTitle">Lecture vidéo</strong><div class="playerVideoTimeDisplay" id="playerVideoTimeDisplay">00:00.000 / 00:00.000</div></div>
+     <button type="button" class="ghost" id="playerVideoPlayerClose">Fermer</button>
+    </div>
+    <video id="playerVideoHtml5" controls playsinline preload="metadata"></video>
+    <div class="playerVideoAdvancedControls">
+     <div class="playerVideoControlRow">
+      <button type="button" class="ghost" id="playerVideoPrevFrame">◀ Image</button>
+      <button type="button" class="ghost" id="playerVideoPlayPause">Lecture / Pause</button>
+      <button type="button" class="ghost" id="playerVideoNextFrame">Image ▶</button>
+      <span class="playerVideoRateDisplay" id="playerVideoRateDisplay">1×</span>
+     </div>
+     <div class="playerVideoControlRow" id="playerVideoSpeedButtons">
+      <span class="small">Vitesse</span>
+      <button type="button" class="ghost playerVideoSpeedButton" data-video-rate="0.1">0,1×</button>
+      <button type="button" class="ghost playerVideoSpeedButton" data-video-rate="0.25">0,25×</button>
+      <button type="button" class="ghost playerVideoSpeedButton" data-video-rate="0.5">0,5×</button>
+      <button type="button" class="ghost playerVideoSpeedButton active" data-video-rate="1">1×</button>
+      <button type="button" class="ghost playerVideoSpeedButton" data-video-rate="1.5">1,5×</button>
+      <button type="button" class="ghost playerVideoSpeedButton" data-video-rate="2">2×</button>
+     </div>
+     <div class="playerVideoHint">Molette sur la vidéo : ralentir / accélérer · ← / → : image précédente / suivante (pas ≈ 1/30 s) · Espace : lecture / pause. La boucle A-B n’est pas activée.</div>
+    </div>
    </div>
 
    <div class="playerVideoList" id="playerVideoList"><div class="small">Chargement…</div></div>
@@ -4041,18 +4067,82 @@ function playerVideoStatusLabel(v){
   return v.status==='reviewed'?'Analysée':v.status==='seen'?'Vue par le staff':'Nouvelle';
 }
 function playerVideoDriveUrl(fileId){return `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/view`}
-function playerVideoPreviewUrl(fileId){return `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/preview`}
+const PLAYER_VIDEO_RATES=[0.1,0.25,0.5,1,1.5,2];
+const PLAYER_VIDEO_FRAME_STEP=1/30;
+let playerVideoCurrentId=null;
+function playerVideoFormatTime(seconds){
+  const n=Number(seconds);
+  if(!Number.isFinite(n)||n<0)return '00:00.000';
+  const m=Math.floor(n/60),s=n-m*60;
+  return `${String(m).padStart(2,'0')}:${s.toFixed(3).padStart(6,'0')}`;
+}
+function updatePlayerVideoTime(){
+  const video=$('#playerVideoHtml5'),el=$('#playerVideoTimeDisplay');if(!video||!el)return;
+  el.textContent=`${playerVideoFormatTime(video.currentTime)} / ${playerVideoFormatTime(video.duration)}`;
+}
+function updatePlayerVideoRateUI(){
+  const video=$('#playerVideoHtml5'),display=$('#playerVideoRateDisplay');if(!video)return;
+  if(display)display.textContent=`${String(video.playbackRate).replace('.',',')}×`;
+  $$('#playerVideoSpeedButtons [data-video-rate]').forEach(b=>{
+    b.classList.toggle('active',Math.abs(Number(b.dataset.videoRate)-video.playbackRate)<0.001);
+  });
+}
+function setPlayerVideoRate(rate){
+  const video=$('#playerVideoHtml5');if(!video)return;
+  const nearest=PLAYER_VIDEO_RATES.reduce((best,x)=>Math.abs(x-rate)<Math.abs(best-rate)?x:best,PLAYER_VIDEO_RATES[0]);
+  video.playbackRate=nearest;
+  updatePlayerVideoRateUI();
+}
+function changePlayerVideoRate(direction){
+  const video=$('#playerVideoHtml5');if(!video)return;
+  let i=PLAYER_VIDEO_RATES.findIndex(x=>Math.abs(x-video.playbackRate)<0.001);
+  if(i<0)i=PLAYER_VIDEO_RATES.reduce((best,x,idx)=>Math.abs(x-video.playbackRate)<Math.abs(PLAYER_VIDEO_RATES[best]-video.playbackRate)?idx:best,0);
+  i=Math.max(0,Math.min(PLAYER_VIDEO_RATES.length-1,i+direction));
+  setPlayerVideoRate(PLAYER_VIDEO_RATES[i]);
+}
+function stepPlayerVideo(direction){
+  const video=$('#playerVideoHtml5');if(!video||!Number.isFinite(video.duration))return;
+  video.pause();
+  video.currentTime=Math.max(0,Math.min(video.duration,video.currentTime+(direction*PLAYER_VIDEO_FRAME_STEP)));
+  updatePlayerVideoTime();
+}
+function togglePlayerVideoPlayback(){
+  const video=$('#playerVideoHtml5');if(!video)return;
+  if(video.paused)video.play().catch(()=>{});else video.pause();
+}
 function closePlayerVideo(){
-  $('#playerVideoFrame')?.setAttribute('src','about:blank');
+  const video=$('#playerVideoHtml5');
+  if(video){video.pause();video.removeAttribute('src');video.load()}
+  playerVideoCurrentId=null;
   $('#playerVideoPlayer')?.classList.add('hidden');
 }
-function openPlayerVideo(videoId){
+async function openPlayerVideo(videoId){
   const v=(playerPortalState.videos||[]).find(x=>x.id===videoId);if(!v)return;
+  const box=$('#playerVideoPlayer'),video=$('#playerVideoHtml5'),status=$('#playerVideoStatus');
+  if(!box||!video)return;
+  playerVideoCurrentId=videoId;
   $('#playerVideoPlayerTitle').textContent=v.title||v.file_name||'Lecture vidéo';
-  $('#playerVideoFrame').src=playerVideoPreviewUrl(v.drive_file_id);
-  $('#playerVideoPlayer').classList.remove('hidden');
-  $('#playerVideoPlayer').scrollIntoView({behavior:'smooth',block:'start'});
-  if(playerPortalState.staffPreview&&!v.seen_by_me)markPlayerVideoSeen(v.id).catch(e=>handleError('mark video seen',e));
+  box.classList.remove('hidden');
+  box.scrollIntoView({behavior:'smooth',block:'start'});
+  if(status)status.textContent='Préparation du lecteur…';
+  try{
+    const {data,error}=await db.functions.invoke('player-drive',{body:{
+      action:'get_stream_url',group_id:playerPortalState.groupId,video_id:videoId
+    }});
+    if(error)throw error;
+    if(data?.error)throw new Error(data.error);
+    if(!data?.stream_url)throw new Error('Lien de lecture indisponible.');
+    video.src=data.stream_url;
+    video.playbackRate=1;
+    updatePlayerVideoRateUI();
+    updatePlayerVideoTime();
+    video.load();
+    if(status)status.textContent='';
+    if(playerPortalState.staffPreview&&!v.seen_by_me)markPlayerVideoSeen(v.id).catch(e=>handleError('mark video seen',e));
+  }catch(e){
+    if(status)status.textContent=e?.message||'Impossible de préparer la vidéo.';
+    handleError('open advanced video',e);
+  }
 }
 function playerVideoCardHtml(v){
   const label=playerVideoStatusLabel(v);
@@ -10521,6 +10611,30 @@ $('#playerPortalMessageSend').onclick=()=>sendPlayerPortalMessage();
 $('#playerVideoSync').onclick=()=>syncPlayerDriveVideos().catch(e=>{const s=$('#playerVideoStatus');if(s)s.textContent=e?.message||'Synchronisation impossible.';handleError('sync drive videos',e)});
 $('#playerVideoUploadBtn').onclick=()=>uploadMyPlayerVideo();
 $('#playerVideoPlayerClose').onclick=()=>closePlayerVideo();
+$('#playerVideoPrevFrame').onclick=()=>stepPlayerVideo(-1);
+$('#playerVideoNextFrame').onclick=()=>stepPlayerVideo(1);
+$('#playerVideoPlayPause').onclick=()=>togglePlayerVideoPlayback();
+$$('#playerVideoSpeedButtons [data-video-rate]').forEach(b=>b.onclick=()=>setPlayerVideoRate(Number(b.dataset.videoRate)));
+const playerVideoEl=$('#playerVideoHtml5');
+if(playerVideoEl){
+  playerVideoEl.addEventListener('timeupdate',updatePlayerVideoTime);
+  playerVideoEl.addEventListener('loadedmetadata',updatePlayerVideoTime);
+  playerVideoEl.addEventListener('durationchange',updatePlayerVideoTime);
+  playerVideoEl.addEventListener('ratechange',updatePlayerVideoRateUI);
+  playerVideoEl.addEventListener('wheel',e=>{
+    e.preventDefault();
+    changePlayerVideoRate(e.deltaY<0?1:-1);
+  },{passive:false});
+}
+document.addEventListener('keydown',e=>{
+  const box=$('#playerVideoPlayer');
+  if(!box||box.classList.contains('hidden'))return;
+  const tag=(document.activeElement?.tagName||'').toLowerCase();
+  if(tag==='input'||tag==='textarea'||tag==='select')return;
+  if(e.key==='ArrowLeft'){e.preventDefault();stepPlayerVideo(-1)}
+  else if(e.key==='ArrowRight'){e.preventDefault();stepPlayerVideo(1)}
+  else if(e.key===' '){e.preventDefault();togglePlayerVideoPlayback()}
+});
 $('#playerObjectiveAdd').onclick=()=>addPlayerObjective();
 $('#playerObjectiveInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addPlayerObjective()}});
 $('#playerPortalMessageInput').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();sendPlayerPortalMessage()}});
