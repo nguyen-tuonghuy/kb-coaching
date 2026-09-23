@@ -8096,6 +8096,16 @@ function addSessionExercise(ex,focus=null){
   renderTrainingExerciseCards();
 }
 function removeSessionExercise(key){trainingState.sessionExercises=trainingState.sessionExercises.filter(x=>x.localKey!==key);renderTrainingExerciseCards()}
+function moveSessionExercise(key,direction){
+  captureTrainingResultDraft();
+  const i=trainingState.sessionExercises.findIndex(x=>x.localKey===key);
+  if(i<0)return;
+  const j=i+direction;
+  if(j<0||j>=trainingState.sessionExercises.length)return;
+  const [item]=trainingState.sessionExercises.splice(i,1);
+  trainingState.sessionExercises.splice(j,0,item);
+  renderTrainingExerciseCards();
+}
 
 function trainingDraftKey(exKey,playerId){return `${exKey}__${playerId}`}
 function captureTrainingResultDraft(){
@@ -8141,6 +8151,8 @@ function renderTrainingExerciseCards(){
           <div class="small" style="margin-top:5px">${present.length} joueur${present.length>1?'s':''} présent${present.length>1?'s':''}</div>
         </div>
         <div class="row" style="gap:6px;flex:0 0 auto">
+          <button class="ghost" data-move-up="${ex.localKey}" aria-label="Monter l’exercice" title="Monter"${idx===0?' disabled':''}>↑</button>
+          <button class="ghost" data-move-down="${ex.localKey}" aria-label="Descendre l’exercice" title="Descendre"${idx===trainingState.sessionExercises.length-1?' disabled':''}>↓</button>
           <button class="ghost${ex.expanded?'':' hidden'}" data-close="${ex.localKey}" aria-label="Fermer l’exercice">×</button>
           <button class="ghost" data-remove="${ex.localKey}">Retirer</button>
         </div>
@@ -8158,6 +8170,8 @@ function renderTrainingExerciseCards(){
     const rb=card.querySelector('.trainingResults');
     const closeBtn=card.querySelector('[data-close]');
     const removeBtn=card.querySelector('[data-remove]');
+    const moveUpBtn=card.querySelector('[data-move-up]');
+    const moveDownBtn=card.querySelector('[data-move-down]');
     const header=card.querySelector('.trainingExerciseHeader');
     const focusSelect=card.querySelector('.sessionExerciseFocus');
     if(focusSelect){
@@ -8171,13 +8185,23 @@ function renderTrainingExerciseCards(){
     }
 
     header.onclick=(ev)=>{
-      if(ev.target.closest('[data-close]')||ev.target.closest('[data-remove]')) return;
+      if(ev.target.closest('[data-close]')||ev.target.closest('[data-remove]')||ev.target.closest('[data-move-up]')||ev.target.closest('[data-move-down]')) return;
       collapseAllTrainingExercises(ex.localKey);
     };
 
     closeBtn.onclick=(ev)=>{
       ev.stopPropagation();
       collapseAllTrainingExercises();
+    };
+
+    moveUpBtn.onclick=(ev)=>{
+      ev.stopPropagation();
+      moveSessionExercise(ex.localKey,-1);
+    };
+
+    moveDownBtn.onclick=(ev)=>{
+      ev.stopPropagation();
+      moveSessionExercise(ex.localKey,1);
     };
 
     removeBtn.onclick=(ev)=>{
@@ -8531,13 +8555,47 @@ function renderDuplicateTrainingSessions(){
       <div class="row" style="gap:6px;flex:0 0 auto">
         <button class="ghost" data-edit-session="${sess.id}">Modifier</button>
         <button class="ghost" data-duplicate-session="${sess.id}">Dupliquer</button>
+        <button class="ghost" data-delete-session="${sess.id}">Supprimer</button>
       </div>
     </div>`;
     d.querySelector('[data-edit-session]').onclick=()=>editTrainingSessionById(sess.id).catch(e=>handleError('edit training session',e));
     d.querySelector('[data-duplicate-session]').onclick=()=>duplicateTrainingSessionById(sess.id).catch(e=>handleError('duplicate training session',e));
+    d.querySelector('[data-delete-session]').onclick=()=>deleteTrainingSessionById(sess.id).catch(e=>handleError('delete training session',e));
     box.append(d);
   });
 }
+async function deleteTrainingSessionById(sessionId){
+  const sess=trainingState.recentSessions.find(s=>s.id===sessionId);
+  if(!sess)return;
+
+  const title=[
+    sess.trained_on?formatDateShort(sess.trained_on):'',
+    sess.theme||sess.label||'Entraînement'
+  ].filter(Boolean).join(' · ');
+
+  const ok=confirm(`Supprimer définitivement la séance « ${title} » ?\n\nLes présences, exercices et résultats associés seront également supprimés.`);
+  if(!ok)return;
+
+  const status=$('#trainingDuplicateStatus');
+  if(status)status.textContent='Suppression de la séance…';
+
+  const deletes=await Promise.all([
+    db.from('training_results').delete().eq('session_id',sessionId),
+    db.from('training_attendance').delete().eq('session_id',sessionId),
+    db.from('training_session_exercises').delete().eq('session_id',sessionId)
+  ]);
+  for(const d of deletes)if(d.error)throw d.error;
+
+  const {error}=await db.from('training_sessions').delete().eq('id',sessionId);
+  if(error)throw error;
+
+  if(trainingState.currentSessionId===sessionId)trainingState.currentSessionId=null;
+  await fetchRecentTrainingSessions();
+  renderDuplicateTrainingSessions();
+  if(status)status.textContent='Séance supprimée ✓';
+  setCloud('Synchronisé',true);
+}
+
 async function openTrainingDuplicate(){
   try{
     await fetchMyGroups();
