@@ -223,7 +223,7 @@ function returnFromVideoToDashboard(){
 const state={
   user:null,session:null,groupId:null,playerId:null,playerName:'',groupName:'',
   isCoach:false,config:null,videos:[],currentVideoId:null,notes:[],
-  shapes:[],activeShape:null,annotationMode:false
+  shapes:[],activeShape:null,annotationMode:false,editingNoteId:null
 };
 
 function setStatus(text,cls=''){const el=$('#status');el.textContent=text||'';el.className='small '+cls}
@@ -411,7 +411,7 @@ async function openVideo(videoId){
     await loadNotes(videoId);setStatus('');
   }catch(e){setStatus(errorText(e),'error');console.error(e)}
 }
-function closeVideo(){const v=$('#video');setAnnotationMode(false);v.pause();v.removeAttribute('src');v.load();state.currentVideoId=null;state.notes=[];state.shapes=[];$('#playerBox').classList.add('hidden')}
+function closeVideo(){const v=$('#video');setAnnotationMode(false);resetDraft();v.pause();v.removeAttribute('src');v.load();state.currentVideoId=null;state.notes=[];state.shapes=[];$('#playerBox').classList.add('hidden')}
 
 /* Annotations */
 function setAnnotationMode(enabled){
@@ -450,7 +450,13 @@ function pointerDown(e){if(!canEdit())return;$('#video').pause();const p=point(e
 function pointerMove(e){if(!canEdit()||!state.activeShape)return;const p=point(e);if(state.activeShape.tool==='pen')state.activeShape.points.push(p);else{state.activeShape.x2=p.x;state.activeShape.y2=p.y}drawOverlay(state.activeShape)}
 function pointerUp(e){if(!canEdit()||!state.activeShape)return;const s=state.activeShape;state.activeShape=null;if(s.tool!=='pen'||(s.points||[]).length>1)state.shapes.push(s);drawOverlay();e.target.releasePointerCapture?.(e.pointerId)}
 function clearDrawing(){state.shapes=[];state.activeShape=null;drawOverlay()}
-function resetDraft(){clearDrawing();$('#noteText').value='';$('#noteStatus').textContent=''}
+function resetDraft(){
+  clearDrawing();
+  state.editingNoteId=null;
+  $('#noteText').value='';
+  $('#noteStatus').textContent='';
+  $('#saveNote').textContent='Ajouter le repère';
+}
 
 function drawShapesOnCanvas(ctx,shapes,w,h){(shapes||[]).forEach(s=>drawShape(ctx,s,w,h))}
 function captureComposite(){
@@ -482,9 +488,14 @@ function renderNotes(){
     <div class="noteTop"><div class="noteMeta"><span class="noteTime">${formatTime((Number(n.note_time_ms)||0)/1000)}</span>${n.author_name?`<span class="small">${escapeHtml(n.author_name)}</span>`:''}<span class="small">${formatDate(n.created_at)}</span></div></div>
     ${n.snapshot_data_url?`<img class="noteThumb" src="${n.snapshot_data_url}" alt="Capture annotée">`:''}
     <div class="noteText">${n.note_text?escapeHtml(n.note_text):'<span class="small">Repère visuel sans commentaire.</span>'}</div>
-    <div class="actions"><button class="ghost" data-open-note="${escapeHtml(n.id)}">Ouvrir le repère</button>${state.isCoach?`<button class="ghost" data-delete-note="${escapeHtml(n.id)}">Supprimer</button>`:''}</div>
+    <div class="actions">
+      <button class="ghost" data-open-note="${escapeHtml(n.id)}">Ouvrir le repère</button>
+      ${state.isCoach&&n.author_user_id===state.user?.id?`<button class="ghost" data-edit-note="${escapeHtml(n.id)}">Modifier</button>`:''}
+      ${state.isCoach?`<button class="ghost" data-delete-note="${escapeHtml(n.id)}">Supprimer</button>`:''}
+    </div>
   </article>`).join('');
   list.querySelectorAll('[data-open-note]').forEach(b=>b.onclick=()=>openNote(b.dataset.openNote));
+  list.querySelectorAll('[data-edit-note]').forEach(b=>b.onclick=()=>editNote(b.dataset.editNote));
   list.querySelectorAll('[data-delete-note]').forEach(b=>b.onclick=()=>deleteNote(b.dataset.deleteNote))
 }
 function openNote(id){
@@ -509,15 +520,48 @@ function closeNotePopup(){
   backdrop.classList.add('hidden');
   backdrop.setAttribute('aria-hidden','true');
 }
+function editNote(id){
+  const n=state.notes.find(x=>x.id===id);
+  if(!n||!state.isCoach||n.author_user_id!==state.user?.id)return;
+  closeNotePopup();
+  const v=$('#video');
+  v.pause();
+  v.currentTime=(Number(n.note_time_ms)||0)/1000;
+  state.editingNoteId=n.id;
+  state.shapes=Array.isArray(n.drawing_data)?JSON.parse(JSON.stringify(n.drawing_data)):[];
+  state.activeShape=null;
+  $('#noteText').value=n.note_text||'';
+  $('#noteStatus').textContent='Modification du repère existant.';
+  $('#saveNote').textContent='Enregistrer les modifications';
+  setAnnotationMode(true);
+  syncCanvas();
+  $('#composer').scrollIntoView({behavior:'smooth',block:'center'});
+}
 async function deleteNote(id){if(!confirm('Supprimer ce repère ?'))return;const {error}=await db.rpc('delete_player_video_note',{p_group_id:state.groupId,p_note_id:id});if(error){alert(errorText(error));return}await loadNotes(state.currentVideoId)}
 async function saveNote(){
   if(!state.isCoach||!state.currentVideoId)return;
-  const text=$('#noteText').value.trim(),st=$('#noteStatus'),v=$('#video');if(!text&&!state.shapes.length){st.textContent='Ajoute un commentaire ou un dessin.';return}
-  st.textContent='Enregistrement…';v.pause();
+  const text=$('#noteText').value.trim(),st=$('#noteStatus'),v=$('#video');
+  if(!text&&!state.shapes.length){st.textContent='Ajoute un commentaire ou un dessin.';return}
+  const editingId=state.editingNoteId;
+  st.textContent=editingId?'Enregistrement des modifications…':'Enregistrement…';
+  v.pause();
   try{
     const snapshot=captureComposite();
-    const {error}=await db.rpc('add_player_video_note',{p_group_id:state.groupId,p_video_id:state.currentVideoId,p_note_time_ms:Math.round((v.currentTime||0)*1000),p_note_text:text||null,p_snapshot_data_url:snapshot||null,p_drawing_data:state.shapes});
-    if(error)throw error;resetDraft();st.textContent='Repère ajouté.';await loadNotes(state.currentVideoId)
+    const payload={
+      p_group_id:state.groupId,
+      p_note_time_ms:Math.round((v.currentTime||0)*1000),
+      p_note_text:text||null,
+      p_snapshot_data_url:snapshot||null,
+      p_drawing_data:state.shapes
+    };
+    const {error}=editingId
+      ? await db.rpc('update_player_video_note',{...payload,p_note_id:editingId})
+      : await db.rpc('add_player_video_note',{...payload,p_video_id:state.currentVideoId});
+    if(error)throw error;
+    resetDraft();
+    st.textContent=editingId?'Repère modifié.':'Repère ajouté.';
+    setAnnotationMode(false);
+    await loadNotes(state.currentVideoId);
   }catch(e){st.textContent=errorText(e);console.error(e)}
 }
 
