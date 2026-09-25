@@ -51,9 +51,15 @@ input,textarea,select{width:100%;border:1px solid var(--line);border-radius:11px
 .notePopupText{white-space:pre-wrap;line-height:1.5;font-size:15px;padding:12px 2px 2px}
 .notePopupNoImage{padding:32px;color:var(--muted);text-align:center}
 @media(max-width:680px){.shell{padding:10px}.panel{padding:12px}.grid2{grid-template-columns:1fr}.nav{gap:6px}.nav a{padding:9px 10px}.head h1{font-size:22px}}
+
+.startupScreen{position:fixed;inset:0;z-index:99999;background:#0f1217;color:#f4f6f8;display:flex;align-items:center;justify-content:center;padding:24px;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.startupScreenInner{text-align:center}.startupScreenBrand{font-size:24px;font-weight:800;margin-bottom:8px}.startupScreenText{font-size:13px;color:#9aa5b4}
+
 </style>
 </head>
 <body>
+<div class="startupScreen" id="startupScreen" role="status" aria-live="polite"><div class="startupScreenInner"><div class="startupScreenBrand">Kinball Coach</div><div class="startupScreenText">Chargement…</div></div></div>
+
 <div class="shell">
   <div class="topbar">
     <div class="brand">Kinball Coach</div>
@@ -672,7 +678,7 @@ document.addEventListener('keydown',e=>{
   else if(e.key===' '){e.preventDefault();togglePlay()}
 });
 
-init().catch(e=>{console.error(e);setStatus(errorText(e),'error');$('#videoList').innerHTML='<div class="error">Impossible de charger le module vidéo.</div>'});
+init().catch(e=>{console.error(e);setStatus(errorText(e),'error');$('#videoList').innerHTML='<div class="error">Impossible de charger le module vidéo.</div>'}).finally(()=>document.getElementById('startupScreen')?.remove());
 </script>
 </body>
 </html>

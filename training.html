@@ -1957,9 +1957,15 @@ button.playerPortalHomeCard:hover,a.playerPortalHomeCard:hover{border-color:var(
 .trainingSavedSessionActions{display:flex;gap:6px;flex-wrap:wrap;flex:0 0 auto}
 @media(max-width:620px){.trainingSavedSessionTop{flex-direction:column}.trainingSavedSessionActions{width:100%}.trainingSavedSessionActions button{flex:1}.trainingSavedHomeHead{align-items:flex-start;flex-direction:column}}
 
+
+.startupScreen{position:fixed;inset:0;z-index:99999;background:#0f1217;color:#f4f6f8;display:flex;align-items:center;justify-content:center;padding:24px;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.startupScreenInner{text-align:center}.startupScreenBrand{font-size:24px;font-weight:800;margin-bottom:8px}.startupScreenText{font-size:13px;color:#9aa5b4}
+
 </style>
 </head>
 <body>
+<div class="startupScreen" id="startupScreen" role="status" aria-live="polite"><div class="startupScreenInner"><div class="startupScreenBrand">Kinball Coach</div><div class="startupScreenText">Chargement…</div></div></div>
+
 <div class="app">
  <div class="top">
    <div><h1>Kinball Coach</h1></div>
@@ -4283,9 +4289,10 @@ async function initAuthenticated(user){
   await refreshMessageNotifications('coach').catch(e=>handleError('message notifications',e));
   await refreshVideoNotifications().catch(e=>handleError('video notifications',e));
   if(accesses.length&&(invitedPlayerFlow||!groupState.groups.length)){await openPlayerPortal(accesses);return}
-  $('#appHome').classList.remove('hidden');$('#trainingHome').classList.add('hidden');$('#groupsHome').classList.add('hidden');$('#groupDetail').classList.add('hidden');$('#trainingSession').classList.add('hidden');$('#trainingHistory').classList.add('hidden');$('#homeBtn').classList.remove('hidden');$('#profileBtn').classList.remove('hidden');$('#playerSpaceBtn').classList.toggle('hidden',!accesses.length);$('#newMatchTop').classList.add('hidden');
+  // Page dédiée Entraînements : ne jamais afficher l'accueil général, même brièvement.
+  $('#appHome').classList.add('hidden');$('#trainingHome').classList.remove('hidden');$('#groupsHome').classList.add('hidden');$('#groupDetail').classList.add('hidden');$('#trainingSession').classList.add('hidden');$('#trainingHistory').classList.add('hidden');$('#homeBtn').classList.remove('hidden');$('#profileBtn').classList.remove('hidden');$('#playerSpaceBtn').classList.toggle('hidden',!accesses.length);$('#newMatchTop').classList.add('hidden');
+  if($('#trainingSavedSeasons')) $('#trainingSavedSeasons').innerHTML='<div class="small">Chargement des séances…</div>';
   await ensureWorkspace();await ensureMyProfile();await refreshAdminAccess();await fetchMyGroups();
-  // Page dédiée : un entraîneur authentifié arrive directement sur le module Entraînements.
   await openTrainingModule();
 }
 
@@ -10955,7 +10962,7 @@ function render(){
 
 render();
 initVideoDesktopResizer();
-initAuth().catch(e=>handleError('initAuth',e));
+initAuth().catch(e=>handleError('initAuth',e)).finally(()=>document.getElementById('startupScreen')?.remove());
 
 
 
