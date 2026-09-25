@@ -41,15 +41,6 @@ input,textarea,select{width:100%;border:1px solid var(--line);border-radius:11px
 .noteTop{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}.noteMeta{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.noteTime{font-variant-numeric:tabular-nums;font-weight:800}
 .noteThumb{width:220px;max-width:100%;border:1px solid var(--line);border-radius:10px;display:block;background:#000}.noteText{white-space:pre-wrap}.readonly{font-size:12px;color:var(--muted);padding:10px 12px;border:1px dashed var(--line);border-radius:12px;background:#121821}
 .error{color:#ffc4c8}.ok{color:#aeeecb}
-.notePopupBackdrop{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;padding:18px}
-.notePopupBackdrop.hidden{display:none}
-.notePopup{width:min(1100px,96vw);max-height:92vh;overflow:auto;background:#0d0f13;border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 24px 70px rgba(0,0,0,.55)}
-.notePopupHead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
-.notePopupMeta{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.notePopupImageWrap{display:flex;justify-content:center;background:#000;border-radius:12px;overflow:auto}
-.notePopupImage{display:block;max-width:100%;width:auto;height:auto;max-height:68vh;object-fit:contain}
-.notePopupText{white-space:pre-wrap;line-height:1.5;font-size:15px;padding:12px 2px 2px}
-.notePopupNoImage{padding:32px;color:var(--muted);text-align:center}
 @media(max-width:680px){.shell{padding:10px}.panel{padding:12px}.grid2{grid-template-columns:1fr}.nav{gap:6px}.nav a{padding:9px 10px}.head h1{font-size:22px}}
 </style>
 </head>
@@ -116,7 +107,6 @@ input,textarea,select{width:100%;border:1px solid var(--line);border-radius:11px
           <button class="ghost" id="prevFrame">◀ Image</button>
           <button class="ghost" id="playPause">Lecture / Pause</button>
           <button class="ghost" id="nextFrame">Image ▶</button>
-          <button class="ghost hidden" id="annotationModeBtn" type="button">✏️ Annoter / dessiner</button>
           <span class="rateDisplay" id="rateDisplay">1×</span>
         </div>
         <div class="controlRow" id="rateButtons">
@@ -126,7 +116,7 @@ input,textarea,select{width:100%;border:1px solid var(--line);border-radius:11px
           <button class="ghost rate" data-rate="0.5">0,5×</button>
           <button class="ghost rate active" data-rate="1">1×</button>
         </div>
-        <div class="hint">← / → ou les boutons : reculer / avancer d’une image (pas ≈ 1/30 s) · Espace : lecture/pause. Les contrôles natifs restent accessibles tant que le mode annotation n’est pas activé.</div>
+        <div class="hint">← / → ou les boutons : reculer / avancer d’une image (pas ≈ 1/30 s) · Espace : lecture/pause.</div>
       </div>
 
       <div class="annotationPanel">
@@ -159,20 +149,6 @@ input,textarea,select{width:100%;border:1px solid var(--line);border-radius:11px
 
     <section class="videoList" id="videoList"><div class="small">Chargement…</div></section>
   </main>
-</div>
-
-<div class="notePopupBackdrop hidden" id="notePopupBackdrop" aria-hidden="true">
-  <div class="notePopup" role="dialog" aria-modal="true" aria-labelledby="notePopupTitle">
-    <div class="notePopupHead">
-      <div>
-        <strong id="notePopupTitle">Repère vidéo</strong>
-        <div class="notePopupMeta" id="notePopupMeta"></div>
-      </div>
-      <button type="button" class="ghost" id="closeNotePopup">Fermer</button>
-    </div>
-    <div class="notePopupImageWrap" id="notePopupImageWrap"></div>
-    <div class="notePopupText" id="notePopupText"></div>
-  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -223,7 +199,7 @@ function returnFromVideoToDashboard(){
 const state={
   user:null,session:null,groupId:null,playerId:null,playerName:'',groupName:'',
   isCoach:false,config:null,videos:[],currentVideoId:null,notes:[],
-  shapes:[],activeShape:null,annotationMode:false,editingNoteId:null
+  shapes:[],activeShape:null
 };
 
 function setStatus(text,cls=''){const el=$('#status');el.textContent=text||'';el.className='small '+cls}
@@ -399,39 +375,33 @@ function togglePlay(){const v=$('#video');v.paused?v.play().catch(()=>{}):v.paus
 
 async function openVideo(videoId){
   const item=state.videos.find(v=>v.id===videoId);if(!item)return;
-  state.currentVideoId=videoId;state.shapes=[];setAnnotationMode(false);drawOverlay();
+  state.currentVideoId=videoId;state.shapes=[];drawOverlay();
   $('#playerTitle').textContent=item.title||item.file_name||'Lecture vidéo';
   $('#playerBox').classList.remove('hidden');$('#playerBox').scrollIntoView({behavior:'smooth',block:'start'});
   setStatus('Préparation du lecteur…');
   try{
-    const {data,error}=await db.functions.invoke('player-drive',{body:{action:'get_stream_url',group_id:state.groupId,video_id:videoId}});
-    if(error)throw error;if(data?.error)throw new Error(data.error);
-    const v=$('#video');v.pause();v.crossOrigin='anonymous';v.src=data.stream_url;v.playbackRate=1;v.load();updateRate();
+    let streamUrl='';
+    if(!state.isCoach){
+      const {data,error}=await db.functions.invoke('player-video-direct',{body:{group_id:state.groupId,video_id:videoId}});
+      if(error)throw error;if(data?.error)throw new Error(data.error);
+      streamUrl=data?.stream_url||'';
+      if(!streamUrl)throw new Error('Lien Drive direct absent.');
+    }else{
+      const {data,error}=await db.functions.invoke('player-drive',{body:{action:'get_stream_url',group_id:state.groupId,video_id:videoId}});
+      if(error)throw error;if(data?.error)throw new Error(data.error);
+      streamUrl=data?.stream_url||'';
+    }
+    const v=$('#video');v.pause();
+    if(state.isCoach)v.crossOrigin='anonymous';else v.removeAttribute('crossorigin');
+    v.src=streamUrl;v.playbackRate=1;v.load();updateRate();
     if(state.isCoach&&!item.seen_by_me)await db.rpc('mark_player_video_seen',{p_group_id:state.groupId,p_video_id:videoId});
     await loadNotes(videoId);setStatus('');
   }catch(e){setStatus(errorText(e),'error');console.error(e)}
 }
-function closeVideo(){const v=$('#video');setAnnotationMode(false);resetDraft();v.pause();v.removeAttribute('src');v.load();state.currentVideoId=null;state.notes=[];state.shapes=[];$('#playerBox').classList.add('hidden')}
+function closeVideo(){const v=$('#video');v.pause();v.removeAttribute('src');v.load();state.currentVideoId=null;state.notes=[];state.shapes=[];$('#playerBox').classList.add('hidden')}
 
 /* Annotations */
-function setAnnotationMode(enabled){
-  state.annotationMode=!!enabled && !!state.isCoach;
-  const overlay=$('#overlay'),button=$('#annotationModeBtn'),video=$('#video');
-  if(overlay)overlay.style.pointerEvents=state.annotationMode?'auto':'none';
-  if(button){
-    button.classList.toggle('active',state.annotationMode);
-    button.textContent=state.annotationMode?'✓ Annotation active':'✏️ Annoter / dessiner';
-  }
-  if(state.annotationMode)video?.pause();
-  if(!state.annotationMode){
-    state.activeShape=null;
-    drawOverlay();
-  }
-}
-function toggleAnnotationMode(){
-  setAnnotationMode(!state.annotationMode);
-}
-function canEdit(){return state.isCoach && state.annotationMode}
+function canEdit(){return state.isCoach}
 function syncCanvas(){
   const v=$('#video'),c=$('#overlay'),r=v.getBoundingClientRect();if(!r.width||!r.height)return;
   const dpr=window.devicePixelRatio||1;c.width=Math.round(r.width*dpr);c.height=Math.round(r.height*dpr);c.style.width=r.width+'px';c.style.height=r.height+'px';
@@ -450,13 +420,7 @@ function pointerDown(e){if(!canEdit())return;$('#video').pause();const p=point(e
 function pointerMove(e){if(!canEdit()||!state.activeShape)return;const p=point(e);if(state.activeShape.tool==='pen')state.activeShape.points.push(p);else{state.activeShape.x2=p.x;state.activeShape.y2=p.y}drawOverlay(state.activeShape)}
 function pointerUp(e){if(!canEdit()||!state.activeShape)return;const s=state.activeShape;state.activeShape=null;if(s.tool!=='pen'||(s.points||[]).length>1)state.shapes.push(s);drawOverlay();e.target.releasePointerCapture?.(e.pointerId)}
 function clearDrawing(){state.shapes=[];state.activeShape=null;drawOverlay()}
-function resetDraft(){
-  clearDrawing();
-  state.editingNoteId=null;
-  $('#noteText').value='';
-  $('#noteStatus').textContent='';
-  $('#saveNote').textContent='Ajouter le repère';
-}
+function resetDraft(){clearDrawing();$('#noteText').value='';$('#noteStatus').textContent=''}
 
 function drawShapesOnCanvas(ctx,shapes,w,h){(shapes||[]).forEach(s=>drawShape(ctx,s,w,h))}
 function captureComposite(){
@@ -469,8 +433,7 @@ async function loadNotes(videoId){
   state.shapes=[];drawOverlay();resetDraft();
   const item=state.videos.find(v=>v.id===videoId),list=$('#noteList');
   $('#composer').classList.toggle('hidden',!state.isCoach);
-  $('#annotationModeBtn').classList.toggle('hidden',!state.isCoach);
-  setAnnotationMode(false);
+  $('#overlay').style.pointerEvents=state.isCoach?'auto':'none';
   $('#playerAnnotationInfo').classList.toggle('hidden',state.isCoach);
   $('#readonly').classList.toggle('hidden',state.isCoach||item?.status==='reviewed');
   if(!state.isCoach&&item?.status!=='reviewed'){
@@ -488,80 +451,21 @@ function renderNotes(){
     <div class="noteTop"><div class="noteMeta"><span class="noteTime">${formatTime((Number(n.note_time_ms)||0)/1000)}</span>${n.author_name?`<span class="small">${escapeHtml(n.author_name)}</span>`:''}<span class="small">${formatDate(n.created_at)}</span></div></div>
     ${n.snapshot_data_url?`<img class="noteThumb" src="${n.snapshot_data_url}" alt="Capture annotée">`:''}
     <div class="noteText">${n.note_text?escapeHtml(n.note_text):'<span class="small">Repère visuel sans commentaire.</span>'}</div>
-    <div class="actions">
-      <button class="ghost" data-open-note="${escapeHtml(n.id)}">Ouvrir le repère</button>
-      ${state.isCoach&&n.author_user_id===state.user?.id?`<button class="ghost" data-edit-note="${escapeHtml(n.id)}">Modifier</button>`:''}
-      ${state.isCoach?`<button class="ghost" data-delete-note="${escapeHtml(n.id)}">Supprimer</button>`:''}
-    </div>
+    <div class="actions"><button class="ghost" data-open-note="${escapeHtml(n.id)}">Ouvrir le repère</button>${state.isCoach?`<button class="ghost" data-delete-note="${escapeHtml(n.id)}">Supprimer</button>`:''}</div>
   </article>`).join('');
   list.querySelectorAll('[data-open-note]').forEach(b=>b.onclick=()=>openNote(b.dataset.openNote));
-  list.querySelectorAll('[data-edit-note]').forEach(b=>b.onclick=()=>editNote(b.dataset.editNote));
   list.querySelectorAll('[data-delete-note]').forEach(b=>b.onclick=()=>deleteNote(b.dataset.deleteNote))
 }
-function openNote(id){
-  const n=state.notes.find(x=>x.id===id),v=$('#video');if(!n)return;
-  v.pause();
-  v.currentTime=(Number(n.note_time_ms)||0)/1000;
-  state.shapes=Array.isArray(n.drawing_data)?n.drawing_data:[];
-  drawOverlay();
-  if(state.isCoach)$('#noteText').value=n.note_text||'';
-
-  const meta=$('#notePopupMeta'),imageWrap=$('#notePopupImageWrap'),text=$('#notePopupText'),backdrop=$('#notePopupBackdrop');
-  meta.innerHTML=`<span class="noteTime">${formatTime((Number(n.note_time_ms)||0)/1000)}</span>${n.author_name?`<span class="small">${escapeHtml(n.author_name)}</span>`:''}<span class="small">${formatDate(n.created_at)}</span>`;
-  imageWrap.innerHTML=n.snapshot_data_url
-    ? `<img class="notePopupImage" src="${n.snapshot_data_url}" alt="Capture annotée du repère">`
-    : `<div class="notePopupNoImage">Aucune capture d’image pour ce repère.</div>`;
-  text.innerHTML=n.note_text?escapeHtml(n.note_text):'<span class="small">Repère visuel sans commentaire.</span>';
-  backdrop.classList.remove('hidden');
-  backdrop.setAttribute('aria-hidden','false');
-}
-function closeNotePopup(){
-  const backdrop=$('#notePopupBackdrop');
-  backdrop.classList.add('hidden');
-  backdrop.setAttribute('aria-hidden','true');
-}
-function editNote(id){
-  const n=state.notes.find(x=>x.id===id);
-  if(!n||!state.isCoach||n.author_user_id!==state.user?.id)return;
-  closeNotePopup();
-  const v=$('#video');
-  v.pause();
-  v.currentTime=(Number(n.note_time_ms)||0)/1000;
-  state.editingNoteId=n.id;
-  state.shapes=Array.isArray(n.drawing_data)?JSON.parse(JSON.stringify(n.drawing_data)):[];
-  state.activeShape=null;
-  $('#noteText').value=n.note_text||'';
-  $('#noteStatus').textContent='Modification du repère existant.';
-  $('#saveNote').textContent='Enregistrer les modifications';
-  setAnnotationMode(true);
-  syncCanvas();
-  $('#composer').scrollIntoView({behavior:'smooth',block:'center'});
-}
+function openNote(id){const n=state.notes.find(x=>x.id===id),v=$('#video');if(!n)return;v.pause();v.currentTime=(Number(n.note_time_ms)||0)/1000;state.shapes=Array.isArray(n.drawing_data)?n.drawing_data:[];drawOverlay();if(state.isCoach)$('#noteText').value=n.note_text||''}
 async function deleteNote(id){if(!confirm('Supprimer ce repère ?'))return;const {error}=await db.rpc('delete_player_video_note',{p_group_id:state.groupId,p_note_id:id});if(error){alert(errorText(error));return}await loadNotes(state.currentVideoId)}
 async function saveNote(){
   if(!state.isCoach||!state.currentVideoId)return;
-  const text=$('#noteText').value.trim(),st=$('#noteStatus'),v=$('#video');
-  if(!text&&!state.shapes.length){st.textContent='Ajoute un commentaire ou un dessin.';return}
-  const editingId=state.editingNoteId;
-  st.textContent=editingId?'Enregistrement des modifications…':'Enregistrement…';
-  v.pause();
+  const text=$('#noteText').value.trim(),st=$('#noteStatus'),v=$('#video');if(!text&&!state.shapes.length){st.textContent='Ajoute un commentaire ou un dessin.';return}
+  st.textContent='Enregistrement…';v.pause();
   try{
     const snapshot=captureComposite();
-    const payload={
-      p_group_id:state.groupId,
-      p_note_time_ms:Math.round((v.currentTime||0)*1000),
-      p_note_text:text||null,
-      p_snapshot_data_url:snapshot||null,
-      p_drawing_data:state.shapes
-    };
-    const {error}=editingId
-      ? await db.rpc('update_player_video_note',{...payload,p_note_id:editingId})
-      : await db.rpc('add_player_video_note',{...payload,p_video_id:state.currentVideoId});
-    if(error)throw error;
-    resetDraft();
-    st.textContent=editingId?'Repère modifié.':'Repère ajouté.';
-    setAnnotationMode(false);
-    await loadNotes(state.currentVideoId);
+    const {error}=await db.rpc('add_player_video_note',{p_group_id:state.groupId,p_video_id:state.currentVideoId,p_note_time_ms:Math.round((v.currentTime||0)*1000),p_note_text:text||null,p_snapshot_data_url:snapshot||null,p_drawing_data:state.shapes});
+    if(error)throw error;resetDraft();st.textContent='Repère ajouté.';await loadNotes(state.currentVideoId)
   }catch(e){st.textContent=errorText(e);console.error(e)}
 }
 
@@ -579,20 +483,9 @@ $('#closePlayer').onclick=closeVideo;$('#prevFrame').onclick=()=>step(-1);$('#ne
 $$('[data-rate]').forEach(b=>b.onclick=()=>setRate(Number(b.dataset.rate)));
 $('#video').addEventListener('timeupdate',updateTime);$('#video').addEventListener('loadedmetadata',()=>{updateTime();syncCanvas()});$('#video').addEventListener('loadeddata',syncCanvas);$('#video').addEventListener('seeked',syncCanvas);$('#video').addEventListener('ratechange',updateRate);
 $('#overlay').addEventListener('pointerdown',pointerDown);$('#overlay').addEventListener('pointermove',pointerMove);$('#overlay').addEventListener('pointerup',pointerUp);$('#overlay').addEventListener('pointercancel',pointerUp);$('#overlay').addEventListener('pointerleave',pointerUp);
-$('#annotationModeBtn').onclick=toggleAnnotationMode;
-$('#closeNotePopup').onclick=closeNotePopup;
-$('#notePopupBackdrop').onclick=e=>{if(e.target===$('#notePopupBackdrop'))closeNotePopup()};
 $('#clearDrawing').onclick=clearDrawing;$('#newNote').onclick=resetDraft;$('#saveNote').onclick=saveNote;
 window.addEventListener('resize',syncCanvas);
-document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'&&!$('#notePopupBackdrop').classList.contains('hidden')){e.preventDefault();closeNotePopup();return}
-  if($('#playerBox').classList.contains('hidden'))return;
-  const tag=(document.activeElement?.tagName||'').toLowerCase();
-  if(['input','textarea','select'].includes(tag))return;
-  if(e.key==='ArrowLeft'){e.preventDefault();step(-1)}
-  else if(e.key==='ArrowRight'){e.preventDefault();step(1)}
-  else if(e.key===' '){e.preventDefault();togglePlay()}
-});
+document.addEventListener('keydown',e=>{if($('#playerBox').classList.contains('hidden'))return;const tag=(document.activeElement?.tagName||'').toLowerCase();if(['input','textarea','select'].includes(tag))return;if(e.key==='ArrowLeft'){e.preventDefault();step(-1)}else if(e.key==='ArrowRight'){e.preventDefault();step(1)}else if(e.key===' '){e.preventDefault();togglePlay()}});
 
 init().catch(e=>{console.error(e);setStatus(errorText(e),'error');$('#videoList').innerHTML='<div class="error">Impossible de charger le module vidéo.</div>'});
 </script>
