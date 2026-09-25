@@ -5982,7 +5982,8 @@ function requireCategory(id,existingId=null){
   if(!category.active&&id!==existingId)throw new Error('Cette catégorie est archivée. Choisis une catégorie active.');
   return category;
 }
-function populateCategorySelect(select,{selected=select.value,all=false,includeArchivedId=null}={}){
+function populateCategorySelect(select,{selected=select?.value||'',all=false,includeArchivedId=null}={}){
+  if(!select)return;
   select.replaceChildren();
   if(all){const option=document.createElement('option');option.value='';option.textContent='Toutes les catégories';select.append(option)}
   categoryState.categories.filter(c=>all||c.active||c.id===includeArchivedId).forEach(c=>{
@@ -7969,20 +7970,28 @@ async function loadStatsData(groupId){
   renderStatsAll();
 }
 function populateStatsSelectors(){
-  const playerSel=$('#statsPlayer'),playerCurrent=playerSel.value;
-  playerSel.innerHTML='<option value="">— Choisir —</option>';
-  statsState.players.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.display_name;playerSel.append(o)});
-  if([...playerSel.options].some(o=>o.value===playerCurrent))playerSel.value=playerCurrent;
+  const playerSel=$('#statsPlayer');
+  const playerCurrent=playerSel?.value||'';
+  if(playerSel){
+    playerSel.innerHTML='<option value="">— Choisir —</option>';
+    statsState.players.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.display_name;playerSel.append(o)});
+    if([...playerSel.options].some(o=>o.value===playerCurrent))playerSel.value=playerCurrent;
+  }
 
   const exs=Object.values(statsState.exerciseMap).sort((a,b)=>a.name.localeCompare(b.name,'fr'));
-  const exSel=$('#statsExercise'),exCurrent=exSel.value;
-  exSel.innerHTML='<option value="">— Choisir —</option>';
-  exs.forEach(ex=>{const o=document.createElement('option');o.value=ex.id;o.textContent=ex.name;exSel.append(o)});
-  if([...exSel.options].some(o=>o.value===exCurrent))exSel.value=exCurrent;
+  const exSel=$('#statsExercise');
+  const exCurrent=exSel?.value||'';
+  if(exSel){
+    exSel.innerHTML='<option value="">— Choisir —</option>';
+    exs.forEach(ex=>{const o=document.createElement('option');o.value=ex.id;o.textContent=ex.name;exSel.append(o)});
+    if([...exSel.options].some(o=>o.value===exCurrent))exSel.value=exCurrent;
+  }
   populateStatsPlayerExercises();
 }
 function populateStatsPlayerExercises(){
-  const pid=$('#statsPlayer').value,sel=$('#statsPlayerExercise'),cur=sel.value;
+  const playerSel=$('#statsPlayer'),sel=$('#statsPlayerExercise');
+  if(!sel)return;
+  const pid=playerSel?.value||'',cur=sel.value||'';
   sel.innerHTML='<option value="">— Choisir —</option>';
   const ids=[...new Set(statsState.results.filter(r=>r.player_id===pid).map(r=>r.exercise_id))];
   ids.map(id=>statsState.exerciseMap[id]).filter(Boolean).sort((a,b)=>a.name.localeCompare(b.name,'fr')).forEach(ex=>{
@@ -8032,7 +8041,7 @@ function renderStatsGroup(){
   cat.innerHTML=statsBarList(catRows);
 }
 function renderStatsPlayer(){
-  const pid=$('#statsPlayer').value;
+  const pid=$('#statsPlayer')?.value||'';
   const m=$('#statsPlayerMetrics'),sum=$('#statsPlayerExerciseSummary'),evo=$('#statsPlayerEvolution');
   m.innerHTML='';sum.innerHTML='';evo.innerHTML='';
   if(!pid){m.innerHTML='<div class="statsEmpty" style="grid-column:1/-1">Choisis un joueur.</div>';return}
@@ -8044,7 +8053,7 @@ function renderStatsPlayer(){
     statsMetric('Séances suivies',present.length)+
     statsMetric('Dernier entraînement',dates.length?formatDateShort(dates.at(-1)):'—');
 
-  const exId=$('#statsPlayerExercise').value;
+  const exId=$('#statsPlayerExercise')?.value||'';
   if(!exId){sum.innerHTML='<div class="statsEmpty">Choisis un exercice pour voir l’évolution.</div>';return}
   const ex=statsState.exerciseMap[exId];if(!ex)return;
   const rows=statsState.results.filter(r=>r.player_id===pid&&r.exercise_id===exId)
@@ -8057,14 +8066,14 @@ function renderStatsPlayer(){
   evo.innerHTML=values.length>1?`<h3 style="font-size:16px;margin:12px 0 6px">Évolution</h3>${statsSparkline(values,labels)}`:'';
 }
 function renderStatsExercise(){
-  const exId=$('#statsExercise').value;
+  const exId=$('#statsExercise')?.value||'';
   const metrics=$('#statsExerciseMetrics'),evo=$('#statsExerciseEvolution'),leader=$('#statsLeaderboard'),hint=$('#statsLeaderboardHint');
   metrics.innerHTML='';evo.innerHTML='';leader.innerHTML='';hint.textContent='';
   const ex=statsState.exerciseMap[exId];
   const dual=isDualExercise(ex);
   $('#statsExerciseFocusWrap').classList.toggle('hidden',!dual);
   if(!ex){metrics.innerHTML='<div class="statsEmpty" style="grid-column:1/-1">Choisis un exercice.</div>';return}
-  const focus=dual?$('#statsExerciseFocus').value:null;
+  const focus=dual?($('#statsExerciseFocus')?.value||'attaque'):null;
   const sx=statsState.sessionExercises.filter(x=>x.exercise_id===exId&&(!focus||x.focus===focus));
   const sessionIds=new Set(sx.map(x=>x.session_id));
   const rows=statsState.results.filter(r=>r.exercise_id===exId&&sessionIds.has(r.session_id));
@@ -8133,7 +8142,7 @@ function switchStatsDomain(domain){
   if(domain==='impact')loadStatsImpact().catch(e=>{handleError('stats impact',e);$('#statsImpactContent').innerHTML=`<div class="statsEmpty">${escapeHtml(e.message||String(e))}</div>`});
 }
 async function statsGroupMatchList(){
-  const groupId=$('#statsGroup').value;
+  const groupId=$('#statsGroup')?.value||'';
   if(!groupId)return [];
   const {data,error}=await db.from('matches')
     .select('id,label,played_on,match_type:match_types!matches_match_type_id_fkey(name),opponent1:teams!matches_opponent_team_1_id_fkey(name),opponent2:teams!matches_opponent_team_2_id_fkey(name)')
@@ -8476,7 +8485,7 @@ function switchStatsMatchView(view){
 
 async function renderStatsMatchesSelection(){
   const box=$('#statsMatchSummary');
-  const groupId=$('#statsGroup').value;
+  const groupId=$('#statsGroup')?.value||'';
   const selected=(statsState.matchSelection||[]).filter(id=>(statsState.matchList||[]).some(m=>m.id===id));
   if(!groupId){box.innerHTML='<div class="statsEmpty">Choisis un groupe.</div>';return}
   if(!selected.length){
@@ -8529,7 +8538,7 @@ async function renderStatsMatchesSelection(){
 
 async function loadStatsMatches(){
   const box=$('#statsMatchSummary');
-  const groupId=$('#statsGroup').value;
+  const groupId=$('#statsGroup')?.value||'';
   if(!groupId){
     statsState.matchList=[];
     statsState.matchSelection=[];
@@ -8692,7 +8701,7 @@ async function loadReferenceVersions(){
   }).join('')||'<div class="small">Aucune version.</div>';
 }
 async function loadStatsReference(){
-  const pop=$('#statsReferencePopulation').value||'H';
+  const pop=$('#statsReferencePopulation')?.value||'H';
   const box=$('#statsReferenceContent');box.innerHTML='<div class="statsEmpty">Chargement du référentiel…</div>';
   await loadReferenceMeta();
   statsState.reference=await loadOffensiveReference(pop);
@@ -8701,7 +8710,7 @@ async function loadStatsReference(){
 }
 
 async function statsGroupMatchDataset(){
-  const groupId=$('#statsGroup').value;
+  const groupId=$('#statsGroup')?.value||'';
   if(!groupId)return {matchIds:[],matches:[],events:[],players:[]};
   const list=await statsGroupMatchList();
   const ids=(list||[]).map(m=>m.id);
@@ -9187,7 +9196,7 @@ async function statsImpactSaveCoachMessage(groupId,playerId){
 }
 
 async function renderStatsImpactSelection(){
-  const groupId=$('#statsGroup').value;
+  const groupId=$('#statsGroup')?.value||'';
   const box=$('#statsImpactContent');
   const view=statsState.impactView||'staff';
   const playerControl=$('#statsImpactPlayerViewControl');
@@ -9211,7 +9220,7 @@ async function renderStatsImpactSelection(){
   statsState.impactDataset=ds;
   loadStatsImpactManualOrder();
 
-  const pop=$('#statsImpactPopulation').value||'H';
+  const pop=$('#statsImpactPopulation')?.value||'H';
   const ref=await loadOffensiveReference(pop);
   statsState.impactReference=ref;
 
@@ -9273,7 +9282,7 @@ async function renderStatsImpactSelection(){
 }
 
 async function loadStatsImpact(){
-  const groupId=$('#statsGroup').value;
+  const groupId=$('#statsGroup')?.value||'';
   const box=$('#statsImpactContent');
   if(!groupId){
     statsState.impactMatchList=[];
@@ -9328,16 +9337,16 @@ async function openStatsModule(){
     await fetchMyGroups();
     hideMainModules();setMatchHeaderMode(false);
     $('#statsHome').classList.remove('hidden');
-    $('#statsGroup').value=groupState.groups[0]?.id||'';
+    if($('#statsGroup'))$('#statsGroup').value=groupState.groups[0]?.id||'';
     statsState.tab='group';statsState.domain='training';statsState.leaderMode='recent';
     $$('.statsLeaderboardMode').forEach(b=>b.classList.toggle('active',b.dataset.leaderMode==='recent'));
     switchStatsTab('group');
     switchStatsDomain('training');
-    await loadStatsData($('#statsGroup').value);
-    const group=groupState.groups.find(g=>g.id===$('#statsGroup').value);
+    await loadStatsData($('#statsGroup')?.value||'');
+    const group=groupState.groups.find(g=>g.id===($('#statsGroup')?.value||''));
     const pop=groupPopulationFromName(group?.name)||'H';
-    $('#statsReferencePopulation').value=pop;
-    $('#statsImpactPopulation').value=pop;
+    if($('#statsReferencePopulation'))$('#statsReferencePopulation').value=pop;
+    if($('#statsImpactPopulation'))$('#statsImpactPopulation').value=pop;
     if($('#statsImpactSortField'))$('#statsImpactSortField').value=statsState.impactSortField||'impact100';
     if($('#statsImpactSortDirection'))$('#statsImpactSortDirection').value=statsState.impactSortDirection||'desc';
     if($('#statsImpactRestartLocation'))$('#statsImpactRestartLocation').value=statsState.impactRestartLocation||'all';
@@ -9441,8 +9450,8 @@ function bindStatsControls(){
       await loadStatsData(statsGroup.value);
       const group=groupState.groups.find(g=>g.id===statsGroup.value);
       const pop=groupPopulationFromName(group?.name)||'H';
-      if($('#statsReferencePopulation'))$('#statsReferencePopulation').value=pop;
-      if($('#statsImpactPopulation'))$('#statsImpactPopulation').value=pop;
+      if($('#statsReferencePopulation'))if($('#statsReferencePopulation'))$('#statsReferencePopulation').value=pop;
+      if($('#statsImpactPopulation'))if($('#statsImpactPopulation'))$('#statsImpactPopulation').value=pop;
       if(statsState.domain==='matches')await loadStatsMatches();
       if(statsState.domain==='impact')await loadStatsImpact();
       if(statsState.domain==='reference')await loadStatsReference();
