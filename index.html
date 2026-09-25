@@ -260,10 +260,23 @@ button:active{transform:scale(.985)}
 .trainingPlanStatActions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
 .trainingPlanStatActions button{padding:7px 9px;font-size:12px}
 .trainingPlanEmpty{border:1px dashed var(--line);border-radius:12px;padding:16px;text-align:center;color:var(--muted);font-size:13px}
+.trainingDraft{margin-top:14px;border-top:1px solid var(--line);padding-top:13px}
+.trainingDraftHead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:9px}
+.trainingDraftHead h4{margin:0 0 3px;font-size:15px}
+.trainingDraftList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-height:64px;border:1px dashed var(--line);border-radius:12px;padding:9px}
+.trainingDraftList.drag-over{outline:2px dashed var(--accent);outline-offset:3px}
+.trainingDraftCard{background:#171c25;border:1px solid var(--line);border-radius:11px;padding:10px;min-width:0}
+.trainingDraftCard.dragging{opacity:.45}
+.trainingDraftCardTitle{font-weight:800;line-height:1.25;margin-bottom:5px}
+.trainingDraftCardMeta{font-size:12px;color:var(--muted);margin-bottom:7px}
+.trainingDraftCardText{font-size:12px;color:var(--muted);line-height:1.4;white-space:pre-wrap;max-height:5.6em;overflow:hidden}
+.trainingDraftCardActions{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.trainingDraftCardActions button{padding:6px 8px;font-size:12px;border-radius:9px}
+.trainingDraftEmpty{grid-column:1/-1;text-align:center;color:var(--muted);font-size:12px;padding:12px}
 .trainingSectionLabel{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap}
 .trainingSectionLabel h3{font-size:16px;margin:0 0 5px}
 @media(max-width:920px){.trainingTimelineTracks{grid-template-columns:1fr}.trainingPlanBlock[data-track="court1"],.trainingPlanBlock[data-track="court2"],.trainingPlanBlock[data-track="both"],.trainingPlanBlock[data-track="other"]{grid-column:auto}.trainingPlanNotes{grid-template-columns:1fr}}
-@media(max-width:680px){.trainingPlanFields{grid-template-columns:1fr 1fr}.trainingPlanFields .planTrackField{grid-column:1/-1}.trainingPlanLibraryRow{grid-template-columns:1fr}.trainingPlanFields .planTitleField{grid-column:1/-1}}
+@media(max-width:680px){.trainingDraftList{grid-template-columns:1fr}.trainingPlanFields{grid-template-columns:1fr 1fr}.trainingPlanFields .planTrackField{grid-column:1/-1}.trainingPlanLibraryRow{grid-template-columns:1fr}.trainingPlanFields .planTitleField{grid-column:1/-1}}
 @media(max-width:520px){.moduleGrid{grid-template-columns:1fr}.miniGrid{grid-template-columns:1fr}.trainingPlanFields{grid-template-columns:1fr}.trainingPlanFields .planTitleField,.trainingPlanFields .planTrackField{grid-column:auto}}
 
 .statsTabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
@@ -2245,6 +2258,10 @@ button.playerPortalHomeCard:hover,a.playerPortalHomeCard:hover{border-color:var(
     </div>
     <div class="trainingDragHint">Sur ordinateur : maintiens ⠿ Déplacer puis glisse le bloc. Dépose à gauche = Terrain 1, à droite = Terrain 2, au centre = deux terrains. Les boutons ↑ / ↓ restent disponibles.</div>
     <div id="trainingPlanTimeline" class="trainingTimeline"></div>
+    <div class="trainingDraft">
+     <div class="trainingDraftHead"><div><h4>Brouillon / à placer</h4><div class="small">Garde ici les exercices ou idées que tu hésites encore à intégrer. Ils sont sauvegardés avec la séance mais ne modifient pas les horaires et ne lancent pas de collecte statistique.</div></div></div>
+     <div id="trainingPlanDraft" class="trainingDraftList" aria-label="Brouillon de séance"></div>
+    </div>
    </div>
 
    <div style="margin-top:18px">
@@ -8116,7 +8133,7 @@ function trainingTrackLabel(t){return t==='court1'?'Terrain 1 (fond)':t==='court
 function trainingPlanStartValue(){
   const input=$('#trainingPlanStart');
   if(input&&normalizePlanTime(input.value).match(/^\d{2}:\d{2}$/))return normalizePlanTime(input.value);
-  const mins=trainingState.planBlocks.map(b=>planTimeMinutes(b.start)).filter(x=>x!==99999);
+  const mins=trainingState.planBlocks.filter(b=>!b.draft).map(b=>planTimeMinutes(b.start)).filter(x=>x!==99999);
   if(mins.length){const m=Math.min(...mins);return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`}
   return '13:30';
 }
@@ -8124,6 +8141,7 @@ function recalculateTrainingPlanTimes(){
   let base=planTimeMinutes(trainingPlanStartValue());if(base===99999)base=13*60+30;
   let court1=base,court2=base;
   trainingState.planBlocks.forEach(b=>{
+    if(b.draft){b.start='';return}
     const d=Math.max(0,Number(b.duration)||0);
     if(b.track==='court1'){b.start=minutesToPlanTime(court1);court1+=d}
     else if(b.track==='court2'){b.start=minutesToPlanTime(court2);court2+=d}
@@ -8149,7 +8167,7 @@ function seedTrainingPlan27092026(){
   ].map(b=>newPlanBlock(b));
 }
 function newPlanBlock(seed={}){
-  return {id:crypto.randomUUID(),start:seed.start||trainingPlanStartValue(),duration:seed.duration??10,track:seed.track||'both',title:seed.title||'',details:seed.details||'',attention:seed.attention||'',sourceType:seed.sourceType||'free',exerciseId:seed.exerciseId||null,collectStats:!!seed.collectStats,focus:seed.focus||null};
+  return {id:crypto.randomUUID(),start:seed.draft?'':(seed.start||trainingPlanStartValue()),duration:seed.duration??10,track:seed.track||'both',title:seed.title||'',details:seed.details||'',attention:seed.attention||'',sourceType:seed.sourceType||'free',exerciseId:seed.exerciseId||null,collectStats:!!seed.collectStats,focus:seed.focus||null,draft:!!seed.draft};
 }
 function planExerciseById(id){return trainingState.exercises.find(ex=>ex.id===id)||null}
 function planExerciseOptions(selected=''){
@@ -8175,7 +8193,7 @@ function planGeneratedExercise(block){return trainingState.sessionExercises.find
 function syncPlanStatExercises(){
   const wanted=new Set();
   trainingState.planBlocks.forEach(b=>{
-    if(b.sourceType!=='library'||!b.exerciseId||!b.collectStats)return;
+    if(b.draft||b.sourceType!=='library'||!b.exerciseId||!b.collectStats)return;
     const base=planExerciseById(b.exerciseId);if(!base)return;
     wanted.add(b.id);
     let sx=planGeneratedExercise(b);
@@ -8192,7 +8210,7 @@ function syncPlanStatExercises(){
 function bindLoadedStatsToPlanBlocks(){
   const used=new Set();
   trainingState.planBlocks.forEach(b=>{
-    if(b.sourceType!=='library'||!b.exerciseId||!b.collectStats)return;
+    if(b.draft||b.sourceType!=='library'||!b.exerciseId||!b.collectStats)return;
     const sx=trainingState.sessionExercises.find(ex=>!used.has(ex.localKey)&&ex.id===b.exerciseId);
     if(sx){sx.fromPlanBlockId=b.id;sx.localKey=`plan-${b.id}`;sx.focus=isDualExercise(sx)?(b.focus||sx.focus||null):null;used.add(sx.localKey)}
   });
@@ -8217,10 +8235,13 @@ function addTrainingPlanBlock(seed={}){captureTrainingPlan();trainingState.planB
 function moveTrainingPlanBlock(id,delta){captureTrainingPlan();const i=trainingState.planBlocks.findIndex(x=>x.id===id);const j=i+delta;if(i<0||j<0||j>=trainingState.planBlocks.length)return;[trainingState.planBlocks[i],trainingState.planBlocks[j]]=[trainingState.planBlocks[j],trainingState.planBlocks[i]];recalculateTrainingPlanTimes();renderTrainingPlan();}
 function duplicateTrainingPlanBlock(id){captureTrainingPlan();const i=trainingState.planBlocks.findIndex(x=>x.id===id);if(i<0)return;const src=trainingState.planBlocks[i];trainingState.planBlocks.splice(i+1,0,{...src,id:crypto.randomUUID()});recalculateTrainingPlanTimes();syncPlanStatExercises();renderTrainingPlan();renderTrainingExerciseCards();}
 function removeTrainingPlanBlock(id){captureTrainingPlan();trainingState.planBlocks=trainingState.planBlocks.filter(x=>x.id!==id);recalculateTrainingPlanTimes();syncPlanStatExercises();renderTrainingPlan();renderTrainingExerciseCards();}
+function sendTrainingPlanBlockToDraft(id){captureTrainingPlan();const b=trainingState.planBlocks.find(x=>x.id===id);if(!b)return;b.draft=true;b.start='';recalculateTrainingPlanTimes();syncPlanStatExercises();renderTrainingPlan();renderTrainingExerciseCards();}
+function restoreTrainingPlanBlockFromDraft(id,track){const b=trainingState.planBlocks.find(x=>x.id===id);if(!b)return;b.draft=false;if(track)b.track=track;recalculateTrainingPlanTimes();syncPlanStatExercises();renderTrainingPlan();renderTrainingExerciseCards();}
 function reorderTrainingPlanBlock(dragId,targetId,newTrack){
   captureTrainingPlan();
   const from=trainingState.planBlocks.findIndex(b=>b.id===dragId);if(from<0)return;
   const [item]=trainingState.planBlocks.splice(from,1);
+  item.draft=false;
   if(newTrack)item.track=newTrack;
   let to=targetId?trainingState.planBlocks.findIndex(b=>b.id===targetId):trainingState.planBlocks.length;
   if(to<0)to=trainingState.planBlocks.length;
@@ -8229,9 +8250,11 @@ function reorderTrainingPlanBlock(dragId,targetId,newTrack){
 }
 function renderTrainingPlan(){
   const box=$('#trainingPlanTimeline');if(!box)return;recalculateTrainingPlanTimes();box.innerHTML='';
-  if(!trainingState.planBlocks.length){box.innerHTML='<div class="trainingPlanEmpty">Aucun bloc pour le moment. Ajoute l’échauffement, un exercice de la bibliothèque, une pause ou n’importe quelle séquence libre.</div>';return}
+  const scheduled=trainingState.planBlocks.filter(b=>!b.draft);
+  const drafts=trainingState.planBlocks.filter(b=>b.draft);
+  if(!scheduled.length)box.innerHTML='<div class="trainingPlanEmpty">Aucun bloc placé pour le moment. Ajoute un bloc ou remets un élément du brouillon dans le planning.</div>';
   const groups=[];
-  trainingState.planBlocks.forEach((b,index)=>{
+  scheduled.forEach(b=>{const index=trainingState.planBlocks.indexOf(b);
     let g=groups.find(x=>x.start===b.start);if(!g){g={start:b.start,items:[]};groups.push(g)}g.items.push({b,index});
   });
   groups.sort((a,b)=>planTimeMinutes(a.start)-planTimeMinutes(b.start));
@@ -8246,7 +8269,7 @@ function renderTrainingPlan(){
       const dual=libraryMode&&ex&&isDualExercise(ex);
       const statMeta=ex?`${measurementLabel(ex.measurement_type)}${categoryLabel(ex)?' · '+categoryLabel(ex):''}`:'';
       const card=document.createElement('div');card.className='trainingPlanBlock';card.dataset.planId=b.id;card.dataset.track=b.track||'both';
-      card.innerHTML=`<div class="trainingPlanBlockHead"><div style="min-width:0;flex:1"><button type="button" class="ghost trainingPlanDragHandle" draggable="true" data-plan-drag title="Maintenir et déplacer">⠿ Déplacer</button><div class="trainingPlanBlockTitle" style="margin-top:6px">${escapeHtml(b.title||ex?.name||'Nouveau bloc')}</div><span class="trainingTrackTag">${escapeHtml(trainingTrackLabel(b.track))}</span></div><div class="trainingPlanBlockActions"><button type="button" class="ghost" data-plan-up title="Monter">↑</button><button type="button" class="ghost" data-plan-down title="Descendre">↓</button><button type="button" class="ghost" data-plan-copy>Dupliquer le bloc</button><button type="button" class="ghost" data-plan-remove>Retirer</button></div></div>
+      card.innerHTML=`<div class="trainingPlanBlockHead"><div style="min-width:0;flex:1"><button type="button" class="ghost trainingPlanDragHandle" draggable="true" data-plan-drag title="Maintenir et déplacer">⠿ Déplacer</button><div class="trainingPlanBlockTitle" style="margin-top:6px">${escapeHtml(b.title||ex?.name||'Nouveau bloc')}</div><span class="trainingTrackTag">${escapeHtml(trainingTrackLabel(b.track))}</span></div><div class="trainingPlanBlockActions"><button type="button" class="ghost" data-plan-up title="Monter">↑</button><button type="button" class="ghost" data-plan-down title="Descendre">↓</button><button type="button" class="ghost" data-plan-copy>Dupliquer le bloc</button><button type="button" class="ghost" data-plan-draft>Mettre en brouillon</button><button type="button" class="ghost" data-plan-remove>Supprimer</button></div></div>
       <div class="trainingPlanFields">
        <div class="field"><label>Heure calculée</label><input class="planStart" readonly value="${escapeAttr(b.start||'')}"></div>
        <div class="field"><label>Durée (min)</label><input class="planDuration" type="number" min="0" inputmode="numeric" value="${escapeAttr(b.duration??'')}"></div>
@@ -8263,7 +8286,7 @@ function renderTrainingPlan(){
        <div class="trainingPlanStatActions">${dual?`<select class="planFocus"><option value="">Focus…</option><option value="attaque"${b.focus==='attaque'?' selected':''}>Attaque</option><option value="defense"${b.focus==='defense'?' selected':''}>Défense</option></select>`:''}${b.collectStats?'<button type="button" class="ghost" data-plan-results>↓ Saisir les résultats</button>':''}</div>
       </div>`;
       card.querySelector('[data-plan-up]').disabled=index===0;card.querySelector('[data-plan-down]').disabled=index===trainingState.planBlocks.length-1;
-      card.querySelector('[data-plan-up]').onclick=()=>moveTrainingPlanBlock(b.id,-1);card.querySelector('[data-plan-down]').onclick=()=>moveTrainingPlanBlock(b.id,1);card.querySelector('[data-plan-copy]').onclick=()=>duplicateTrainingPlanBlock(b.id);card.querySelector('[data-plan-remove]').onclick=()=>removeTrainingPlanBlock(b.id);
+      card.querySelector('[data-plan-up]').onclick=()=>moveTrainingPlanBlock(b.id,-1);card.querySelector('[data-plan-down]').onclick=()=>moveTrainingPlanBlock(b.id,1);card.querySelector('[data-plan-copy]').onclick=()=>duplicateTrainingPlanBlock(b.id);card.querySelector('[data-plan-draft]').onclick=()=>sendTrainingPlanBlockToDraft(b.id);card.querySelector('[data-plan-remove]').onclick=()=>{if(confirm('Supprimer définitivement ce bloc ?'))removeTrainingPlanBlock(b.id)};
       card.querySelector('.planSourceType').onchange=e=>{captureTrainingPlan();b.sourceType=e.target.value;b.exerciseId=b.sourceType==='library'?b.exerciseId:null;b.collectStats=b.sourceType==='library'?b.collectStats:false;renderTrainingPlan();renderTrainingExerciseCards()};
       const exSel=card.querySelector('.planExercise');if(exSel)exSel.onchange=e=>{captureTrainingPlan();const prev=b.exerciseId;b.exerciseId=e.target.value||null;const chosen=planExerciseById(b.exerciseId);if(chosen){if(!b.title||b.title===planExerciseById(prev)?.name)b.title=chosen.name;if(!b.details)b.details=planExerciseDetails(chosen,b.focus)}else{b.collectStats=false;b.focus=null}syncPlanStatExercises();renderTrainingPlan();renderTrainingExerciseCards()};
       const collect=card.querySelector('.planCollectStats');if(collect)collect.onchange=e=>{captureTrainingPlan();b.collectStats=!!e.target.checked;syncPlanStatExercises();renderTrainingPlan();renderTrainingExerciseCards()};
@@ -8278,6 +8301,26 @@ function renderTrainingPlan(){
     });
     box.append(slot);
   });
+  const draftBox=$('#trainingPlanDraft');
+  if(draftBox){
+    draftBox.innerHTML='';
+    if(!drafts.length)draftBox.innerHTML='<div class="trainingDraftEmpty">Aucun élément en brouillon. Tu peux y envoyer un bloc avec « Mettre en brouillon » ou en le faisant glisser ici.</div>';
+    drafts.forEach(b=>{
+      const ex=planExerciseById(b.exerciseId);
+      const card=document.createElement('div');card.className='trainingDraftCard';card.dataset.planId=b.id;card.draggable=true;
+      const preview=(b.details||b.attention||'').trim();
+      card.innerHTML=`<div class="trainingDraftCardTitle">${escapeHtml(b.title||ex?.name||'Bloc sans titre')}</div><div class="trainingDraftCardMeta">${escapeHtml(b.sourceType==='library'&&ex?'Bibliothèque · '+ex.name:'Bloc libre')} · ${escapeHtml(trainingTrackLabel(b.track))} · ${escapeHtml(String(b.duration||0))} min</div>${preview?`<div class="trainingDraftCardText">${escapeHtml(preview)}</div>`:''}<div class="trainingDraftCardActions"><button type="button" class="primary" data-draft-restore>Remettre dans le planning</button><button type="button" class="ghost" data-draft-copy>Dupliquer</button><button type="button" class="ghost" data-draft-remove>Supprimer</button></div>`;
+      card.querySelector('[data-draft-restore]').onclick=()=>restoreTrainingPlanBlockFromDraft(b.id,b.track);
+      card.querySelector('[data-draft-copy]').onclick=()=>{const i=trainingState.planBlocks.findIndex(x=>x.id===b.id);if(i<0)return;trainingState.planBlocks.splice(i+1,0,{...b,id:crypto.randomUUID(),draft:true,start:''});renderTrainingPlan()};
+      card.querySelector('[data-draft-remove]').onclick=()=>{if(confirm('Supprimer définitivement ce brouillon ?'))removeTrainingPlanBlock(b.id)};
+      card.addEventListener('dragstart',e=>{card.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',b.id)});
+      card.addEventListener('dragend',()=>card.classList.remove('dragging'));
+      draftBox.append(card);
+    });
+    draftBox.ondragover=e=>{e.preventDefault();draftBox.classList.add('drag-over');if(e.dataTransfer)e.dataTransfer.dropEffect='move'};
+    draftBox.ondragleave=e=>{if(!draftBox.contains(e.relatedTarget))draftBox.classList.remove('drag-over')};
+    draftBox.ondrop=e=>{e.preventDefault();draftBox.classList.remove('drag-over');const id=e.dataTransfer?.getData('text/plain');if(id)sendTrainingPlanBlockToDraft(id)};
+  }
   box.ondragover=e=>{e.preventDefault();box.classList.add('drag-over');if(e.dataTransfer)e.dataTransfer.dropEffect='move'};
   box.ondragleave=e=>{if(!box.contains(e.relatedTarget))box.classList.remove('drag-over')};
   box.ondrop=e=>{
@@ -8303,16 +8346,15 @@ async function startNewTraining(){
     alert('Crée ou rejoins d’abord un groupe dans le volet Groupes.');
     return;
   }
-  $('#trainingDate').value='27/09/2026';
-  $('#trainingTheme').value='27/09/2026 — Frappe et situations 1v1';
-  $('#trainingDuration').value='180';
-  $('#trainingNotes').value='Brouillon préparé à partir du Sheet du 27/09/2026. Les horaires après 14h15 sont proposés pour structurer la séance et restent librement modifiables.';
+  $('#trainingDate').value=isoToFrInput(today());
+  $('#trainingTheme').value='';
+  $('#trainingDuration').value='';
+  $('#trainingNotes').value='';
   autoGrowPlanTextarea($('#trainingNotes'));
-  trainingState.planBlocks=seedTrainingPlan27092026();
+  trainingState.planBlocks=[];
   if($('#trainingPlanStart'))$('#trainingPlanStart').value='13:30';
-  recalculateTrainingPlanTimes();
   syncPlanStatExercises();
-  $('#trainingSaveStatus').textContent='Séance du 27/09/2026 préremplie à partir du plan de travail.';
+  $('#trainingSaveStatus').textContent='';
   $('#trainingGroup').value=groupState.groups[0]?.id||'';
   await fetchTrainingPlayers($('#trainingGroup').value||null);
   $$('#trainingAttendance input').forEach(c=>c.checked=true);
@@ -8855,7 +8897,7 @@ async function duplicateTrainingSessionById(sessionId){
   $('#trainingNotes').value=sourcePlan.notes||'';
   autoGrowPlanTextarea($('#trainingNotes'));
   trainingState.planBlocks=(sourcePlan.plan||[]).map(b=>({...newPlanBlock(b),...b,id:crypto.randomUUID()}));
-  if($('#trainingPlanStart')&&trainingState.planBlocks.length){const mins=trainingState.planBlocks.map(b=>planTimeMinutes(b.start)).filter(x=>x!==99999);if(mins.length)$('#trainingPlanStart').value=minutesToPlanTime(Math.min(...mins))}
+  if($('#trainingPlanStart')&&trainingState.planBlocks.length){const mins=trainingState.planBlocks.filter(b=>!b.draft).map(b=>planTimeMinutes(b.start)).filter(x=>x!==99999);if(mins.length)$('#trainingPlanStart').value=minutesToPlanTime(Math.min(...mins))}
   bindLoadedStatsToPlanBlocks();
   $('#trainingSaveStatus').textContent='';
 
@@ -8900,7 +8942,7 @@ async function editTrainingSessionById(sessionId){
   $('#trainingNotes').value=sourcePlan.notes||'';
   autoGrowPlanTextarea($('#trainingNotes'));
   trainingState.planBlocks=(sourcePlan.plan||[]).map(b=>({...newPlanBlock(b),...b,id:crypto.randomUUID()}));
-  if($('#trainingPlanStart')&&trainingState.planBlocks.length){const mins=trainingState.planBlocks.map(b=>planTimeMinutes(b.start)).filter(x=>x!==99999);if(mins.length)$('#trainingPlanStart').value=minutesToPlanTime(Math.min(...mins))}
+  if($('#trainingPlanStart')&&trainingState.planBlocks.length){const mins=trainingState.planBlocks.filter(b=>!b.draft).map(b=>planTimeMinutes(b.start)).filter(x=>x!==99999);if(mins.length)$('#trainingPlanStart').value=minutesToPlanTime(Math.min(...mins))}
   bindLoadedStatsToPlanBlocks();
   $('#trainingSaveStatus').textContent='';
   $('#saveTrainingSession').textContent='Enregistrer les modifications';
