@@ -1939,6 +1939,24 @@ button.playerPortalHomeCard:hover,a.playerPortalHomeCard:hover{border-color:var(
 @media(max-width:900px){.playerPortalMatchList{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.playerPortalMatchList{grid-template-columns:1fr}.playerPortalScopeTabs{grid-template-columns:1fr}}
 
 
+
+.trainingSavedHome{margin-top:20px;border-top:1px solid var(--line);padding-top:16px}
+.trainingSavedHomeHead{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:10px}
+.trainingSavedHomeHead h3{margin:0 0 3px;font-size:17px}
+.trainingSeason{border:1px solid var(--line);border-radius:14px;background:var(--panel2);margin-bottom:10px;overflow:hidden}
+.trainingSeason summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 14px;font-weight:800;user-select:none}
+.trainingSeason summary::-webkit-details-marker{display:none}
+.trainingSeason summary:after{content:'›';font-size:22px;line-height:1;color:var(--muted);transform:rotate(90deg);transition:transform .15s ease}
+.trainingSeason:not([open]) summary:after{transform:rotate(0deg)}
+.trainingSeasonMeta{font-size:12px;color:var(--muted);font-weight:600}
+.trainingSeasonBody{border-top:1px solid var(--line);padding:9px}
+.trainingSavedSession{background:#171a21;border:1px solid rgba(255,255,255,.04);border-radius:12px;padding:11px;margin-bottom:8px}
+.trainingSavedSession:last-child{margin-bottom:0}
+.trainingSavedSessionTop{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.trainingSavedSessionTitle{min-width:0;flex:1}
+.trainingSavedSessionActions{display:flex;gap:6px;flex-wrap:wrap;flex:0 0 auto}
+@media(max-width:620px){.trainingSavedSessionTop{flex-direction:column}.trainingSavedSessionActions{width:100%}.trainingSavedSessionActions button{flex:1}.trainingSavedHomeHead{align-items:flex-start;flex-direction:column}}
+
 </style>
 </head>
 <body>
@@ -2231,11 +2249,14 @@ button.playerPortalHomeCard:hover,a.playerPortalHomeCard:hover{border-color:var(
    </div>
    <div class="trainingToolbar">
     <button class="primary" id="newTraining">＋ Nouvelle séance</button>
-    <button class="ghost" id="duplicateTrainingSession">Séances enregistrées</button>
     <button class="ghost" id="openExerciseLibrary">Bibliothèque d’exercices</button>
     <button class="ghost" id="openTrainingHistory">Historique joueur</button>
    </div>
    <div class="small">Les séances et résultats sont enregistrés dans la même base Supabase que les matchs.</div>
+   <div class="trainingSavedHome">
+    <div class="trainingSavedHomeHead"><div><h3>Séances enregistrées</h3><div class="small">Classées par saison sportive. La saison en cours est ouverte automatiquement.</div></div><span class="small" id="trainingSavedCount"></span></div>
+    <div id="trainingSavedSeasons"></div>
+   </div>
  </section>
 
  <section class="panel hidden" id="trainingSession">
@@ -8077,7 +8098,8 @@ async function openTrainingModule(){
     await fetchMyGroups();
     hideMainModules();
     setMatchHeaderMode(false);$('#trainingHome').classList.remove('hidden');
-    await fetchTrainingExercises();
+    await Promise.all([fetchTrainingExercises(),fetchRecentTrainingSessions()]);
+    renderTrainingSavedHome();
     window.scrollTo({top:0,behavior:'instant'});
   }catch(e){handleError('openTrainingModule',e)}
 }
@@ -8821,12 +8843,47 @@ async function fetchRecentTrainingSessions(){
     .select('id,trained_on,label,theme,duration_minutes,notes,created_at,updated_at,created_by,updated_by,group_id,group:coaching_groups!training_sessions_group_id_fkey(name),team:teams!training_sessions_team_id_fkey(name)')
     .in('group_id',ids)
     .order('trained_on',{ascending:false})
-    .limit(30);
+    .limit(200);
   if(error) throw error;
   trainingState.recentSessions=data||[];
   await fetchProfiles(trainingState.recentSessions.flatMap(x=>[x.created_by,x.updated_by]));
 }
 
+function trainingSeasonLabel(dateValue){
+  const d=dateValue?new Date(dateValue+'T12:00:00'):new Date();
+  const y=d.getFullYear();
+  const start=d.getMonth()>=6?y:y-1;
+  return `${start}-${start+1}`;
+}
+function currentTrainingSeasonLabel(){return trainingSeasonLabel(new Date().toISOString().slice(0,10))}
+function renderTrainingSavedHome(){
+  const box=$('#trainingSavedSeasons'),count=$('#trainingSavedCount');
+  if(!box)return;
+  const sessions=trainingState.recentSessions||[];
+  if(count)count.textContent=`${sessions.length} séance${sessions.length>1?'s':''}`;
+  box.innerHTML='';
+  if(!sessions.length){box.innerHTML='<div class="small">Aucune séance enregistrée.</div>';return}
+  const groups=new Map();
+  sessions.forEach(sess=>{const key=trainingSeasonLabel(sess.trained_on);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(sess)});
+  const current=currentTrainingSeasonLabel();
+  [...groups.keys()].sort((a,b)=>b.localeCompare(a)).forEach(season=>{
+    const list=groups.get(season);
+    const details=document.createElement('details');
+    details.className='trainingSeason';
+    if(season===current)details.open=true;
+    const summary=document.createElement('summary');
+    summary.innerHTML=`<span>Saison ${escapeHtml(season)}</span><span class="trainingSeasonMeta">${list.length} séance${list.length>1?'s':''}${season===current?' · en cours':''}</span>`;
+    const body=document.createElement('div');body.className='trainingSeasonBody';
+    list.forEach(sess=>{
+      const row=document.createElement('div');row.className='trainingSavedSession';
+      row.innerHTML=`<div class="trainingSavedSessionTop"><div class="trainingSavedSessionTitle"><strong>${escapeHtml(sess.trained_on?formatDateShort(sess.trained_on):'')}${sess.theme?' · '+escapeHtml(sess.theme):(sess.label?' · '+escapeHtml(sess.label):'')}</strong><div class="small" style="margin-top:4px">${escapeHtml(sess.group?.name||sess.team?.name||'Groupe')}${sess.duration_minutes?' · '+escapeHtml(sess.duration_minutes)+' min':''}</div></div><div class="trainingSavedSessionActions"><button class="ghost" data-home-edit-session="${sess.id}">Modifier</button><button class="ghost" data-home-duplicate-session="${sess.id}">Dupliquer</button></div></div>`;
+      row.querySelector('[data-home-edit-session]').onclick=()=>editTrainingSessionById(sess.id).catch(e=>handleError('edit training session',e));
+      row.querySelector('[data-home-duplicate-session]').onclick=()=>duplicateTrainingSessionById(sess.id).catch(e=>handleError('duplicate training session',e));
+      body.append(row);
+    });
+    details.append(summary,body);box.append(details);
+  });
+}
 function renderDuplicateTrainingSessions(){
   const box=$('#trainingDuplicateList');
   const status=$('#trainingDuplicateStatus');
@@ -10655,7 +10712,7 @@ $('#addTrainingPlanBlock').onclick=()=>addTrainingPlanBlock();
 const trainingPlanStartEl=$('#trainingPlanStart');if(trainingPlanStartEl){trainingPlanStartEl.addEventListener('change',()=>{trainingPlanStartEl.value=normalizePlanTime(trainingPlanStartEl.value)||'13:30';recalculateTrainingPlanTimes();renderTrainingPlan()})}
 $('#clearTrainingPlan').onclick=()=>{if(!trainingState.planBlocks.length||confirm('Vider tout le plan de séance ?')){trainingState.planBlocks=[];renderTrainingPlan()}};
 const trainingNotesEl=$('#trainingNotes');if(trainingNotesEl){trainingNotesEl.addEventListener('input',()=>autoGrowPlanTextarea(trainingNotesEl));autoGrowPlanTextarea(trainingNotesEl)}
-$('#duplicateTrainingSession').onclick=()=>openTrainingDuplicate();
+const duplicateTrainingSessionBtn=$('#duplicateTrainingSession');if(duplicateTrainingSessionBtn)duplicateTrainingSessionBtn.onclick=()=>openTrainingDuplicate();
 $('#trainingDuplicateBack').onclick=()=>openTrainingModule();
 $('#cancelTraining').onclick=()=>openTrainingModule();
 $('#trainingExerciseSelect').onchange=updateExistingExerciseFocusUI;
