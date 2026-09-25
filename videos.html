@@ -131,7 +131,7 @@ input,textarea,select{width:100%;border:1px solid var(--line);border-radius:11px
 
       <div class="annotationPanel">
         <div class="annotationHeader">
-          <div><strong>Repères d’analyse</strong><div class="small">Commentaires horodatés avec capture d’image et dessin.</div></div>
+          <div><strong>Repères d’analyse</strong><div class="small">Commentaires horodatés avec capture d’image et dessin. La lecture normale passe directement par Google Drive ; le relais Supabase n’est utilisé que pendant l’annotation.</div></div>
           <div class="small">Le repère utilise le timestamp courant.</div>
         </div>
 
@@ -224,7 +224,8 @@ function returnFromVideoToDashboard(){
 const state={
   user:null,session:null,groupId:null,playerId:null,playerName:'',groupName:'',
   isCoach:false,config:null,videos:[],currentVideoId:null,notes:[],
-  shapes:[],activeShape:null,annotationMode:false,editingNoteId:null
+  shapes:[],activeShape:null,annotationMode:false,editingNoteId:null,
+  streamMode:'',directStreamUrl:'',proxyStreamUrl:''
 };
 
 function setStatus(text,cls=''){const el=$('#status');el.textContent=text||'';el.className='small '+cls}
@@ -398,32 +399,165 @@ function setRate(r){$('#video').playbackRate=RATES.includes(r)?r:1;updateRate()}
 function step(frames){const v=$('#video');if(!Number.isFinite(v.duration))return;v.pause();v.currentTime=Math.max(0,Math.min(v.duration,v.currentTime+frames*FRAME));updateTime()}
 function togglePlay(){const v=$('#video');v.paused?v.play().catch(()=>{}):v.pause()}
 
+function waitForVideoReady(v,timeoutMs=7000){
+  return new Promise((resolve,reject)=>{
+    if(v.readyState>=1){resolve();return}
+    let done=false;
+    const finish=(ok,err)=>{
+      if(done)return;done=true;
+      clearTimeout(timer);
+      v.removeEventListener('loadedmetadata',onReady);
+      v.removeEventListener('error',onError);
+      ok?resolve():reject(err||new Error('Lecture vidéo impossible.'));
+    };
+    const onReady=()=>finish(true);
+    const onError=()=>finish(false,new Error('Lecture vidéo impossible.'));
+    const timer=setTimeout(()=>finish(false,new Error('Délai de chargement vidéo dépassé.')),timeoutMs);
+    v.addEventListener('loadedmetadata',onReady,{once:true});
+    v.addEventListener('error',onError,{once:true});
+  });
+}
+
+async function setVideoSource(url,mode,preserveTime=true){
+  const v=$('#video');
+  const time=preserveTime&&Number.isFinite(v.currentTime)?v.currentTime:0;
+  const rate=RATES.includes(v.playbackRate)?v.playbackRate:1;
+  const wasPlaying=!v.paused;
+
+  v.pause();
+  v.removeAttribute('src');
+
+  if(mode==='proxy')v.setAttribute('crossorigin','anonymous');
+  else v.removeAttribute('crossorigin');
+
+  v.src=url;
+  v.load();
+  await waitForVideoReady(v);
+
+  if(time>0&&Number.isFinite(v.duration)){
+    v.currentTime=Math.min(time,Math.max(0,v.duration-.05));
+  }
+  v.playbackRate=rate;
+  state.streamMode=mode;
+  updateRate();
+
+  if(wasPlaying && !state.annotationMode){
+    v.play().catch(()=>{});
+  }
+}
+
+async function getDirectStreamUrl(){
+  if(state.directStreamUrl)return state.directStreamUrl;
+  if(!state.currentVideoId)throw new Error('Vidéo non sélectionnée.');
+
+  const {data,error}=await db.functions.invoke('player-video-direct',{body:{
+    group_id:state.groupId,
+    video_id:state.currentVideoId
+  }});
+  if(error)throw error;
+  if(data?.error)throw new Error(data.error);
+  if(!data?.stream_url)throw new Error('Lien Drive direct absent.');
+
+  state.directStreamUrl=data.stream_url;
+  return state.directStreamUrl;
+}
+
+async function getProxyStreamUrl(){
+  if(state.proxyStreamUrl)return state.proxyStreamUrl;
+  if(!state.currentVideoId)throw new Error('Vidéo non sélectionnée.');
+
+  const {data,error}=await db.functions.invoke('player-drive',{body:{
+    action:'get_stream_url',
+    group_id:state.groupId,
+    video_id:state.currentVideoId
+  }});
+  if(error)throw error;
+  if(data?.error)throw new Error(data.error);
+  if(!data?.stream_url)throw new Error('Lien sécurisé absent.');
+
+  state.proxyStreamUrl=data.stream_url;
+  return state.proxyStreamUrl;
+}
+
+async function ensureProxyForAnnotation(){
+  if(state.streamMode==='proxy')return;
+  const url=await getProxyStreamUrl();
+  setStatus('Activation du mode annotation…');
+  await setVideoSource(url,'proxy',true);
+  setStatus('');
+}
+
+async function restoreDirectAfterAnnotation(){
+  if(state.streamMode==='direct')return;
+  try{
+    const url=await getDirectStreamUrl();
+    setStatus('Retour à la lecture directe Drive…');
+    await setVideoSource(url,'direct',true);
+    setStatus('');
+  }catch(e){
+    console.warn('Retour Drive direct impossible, maintien du relais Supabase.',e);
+    setStatus('Lecture via relais Supabase : Drive direct indisponible.','error');
+  }
+}
+
 async function openVideo(videoId){
   const item=state.videos.find(v=>v.id===videoId);if(!item)return;
-  state.currentVideoId=videoId;state.shapes=[];drawOverlay();
+
+  state.currentVideoId=videoId;
+  state.shapes=[];
+  state.directStreamUrl='';
+  state.proxyStreamUrl='';
+  state.streamMode='';
+  setAnnotationMode(false);
+  drawOverlay();
+
   $('#playerTitle').textContent=item.title||item.file_name||'Lecture vidéo';
-  $('#playerBox').classList.remove('hidden');$('#playerBox').scrollIntoView({behavior:'smooth',block:'start'});
+  $('#playerBox').classList.remove('hidden');
+  $('#playerBox').scrollIntoView({behavior:'smooth',block:'start'});
   setStatus('Préparation du lecteur…');
+
+  let directError=null;
   try{
-    let streamUrl='';
-    if(!state.isCoach){
-      const {data,error}=await db.functions.invoke('player-video-direct',{body:{group_id:state.groupId,video_id:videoId}});
-      if(error)throw error;if(data?.error)throw new Error(data.error);
-      streamUrl=data?.stream_url||'';
-      if(!streamUrl)throw new Error('Lien Drive direct absent.');
-    }else{
-      const {data,error}=await db.functions.invoke('player-drive',{body:{action:'get_stream_url',group_id:state.groupId,video_id:videoId}});
-      if(error)throw error;if(data?.error)throw new Error(data.error);
-      streamUrl=data?.stream_url||'';
-    }
-    const v=$('#video');v.pause();
-    if(state.isCoach)v.crossOrigin='anonymous';else v.removeAttribute('crossorigin');
-    v.src=streamUrl;v.playbackRate=1;v.load();updateRate();
-    if(state.isCoach&&!item.seen_by_me)await db.rpc('mark_player_video_seen',{p_group_id:state.groupId,p_video_id:videoId});
-    await loadNotes(videoId);setStatus('');
-  }catch(e){setStatus(errorText(e),'error');console.error(e)}
+    const direct=await getDirectStreamUrl();
+    await setVideoSource(direct,'direct',false);
+  }catch(e){
+    directError=e;
+    console.warn('Lecture Drive directe indisponible, fallback Supabase.',e);
+    const proxy=await getProxyStreamUrl();
+    await setVideoSource(proxy,'proxy',false);
+  }
+
+  if(state.isCoach&&!item.seen_by_me){
+    await db.rpc('mark_player_video_seen',{p_group_id:state.groupId,p_video_id:videoId});
+  }
+
+  await loadNotes(videoId);
+
+  if(directError){
+    setStatus('Lecture via relais Supabase : Drive direct indisponible.','error');
+  }else{
+    setStatus('');
+  }
 }
-function closeVideo(){const v=$('#video');setAnnotationMode(false);resetDraft();v.pause();v.removeAttribute('src');v.load();state.currentVideoId=null;state.notes=[];state.shapes=[];$('#playerBox').classList.add('hidden')}
+
+function closeVideo(){
+  const v=$('#video');
+  setAnnotationMode(false);
+  resetDraft();
+  v.pause();
+  v.removeAttribute('src');
+  v.removeAttribute('crossorigin');
+  v.load();
+
+  state.currentVideoId=null;
+  state.notes=[];
+  state.shapes=[];
+  state.streamMode='';
+  state.directStreamUrl='';
+  state.proxyStreamUrl='';
+
+  $('#playerBox').classList.add('hidden');
+}
 
 /* Annotations */
 function setAnnotationMode(enabled){
@@ -440,8 +574,20 @@ function setAnnotationMode(enabled){
     drawOverlay();
   }
 }
-function toggleAnnotationMode(){
-  setAnnotationMode(!state.annotationMode);
+async function toggleAnnotationMode(){
+  try{
+    if(state.annotationMode){
+      setAnnotationMode(false);
+      await restoreDirectAfterAnnotation();
+      return;
+    }
+
+    await ensureProxyForAnnotation();
+    setAnnotationMode(true);
+  }catch(e){
+    setStatus(errorText(e),'error');
+    console.error(e);
+  }
 }
 function canEdit(){return state.isCoach && state.annotationMode}
 function syncCanvas(){
@@ -532,22 +678,34 @@ function closeNotePopup(){
   backdrop.classList.add('hidden');
   backdrop.setAttribute('aria-hidden','true');
 }
-function editNote(id){
+async function editNote(id){
   const n=state.notes.find(x=>x.id===id);
   if(!n||!state.isCoach||n.author_user_id!==state.user?.id)return;
+
   closeNotePopup();
-  const v=$('#video');
-  v.pause();
-  v.currentTime=(Number(n.note_time_ms)||0)/1000;
-  state.editingNoteId=n.id;
-  state.shapes=Array.isArray(n.drawing_data)?JSON.parse(JSON.stringify(n.drawing_data)):[];
-  state.activeShape=null;
-  $('#noteText').value=n.note_text||'';
-  $('#noteStatus').textContent='Modification du repère existant.';
-  $('#saveNote').textContent='Enregistrer les modifications';
-  setAnnotationMode(true);
-  syncCanvas();
-  $('#composer').scrollIntoView({behavior:'smooth',block:'center'});
+
+  try{
+    await ensureProxyForAnnotation();
+
+    const v=$('#video');
+    v.pause();
+    v.currentTime=(Number(n.note_time_ms)||0)/1000;
+
+    state.editingNoteId=n.id;
+    state.shapes=Array.isArray(n.drawing_data)?JSON.parse(JSON.stringify(n.drawing_data)):[];
+    state.activeShape=null;
+
+    $('#noteText').value=n.note_text||'';
+    $('#noteStatus').textContent='Modification du repère existant.';
+    $('#saveNote').textContent='Enregistrer les modifications';
+
+    setAnnotationMode(true);
+    syncCanvas();
+    $('#composer').scrollIntoView({behavior:'smooth',block:'center'});
+  }catch(e){
+    setStatus(errorText(e),'error');
+    console.error(e);
+  }
 }
 async function deleteNote(id){if(!confirm('Supprimer ce repère ?'))return;const {error}=await db.rpc('delete_player_video_note',{p_group_id:state.groupId,p_note_id:id});if(error){alert(errorText(error));return}await loadNotes(state.currentVideoId)}
 async function saveNote(){
@@ -574,6 +732,7 @@ async function saveNote(){
     st.textContent=editingId?'Repère modifié.':'Repère ajouté.';
     setAnnotationMode(false);
     await loadNotes(state.currentVideoId);
+    await restoreDirectAfterAnnotation();
   }catch(e){st.textContent=errorText(e);console.error(e)}
 }
 
