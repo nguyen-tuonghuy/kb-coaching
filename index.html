@@ -218,7 +218,31 @@ button:active{transform:scale(.985)}
 .resultRow .name{font-weight:750;margin-bottom:7px}.miniGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}
 .trainingToolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}.trainingToolbar button{flex:1;min-width:140px}
 .historyItem{background:var(--panel2);border-radius:12px;padding:10px;margin-bottom:8px}
-@media(max-width:520px){.moduleGrid{grid-template-columns:1fr}.miniGrid{grid-template-columns:1fr}}
+.trainingPlan{margin-top:18px;border:1px solid var(--line);border-radius:16px;background:#151922;padding:13px}
+.trainingPlanHead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.trainingPlanHead h3{font-size:16px;margin:0 0 4px}
+.trainingPlanActions{display:flex;gap:7px;flex-wrap:wrap}
+.trainingPlanActions button{padding:8px 10px}
+.trainingTimeline{display:flex;flex-direction:column;gap:10px}
+.trainingTimelineSlot{border-top:1px solid var(--line);padding-top:10px}
+.trainingTimelineSlot:first-child{border-top:0;padding-top:0}
+.trainingTimelineTime{font-weight:800;font-size:14px;margin-bottom:7px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.trainingTimelineTracks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.trainingPlanBlock{background:var(--panel2);border:1px solid var(--line);border-radius:13px;padding:10px;min-width:0}
+.trainingPlanBlock[data-track=both]{grid-column:1/-1}
+.trainingPlanBlockHead{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-bottom:8px}
+.trainingPlanBlockTitle{font-weight:800;line-height:1.2;min-width:0}
+.trainingTrackTag{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;padding:3px 7px;font-size:11px;color:var(--muted);margin-top:4px}
+.trainingPlanBlockActions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.trainingPlanBlockActions button{padding:6px 8px;font-size:12px;border-radius:9px}
+.trainingPlanFields{display:grid;grid-template-columns:110px 100px 150px minmax(160px,1fr);gap:8px;align-items:end}
+.trainingPlanFields textarea{min-height:78px;resize:vertical}
+.trainingPlanNotes{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.trainingPlanEmpty{border:1px dashed var(--line);border-radius:12px;padding:16px;text-align:center;color:var(--muted);font-size:13px}
+.trainingSectionLabel{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap}
+.trainingSectionLabel h3{font-size:16px;margin:0 0 5px}
+@media(max-width:760px){.trainingPlanFields{grid-template-columns:1fr 1fr}.trainingPlanFields .planTitleField{grid-column:1/-1}.trainingPlanNotes{grid-template-columns:1fr}.trainingTimelineTracks{grid-template-columns:1fr}.trainingPlanBlock[data-track=both]{grid-column:auto}}
+@media(max-width:520px){.moduleGrid{grid-template-columns:1fr}.miniGrid{grid-template-columns:1fr}.trainingPlanFields{grid-template-columns:1fr}.trainingPlanFields .planTitleField{grid-column:auto}}
 
 .statsTabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
 .statsDomainTabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:14px 0 12px}
@@ -2190,7 +2214,15 @@ button.playerPortalHomeCard:hover,a.playerPortalHomeCard:hover{border-color:var(
     <div class="field"><label>Thème</label><input id="trainingTheme" placeholder="ex. Défense et transition"></div>
     <div class="field"><label>Durée prévue (min)</label><input id="trainingDuration" type="number" min="1" inputmode="numeric" placeholder="90"></div>
    </div>
-   <div class="field" style="margin-top:9px"><label>Notes de séance</label><input id="trainingNotes" placeholder="Objectifs, contexte, remarques…"></div>
+   <div class="field" style="margin-top:9px"><label>Notes générales de séance</label><textarea id="trainingNotes" rows="3" placeholder="Objectifs généraux, contexte, informations communes…"></textarea></div>
+
+   <div class="trainingPlan">
+    <div class="trainingPlanHead">
+     <div><h3>Plan de séance</h3><div class="small">Construis ici le déroulé comme dans le Sheet : horaires, durée, terrain(s), contenu et notes libres. Deux blocs peuvent avoir la même heure pour travailler sur deux terrains en parallèle.</div></div>
+     <div class="trainingPlanActions"><button class="primary" type="button" id="addTrainingPlanBlock">＋ Ajouter un bloc</button><button class="ghost" type="button" id="clearTrainingPlan">Vider le plan</button></div>
+    </div>
+    <div id="trainingPlanTimeline" class="trainingTimeline"></div>
+   </div>
 
    <div style="margin-top:18px">
     <h3 style="font-size:16px;margin:0 0 7px">Joueurs présents</h3>
@@ -2199,7 +2231,7 @@ button.playerPortalHomeCard:hover,a.playerPortalHomeCard:hover{border-color:var(
    </div>
 
    <div style="margin-top:18px">
-    <h3 style="font-size:16px;margin:0 0 7px">Exercices</h3>
+    <div class="trainingSectionLabel"><div><h3>Suivi chiffré des exercices <span class="small">(facultatif)</span></h3><div class="small">Ajoute ici uniquement les exercices pour lesquels tu veux enregistrer des résultats individuels et alimenter les statistiques.</div></div></div>
     <div class="row">
      <div class="field"><label>Exercice existant</label><select id="trainingExerciseSelect"><option value="">— Choisir —</option></select></div>
      <div class="field hidden" id="trainingExerciseFocusWrap">
@@ -6256,7 +6288,7 @@ $('#matchTypeCreateForm').onsubmit=event=>{
   });
 };
 
-let trainingState={players:[],exercises:[],sessionExercises:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{}};
+let trainingState={players:[],exercises:[],sessionExercises:[],planBlocks:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{}};
 let playerPortalState={accesses:[],groupId:null,matches:[],selected:[],scope:'all',restartLocation:'all',loading:false,view:'home',hasStaffAccess:false,staffPreview:false,staffPlayerId:null,staffReturnGroupId:null,messageNotifications:[],objectives:[],videos:[],videoConfig:null};
 let groupState={groups:[],currentGroupId:null,currentPlayers:[],matchPlayers:[],profiles:{},messageNotifications:[]};
 let adminState={isAdmin:false,groups:[]};
@@ -8026,8 +8058,107 @@ function renderHistoryPlayers(){
   trainingState.players.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.display_name;sel.append(o)});
   if([...sel.options].some(o=>o.value===current)) sel.value=current;
 }
+const TRAINING_PLAN_MARKER='\n\n[[KC_PLAN_V1:';
+function unpackTrainingNotes(raw){
+  const text=raw||'';
+  const pos=text.lastIndexOf(TRAINING_PLAN_MARKER);
+  if(pos<0||!text.endsWith(']]')) return {notes:text,plan:[]};
+  const encoded=text.slice(pos+TRAINING_PLAN_MARKER.length,-2);
+  try{
+    const parsed=JSON.parse(decodeURIComponent(encoded));
+    return {notes:text.slice(0,pos).trimEnd(),plan:Array.isArray(parsed)?parsed:[]};
+  }catch(_){return {notes:text,plan:[]}}
+}
+function packTrainingNotes(notes,plan){
+  const clean=(notes||'').trim();
+  const blocks=(plan||[]).map(({id,start,duration,track,title,details,attention})=>({id,start,duration,track,title,details,attention}));
+  if(!blocks.length)return clean||null;
+  return `${clean}${TRAINING_PLAN_MARKER}${encodeURIComponent(JSON.stringify(blocks))}]]`;
+}
+function normalizePlanTime(v){
+  const m=String(v||'').trim().match(/^(\d{1,2})(?::?(\d{2}))?$/);
+  if(!m)return String(v||'').trim();
+  const h=Math.max(0,Math.min(23,Number(m[1]))),min=Math.max(0,Math.min(59,Number(m[2]||0)));
+  return `${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}`;
+}
+function planTimeMinutes(v){
+  const m=String(v||'').match(/^(\d{1,2}):(\d{2})$/);return m?Number(m[1])*60+Number(m[2]):99999;
+}
+function planEndTime(start,duration){
+  const mins=planTimeMinutes(start);if(mins===99999)return '';
+  const total=(mins+(Number(duration)||0))%(24*60);return `${String(Math.floor(total/60)).padStart(2,'0')}:${String(total%60).padStart(2,'0')}`;
+}
+function trainingTrackLabel(t){return t==='court1'?'Terrain 1 (fond)':t==='court2'?'Terrain 2 (entrée)':t==='both'?'Deux terrains / commun':'Autre'}
+function seedTrainingPlan27092026(){
+  return [
+    {start:'13:30',duration:30,track:'both',title:'Échauffement',details:'Échauffement collectif 30 min.',attention:''},
+    {start:'14:00',duration:10,track:'both',title:'Glissades',details:'Glissades simples puis à deux sur ligne : un joueur part glisser un ballon presque extérieur, l’autre vient en soutien. 5 min + 5 min max.',attention:''},
+    {start:'14:10',duration:5,track:'both',title:'Routine frappes à 2 bras',details:'Routine de frappes à 2 bras.',attention:'Correction si nécessaire, sans allonger le bloc.'},
+    {start:'14:15',duration:15,track:'both',title:'Régularité de frappe',details:'Régularité à 4 m à 90°, puis à 7 m droit.',attention:'Chercher d’abord contrôle et trajectoire.'},
+    {start:'14:30',duration:20,track:'court1',title:'1v1 — situation de gel',details:'Tester une situation de gel en lançant le ballon à la cellule, éventuellement en mode 4 colonnes. Le frappeur travaille 6 frappes de suite ; possible à deux pour enchaîner. Compter les points marqués et les fautes.',attention:'Format encore à valider : observer si le rythme permet assez de répétitions.'},
+    {start:'14:30',duration:20,track:'court2',title:'Frappe 1 bras — apprentissage',details:'Travail / apprentissage de la frappe à 1 bras pour les plus jeunes.',attention:'Garder une structure simple et stable pour les joueurs qui ne maîtrisent pas encore le geste.'},
+    {start:'14:50',duration:20,track:'court1',title:'Routine frappe 1 bras',details:'Routine de frappe à 1 bras pour les joueurs qui maîtrisent déjà la base. Possibilité d’introduire des variations de course, de rythme et de préparation.',attention:'Pour les joueurs qui portent le ballon : privilégier un objectif de trajectoire et de longueur, puissance autour de 70–80 %.'},
+    {start:'14:50',duration:20,track:'court2',title:'Frappe 1 bras — consolidation',details:'Poursuite de l’apprentissage 1 bras : répétitions simples, distance au ballon et course cohérente.',attention:'Stabiliser les invariants avant d’ajouter beaucoup de variabilité.'},
+    {start:'15:10',duration:15,track:'court1',title:'Frappe plus rapide / feinte bras droit–bras gauche',details:'Travail spécifique pour accélérer la frappe et améliorer la feinte bras droit / bras gauche. Sur la frappe bras gauche, tester la consigne de poussée du pied droit.',attention:'La poussée du pied droit est à tester comme contrainte, pas à imposer comme vérité technique. Observer l’effet sur la vitesse et la trajectoire.'},
+    {start:'15:10',duration:15,track:'court2',title:'Frappe 1 bras — cible et régularité',details:'Continuer le travail 1 bras avec une cible simple et une intensité contrôlée.',attention:'Donner surtout un feedback externe : zone atteinte, longueur, trajectoire.'},
+    {start:'15:25',duration:20,track:'both',title:'1v1 E',details:'Départ du frappeur face au défenseur. Travail sur un quart de terrain. Défenseur placé à plus de 4 m.',attention:'Observer le transfert du travail de frappe vers une vraie situation offensive.'},
+    {start:'15:45',duration:25,track:'both',title:'1v1 RG',details:'Tout le monde ne passe pas en défense : volontaires uniquement, pas les juniors. Faire surtout travailler l’attaque : 5 attaques chacun en alternance.',attention:'Priorité à la qualité des répétitions offensives.'},
+    {start:'16:10',duration:20,track:'both',title:'1v1 R',details:'Situation 1v1 avec R. Contrainte du R encore à préciser.',attention:'Idée de départ : le R choisit sa position avant le début de l’attaque et la conserve jusqu’au déclenchement de la frappe ; modifier sa position entre les attaques.'}
+  ].map(b=>newPlanBlock(b));
+}
+function newPlanBlock(seed={}){
+  const last=trainingState.planBlocks[trainingState.planBlocks.length-1];
+  const start=seed.start||((last?.start&&last?.duration)?planEndTime(last.start,last.duration):(last?.start||'13:30'));
+  return {id:crypto.randomUUID(),start,duration:seed.duration??10,track:seed.track||'both',title:seed.title||'',details:seed.details||'',attention:seed.attention||''};
+}
+function captureTrainingPlan(){
+  $$('#trainingPlanTimeline [data-plan-id]').forEach(card=>{
+    const b=trainingState.planBlocks.find(x=>x.id===card.dataset.planId);if(!b)return;
+    b.start=normalizePlanTime(card.querySelector('.planStart')?.value||'');
+    b.duration=Math.max(0,Number(card.querySelector('.planDuration')?.value)||0);
+    b.track=card.querySelector('.planTrack')?.value||'both';
+    b.title=card.querySelector('.planTitle')?.value.trim()||'';
+    b.details=card.querySelector('.planDetails')?.value||'';
+    b.attention=card.querySelector('.planAttention')?.value||'';
+  });
+}
+function addTrainingPlanBlock(seed={}){captureTrainingPlan();trainingState.planBlocks.push(newPlanBlock(seed));renderTrainingPlan();}
+function moveTrainingPlanBlock(id,delta){captureTrainingPlan();const i=trainingState.planBlocks.findIndex(x=>x.id===id);const j=i+delta;if(i<0||j<0||j>=trainingState.planBlocks.length)return;[trainingState.planBlocks[i],trainingState.planBlocks[j]]=[trainingState.planBlocks[j],trainingState.planBlocks[i]];renderTrainingPlan();}
+function duplicateTrainingPlanBlock(id){captureTrainingPlan();const i=trainingState.planBlocks.findIndex(x=>x.id===id);if(i<0)return;const src=trainingState.planBlocks[i];trainingState.planBlocks.splice(i+1,0,{...src,id:crypto.randomUUID()});renderTrainingPlan();}
+function removeTrainingPlanBlock(id){captureTrainingPlan();trainingState.planBlocks=trainingState.planBlocks.filter(x=>x.id!==id);renderTrainingPlan();}
+function renderTrainingPlan(){
+  const box=$('#trainingPlanTimeline');if(!box)return;box.innerHTML='';
+  if(!trainingState.planBlocks.length){box.innerHTML='<div class="trainingPlanEmpty">Aucun bloc pour le moment. Ajoute l’échauffement, un exercice, une pause ou n’importe quelle séquence de la séance.</div>';return}
+  const groups=[];
+  trainingState.planBlocks.forEach((b,index)=>{
+    let g=groups.find(x=>x.start===b.start);if(!g){g={start:b.start,items:[]};groups.push(g)}g.items.push({b,index});
+  });
+  groups.forEach(g=>{
+    const slot=document.createElement('div');slot.className='trainingTimelineSlot';
+    const endTimes=g.items.map(({b})=>planEndTime(b.start,b.duration)).filter(Boolean);
+    slot.innerHTML=`<div class="trainingTimelineTime">${escapeHtml(g.start||'Heure à définir')}${endTimes.length===1&&endTimes[0]?` <span class="small">→ ${escapeHtml(endTimes[0])}</span>`:''}</div><div class="trainingTimelineTracks"></div>`;
+    const tracks=slot.querySelector('.trainingTimelineTracks');
+    g.items.forEach(({b,index})=>{
+      const card=document.createElement('div');card.className='trainingPlanBlock';card.dataset.planId=b.id;card.dataset.track=b.track||'both';
+      card.innerHTML=`<div class="trainingPlanBlockHead"><div style="min-width:0;flex:1"><div class="trainingPlanBlockTitle">${escapeHtml(b.title||'Nouveau bloc')}</div><span class="trainingTrackTag">${escapeHtml(trainingTrackLabel(b.track))}</span></div><div class="trainingPlanBlockActions"><button type="button" class="ghost" data-plan-up title="Monter">↑</button><button type="button" class="ghost" data-plan-down title="Descendre">↓</button><button type="button" class="ghost" data-plan-copy>Dupliquer</button><button type="button" class="ghost" data-plan-remove>Retirer</button></div></div>
+      <div class="trainingPlanFields">
+       <div class="field"><label>Heure</label><input class="planStart" inputmode="numeric" placeholder="13:30" value="${escapeAttr(b.start||'')}"></div>
+       <div class="field"><label>Durée (min)</label><input class="planDuration" type="number" min="0" inputmode="numeric" value="${escapeAttr(b.duration??'')}"></div>
+       <div class="field"><label>Terrain</label><select class="planTrack"><option value="both"${b.track==='both'?' selected':''}>Deux terrains / commun</option><option value="court1"${b.track==='court1'?' selected':''}>Terrain 1 (fond)</option><option value="court2"${b.track==='court2'?' selected':''}>Terrain 2 (entrée)</option><option value="other"${b.track==='other'?' selected':''}>Autre / hors terrain</option></select></div>
+       <div class="field planTitleField"><label>Bloc / exercice</label><input class="planTitle" placeholder="ex. Frappe 1 bras" value="${escapeAttr(b.title||'')}"></div>
+      </div>
+      <div class="trainingPlanNotes"><div class="field"><label>Contenu / consignes / variantes</label><textarea class="planDetails" placeholder="Organisation, nombre de répétitions, contraintes, variantes…">${escapeHtml(b.details||'')}</textarea></div><div class="field"><label>Encadrement / points d’attention</label><textarea class="planAttention" placeholder="Ce que le staff observe, corrections, joueurs concernés…">${escapeHtml(b.attention||'')}</textarea></div></div>`;
+      card.querySelector('[data-plan-up]').disabled=index===0;card.querySelector('[data-plan-down]').disabled=index===trainingState.planBlocks.length-1;
+      card.querySelector('[data-plan-up]').onclick=()=>moveTrainingPlanBlock(b.id,-1);card.querySelector('[data-plan-down]').onclick=()=>moveTrainingPlanBlock(b.id,1);card.querySelector('[data-plan-copy]').onclick=()=>duplicateTrainingPlanBlock(b.id);card.querySelector('[data-plan-remove]').onclick=()=>removeTrainingPlanBlock(b.id);
+      card.querySelectorAll('input,textarea,select').forEach(el=>{el.onchange=()=>{captureTrainingPlan();renderTrainingPlan()};});
+      tracks.append(card);
+    });
+    box.append(slot);
+  });
+}
 async function startNewTraining(){
   trainingState.sessionExercises=[];
+  trainingState.planBlocks=[];
   trainingState.currentSessionId=null;
   trainingState.resultDraft={};
   $('#saveTrainingSession').textContent='Enregistrer la séance';
@@ -8036,13 +8167,17 @@ async function startNewTraining(){
     alert('Crée ou rejoins d’abord un groupe dans le volet Groupes.');
     return;
   }
-  $('#trainingDate').value=isoToFrInput(today());
-  $('#trainingTheme').value='';$('#trainingDuration').value='';$('#trainingNotes').value='';
-  $('#trainingSaveStatus').textContent='';
+  $('#trainingDate').value='27/09/2026';
+  $('#trainingTheme').value='27/09/2026 — Frappe et situations 1v1';
+  $('#trainingDuration').value='180';
+  $('#trainingNotes').value='Brouillon préparé à partir du Sheet du 27/09/2026. Les horaires après 14h15 sont proposés pour structurer la séance et restent librement modifiables.';
+  trainingState.planBlocks=seedTrainingPlan27092026();
+  $('#trainingSaveStatus').textContent='Séance du 27/09/2026 préremplie à partir du plan de travail.';
   $('#trainingGroup').value=groupState.groups[0]?.id||'';
   await fetchTrainingPlayers($('#trainingGroup').value||null);
   $$('#trainingAttendance input').forEach(c=>c.checked=true);
   renderTrainingExerciseCards();
+  renderTrainingPlan();
   hideMainModules();setMatchHeaderMode(false);$('#trainingSession').classList.remove('hidden');window.scrollTo({top:0,behavior:'instant'});
 }
 function isDualExercise(ex){return !!exerciseCategory(ex)?.is_dual_focus}
@@ -8096,16 +8231,6 @@ function addSessionExercise(ex,focus=null){
   renderTrainingExerciseCards();
 }
 function removeSessionExercise(key){trainingState.sessionExercises=trainingState.sessionExercises.filter(x=>x.localKey!==key);renderTrainingExerciseCards()}
-function moveSessionExercise(key,direction){
-  captureTrainingResultDraft();
-  const i=trainingState.sessionExercises.findIndex(x=>x.localKey===key);
-  if(i<0)return;
-  const j=i+direction;
-  if(j<0||j>=trainingState.sessionExercises.length)return;
-  const [item]=trainingState.sessionExercises.splice(i,1);
-  trainingState.sessionExercises.splice(j,0,item);
-  renderTrainingExerciseCards();
-}
 
 function trainingDraftKey(exKey,playerId){return `${exKey}__${playerId}`}
 function captureTrainingResultDraft(){
@@ -8151,8 +8276,6 @@ function renderTrainingExerciseCards(){
           <div class="small" style="margin-top:5px">${present.length} joueur${present.length>1?'s':''} présent${present.length>1?'s':''}</div>
         </div>
         <div class="row" style="gap:6px;flex:0 0 auto">
-          <button class="ghost" data-move-up="${ex.localKey}" aria-label="Monter l’exercice" title="Monter"${idx===0?' disabled':''}>↑</button>
-          <button class="ghost" data-move-down="${ex.localKey}" aria-label="Descendre l’exercice" title="Descendre"${idx===trainingState.sessionExercises.length-1?' disabled':''}>↓</button>
           <button class="ghost${ex.expanded?'':' hidden'}" data-close="${ex.localKey}" aria-label="Fermer l’exercice">×</button>
           <button class="ghost" data-remove="${ex.localKey}">Retirer</button>
         </div>
@@ -8170,8 +8293,6 @@ function renderTrainingExerciseCards(){
     const rb=card.querySelector('.trainingResults');
     const closeBtn=card.querySelector('[data-close]');
     const removeBtn=card.querySelector('[data-remove]');
-    const moveUpBtn=card.querySelector('[data-move-up]');
-    const moveDownBtn=card.querySelector('[data-move-down]');
     const header=card.querySelector('.trainingExerciseHeader');
     const focusSelect=card.querySelector('.sessionExerciseFocus');
     if(focusSelect){
@@ -8185,23 +8306,13 @@ function renderTrainingExerciseCards(){
     }
 
     header.onclick=(ev)=>{
-      if(ev.target.closest('[data-close]')||ev.target.closest('[data-remove]')||ev.target.closest('[data-move-up]')||ev.target.closest('[data-move-down]')) return;
+      if(ev.target.closest('[data-close]')||ev.target.closest('[data-remove]')) return;
       collapseAllTrainingExercises(ex.localKey);
     };
 
     closeBtn.onclick=(ev)=>{
       ev.stopPropagation();
       collapseAllTrainingExercises();
-    };
-
-    moveUpBtn.onclick=(ev)=>{
-      ev.stopPropagation();
-      moveSessionExercise(ex.localKey,-1);
-    };
-
-    moveDownBtn.onclick=(ev)=>{
-      ev.stopPropagation();
-      moveSessionExercise(ex.localKey,1);
     };
 
     removeBtn.onclick=(ev)=>{
@@ -8555,47 +8666,13 @@ function renderDuplicateTrainingSessions(){
       <div class="row" style="gap:6px;flex:0 0 auto">
         <button class="ghost" data-edit-session="${sess.id}">Modifier</button>
         <button class="ghost" data-duplicate-session="${sess.id}">Dupliquer</button>
-        <button class="ghost" data-delete-session="${sess.id}">Supprimer</button>
       </div>
     </div>`;
     d.querySelector('[data-edit-session]').onclick=()=>editTrainingSessionById(sess.id).catch(e=>handleError('edit training session',e));
     d.querySelector('[data-duplicate-session]').onclick=()=>duplicateTrainingSessionById(sess.id).catch(e=>handleError('duplicate training session',e));
-    d.querySelector('[data-delete-session]').onclick=()=>deleteTrainingSessionById(sess.id).catch(e=>handleError('delete training session',e));
     box.append(d);
   });
 }
-async function deleteTrainingSessionById(sessionId){
-  const sess=trainingState.recentSessions.find(s=>s.id===sessionId);
-  if(!sess)return;
-
-  const title=[
-    sess.trained_on?formatDateShort(sess.trained_on):'',
-    sess.theme||sess.label||'Entraînement'
-  ].filter(Boolean).join(' · ');
-
-  const ok=confirm(`Supprimer définitivement la séance « ${title} » ?\n\nLes présences, exercices et résultats associés seront également supprimés.`);
-  if(!ok)return;
-
-  const status=$('#trainingDuplicateStatus');
-  if(status)status.textContent='Suppression de la séance…';
-
-  const deletes=await Promise.all([
-    db.from('training_results').delete().eq('session_id',sessionId),
-    db.from('training_attendance').delete().eq('session_id',sessionId),
-    db.from('training_session_exercises').delete().eq('session_id',sessionId)
-  ]);
-  for(const d of deletes)if(d.error)throw d.error;
-
-  const {error}=await db.from('training_sessions').delete().eq('id',sessionId);
-  if(error)throw error;
-
-  if(trainingState.currentSessionId===sessionId)trainingState.currentSessionId=null;
-  await fetchRecentTrainingSessions();
-  renderDuplicateTrainingSessions();
-  if(status)status.textContent='Séance supprimée ✓';
-  setCloud('Synchronisé',true);
-}
-
 async function openTrainingDuplicate(){
   try{
     await fetchMyGroups();
@@ -8634,12 +8711,15 @@ async function duplicateTrainingSessionById(sessionId){
   await fetchTrainingPlayers(source.group_id||null);
   $('#trainingTheme').value=source.theme||source.label||'';
   $('#trainingDuration').value=source.duration_minutes||'';
-  $('#trainingNotes').value=source.notes||'';
+  const sourcePlan=unpackTrainingNotes(source.notes||'');
+  $('#trainingNotes').value=sourcePlan.notes||'';
+  trainingState.planBlocks=(sourcePlan.plan||[]).map(b=>({...newPlanBlock(b),...b,id:crypto.randomUUID()}));
   $('#trainingSaveStatus').textContent='';
 
   const presentIds=new Set((attendance||[]).filter(a=>a.present).map(a=>a.player_id));
   $$('#trainingAttendance input').forEach(c=>c.checked=presentIds.has(c.value));
   renderTrainingExerciseCards();
+  renderTrainingPlan();
 
   hideMainModules();
   $('#trainingSession').classList.remove('hidden');
@@ -8673,7 +8753,9 @@ async function editTrainingSessionById(sessionId){
   await fetchTrainingPlayers(source.group_id||null);
   $('#trainingTheme').value=source.theme||source.label||'';
   $('#trainingDuration').value=source.duration_minutes||'';
-  $('#trainingNotes').value=source.notes||'';
+  const sourcePlan=unpackTrainingNotes(source.notes||'');
+  $('#trainingNotes').value=sourcePlan.notes||'';
+  trainingState.planBlocks=(sourcePlan.plan||[]).map(b=>({...newPlanBlock(b),...b,id:crypto.randomUUID()}));
   $('#trainingSaveStatus').textContent='';
   $('#saveTrainingSession').textContent='Enregistrer les modifications';
 
@@ -8692,6 +8774,7 @@ async function editTrainingSessionById(sessionId){
   });
 
   renderTrainingExerciseCards();
+  renderTrainingPlan();
   hideMainModules();setMatchHeaderMode(false);
   $('#trainingSession').classList.remove('hidden');
   window.scrollTo({top:0,behavior:'instant'});
@@ -8710,6 +8793,7 @@ function trainingStatus(text,error=false){const el=$('#trainingSaveStatus');el.t
 async function saveTrainingSession(){
   try{
     captureTrainingResultDraft();
+    captureTrainingPlan();
     trainingStatus(trainingState.currentSessionId?'Mise à jour…':'Enregistrement…');
     const groupId=$('#trainingGroup').value;
     const group=groupState.groups.find(g=>g.id===groupId);
@@ -8717,7 +8801,6 @@ async function saveTrainingSession(){
     const present=trainingPresentPlayers();
     if(!groupId||!group){trainingStatus('Choisis un groupe.',true);return}
     if(!present.length){trainingStatus('Sélectionne au moins un joueur présent.',true);return}
-    if(!trainingState.sessionExercises.length){trainingStatus('Ajoute au moins un exercice.',true);return}
     const withoutFocus=trainingState.sessionExercises.find(ex=>isDualExercise(ex)&&!ex.focus);
     if(withoutFocus){trainingStatus(`Choisis le focus Attaque ou Défense pour « ${withoutFocus.name} ».`,true);return}
 
@@ -8728,7 +8811,7 @@ async function saveTrainingSession(){
       label:$('#trainingTheme').value.trim()||'Entraînement',
       theme:$('#trainingTheme').value.trim()||null,
       duration_minutes:duration,
-      notes:$('#trainingNotes').value.trim()||null
+      notes:packTrainingNotes($('#trainingNotes').value,trainingState.planBlocks)
     };
 
     let sessionId=trainingState.currentSessionId;
@@ -10377,6 +10460,8 @@ $('#trainingGroup').onchange=()=>fetchTrainingPlayers($('#trainingGroup').value)
 $('#historyGroup').onchange=()=>fetchTrainingPlayers($('#historyGroup').value).catch(e=>handleError('history group',e));
 
 $('#newTraining').onclick=()=>startNewTraining().catch(e=>handleError('new training',e));
+$('#addTrainingPlanBlock').onclick=()=>addTrainingPlanBlock();
+$('#clearTrainingPlan').onclick=()=>{if(!trainingState.planBlocks.length||confirm('Vider tout le plan de séance ?')){trainingState.planBlocks=[];renderTrainingPlan()}};
 $('#duplicateTrainingSession').onclick=()=>openTrainingDuplicate();
 $('#trainingDuplicateBack').onclick=()=>openTrainingModule();
 $('#cancelTraining').onclick=()=>openTrainingModule();
