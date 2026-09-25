@@ -241,8 +241,18 @@ button:active{transform:scale(.985)}
 .trainingPlanBlock[data-track="court1"]{grid-column:1}
 .trainingPlanBlock[data-track="court2"]{grid-column:2}
 .trainingPlanBlock[data-track="both"],.trainingPlanBlock[data-track="other"]{grid-column:1/-1}
-.trainingPlanBlockHead{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-bottom:8px}
+.trainingPlanBlockHead{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-bottom:0}
+.trainingPlanBlock.expanded .trainingPlanBlockHead{margin-bottom:8px}
+.trainingPlanBlockOverview{display:flex;align-items:flex-start;gap:8px;min-width:0;flex:1;cursor:pointer;border-radius:9px;padding:2px}
+.trainingPlanBlockOverview:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.trainingPlanBlockMain{min-width:0;flex:1}
 .trainingPlanBlockTitle{font-weight:800;line-height:1.2;min-width:0}
+.trainingPlanCompactMeta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px}
+.trainingPlanMetaTag{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;padding:3px 7px;font-size:11px;color:var(--muted);line-height:1.2}
+.trainingPlanMetaTag.stats{color:#b9d5ff;border-color:#496789}
+.trainingPlanToggle{flex:none;min-width:34px!important;padding:6px 8px!important;font-size:15px!important;line-height:1}
+.trainingPlanBlockBody{display:none}
+.trainingPlanBlock.expanded .trainingPlanBlockBody{display:block}
 .trainingTrackTag{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;padding:3px 7px;font-size:11px;color:var(--muted);margin-top:4px}
 .trainingPlanBlockActions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
 .trainingPlanBlockActions button{padding:6px 8px;font-size:12px;border-radius:9px}
@@ -1950,7 +1960,9 @@ button.playerPortalHomeCard:hover,a.playerPortalHomeCard:hover{border-color:var(
 .trainingSeason:not([open]) summary:after{transform:rotate(0deg)}
 .trainingSeasonMeta{font-size:12px;color:var(--muted);font-weight:600}
 .trainingSeasonBody{border-top:1px solid var(--line);padding:9px}
-.trainingSavedSession{background:#171a21;border:1px solid rgba(255,255,255,.04);border-radius:12px;padding:11px;margin-bottom:8px}
+.trainingSavedSession{background:#171a21;border:1px solid rgba(255,255,255,.04);border-radius:12px;padding:11px;margin-bottom:8px;cursor:pointer;transition:border-color .15s ease,background .15s ease}
+@media(hover:hover) and (pointer:fine){.trainingSavedSession:hover{border-color:#53637a;background:#1b2029}}
+.trainingSavedSession:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .trainingSavedSession:last-child{margin-bottom:0}
 .trainingSavedSessionTop{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
 .trainingSavedSessionTitle{min-width:0;flex:1}
@@ -2321,7 +2333,7 @@ button.playerPortalHomeCard:hover,a.playerPortalHomeCard:hover{border-color:var(
 
  <section class="panel hidden" id="trainingDuplicate">
    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
-    <div><h2 style="font-size:20px">Séances enregistrées</h2><div class="small">Modifier une séance existante ou la dupliquer</div></div>
+    <div><h2 style="font-size:20px">Séances enregistrées</h2><div class="small">Clique sur une séance pour l’ouvrir, ou duplique-la pour repartir de son contenu.</div></div>
     <button class="ghost" id="trainingDuplicateBack">← Retour</button>
    </div>
    <div id="trainingDuplicateStatus" class="small" style="margin-bottom:10px"></div>
@@ -8198,7 +8210,7 @@ function seedTrainingPlan27092026(){
   ].map(b=>newPlanBlock(b));
 }
 function newPlanBlock(seed={}){
-  return {id:crypto.randomUUID(),start:seed.draft?'':(seed.start||trainingPlanStartValue()),duration:seed.duration??10,track:seed.track||'both',title:seed.title||'',details:seed.details||'',attention:seed.attention||'',sourceType:seed.sourceType||'free',exerciseId:seed.exerciseId||null,collectStats:!!seed.collectStats,focus:seed.focus||null,draft:!!seed.draft};
+  return {id:crypto.randomUUID(),start:seed.draft?'':(seed.start||trainingPlanStartValue()),duration:seed.duration??10,track:seed.track||'both',title:seed.title||'',details:seed.details||'',attention:seed.attention||'',sourceType:seed.sourceType||'free',exerciseId:seed.exerciseId||null,collectStats:!!seed.collectStats,focus:seed.focus||null,draft:!!seed.draft,expanded:seed.expanded??false};
 }
 function planExerciseById(id){return trainingState.exercises.find(ex=>ex.id===id)||null}
 function planExerciseOptions(selected=''){
@@ -8264,7 +8276,7 @@ function captureTrainingPlan(){
 }
 function addTrainingPlanBlock(seed={}){captureTrainingPlan();trainingState.planBlocks.push(newPlanBlock(seed));recalculateTrainingPlanTimes();renderTrainingPlan();}
 function moveTrainingPlanBlock(id,delta){captureTrainingPlan();const i=trainingState.planBlocks.findIndex(x=>x.id===id);const j=i+delta;if(i<0||j<0||j>=trainingState.planBlocks.length)return;[trainingState.planBlocks[i],trainingState.planBlocks[j]]=[trainingState.planBlocks[j],trainingState.planBlocks[i]];recalculateTrainingPlanTimes();renderTrainingPlan();}
-function duplicateTrainingPlanBlock(id){captureTrainingPlan();const i=trainingState.planBlocks.findIndex(x=>x.id===id);if(i<0)return;const src=trainingState.planBlocks[i];trainingState.planBlocks.splice(i+1,0,{...src,id:crypto.randomUUID()});recalculateTrainingPlanTimes();syncPlanStatExercises();renderTrainingPlan();renderTrainingExerciseCards();}
+function duplicateTrainingPlanBlock(id){captureTrainingPlan();const i=trainingState.planBlocks.findIndex(x=>x.id===id);if(i<0)return;const src=trainingState.planBlocks[i];trainingState.planBlocks.splice(i+1,0,{...src,id:crypto.randomUUID(),expanded:false});recalculateTrainingPlanTimes();syncPlanStatExercises();renderTrainingPlan();renderTrainingExerciseCards();}
 function removeTrainingPlanBlock(id){captureTrainingPlan();trainingState.planBlocks=trainingState.planBlocks.filter(x=>x.id!==id);recalculateTrainingPlanTimes();syncPlanStatExercises();renderTrainingPlan();renderTrainingExerciseCards();}
 function sendTrainingPlanBlockToDraft(id){captureTrainingPlan();const b=trainingState.planBlocks.find(x=>x.id===id);if(!b)return;b.draft=true;b.start='';recalculateTrainingPlanTimes();syncPlanStatExercises();renderTrainingPlan();renderTrainingExerciseCards();}
 function restoreTrainingPlanBlockFromDraft(id,track){const b=trainingState.planBlocks.find(x=>x.id===id);if(!b)return;b.draft=false;if(track)b.track=track;recalculateTrainingPlanTimes();syncPlanStatExercises();renderTrainingPlan();renderTrainingExerciseCards();}
@@ -8299,8 +8311,10 @@ function renderTrainingPlan(){
       const libraryMode=b.sourceType==='library';
       const dual=libraryMode&&ex&&isDualExercise(ex);
       const statMeta=ex?`${measurementLabel(ex.measurement_type)}${categoryLabel(ex)?' · '+categoryLabel(ex):''}`:'';
-      const card=document.createElement('div');card.className='trainingPlanBlock';card.dataset.planId=b.id;card.dataset.track=b.track||'both';
-      card.innerHTML=`<div class="trainingPlanBlockHead"><div style="min-width:0;flex:1"><button type="button" class="ghost trainingPlanDragHandle" draggable="true" data-plan-drag title="Maintenir et déplacer">⠿ Déplacer</button><div class="trainingPlanBlockTitle" style="margin-top:6px">${escapeHtml(b.title||ex?.name||'Nouveau bloc')}</div><span class="trainingTrackTag">${escapeHtml(trainingTrackLabel(b.track))}</span></div><div class="trainingPlanBlockActions"><button type="button" class="ghost" data-plan-up title="Monter">↑</button><button type="button" class="ghost" data-plan-down title="Descendre">↓</button><button type="button" class="ghost" data-plan-copy>Dupliquer le bloc</button><button type="button" class="ghost" data-plan-draft>Mettre en brouillon</button><button type="button" class="ghost" data-plan-remove>Supprimer</button></div></div>
+      const card=document.createElement('div');card.className='trainingPlanBlock'+(b.expanded?' expanded':'');card.dataset.planId=b.id;card.dataset.track=b.track||'both';
+      card.innerHTML=`<div class="trainingPlanBlockHead"><div class="trainingPlanBlockOverview" data-plan-overview role="button" tabindex="0" aria-expanded="${b.expanded?'true':'false'}"><button type="button" class="ghost trainingPlanDragHandle" draggable="true" data-plan-drag title="Maintenir et déplacer">⠿</button><div class="trainingPlanBlockMain"><div class="trainingPlanBlockTitle">${escapeHtml(b.title||ex?.name||'Nouveau bloc')}</div><div class="trainingPlanCompactMeta"><span class="trainingTrackTag">${escapeHtml(trainingTrackLabel(b.track))}</span><span class="trainingPlanMetaTag">${escapeHtml(String(b.duration||0))} min</span>${libraryMode?'<span class="trainingPlanMetaTag">Bibliothèque</span>':''}${b.collectStats?'<span class="trainingPlanMetaTag stats">Stats</span>':''}</div></div></div><button type="button" class="ghost trainingPlanToggle" data-plan-toggle title="${b.expanded?'Replier':'Déplier'}" aria-label="${b.expanded?'Replier':'Déplier'}">${b.expanded?'▴':'▾'}</button></div>
+      <div class="trainingPlanBlockBody">
+      <div class="trainingPlanBlockActions"><button type="button" class="ghost" data-plan-up title="Monter">↑</button><button type="button" class="ghost" data-plan-down title="Descendre">↓</button><button type="button" class="ghost" data-plan-copy>Dupliquer le bloc</button><button type="button" class="ghost" data-plan-draft>Mettre en brouillon</button><button type="button" class="ghost" data-plan-remove>Supprimer</button></div>
       <div class="trainingPlanFields">
        <div class="field"><label>Heure calculée</label><input class="planStart" readonly value="${escapeAttr(b.start||'')}"></div>
        <div class="field"><label>Durée (min)</label><input class="planDuration" type="number" min="0" inputmode="numeric" value="${escapeAttr(b.duration??'')}"></div>
@@ -8315,7 +8329,13 @@ function renderTrainingPlan(){
       <div class="trainingPlanStatBox${libraryMode&&ex?'':' hidden'}">
        <div><label class="check"><input type="checkbox" class="planCollectStats"${b.collectStats?' checked':''}> Collecter les statistiques de cet exercice</label><div class="trainingPlanStatMeta">${escapeHtml(statMeta||'Mesure définie dans la bibliothèque')}</div></div>
        <div class="trainingPlanStatActions">${dual?`<select class="planFocus"><option value="">Focus…</option><option value="attaque"${b.focus==='attaque'?' selected':''}>Attaque</option><option value="defense"${b.focus==='defense'?' selected':''}>Défense</option></select>`:''}${b.collectStats?'<button type="button" class="ghost" data-plan-results>↓ Saisir les résultats</button>':''}</div>
+      </div>
       </div>`;
+      const togglePlanBlock=()=>{captureTrainingPlan();b.expanded=!b.expanded;renderTrainingPlan()};
+      card.querySelector('[data-plan-toggle]').onclick=e=>{e.stopPropagation();togglePlanBlock()};
+      const overview=card.querySelector('[data-plan-overview]');
+      overview.onclick=e=>{if(e.target.closest('button,input,select,textarea,a'))return;togglePlanBlock()};
+      overview.onkeydown=e=>{if((e.key==='Enter'||e.key===' ')&&!e.target.closest('button,input,select,textarea,a')){e.preventDefault();togglePlanBlock()}};
       card.querySelector('[data-plan-up]').disabled=index===0;card.querySelector('[data-plan-down]').disabled=index===trainingState.planBlocks.length-1;
       card.querySelector('[data-plan-up]').onclick=()=>moveTrainingPlanBlock(b.id,-1);card.querySelector('[data-plan-down]').onclick=()=>moveTrainingPlanBlock(b.id,1);card.querySelector('[data-plan-copy]').onclick=()=>duplicateTrainingPlanBlock(b.id);card.querySelector('[data-plan-draft]').onclick=()=>sendTrainingPlanBlockToDraft(b.id);card.querySelector('[data-plan-remove]').onclick=()=>{if(confirm('Supprimer définitivement ce bloc ?'))removeTrainingPlanBlock(b.id)};
       card.querySelector('.planSourceType').onchange=e=>{captureTrainingPlan();b.sourceType=e.target.value;b.exerciseId=b.sourceType==='library'?b.exerciseId:null;b.collectStats=b.sourceType==='library'?b.collectStats:false;renderTrainingPlan();renderTrainingExerciseCards()};
@@ -8883,9 +8903,13 @@ function renderTrainingSavedHome(){
     const body=document.createElement('div');body.className='trainingSeasonBody';
     list.forEach(sess=>{
       const row=document.createElement('div');row.className='trainingSavedSession';
-      row.innerHTML=`<div class="trainingSavedSessionTop"><div class="trainingSavedSessionTitle"><strong>${escapeHtml(sess.trained_on?formatDateShort(sess.trained_on):'')}${sess.theme?' · '+escapeHtml(sess.theme):(sess.label?' · '+escapeHtml(sess.label):'')}</strong><div class="small" style="margin-top:4px">${escapeHtml(sess.group?.name||sess.team?.name||'Groupe')}${sess.duration_minutes?' · '+escapeHtml(sess.duration_minutes)+' min':''}</div></div><div class="trainingSavedSessionActions"><button class="ghost" data-home-edit-session="${sess.id}">Modifier</button><button class="ghost" data-home-duplicate-session="${sess.id}">Dupliquer</button></div></div>`;
-      row.querySelector('[data-home-edit-session]').onclick=()=>editTrainingSessionById(sess.id).catch(e=>handleError('edit training session',e));
-      row.querySelector('[data-home-duplicate-session]').onclick=()=>duplicateTrainingSessionById(sess.id).catch(e=>handleError('duplicate training session',e));
+      row.innerHTML=`<div class="trainingSavedSessionTop"><div class="trainingSavedSessionTitle"><strong>${escapeHtml(sess.trained_on?formatDateShort(sess.trained_on):'')}${sess.theme?' · '+escapeHtml(sess.theme):(sess.label?' · '+escapeHtml(sess.label):'')}</strong><div class="small" style="margin-top:4px">${escapeHtml(sess.group?.name||sess.team?.name||'Groupe')}${sess.duration_minutes?' · '+escapeHtml(sess.duration_minutes)+' min':''}</div></div><div class="trainingSavedSessionActions"><button class="ghost" data-home-duplicate-session="${sess.id}">Dupliquer</button></div></div>`;
+      row.setAttribute('role','button');
+      row.tabIndex=0;
+      const openSession=()=>editTrainingSessionById(sess.id).catch(e=>handleError('open training session',e));
+      row.onclick=openSession;
+      row.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openSession()}};
+      row.querySelector('[data-home-duplicate-session]').onclick=e=>{e.stopPropagation();duplicateTrainingSessionById(sess.id).catch(err=>handleError('duplicate training session',err))};
       body.append(row);
     });
     details.append(summary,body);box.append(details);
@@ -8912,12 +8936,16 @@ function renderDuplicateTrainingSessions(){
         <div class="small" style="margin-top:4px">Créé par ${escapeHtml(auditName(sess.created_by))}${sess.created_at?' le '+escapeHtml(formatAuditDate(sess.created_at)):''}${sess.updated_at&&sess.updated_at!==sess.created_at?' · Modifié par '+escapeHtml(auditName(sess.updated_by))+(sess.updated_at?' le '+escapeHtml(formatAuditDate(sess.updated_at)):''):''}</div>
       </div>
       <div class="row" style="gap:6px;flex:0 0 auto">
-        <button class="ghost" data-edit-session="${sess.id}">Modifier</button>
         <button class="ghost" data-duplicate-session="${sess.id}">Dupliquer</button>
       </div>
     </div>`;
-    d.querySelector('[data-edit-session]').onclick=()=>editTrainingSessionById(sess.id).catch(e=>handleError('edit training session',e));
-    d.querySelector('[data-duplicate-session]').onclick=()=>duplicateTrainingSessionById(sess.id).catch(e=>handleError('duplicate training session',e));
+    d.style.cursor='pointer';
+    d.setAttribute('role','button');
+    d.tabIndex=0;
+    const openSession=()=>editTrainingSessionById(sess.id).catch(e=>handleError('open training session',e));
+    d.onclick=openSession;
+    d.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openSession()}};
+    d.querySelector('[data-duplicate-session]').onclick=e=>{e.stopPropagation();duplicateTrainingSessionById(sess.id).catch(err=>handleError('duplicate training session',err))};
     box.append(d);
   });
 }
@@ -8962,7 +8990,7 @@ async function duplicateTrainingSessionById(sessionId){
   const sourcePlan=unpackTrainingNotes(source.notes||'');
   $('#trainingNotes').value=sourcePlan.notes||'';
   autoGrowPlanTextarea($('#trainingNotes'));
-  trainingState.planBlocks=(sourcePlan.plan||[]).map(b=>({...newPlanBlock(b),...b,id:crypto.randomUUID()}));
+  trainingState.planBlocks=(sourcePlan.plan||[]).map(b=>({...newPlanBlock(b),...b,id:crypto.randomUUID(),expanded:false}));
   if($('#trainingPlanStart')&&trainingState.planBlocks.length){const mins=trainingState.planBlocks.filter(b=>!b.draft).map(b=>planTimeMinutes(b.start)).filter(x=>x!==99999);if(mins.length)$('#trainingPlanStart').value=minutesToPlanTime(Math.min(...mins))}
   bindLoadedStatsToPlanBlocks();
   $('#trainingSaveStatus').textContent='';
@@ -9007,7 +9035,7 @@ async function editTrainingSessionById(sessionId){
   const sourcePlan=unpackTrainingNotes(source.notes||'');
   $('#trainingNotes').value=sourcePlan.notes||'';
   autoGrowPlanTextarea($('#trainingNotes'));
-  trainingState.planBlocks=(sourcePlan.plan||[]).map(b=>({...newPlanBlock(b),...b,id:crypto.randomUUID()}));
+  trainingState.planBlocks=(sourcePlan.plan||[]).map(b=>({...newPlanBlock(b),...b,id:crypto.randomUUID(),expanded:false}));
   if($('#trainingPlanStart')&&trainingState.planBlocks.length){const mins=trainingState.planBlocks.filter(b=>!b.draft).map(b=>planTimeMinutes(b.start)).filter(x=>x!==99999);if(mins.length)$('#trainingPlanStart').value=minutesToPlanTime(Math.min(...mins))}
   bindLoadedStatsToPlanBlocks();
   $('#trainingSaveStatus').textContent='';
