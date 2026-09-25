@@ -507,7 +507,19 @@ function drawOverlay(extra=null){const c=$('#overlay');if(!c)return;const ctx=c.
 function pointerDown(e){if(!canEdit())return;$('#video').pause();const p=point(e),tool=$('#drawTool').value;if(tool==='pen')state.activeShape={tool,color:'#ff4d4f',width:4,points:[p]};else state.activeShape={tool,color:'#ff4d4f',width:4,x1:p.x,y1:p.y,x2:p.x,y2:p.y};e.target.setPointerCapture?.(e.pointerId);drawOverlay(state.activeShape)}
 function pointerMove(e){if(!canEdit()||!state.activeShape)return;const p=point(e);if(state.activeShape.tool==='pen')state.activeShape.points.push(p);else{state.activeShape.x2=p.x;state.activeShape.y2=p.y}drawOverlay(state.activeShape)}
 function pointerUp(e){if(!canEdit()||!state.activeShape)return;const s=state.activeShape;state.activeShape=null;if(s.tool!=='pen'||(s.points||[]).length>1)state.shapes.push(s);drawOverlay();e.target.releasePointerCapture?.(e.pointerId)}
-function clearDrawing(){state.shapes=[];state.activeShape=null;drawOverlay()}
+function clearDrawing(){
+  state.shapes=[];
+  state.activeShape=null;
+  const c=$('#overlay');
+  if(c){
+    const ctx=c.getContext('2d');
+    ctx.save();
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0,0,c.width,c.height);
+    ctx.restore();
+  }
+  drawOverlay();
+}
 function resetDraft(){
   clearDrawing();
   state.editingNoteId=null;
@@ -624,6 +636,9 @@ async function saveNote(){
     resetDraft();
     st.textContent=editingId?'Repère modifié.':'Repère ajouté.';
     setAnnotationMode(false);
+    // Efface immédiatement le dessin enregistré de la vidéo.
+    clearDrawing();
+    requestAnimationFrame(()=>clearDrawing());
     await loadNotes(state.currentVideoId);
   }catch(e){st.textContent=errorText(e);console.error(e)}
 }
