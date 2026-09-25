@@ -9009,9 +9009,9 @@ async function saveTrainingSession(){
     if(results.length){const {error}=await db.from('training_results').insert(results);if(error)throw error}
 
     trainingState.currentSessionId=sessionId;
-    trainingStatus('Séance mise à jour ✓');
+    trainingStatus('Séance enregistrée ✓ — tu peux continuer à la modifier.');
+    $('#saveTrainingSession').textContent='Enregistrer les modifications';
     setCloud('Synchronisé',true);
-    setTimeout(()=>openTrainingModule(),650);
   }catch(e){trainingStatus(e.message||String(e),true);handleError('saveTrainingSession',e)}
 }
 
