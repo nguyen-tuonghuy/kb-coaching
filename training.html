@@ -2130,7 +2130,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .dangerAction:hover{background:#FFF0EF!important;border-color:#D88E89!important}
 #count{display:none!important}
 @media(max-width:560px){
-  .kcBrandMark{width:38px;height:30px}.kcBrandWord{font-size:18px;gap:3px}
+  .top,.topbar{flex-wrap:wrap;align-items:flex-start;gap:7px 9px}
+  .kcBrand{gap:5px;flex:0 1 auto;max-width:100%}
+  .kcBrandMark{width:30px;height:24px}
+  .kcBrandWord{font-size:15px;gap:2px;letter-spacing:-.35px}
+  .topActions{flex:1 1 210px;min-width:0;justify-content:flex-end;gap:6px}
+  .topActions button,.topActions a.button{padding:8px 10px}
+  .topActions .badge,.topActions .status{padding:7px 9px;font-size:12px}
   .kcBrandLarge{gap:10px}.kcBrandLarge .kcBrandMark{width:72px;height:54px}.kcBrandLarge .kcBrandWord{font-size:25px}
 }
 
