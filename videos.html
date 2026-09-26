@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Kinball Coach · Vidéos</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2213%22%20fill%3D%22%23F6F8FB%22%2F%3E%3Ccircle%20cx%3D%2227%22%20cy%3D%2223%22%20r%3D%2215%22%20fill%3D%22%23F4267D%22%2F%3E%3Cpath%20d%3D%22M15%2020c8-7%2019-7%2026-1M21%209c8%209%2012%2018%2017%2027%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%222.6%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M9%2056l10-19%208%2019z%22%20fill%3D%22%231768B3%22%2F%3E%3Cpath%20d%3D%22M24%2056l7-17%208%2017z%22%20fill%3D%22%23FFB62E%22%2F%3E%3Cpath%20d%3D%22M37%2056l8-19%2010%2019z%22%20fill%3D%22%230AA89E%22%2F%3E%3Cpath%20d%3D%22M39%2030l7-4%205%202%208-10%22%20fill%3D%22none%22%20stroke%3D%22%230B315B%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cpath%20d%3D%22M55%2018h4v4%22%20fill%3D%22none%22%20stroke%3D%22%230B315B%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E">
 <style>
 :root{
   --bg:#F3F6FA;--panel:#FFFFFF;--panel2:#F7F9FC;--line:#CBD5E1;--text:#172033;
@@ -33,7 +34,7 @@ input,textarea,select{width:100%;border:1px solid var(--line);border-radius:11px
 .player{border:1px solid var(--line);border-radius:16px;background:#0d0f13;padding:10px;margin:14px 0}
 .playerHeader{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
 .videoStage{position:relative}.videoStage video{display:block;width:100%;max-height:min(68vh,760px);background:#000;border-radius:10px}
-.overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;border-radius:10px}
+.overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;border-radius:10px}.overlay.annotationActive{touch-action:none;overscroll-behavior:contain;-webkit-user-select:none;user-select:none}
 .controls{display:grid;gap:9px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}.controlRow{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
 .rate.active{border-color:var(--primary);background:#22304d}.rateDisplay{font-weight:800;min-width:52px;text-align:center}.time{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px}.hint{color:var(--muted);font-size:11px;line-height:1.4}
 .annotationPanel{display:grid;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}.annotationHeader{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
@@ -109,14 +110,50 @@ input,textarea,select{background:#fff!important;color:var(--text)!important;bord
 .startupScreenInner{background:#FFFFFF;border:1px solid var(--line);border-radius:18px;padding:24px 28px;box-shadow:0 12px 34px rgba(15,23,42,.10)}
 .startupScreenText{color:var(--muted)!important}
 
+
+/* Kinball Coach — identité visuelle 2026 */
+:root{
+  --brand-navy:#0B315B;--brand-pink:#F4267D;--brand-blue:#1768B3;--brand-teal:#0AA89E;--brand-yellow:#FFB62E;
+  --bg:#F6F8FB;--panel:#FFFFFF;--panel2:#F8FAFC;--text:#172033;--muted:#627083;--line:#D5DCE5;
+  --accent:#1768B3;--primary:#1768B3;--nav:#0B315B;--nav2:#164A7A;--navLine:#2D5D89;--focus:#8DB9E8;
+}
+.kcBrand{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.kcBrandMark{width:44px;height:34px;display:block;flex:0 0 auto;overflow:visible}
+.kcBrandWord{display:inline-flex;align-items:baseline;gap:4px;font-family:ui-rounded,"Avenir Next","Segoe UI",system-ui,sans-serif;font-size:21px;font-weight:850;letter-spacing:-.5px;white-space:nowrap;line-height:1}
+.kcBrandKin{color:var(--brand-navy)}.kcBrandCoach{color:var(--brand-pink)}
+.kcAuthBrand{display:flex;justify-content:center;margin:2px 0 18px;padding:12px 8px;border-bottom:1px solid var(--line)}
+.kcBrandLarge{gap:14px}.kcBrandLarge .kcBrandMark{width:92px;height:66px}.kcBrandLarge .kcBrandWord{font-size:32px;gap:7px}
+.startupScreenBrand{color:var(--brand-navy)!important}.startupScreenBrand .kcStartupCoach{color:var(--brand-pink)}
+button.primary,.primary,.on,.tab.active{background:var(--brand-blue)!important;border-color:var(--brand-blue)!important;color:#fff!important}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid color-mix(in srgb,var(--brand-blue) 35%,transparent);outline-offset:2px}
+.dangerAction{color:#8F241E!important;border-color:#E3AAA7!important;background:#FFF7F6!important}
+.dangerAction:hover{background:#FFF0EF!important;border-color:#D88E89!important}
+#count{display:none!important}
+@media(max-width:560px){
+  .kcBrandMark{width:38px;height:30px}.kcBrandWord{font-size:18px;gap:3px}
+  .kcBrandLarge{gap:10px}.kcBrandLarge .kcBrandMark{width:72px;height:54px}.kcBrandLarge .kcBrandWord{font-size:25px}
+}
+
 </style>
 </head>
 <body>
-<div class="startupScreen" id="startupScreen" role="status" aria-live="polite"><div class="startupScreenInner"><div class="startupScreenBrand">Kinball Coach</div><div class="startupScreenText">Chargement…</div></div></div>
+<div class="startupScreen" id="startupScreen" role="status" aria-live="polite"><div class="startupScreenInner"><div class="startupScreenBrand">Kinball <span class="kcStartupCoach">Coach</span></div><div class="startupScreenText">Chargement…</div></div></div>
 
 <div class="shell">
   <div class="topbar">
-    <div class="brand">Kinball Coach</div>
+    <div class="kcBrand" aria-label="Kinball Coach"><svg class="kcBrandMark" viewBox="0 0 96 68" aria-hidden="true" focusable="false">
+  <path d="M7 48C10 21 25 8 45 7" fill="none" stroke="#A8B4C4" stroke-width="3" stroke-linecap="round"/>
+  <path d="M53 7C66 8 78 15 84 26" fill="none" stroke="#A8B4C4" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="5 6"/>
+  <circle cx="42" cy="25" r="18" fill="#F4267D"/>
+  <path d="M27 20C35 13 48 11 58 16M34 8C44 19 51 30 58 39" fill="none" stroke="#FFFFFF" stroke-width="2.7" stroke-linecap="round"/>
+  <circle cx="20" cy="45" r="4" fill="#1768B3"/><path d="M9 61L18 43L25 51L31 61Z" fill="#1768B3"/><path d="M18 43L29 32" stroke="#1768B3" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="43" cy="46" r="4" fill="#FFB62E"/><path d="M34 62L42 44L51 62Z" fill="#FFB62E"/><path d="M41 44L35 34M45 44L51 34" stroke="#FFB62E" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="66" cy="45" r="4" fill="#0AA89E"/><path d="M56 61L63 51L69 43L79 61Z" fill="#0AA89E"/><path d="M68 43L58 33" stroke="#0AA89E" stroke-width="5" stroke-linecap="round"/>
+  <path d="M57 31L65 27L72 30L84 17" fill="none" stroke="#0B315B" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="57" cy="31" r="2.5" fill="#0B315B"/><circle cx="65" cy="27" r="2.5" fill="#0B315B"/><circle cx="72" cy="30" r="2.5" fill="#0B315B"/>
+  <path d="M79 17H84V22" fill="none" stroke="#0B315B" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M10 62Q43 57 79 62" fill="none" stroke="#0B315B" stroke-width="2.5" stroke-linecap="round"/>
+</svg><span class="kcBrandWord"><span class="kcBrandKin">Kinball</span><span class="kcBrandCoach">Coach</span></span></div>
     <div class="topActions">
       <span class="status"><span class="dot"></span><span id="cloudText">Connexion…</span></span>
       <a class="button homeIcon" id="globalHomeLink" href="index.html" aria-label="Accueil" title="Accueil"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" style="display:block">
@@ -536,7 +573,7 @@ function closeVideo(){
 function setAnnotationMode(enabled){
   state.annotationMode=!!enabled && !!state.isCoach;
   const overlay=$('#overlay'),button=$('#annotationModeBtn'),video=$('#video');
-  if(overlay)overlay.style.pointerEvents=state.annotationMode?'auto':'none';
+  if(overlay){overlay.style.pointerEvents=state.annotationMode?'auto':'none';overlay.style.touchAction=state.annotationMode?'none':'auto';overlay.classList.toggle('annotationActive',state.annotationMode)}
   if(button){
     button.classList.toggle('active',state.annotationMode);
     button.textContent=state.annotationMode?'✓ Annotation active':'✏️ Annoter / dessiner';
@@ -565,9 +602,9 @@ function drawShape(ctx,s,w,h){
   ctx.restore()
 }
 function drawOverlay(extra=null){const c=$('#overlay');if(!c)return;const ctx=c.getContext('2d'),w=c.clientWidth,h=c.clientHeight;ctx.clearRect(0,0,w,h);[...state.shapes,...(extra?[extra]:[])].forEach(s=>drawShape(ctx,s,w,h))}
-function pointerDown(e){if(!canEdit())return;$('#video').pause();const p=point(e),tool=$('#drawTool').value;if(tool==='pen')state.activeShape={tool,color:'#ff4d4f',width:4,points:[p]};else state.activeShape={tool,color:'#ff4d4f',width:4,x1:p.x,y1:p.y,x2:p.x,y2:p.y};e.target.setPointerCapture?.(e.pointerId);drawOverlay(state.activeShape)}
-function pointerMove(e){if(!canEdit()||!state.activeShape)return;const p=point(e);if(state.activeShape.tool==='pen')state.activeShape.points.push(p);else{state.activeShape.x2=p.x;state.activeShape.y2=p.y}drawOverlay(state.activeShape)}
-function pointerUp(e){if(!canEdit()||!state.activeShape)return;const s=state.activeShape;state.activeShape=null;if(s.tool!=='pen'||(s.points||[]).length>1)state.shapes.push(s);drawOverlay();e.target.releasePointerCapture?.(e.pointerId)}
+function pointerDown(e){if(!canEdit())return;e.preventDefault();e.stopPropagation();$('#video').pause();const p=point(e),tool=$('#drawTool').value;if(tool==='pen')state.activeShape={tool,color:'#ff4d4f',width:4,points:[p]};else state.activeShape={tool,color:'#ff4d4f',width:4,x1:p.x,y1:p.y,x2:p.x,y2:p.y};e.target.setPointerCapture?.(e.pointerId);drawOverlay(state.activeShape)}
+function pointerMove(e){if(!canEdit()||!state.activeShape)return;e.preventDefault();e.stopPropagation();const p=point(e);if(state.activeShape.tool==='pen')state.activeShape.points.push(p);else{state.activeShape.x2=p.x;state.activeShape.y2=p.y}drawOverlay(state.activeShape)}
+function pointerUp(e){if(!canEdit()||!state.activeShape)return;e.preventDefault();e.stopPropagation();const s=state.activeShape;state.activeShape=null;if(s.tool!=='pen'||(s.points||[]).length>1)state.shapes.push(s);drawOverlay();e.target.releasePointerCapture?.(e.pointerId)}
 function clearDrawing(){
   state.shapes=[];
   state.activeShape=null;
@@ -711,13 +748,13 @@ $('#videosBackLink').onclick=e=>{
   e.preventDefault();
   returnFromVideoToHome();
 };
-$('#logout').onclick=async()=>{await db.auth.signOut();location.href='index.html'};
+$('#logout').onclick=async()=>{if(!confirm('Voulez-vous vraiment vous déconnecter ?'))return;await db.auth.signOut();location.href='index.html'};
 $('#syncBtn').onclick=()=>syncDrive().catch(e=>setStatus(errorText(e),'error'));
 $('#uploadBtn').onclick=uploadVideo;
 $('#closePlayer').onclick=closeVideo;$('#prevFrame').onclick=()=>step(-1);$('#nextFrame').onclick=()=>step(1);$('#playPause').onclick=togglePlay;
 $$('[data-rate]').forEach(b=>b.onclick=()=>setRate(Number(b.dataset.rate)));
 $('#video').addEventListener('timeupdate',updateTime);$('#video').addEventListener('loadedmetadata',()=>{updateTime();syncCanvas()});$('#video').addEventListener('loadeddata',syncCanvas);$('#video').addEventListener('seeked',syncCanvas);$('#video').addEventListener('ratechange',updateRate);
-$('#overlay').addEventListener('pointerdown',pointerDown);$('#overlay').addEventListener('pointermove',pointerMove);$('#overlay').addEventListener('pointerup',pointerUp);$('#overlay').addEventListener('pointercancel',pointerUp);$('#overlay').addEventListener('pointerleave',pointerUp);
+$('#overlay').addEventListener('pointerdown',pointerDown,{passive:false});$('#overlay').addEventListener('pointermove',pointerMove,{passive:false});$('#overlay').addEventListener('pointerup',pointerUp,{passive:false});$('#overlay').addEventListener('pointercancel',pointerUp,{passive:false});$('#overlay').addEventListener('pointerleave',pointerUp,{passive:false});
 $('#annotationModeBtn').onclick=toggleAnnotationMode;
 $('#closeNotePopup').onclick=closeNotePopup;
 $('#notePopupBackdrop').onclick=e=>{if(e.target===$('#notePopupBackdrop'))closeNotePopup()};

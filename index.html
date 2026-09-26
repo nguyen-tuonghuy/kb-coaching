@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Kinball Coach</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2213%22%20fill%3D%22%23F6F8FB%22%2F%3E%3Ccircle%20cx%3D%2227%22%20cy%3D%2223%22%20r%3D%2215%22%20fill%3D%22%23F4267D%22%2F%3E%3Cpath%20d%3D%22M15%2020c8-7%2019-7%2026-1M21%209c8%209%2012%2018%2017%2027%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%222.6%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M9%2056l10-19%208%2019z%22%20fill%3D%22%231768B3%22%2F%3E%3Cpath%20d%3D%22M24%2056l7-17%208%2017z%22%20fill%3D%22%23FFB62E%22%2F%3E%3Cpath%20d%3D%22M37%2056l8-19%2010%2019z%22%20fill%3D%22%230AA89E%22%2F%3E%3Cpath%20d%3D%22M39%2030l7-4%205%202%208-10%22%20fill%3D%22none%22%20stroke%3D%22%230B315B%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cpath%20d%3D%22M55%2018h4v4%22%20fill%3D%22none%22%20stroke%3D%22%230B315B%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E">
 <style>
 :root{
  --bg:#F3F6FA;--panel:#FFFFFF;--panel2:#F7F9FC;--text:#172033;--muted:#53657A;
@@ -998,7 +999,7 @@ button:active{transform:scale(.985)}
   border-radius:7px;
 }
 #popup.fieldMode .step{
-  margin-top:2px;
+margin-top:2px;
 }
 #popup.fieldMode .step h3{
   font-size:10px;
@@ -2112,14 +2113,50 @@ button.primary,.primary,.on,.tab.active{background:var(--accent)!important;color
 .playerVideoPlayerHeader,.playerVideoAdvancedControls{color:var(--text)!important}
 .playerVideoTimeDisplay,.playerVideoHint{color:var(--muted)!important}
 
+
+/* Kinball Coach — identité visuelle 2026 */
+:root{
+  --brand-navy:#0B315B;--brand-pink:#F4267D;--brand-blue:#1768B3;--brand-teal:#0AA89E;--brand-yellow:#FFB62E;
+  --bg:#F6F8FB;--panel:#FFFFFF;--panel2:#F8FAFC;--text:#172033;--muted:#627083;--line:#D5DCE5;
+  --accent:#1768B3;--primary:#1768B3;--nav:#0B315B;--nav2:#164A7A;--navLine:#2D5D89;--focus:#8DB9E8;
+}
+.kcBrand{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.kcBrandMark{width:44px;height:34px;display:block;flex:0 0 auto;overflow:visible}
+.kcBrandWord{display:inline-flex;align-items:baseline;gap:4px;font-family:ui-rounded,"Avenir Next","Segoe UI",system-ui,sans-serif;font-size:21px;font-weight:850;letter-spacing:-.5px;white-space:nowrap;line-height:1}
+.kcBrandKin{color:var(--brand-navy)}.kcBrandCoach{color:var(--brand-pink)}
+.kcAuthBrand{display:flex;justify-content:center;margin:2px 0 18px;padding:12px 8px;border-bottom:1px solid var(--line)}
+.kcBrandLarge{gap:14px}.kcBrandLarge .kcBrandMark{width:92px;height:66px}.kcBrandLarge .kcBrandWord{font-size:32px;gap:7px}
+.startupScreenBrand{color:var(--brand-navy)!important}.startupScreenBrand .kcStartupCoach{color:var(--brand-pink)}
+button.primary,.primary,.on,.tab.active{background:var(--brand-blue)!important;border-color:var(--brand-blue)!important;color:#fff!important}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid color-mix(in srgb,var(--brand-blue) 35%,transparent);outline-offset:2px}
+.dangerAction{color:#8F241E!important;border-color:#E3AAA7!important;background:#FFF7F6!important}
+.dangerAction:hover{background:#FFF0EF!important;border-color:#D88E89!important}
+#count{display:none!important}
+@media(max-width:560px){
+  .kcBrandMark{width:38px;height:30px}.kcBrandWord{font-size:18px;gap:3px}
+  .kcBrandLarge{gap:10px}.kcBrandLarge .kcBrandMark{width:72px;height:54px}.kcBrandLarge .kcBrandWord{font-size:25px}
+}
+
 </style>
 </head>
 <body>
-<div class="startupScreen" id="startupScreen" role="status" aria-live="polite"><div class="startupScreenInner"><div class="startupScreenBrand">Kinball Coach</div><div class="startupScreenText">Chargement…</div></div></div>
+<div class="startupScreen" id="startupScreen" role="status" aria-live="polite"><div class="startupScreenInner"><div class="startupScreenBrand">Kinball <span class="kcStartupCoach">Coach</span></div><div class="startupScreenText">Chargement…</div></div></div>
 
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1></div>
+   <div class="kcBrand" aria-label="Kinball Coach"><svg class="kcBrandMark" viewBox="0 0 96 68" aria-hidden="true" focusable="false">
+  <path d="M7 48C10 21 25 8 45 7" fill="none" stroke="#A8B4C4" stroke-width="3" stroke-linecap="round"/>
+  <path d="M53 7C66 8 78 15 84 26" fill="none" stroke="#A8B4C4" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="5 6"/>
+  <circle cx="42" cy="25" r="18" fill="#F4267D"/>
+  <path d="M27 20C35 13 48 11 58 16M34 8C44 19 51 30 58 39" fill="none" stroke="#FFFFFF" stroke-width="2.7" stroke-linecap="round"/>
+  <circle cx="20" cy="45" r="4" fill="#1768B3"/><path d="M9 61L18 43L25 51L31 61Z" fill="#1768B3"/><path d="M18 43L29 32" stroke="#1768B3" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="43" cy="46" r="4" fill="#FFB62E"/><path d="M34 62L42 44L51 62Z" fill="#FFB62E"/><path d="M41 44L35 34M45 44L51 34" stroke="#FFB62E" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="66" cy="45" r="4" fill="#0AA89E"/><path d="M56 61L63 51L69 43L79 61Z" fill="#0AA89E"/><path d="M68 43L58 33" stroke="#0AA89E" stroke-width="5" stroke-linecap="round"/>
+  <path d="M57 31L65 27L72 30L84 17" fill="none" stroke="#0B315B" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="57" cy="31" r="2.5" fill="#0B315B"/><circle cx="65" cy="27" r="2.5" fill="#0B315B"/><circle cx="72" cy="30" r="2.5" fill="#0B315B"/>
+  <path d="M79 17H84V22" fill="none" stroke="#0B315B" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M10 62Q43 57 79 62" fill="none" stroke="#0B315B" stroke-width="2.5" stroke-linecap="round"/>
+</svg><span class="kcBrandWord"><span class="kcBrandKin">Kinball</span><span class="kcBrandCoach">Coach</span></span></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -2138,6 +2175,19 @@ button.primary,.primary,.on,.tab.active{background:var(--accent)!important;color
 
  
  <section class="panel" id="authPanel">
+   <div class="kcAuthBrand"><div class="kcBrand kcBrandLarge" aria-label="Kinball Coach"><svg class="kcBrandMark" viewBox="0 0 96 68" aria-hidden="true" focusable="false">
+  <path d="M7 48C10 21 25 8 45 7" fill="none" stroke="#A8B4C4" stroke-width="3" stroke-linecap="round"/>
+  <path d="M53 7C66 8 78 15 84 26" fill="none" stroke="#A8B4C4" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="5 6"/>
+  <circle cx="42" cy="25" r="18" fill="#F4267D"/>
+  <path d="M27 20C35 13 48 11 58 16M34 8C44 19 51 30 58 39" fill="none" stroke="#FFFFFF" stroke-width="2.7" stroke-linecap="round"/>
+  <circle cx="20" cy="45" r="4" fill="#1768B3"/><path d="M9 61L18 43L25 51L31 61Z" fill="#1768B3"/><path d="M18 43L29 32" stroke="#1768B3" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="43" cy="46" r="4" fill="#FFB62E"/><path d="M34 62L42 44L51 62Z" fill="#FFB62E"/><path d="M41 44L35 34M45 44L51 34" stroke="#FFB62E" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="66" cy="45" r="4" fill="#0AA89E"/><path d="M56 61L63 51L69 43L79 61Z" fill="#0AA89E"/><path d="M68 43L58 33" stroke="#0AA89E" stroke-width="5" stroke-linecap="round"/>
+  <path d="M57 31L65 27L72 30L84 17" fill="none" stroke="#0B315B" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="57" cy="31" r="2.5" fill="#0B315B"/><circle cx="65" cy="27" r="2.5" fill="#0B315B"/><circle cx="72" cy="30" r="2.5" fill="#0B315B"/>
+  <path d="M79 17H84V22" fill="none" stroke="#0B315B" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M10 62Q43 57 79 62" fill="none" stroke="#0B315B" stroke-width="2.5" stroke-linecap="round"/>
+</svg><span class="kcBrandWord"><span class="kcBrandKin">Kinball</span><span class="kcBrandCoach">Coach</span></span></div></div>
    <h2 style="font-size:20px;margin-bottom:6px">Bienvenue sur Kinball Coach</h2>
    <p class="small" style="margin-bottom:16px">
      Connectez-vous pour retrouver vos matchs enregistrés. Si vous utilisez Kinball Coach pour la première fois, créez votre compte depuis le bouton dédié.
@@ -2998,8 +3048,7 @@ button.primary,.primary,.on,.tab.active{background:var(--accent)!important;color
      <div class="tabs" style="grid-template-columns:1fr;margin-bottom:12px">
       <button class="entryAction" data-family="centre" data-actiontype="Défense">DÉFENSE AU CENTRE</button>
      </div>
-
-     <div class="small" style="margin-bottom:7px">Remise en jeu</div>
+<div class="small" style="margin-bottom:7px">Remise en jeu</div>
      <div class="quickRestartGrid" style="margin-bottom:12px">
       <button class="entryAction" data-family="remise" data-actiontype="Défense" data-restart="centre">DÉFENSE<br>REMISE CENTRE</button>
       <button class="entryAction" data-family="remise" data-actiontype="Défense" data-restart="ligne">DÉFENSE<br>REMISE LIGNE</button>
@@ -3219,15 +3268,6 @@ button.primary,.primary,.on,.tab.active{background:var(--accent)!important;color
    </select>
    <div class="small" style="margin-top:5px">À réserver aux joueurs auxquels le staff souhaite donner une vision complète du groupe (par exemple un capitaine).</div>
   </div>
-  <div class="field" style="margin-top:12px">
-   <label>Message des entraîneurs</label>
-   <textarea id="groupPlayerFollowupMessage" class="coachMessageTextarea" maxlength="2000" placeholder="Retour général, point fort, axe de travail ou consigne…"></textarea>
-   <div class="small" style="margin-top:5px">Ce message apparaît sur la page d’accueil du joueur. Une nouvelle version est ajoutée à l’historique lorsqu’il est modifié.</div>
-  </div>
-  <details class="coachMessageHistory" open>
-   <summary>Historique des messages</summary>
-   <div class="coachMessageHistoryList" id="groupPlayerFollowupHistory"><div class="small">Aucun message antérieur.</div></div>
-  </details>
   <div class="historyItem" style="margin-top:12px">
    <div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
     <div>
@@ -3480,6 +3520,7 @@ function setMatchCaptureMode(mode){
   state.captureMode=mode==='video'?'video':'live';
   $$('#matchCaptureMode [data-capture-mode]').forEach(b=>b.classList.toggle('active',b.dataset.captureMode===state.captureMode));
   $('#matchYoutubeWrap')?.classList.toggle('hidden',state.captureMode!=='video');
+  updateStartButton();
 }
 
 function syncVideoPopupBounds(){
@@ -3998,7 +4039,7 @@ document.addEventListener('click',e=>{
 
 function refreshPlayerPortalIdentity(){
   const access=playerPortalAccessForGroup(playerPortalState.groupId)||playerPortalState.accesses?.[0];
-  const player=access?.player_name||'';
+const player=access?.player_name||'';
   const group=access?.group_name||'';
   if($('#playerPortalHomeTitle'))$('#playerPortalHomeTitle').textContent=player?`Bonjour ${player}`:'Bienvenue';
   if($('#playerPortalHomeSubtitle'))$('#playerPortalHomeSubtitle').textContent=group;
@@ -4037,16 +4078,31 @@ function playerPortalConversationHtml(rows){
     return `<div class="playerPortalMessageRow ${mine?'mine':''} ${unread?'unread':''}"><div class="playerPortalMessageBubble"><div class="playerPortalMessageMeta">${escapeHtml(who)} · ${escapeHtml(playerPortalConversationDate(r.created_at))}${unread?' · Nouveau':''}${readState}</div><div class="playerPortalMessageText">${escapeHtml(r.message||'')}</div></div></div>`;
   }).join('');
 }
-async function loadPlayerPortalConversation(){
+async function loadPlayerPortalConversation({initial=false,forceBottom=false}={}){
   const groupId=playerPortalState.groupId,playerId=playerPortalTargetPlayerId();
   const box=$('#playerPortalConversationList');
   if(!groupId||!playerId||!box)return;
-  box.innerHTML='<div class="playerPortalConversationEmpty">Chargement…</div>';
+  const targetKey=`${groupId}:${playerId}:${playerPortalState.staffPreview?'coach':'player'}`;
+  const targetChanged=box.dataset.conversationKey!==targetKey;
+  const firstLoad=initial||targetChanged||box.dataset.loaded!=='1';
+  const oldHeight=box.scrollHeight;
+  const oldTop=box.scrollTop;
+  const wasNearBottom=oldHeight-oldTop-box.clientHeight<48;
+  if(firstLoad){
+    box.dataset.conversationKey=targetKey;
+    box.dataset.loaded='0';
+    box.innerHTML='<div class="playerPortalConversationEmpty">Chargement…</div>';
+  }
   const viewerRole=playerPortalState.staffPreview?'coach':'player';
   const {data,error}=await db.rpc('get_player_conversation',{p_group_id:groupId,p_player_id:playerId,p_viewer_role:viewerRole});
   if(error)throw error;
-  box.innerHTML=playerPortalConversationHtml(data||[]);
-  box.scrollTop=box.scrollHeight;
+  // Un rafraîchissement périodique ne vide jamais la liste : le bloc conserve sa hauteur
+  // jusqu'au moment où le nouveau contenu est prêt, ce qui évite tout déplacement de page.
+  const html=playerPortalConversationHtml(data||[]);
+  if(box.innerHTML!==html)box.innerHTML=html;
+  box.dataset.loaded='1';
+  if(forceBottom||firstLoad||wasNearBottom)box.scrollTop=box.scrollHeight;
+  else box.scrollTop=Math.max(0,oldTop+(box.scrollHeight-oldHeight));
   const hadUnread=(data||[]).some(x=>x.is_read===false);
   if(hadUnread){
     const {error:readError}=await db.rpc('mark_player_conversation_read',{p_group_id:groupId,p_player_id:playerId,p_viewer_role:viewerRole});
@@ -4065,7 +4121,7 @@ async function sendPlayerPortalMessage(){
     const {error}=await db.rpc('send_player_conversation_message',{p_group_id:groupId,p_player_id:playerId,p_message:message,p_sender_role:senderRole});
     if(error)throw error;
     input.value='';if(status)status.textContent='Envoyé';
-    await loadPlayerPortalConversation();
+    await loadPlayerPortalConversation({forceBottom:true});
     await refreshMessageNotifications(playerPortalState.staffPreview?'coach':'player');
     setTimeout(()=>{if(status)status.textContent=''},1200);
   }catch(e){
@@ -4268,7 +4324,7 @@ function playerPortalSheetHtml(data,allDetails){
   return `<div class="statsImpactPlayerSheet"><div class="statsImpactPlayerHeader"><div><div class="analysisSubtle">${escapeHtml(playerPortalScopeLabel(playerPortalEffectiveScope()))}</div><h3>${escapeHtml(data.player_name||'')}</h3></div></div>${data?.is_test_mirror?`<div class="playerPortalTestDataNotice">Profil de test : les statistiques affichées sont une copie de celles de ${escapeHtml(data.stats_source_player_name||'un joueur source')} afin de tester un profil complet.</div>`:''}<div class="playerPortalExactCounts"><div class="playerPortalExactCount"><span>Nombre de frappes</span><strong>${n}</strong>${rel.label?`<span class="reliability">${escapeHtml(rel.label)}</span>`:''}</div><div class="playerPortalExactCount"><span>Points marqués</span><strong>${Number(x.points)||0}</strong></div><div class="playerPortalExactCount"><span>Fautes</span><strong>${Number(x.faults)||0}</strong></div></div>${playerVolumeWarningHtml(n)}${playerPortalTakeawaysHtml(x,n)}<div class="statsImpactPlayerMainMetrics"><div class="statsImpactPlayerMetric"><span>Création /100</span><strong class="${playerPortalImpactClass(x.creation100)}">${n?playerPortalSigned(x.creation100):'—'}</strong><small>Moyenne groupe ${playerPortalSigned(avg.creation100)}</small></div><div class="statsImpactPlayerMetric"><span>Sécurité /100</span><strong class="${playerPortalImpactClass(x.safety100)}">${n?playerPortalSigned(x.safety100):'—'}</strong><small>Moyenne groupe ${playerPortalSigned(avg.safety100)}</small></div></div><div class="statsImpactPlayerSecondaryMetrics"><div class="statsImpactPlayerSecondary"><span>% points</span><strong>${n?playerPortalPct(x.point_rate):'—'}</strong><small>${Number(x.points)||0} point${Number(x.points)===1?'':'s'} marqué${Number(x.points)===1?'':'s'} · Référentiel ${playerPortalPct(x.expected_point_rate)} · Moyenne groupe ${playerPortalPct(avg.point_rate)}</small></div><div class="statsImpactPlayerSecondary"><span>% fautes</span><strong>${n?playerPortalPct(x.fault_rate):'—'}</strong><small>${Number(x.faults)||0} faute${Number(x.faults)===1?'':'s'} · Référentiel ${playerPortalPct(x.expected_fault_rate)} · Moyenne groupe ${playerPortalPct(avg.fault_rate)}</small></div></div><div class="analysisSubtle statsImpactPlayerBenchmarkNote">La moyenne du groupe est calculée sans afficher les résultats des autres joueurs. Elle sert uniquement de repère collectif.</div><details class="statsImpactPlayerExplainer" open><summary>Comprendre le référentiel et les scores</summary><div class="statsImpactPlayerExplainerBody"><p><strong>Le référentiel</strong> (${escapeHtml(referenceVersion)}) est construit à partir des attaques de la compétition de référence sélectionnées par le staff. Les données Hommes et Femmes sont séparées, ainsi que le jeu au centre et les remises au centre, sur ligne et sur coin.</p><p>Pour chaque situation, il donne le <strong>taux de points</strong> et le <strong>taux de fautes</strong> observés sur l'ensemble des attaques retenues.</p><div class="statsImpactPlayerExplainerFormula"><strong>Création /100</strong> : nombre de points produits en plus ou en moins sur 100 attaques par rapport au nombre attendu selon le référentiel.</div><div class="statsImpactPlayerExplainerFormula"><strong>Sécurité /100</strong> : nombre de fautes évitées ou ajoutées sur 100 attaques par rapport au nombre attendu selon le référentiel.</div><p><strong>Un score de 0</strong> signifie que ta performance correspond au niveau moyen de la compétition ayant servi à construire le référentiel, en tenant compte des situations que tu as réellement jouées. Positif = au-dessus du référentiel ; négatif = en dessous.</p><p><strong>Attention au volume analysé.</strong> Les scores sont ramenés à 100 attaques : avec peu d’actions, une seule action peut donc faire fortement bouger le résultat. En pratique, <strong>N &lt; 5</strong> est trop faible pour conclure ; entre <strong>5 et 15</strong>, le score donne seulement une tendance provisoire ; au-delà de <strong>15</strong>, il devient plus stable, sans pour autant supprimer l’incertitude.</p><p>Exemple : <strong>Création +5</strong> correspond à environ 5 points de plus que prévu sur 100 attaques ; <strong>Sécurité +3</strong> à environ 3 fautes de moins que prévu sur 100 attaques.</p></div></details>${playerPortalDetailsHtml(allDetails||data.details||[])}</div>`
 }
 async function playerPortalRender(){const box=$('#playerPortalContent');if(!box||!playerPortalState.groupId)return;const ids=playerPortalState.selected||[];if(!ids.length){box.innerHTML='<div class="statsEmpty">Sélectionne au moins un match.</div>';return}if(playerPortalState.loading)return;playerPortalState.loading=true;box.innerHTML='<div class="statsEmpty">Calcul de tes statistiques…</div>';try{const scope=playerPortalEffectiveScope();const calls=[db.rpc('get_player_portal_metrics',playerPortalMetricsArgs(playerPortalState.groupId,ids,scope))];if(scope!=='all')calls.push(db.rpc('get_player_portal_metrics',playerPortalMetricsArgs(playerPortalState.groupId,ids,'all')));const results=await Promise.all(calls);results.forEach(r=>{if(r.error)throw r.error});const data=results[0].data||{};const details=(results[1]?.data||data).details||[];box.innerHTML=playerPortalSheetHtml(data,details)}finally{playerPortalState.loading=false}}
-async function loadPlayerPortalGroup(groupId){playerPortalState.groupId=groupId;syncPlayerPortalRole(groupId);refreshPlayerPortalIdentity();syncPlayerPortalGroupStatsAccess();playerPortalState.scope='all';playerPortalState.restartLocation='all';document.querySelectorAll('#playerPortalScopeTabs [data-player-scope]').forEach(b=>b.classList.toggle('active',b.dataset.playerScope==='all'));$('#playerPortalRestartField')?.classList.add('hidden');if($('#playerPortalRestart'))$('#playerPortalRestart').value='all';const {data,error}=await db.rpc('get_player_portal_metrics',playerPortalMetricsArgs(groupId,null,'all'));if(error)throw error;playerPortalState.matches=data?.matches||[];playerPortalState.selected=playerPortalState.matches.map(m=>m.id);$('#playerPortalTitle').textContent=data?.player_name?`Mes statistiques · ${data.player_name}`:'Mes statistiques';$('#playerPortalSubtitle').textContent=data?.group_name||'';await refreshMessageNotifications(playerPortalState.staffPreview?'coach':'player').catch(e=>handleError('message notifications',e));await loadPlayerPortalConversation();await loadPlayerObjectives().catch(e=>handleError('player objectives',e));syncStandaloneVideoLinks();playerPortalRenderMatches();$('#playerPortalContent').innerHTML=playerPortalSheetHtml(data,data?.details||[])}
+async function loadPlayerPortalGroup(groupId){playerPortalState.groupId=groupId;syncPlayerPortalRole(groupId);refreshPlayerPortalIdentity();syncPlayerPortalGroupStatsAccess();playerPortalState.scope='all';playerPortalState.restartLocation='all';document.querySelectorAll('#playerPortalScopeTabs [data-player-scope]').forEach(b=>b.classList.toggle('active',b.dataset.playerScope==='all'));$('#playerPortalRestartField')?.classList.add('hidden');if($('#playerPortalRestart'))$('#playerPortalRestart').value='all';const {data,error}=await db.rpc('get_player_portal_metrics',playerPortalMetricsArgs(groupId,null,'all'));if(error)throw error;playerPortalState.matches=data?.matches||[];playerPortalState.selected=playerPortalState.matches.map(m=>m.id);$('#playerPortalTitle').textContent=data?.player_name?`Mes statistiques · ${data.player_name}`:'Mes statistiques';$('#playerPortalSubtitle').textContent=data?.group_name||'';await refreshMessageNotifications(playerPortalState.staffPreview?'coach':'player').catch(e=>handleError('message notifications',e));await loadPlayerPortalConversation({initial:true,forceBottom:true});await loadPlayerObjectives().catch(e=>handleError('player objectives',e));syncStandaloneVideoLinks();playerPortalRenderMatches();$('#playerPortalContent').innerHTML=playerPortalSheetHtml(data,data?.details||[])}
 async function openPlayerPortal(accesses){
   playerPortalState.accesses=accesses||await fetchMyPlayerAccesses();
   if(!playerPortalState.accesses.length)return false;
@@ -4524,7 +4580,9 @@ $('#saveProfile').onclick=(ev)=>{
   });
 };
 
-$('#logout').onclick=async()=>{$('#playerSpaceBtn')?.classList.add('hidden');
+$('#logout').onclick=async()=>{
+  if(!confirm('Voulez-vous vraiment vous déconnecter ?'))return;
+  $('#playerSpaceBtn')?.classList.add('hidden');
   await db.auth.signOut();
   hideMainModules();
   categoryState.categories=[];
@@ -4549,11 +4607,25 @@ $('#logout').onclick=async()=>{$('#playerSpaceBtn')?.classList.add('hidden');
 };
 
 function updateStartButton(){
-  const count=$$('#rosterChecks input:checked').length;
-  const hasGroup=!!$('#matchGroup').value;
   const btn=$('#start');
-  btn.disabled=!hasGroup||count!==4;
-  btn.title=hasGroup&&count===4?'':'Choisis un groupe puis sélectionne exactement 4 joueurs.';
+  if(!btn)return;
+  const count=$$('#rosterChecks input:checked').length;
+  const value=id=>($('#'+id)?.value||'').trim();
+  const missing=[];
+  if(!value('matchGroup'))missing.push('groupe');
+  if(!value('matchName'))missing.push('nom du match');
+  if(!value('matchType'))missing.push('type de match');
+  if(!value('matchDate'))missing.push('date');
+  if(!value('teamName'))missing.push('équipe suivie');
+  if(!value('opponentTeam1'))missing.push('équipe 2');
+  if(!value('opponentTeam2'))missing.push('équipe 3');
+  if(count!==4)missing.push('exactement 4 joueurs');
+  const captureMode=state.captureMode||'live';
+  if(captureMode==='video'&&!matchYoutubeId(value('matchYoutubeUrl')))missing.push('URL YouTube valide');
+  const ready=missing.length===0;
+  btn.disabled=!ready;
+  btn.setAttribute('aria-disabled',String(!ready));
+  btn.title=ready?'':`À compléter : ${missing.join(', ')}.`;
 }
 function buildChecks(){
   const r=roster(), box=$('#rosterChecks'); box.innerHTML='';
@@ -4998,7 +5070,7 @@ function resetForNewMatch(){
 
   localStorage.removeItem(KEY);
   setCloud('Prêt pour un nouveau match',true);
-  window.scrollTo({top:0,behavior:'instant'});
+window.scrollTo({top:0,behavior:'instant'});
 }
 
 async function start(){
@@ -5993,12 +6065,13 @@ if($('#matchYoutubeUrl'))$('#matchYoutubeUrl').oninput=()=>{
     state.youtubeUrl=$('#matchYoutubeUrl').value.trim();
     state.youtubeVideoId=matchYoutubeId(state.youtubeUrl);
   }
+  updateStartButton();
 };
 if($('#matchVideoBack5'))$('#matchVideoBack5').onclick=()=>matchVideoSeek(-5);
 if($('#matchVideoForward5'))$('#matchVideoForward5').onclick=()=>matchVideoSeek(5);
 if($('#matchVideoTogglePlay'))$('#matchVideoTogglePlay').onclick=()=>{
   if(!matchVideoPlayerReady||!matchVideoPlayer)return;
-  try{
+try{
     if(matchVideoPlayer.getPlayerState()===YT.PlayerState.PLAYING)matchVideoPlayer.pauseVideo();
     else matchVideoPlayer.playVideo();
   }catch{}
@@ -6853,6 +6926,8 @@ async function saveCurrentGroupName(){
 function renderGroupPlayers(){
   const box=$('#groupPlayersList');if(!box)return;box.innerHTML='';if(!groupState.currentPlayers.length){box.innerHTML='<div class="small">Aucun joueur dans ce groupe.</div>';return}
   const roleLabel={R:'Rapproché (R)',A:'Ailier (A)',P:'Pointe (P)',AP:'A ou P'};
+  const group=groupState.groups.find(x=>x.id===groupState.currentGroupId);
+  const canRemove=group?.role==='owner';
   groupState.currentPlayers.forEach(p=>{
     const d=document.createElement('div');d.className='historyItem';
     const row=document.createElement('div');row.className='row';row.style.alignItems='center';row.style.gap='8px';
@@ -6865,8 +6940,37 @@ function renderGroupPlayers(){
     manage.onclick=()=>openGroupPlayerFollowup(p.id).catch(e=>handleError('open player followup',e));
     const open=document.createElement('button');open.type='button';open.className='ghost';open.textContent='Fiche joueur';
     open.onclick=()=>openStaffPlayerPortal(p.id).catch(e=>handleError('open staff player portal',e));
-    row.append(info,manage,open);d.append(row);box.append(d);
+    row.append(info,manage,open);
+    if(canRemove){
+      const remove=document.createElement('button');remove.type='button';remove.className='ghost dangerAction';remove.textContent='Retirer';
+      remove.onclick=()=>removePlayerFromCurrentGroup(p.id,p.display_name);
+      row.append(remove);
+    }
+    d.append(row);box.append(d);
   })
+}
+
+async function removePlayerFromCurrentGroup(playerId,displayName){
+  const groupId=groupState.currentGroupId;
+  const group=groupState.groups.find(x=>x.id===groupId);
+  if(!groupId||!group||group.role!=='owner')return;
+  if(!confirm(`Retirer ${displayName||'ce joueur'} du groupe « ${group.name} » ?
+
+Ses matchs, séances et statistiques déjà enregistrés seront conservés. Son accès joueur à ce groupe sera désactivé.`))return;
+  try{
+    setCloud('Suppression…',true);
+    const {data,error}=await db.from('coaching_group_players').delete().eq('group_id',groupId).eq('player_id',playerId).select('player_id');
+    if(error)throw error;
+    if(!Array.isArray(data)||!data.some(x=>x.player_id===playerId))throw new Error('Le joueur n’a pas pu être retiré du groupe.');
+    groupState.currentPlayers=groupState.currentPlayers.filter(x=>x.id!==playerId);
+    groupState.matchPlayers=groupState.matchPlayers.filter(x=>x.id!==playerId);
+    if(groupState.playerAccess)delete groupState.playerAccess[playerId];
+    renderGroupPlayers();
+    setCloud('Synchronisé',true);
+  }catch(e){
+    setCloud('Erreur',false);
+    handleError('remove group player',e);
+  }
 }
 
 let groupPlayerFollowupState={playerId:null};
@@ -6927,22 +7031,8 @@ async function openGroupPlayerFollowup(playerId){
   const linked=!!groupState.playerAccess?.[playerId];
   $('#groupPlayerFollowupAccessStatus').textContent=linked?'Compte joueur lié':'Accès joueur non encore activé';
   $('#groupPlayerFollowupUnlink').classList.toggle('hidden',!linked);
-  $('#groupPlayerFollowupStatus').textContent='Chargement…';
-  $('#groupPlayerFollowupMessage').value='';
-  $('#groupPlayerFollowupMessage').dataset.currentMessage='';
+  $('#groupPlayerFollowupStatus').textContent='';
   $('#groupPlayerFollowupPopup').classList.remove('hidden');
-  try{
-    const {data,error}=await db.from('coaching_player_messages').select('message,updated_at').eq('group_id',groupId).eq('player_id',playerId).maybeSingle();
-    if(error)throw error;
-    const current=data?.message||'';
-    $('#groupPlayerFollowupMessage').value=current;
-    $('#groupPlayerFollowupMessage').dataset.currentMessage=current;
-    await loadGroupPlayerMessageHistory(groupId,playerId);
-    $('#groupPlayerFollowupStatus').textContent=data?.updated_at?'Message actuel chargé.':'';
-  }catch(e){
-    $('#groupPlayerFollowupStatus').textContent='Impossible de charger le message.';
-    handleError('load group player followup',e);
-  }
 }
 
 async function saveGroupPlayerFollowup(){
@@ -6950,26 +7040,14 @@ async function saveGroupPlayerFollowup(){
   if(!groupId||!playerId)return;
   const role=$('#groupPlayerFollowupRole').value||'AP';
   const statsAccess=$('#groupPlayerFollowupStatsAccess').value==='group'?'group':'personal';
-  const message=$('#groupPlayerFollowupMessage').value.trim();
   const status=$('#groupPlayerFollowupStatus');
   const save=$('#saveGroupPlayerFollowup');
   save.disabled=true;status.textContent='Enregistrement…';
   try{
-    const {error:roleError}=await db.from('coaching_group_players').update({preferred_role:role,stats_access:statsAccess}).eq('group_id',groupId).eq('player_id',playerId);
-    if(roleError)throw roleError;
-    const messageInput=$('#groupPlayerFollowupMessage');
-    const previous=(messageInput.dataset.currentMessage||'').trim();
-    const now=new Date().toISOString();
-    const {error:msgError}=await db.from('coaching_player_messages').upsert({group_id:groupId,player_id:playerId,message,updated_by:currentUser?.id||null,updated_at:now},{onConflict:'group_id,player_id'});
-    if(msgError)throw msgError;
-    if(message && message!==previous){
-      const {error:historyError}=await db.from('coaching_player_message_history').insert({group_id:groupId,player_id:playerId,message,created_by:currentUser?.id||null,created_at:now});
-      if(historyError)throw historyError;
-    }
-    messageInput.dataset.currentMessage=message;
-    await loadGroupPlayerMessageHistory(groupId,playerId);
+    const {error}=await db.from('coaching_group_players').update({preferred_role:role,stats_access:statsAccess}).eq('group_id',groupId).eq('player_id',playerId);
+    if(error)throw error;
     const p=groupState.currentPlayers.find(x=>x.id===playerId);if(p){p.preferred_role=role;p.stats_access=statsAccess}
-    status.textContent='Suivi joueur enregistré ✓';
+    status.textContent='Droits joueur enregistrés ✓';
     renderGroupPlayers();
     setCloud('Synchronisé',true);
   }catch(e){
@@ -6998,7 +7076,7 @@ async function updateGroupPlayerPreference(playerId,preferredRole){
     if(name){
       state.playerRolePreferences ||= {};
       state.playerRolePreferences[name]=preferredRole;
-    }
+}
     setCloud('Synchronisé',true);
   }catch(e){handleError('update player preferred role',e)}
 }
@@ -7073,8 +7151,8 @@ async function loadMatchGroupPlayers(groupId){
 }
 
 
-function setMatchHeaderMode(isMatch){
-  $('#count')?.classList.toggle('hidden',!isMatch);
+function setMatchHeaderMode(){
+  $('#count')?.classList.add('hidden');
 }
 
 function hideMainModules(){
@@ -7998,7 +8076,7 @@ function renderAnalysisPlayers(events){
     allPlayers.forEach(name=>defenseMap[name]={name,total:0,defended:0,escaped:0,illegal:0,opponentFaults:0});
     const addDefense=(name,outcome)=>{
       defenseMap[name]??={name,total:0,defended:0,escaped:0,illegal:0,opponentFaults:0};
-      const x=defenseMap[name];x.total++;
+const x=defenseMap[name];x.total++;
       if(outcome==='Ballon défendu')x.defended++;
       else if(outcome==='Échappé')x.escaped++;
       else if(outcome==='Défensive illégale')x.illegal++;
@@ -8998,7 +9076,7 @@ async function loadStatsReference(){
 }
 
 async function statsGroupMatchDataset(){
-  const groupId=$('#statsGroup')?.value||'';
+const groupId=$('#statsGroup')?.value||'';
   if(!groupId)return {matchIds:[],matches:[],events:[],players:[]};
   const list=await statsGroupMatchList();
   const ids=(list||[]).map(m=>m.id);
@@ -9755,7 +9833,10 @@ $('#createGroupBtn').onclick=()=>createGroup().catch(e=>{const st=$('#createGrou
 $('#joinGroupBtn').onclick=()=>joinGroup().catch(e=>{const st=$('#joinGroupStatus');st.textContent=e.message||String(e);st.className='authStatus cloudErr'});
 $('#groupAddPlayersBtn').onclick=()=>addPlayersToCurrentGroup().catch(e=>handleError('add group players',e));
 $('#matchGroup').onchange=()=>loadMatchGroupPlayers($('#matchGroup').value).catch(e=>handleError('match group',e));
-{ const input=$('#matchDate'); if(input)input.addEventListener('blur',()=>normalizeFrDateField(input)); }
+['matchName','matchDate','teamName','opponentTeam1','opponentTeam2'].forEach(id=>$('#'+id)?.addEventListener('input',updateStartButton));
+['matchType'].forEach(id=>$('#'+id)?.addEventListener('change',updateStartButton));
+$('#matchGroup')?.addEventListener('change',updateStartButton);
+{ const input=$('#matchDate'); if(input)input.addEventListener('blur',()=>{normalizeFrDateField(input);updateStartButton()}); }
 
 
 

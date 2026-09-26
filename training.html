@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Kinball Coach · Entraînements</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2213%22%20fill%3D%22%23F6F8FB%22%2F%3E%3Ccircle%20cx%3D%2227%22%20cy%3D%2223%22%20r%3D%2215%22%20fill%3D%22%23F4267D%22%2F%3E%3Cpath%20d%3D%22M15%2020c8-7%2019-7%2026-1M21%209c8%209%2012%2018%2017%2027%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%222.6%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M9%2056l10-19%208%2019z%22%20fill%3D%22%231768B3%22%2F%3E%3Cpath%20d%3D%22M24%2056l7-17%208%2017z%22%20fill%3D%22%23FFB62E%22%2F%3E%3Cpath%20d%3D%22M37%2056l8-19%2010%2019z%22%20fill%3D%22%230AA89E%22%2F%3E%3Cpath%20d%3D%22M39%2030l7-4%205%202%208-10%22%20fill%3D%22none%22%20stroke%3D%22%230B315B%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cpath%20d%3D%22M55%2018h4v4%22%20fill%3D%22none%22%20stroke%3D%22%230B315B%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E">
 <style>
 :root{
  --bg:#F3F6FA;--panel:#FFFFFF;--panel2:#F7F9FC;--text:#172033;--muted:#53657A;
@@ -998,7 +999,7 @@ button:active{transform:scale(.985)}
   font-size:10px;
   opacity:.72;
   margin:0;
-  white-space:nowrap;
+white-space:nowrap;
 }
 #popup.fieldMode .closePopup{
   width:26px;
@@ -1998,7 +1999,7 @@ button.primary,.primary,.on,.tab.active{background:var(--accent)!important;color
 .top .sub,.top .small{color:#CBD5E1}
 .top .badge{background:var(--nav2);color:#F8FAFC;border:1px solid var(--navLine)}
 .top button,.top a.button{
-  background:#111827;color:#F8FAFC;border:1px solid var(--navLine)
+background:#111827;color:#F8FAFC;border:1px solid var(--navLine)
 }
 .top button:hover,.top a.button:hover{background:#1E293B;border-color:#475569}
 .top .primary{background:var(--accent)!important;border-color:var(--accent)!important;color:#fff!important}
@@ -2109,14 +2110,50 @@ button.primary,.primary,.on,.tab.active{background:var(--accent)!important;color
 .trainingTimelineTime{color:var(--text)!important}
 .trainingPlanStartField input,.trainingPlanNotes textarea,.trainingGeneralNotes{background:#FFFFFF!important;color:var(--text)!important}
 
+
+/* Kinball Coach — identité visuelle 2026 */
+:root{
+  --brand-navy:#0B315B;--brand-pink:#F4267D;--brand-blue:#1768B3;--brand-teal:#0AA89E;--brand-yellow:#FFB62E;
+  --bg:#F6F8FB;--panel:#FFFFFF;--panel2:#F8FAFC;--text:#172033;--muted:#627083;--line:#D5DCE5;
+  --accent:#1768B3;--primary:#1768B3;--nav:#0B315B;--nav2:#164A7A;--navLine:#2D5D89;--focus:#8DB9E8;
+}
+.kcBrand{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.kcBrandMark{width:44px;height:34px;display:block;flex:0 0 auto;overflow:visible}
+.kcBrandWord{display:inline-flex;align-items:baseline;gap:4px;font-family:ui-rounded,"Avenir Next","Segoe UI",system-ui,sans-serif;font-size:21px;font-weight:850;letter-spacing:-.5px;white-space:nowrap;line-height:1}
+.kcBrandKin{color:var(--brand-navy)}.kcBrandCoach{color:var(--brand-pink)}
+.kcAuthBrand{display:flex;justify-content:center;margin:2px 0 18px;padding:12px 8px;border-bottom:1px solid var(--line)}
+.kcBrandLarge{gap:14px}.kcBrandLarge .kcBrandMark{width:92px;height:66px}.kcBrandLarge .kcBrandWord{font-size:32px;gap:7px}
+.startupScreenBrand{color:var(--brand-navy)!important}.startupScreenBrand .kcStartupCoach{color:var(--brand-pink)}
+button.primary,.primary,.on,.tab.active{background:var(--brand-blue)!important;border-color:var(--brand-blue)!important;color:#fff!important}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid color-mix(in srgb,var(--brand-blue) 35%,transparent);outline-offset:2px}
+.dangerAction{color:#8F241E!important;border-color:#E3AAA7!important;background:#FFF7F6!important}
+.dangerAction:hover{background:#FFF0EF!important;border-color:#D88E89!important}
+#count{display:none!important}
+@media(max-width:560px){
+  .kcBrandMark{width:38px;height:30px}.kcBrandWord{font-size:18px;gap:3px}
+  .kcBrandLarge{gap:10px}.kcBrandLarge .kcBrandMark{width:72px;height:54px}.kcBrandLarge .kcBrandWord{font-size:25px}
+}
+
 </style>
 </head>
 <body>
-<div class="startupScreen" id="startupScreen" role="status" aria-live="polite"><div class="startupScreenInner"><div class="startupScreenBrand">Kinball Coach</div><div class="startupScreenText">Chargement…</div></div></div>
+<div class="startupScreen" id="startupScreen" role="status" aria-live="polite"><div class="startupScreenInner"><div class="startupScreenBrand">Kinball <span class="kcStartupCoach">Coach</span></div><div class="startupScreenText">Chargement…</div></div></div>
 
 <div class="app">
  <div class="top">
-   <div><h1>Kinball Coach</h1></div>
+   <div class="kcBrand" aria-label="Kinball Coach"><svg class="kcBrandMark" viewBox="0 0 96 68" aria-hidden="true" focusable="false">
+  <path d="M7 48C10 21 25 8 45 7" fill="none" stroke="#A8B4C4" stroke-width="3" stroke-linecap="round"/>
+  <path d="M53 7C66 8 78 15 84 26" fill="none" stroke="#A8B4C4" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="5 6"/>
+  <circle cx="42" cy="25" r="18" fill="#F4267D"/>
+  <path d="M27 20C35 13 48 11 58 16M34 8C44 19 51 30 58 39" fill="none" stroke="#FFFFFF" stroke-width="2.7" stroke-linecap="round"/>
+  <circle cx="20" cy="45" r="4" fill="#1768B3"/><path d="M9 61L18 43L25 51L31 61Z" fill="#1768B3"/><path d="M18 43L29 32" stroke="#1768B3" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="43" cy="46" r="4" fill="#FFB62E"/><path d="M34 62L42 44L51 62Z" fill="#FFB62E"/><path d="M41 44L35 34M45 44L51 34" stroke="#FFB62E" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="66" cy="45" r="4" fill="#0AA89E"/><path d="M56 61L63 51L69 43L79 61Z" fill="#0AA89E"/><path d="M68 43L58 33" stroke="#0AA89E" stroke-width="5" stroke-linecap="round"/>
+  <path d="M57 31L65 27L72 30L84 17" fill="none" stroke="#0B315B" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="57" cy="31" r="2.5" fill="#0B315B"/><circle cx="65" cy="27" r="2.5" fill="#0B315B"/><circle cx="72" cy="30" r="2.5" fill="#0B315B"/>
+  <path d="M79 17H84V22" fill="none" stroke="#0B315B" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M10 62Q43 57 79 62" fill="none" stroke="#0B315B" stroke-width="2.5" stroke-linecap="round"/>
+</svg><span class="kcBrandWord"><span class="kcBrandKin">Kinball</span><span class="kcBrandCoach">Coach</span></span></div>
    <div class="topActions">
     <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
@@ -2135,6 +2172,19 @@ button.primary,.primary,.on,.tab.active{background:var(--accent)!important;color
 
  
  <section class="panel" id="authPanel">
+   <div class="kcAuthBrand"><div class="kcBrand kcBrandLarge" aria-label="Kinball Coach"><svg class="kcBrandMark" viewBox="0 0 96 68" aria-hidden="true" focusable="false">
+  <path d="M7 48C10 21 25 8 45 7" fill="none" stroke="#A8B4C4" stroke-width="3" stroke-linecap="round"/>
+  <path d="M53 7C66 8 78 15 84 26" fill="none" stroke="#A8B4C4" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="5 6"/>
+  <circle cx="42" cy="25" r="18" fill="#F4267D"/>
+  <path d="M27 20C35 13 48 11 58 16M34 8C44 19 51 30 58 39" fill="none" stroke="#FFFFFF" stroke-width="2.7" stroke-linecap="round"/>
+  <circle cx="20" cy="45" r="4" fill="#1768B3"/><path d="M9 61L18 43L25 51L31 61Z" fill="#1768B3"/><path d="M18 43L29 32" stroke="#1768B3" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="43" cy="46" r="4" fill="#FFB62E"/><path d="M34 62L42 44L51 62Z" fill="#FFB62E"/><path d="M41 44L35 34M45 44L51 34" stroke="#FFB62E" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="66" cy="45" r="4" fill="#0AA89E"/><path d="M56 61L63 51L69 43L79 61Z" fill="#0AA89E"/><path d="M68 43L58 33" stroke="#0AA89E" stroke-width="5" stroke-linecap="round"/>
+  <path d="M57 31L65 27L72 30L84 17" fill="none" stroke="#0B315B" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="57" cy="31" r="2.5" fill="#0B315B"/><circle cx="65" cy="27" r="2.5" fill="#0B315B"/><circle cx="72" cy="30" r="2.5" fill="#0B315B"/>
+  <path d="M79 17H84V22" fill="none" stroke="#0B315B" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M10 62Q43 57 79 62" fill="none" stroke="#0B315B" stroke-width="2.5" stroke-linecap="round"/>
+</svg><span class="kcBrandWord"><span class="kcBrandKin">Kinball</span><span class="kcBrandCoach">Coach</span></span></div></div>
    <h2 style="font-size:20px;margin-bottom:6px">Bienvenue sur Kinball Coach</h2>
    <p class="small" style="margin-bottom:16px">
      Connectez-vous pour retrouver vos matchs enregistrés. Si vous utilisez Kinball Coach pour la première fois, créez votre compte depuis le bouton dédié.
@@ -2998,7 +3048,7 @@ button.primary,.primary,.on,.tab.active{background:var(--accent)!important;color
         <div class="matchVideoSpeedRow">
           <button class="matchVideoSpeedBtn" data-speed="1" type="button">1×</button>
           <button class="matchVideoSpeedBtn" data-speed="1.25" type="button">1,25×</button>
-          <button class="matchVideoSpeedBtn active" data-speed="1.5" type="button">1,5×</button>
+<button class="matchVideoSpeedBtn active" data-speed="1.5" type="button">1,5×</button>
           <button class="matchVideoSpeedBtn" data-speed="2" type="button">2×</button>
         </div>
         <div class="small" id="matchVideoSpeedStatus" style="padding:0 8px 8px"></div>
@@ -3998,7 +4048,7 @@ async function refreshRecentMatches(){
     o.dataset.updatedAt=m.updated_at||'';
     sel.append(o);
   });
-  updateMatchAuditMeta();
+updateMatchAuditMeta();
 }
 
 function updateMatchAuditMeta(){
@@ -4688,7 +4738,9 @@ $('#saveProfile').onclick=(ev)=>{
   });
 };
 
-$('#logout').onclick=async()=>{$('#playerSpaceBtn')?.classList.add('hidden');
+$('#logout').onclick=async()=>{
+  if(!confirm('Voulez-vous vraiment vous déconnecter ?'))return;
+  $('#playerSpaceBtn')?.classList.add('hidden');
   await db.auth.signOut();
   hideMainModules();
   categoryState.categories=[];
@@ -4998,7 +5050,7 @@ function applyCenterDefenseGesture(el,result){
 function applyCenterDefenseIllegal(){
   if(!isCenterDefense())return;
   const button=$('#resultOptions button[data-result="Défensive illégale"]');
-  if(!button)return;
+if(!button)return;
   actionResult='Défensive illégale';
   pending='Faute';
   faultType='Défensive illégale';
@@ -5998,7 +6050,7 @@ $$('#zoneOptions button').forEach(b=>b.onclick=()=>{
 });
 const centerDefenseGestureState=new WeakMap();
 $$('#centerDefenseMap .sector').forEach(el=>{
-  const st={simpleTimer:null,longTimer:null,longTriggered:false,suppressClickUntil:0};
+const st={simpleTimer:null,longTimer:null,longTriggered:false,suppressClickUntil:0};
   centerDefenseGestureState.set(el,st);
 
   el.addEventListener('pointerdown',ev=>{
@@ -6997,8 +7049,7 @@ async function saveCurrentGroupName(){
       .update({name})
       .eq('id',groupId);
     if(error)throw error;
-
-    g.name=name;
+g.name=name;
     $('#groupDetailName').textContent=name;
     $('#groupNameEditRow').classList.add('hidden');
     status.textContent='Nom du groupe mis à jour ✓';
@@ -7998,7 +8049,7 @@ function analysisCombinedBreakdownHtml(events){
     {key:'gel',label:'Gel',test:e=>e.family==='gel'}
   ];
   const known=new Set(contextDefs.map(c=>c.key));
-  const contexts=contextDefs.map(c=>({...c,events:events.filter(c.test)}));
+const contexts=contextDefs.map(c=>({...c,events:events.filter(c.test)}));
   const other=events.filter(e=>!known.has(e.family));
   if(other.length)contexts.push({key:'other',label:'Autres contextes',events:other});
   const rateMetric=(label,value,kind)=>`<div class="analysisMetric ${kind==='own'?'analysisMetricRateOwn':'analysisMetricRateOpponent'}"><div class="label">${escapeHtml(label)}</div><div class="value">${escapeHtml(value)}</div></div>`;
@@ -9120,6 +9171,32 @@ function trainingSeasonLabel(dateValue){
   return `${start}-${start+1}`;
 }
 function currentTrainingSeasonLabel(){return trainingSeasonLabel(new Date().toISOString().slice(0,10))}
+async function deleteTrainingSessionById(sessionId){
+  const sess=(trainingState.recentSessions||[]).find(x=>x.id===sessionId);
+  const date=sess?.trained_on?formatDateShort(sess.trained_on):'';
+  const name=sess?.theme||sess?.label||'cette séance';
+  const label=date?`${date} · ${name}`:name;
+  if(!confirm(`Supprimer définitivement ${label} ?
+
+Les présences, exercices et résultats enregistrés pour cette séance seront également supprimés. Cette action est irréversible.`))return false;
+  try{
+    setCloud('Suppression…',true);
+    const {data,error}=await db.from('training_sessions').delete().eq('id',sessionId).select('id');
+    if(error)throw error;
+    if(!Array.isArray(data)||!data.some(x=>x.id===sessionId))throw new Error('La séance n’a pas pu être supprimée. Vérifie tes droits sur ce groupe.');
+    trainingState.recentSessions=(trainingState.recentSessions||[]).filter(x=>x.id!==sessionId);
+    if(trainingState.currentSessionId===sessionId){trainingState.currentSessionId=null;trainingState.resultDraft={}}
+    renderTrainingSavedHome();
+    if($('#trainingDuplicate')&&!$('#trainingDuplicate').classList.contains('hidden'))renderDuplicateTrainingSessions();
+    setCloud('Synchronisé',true);
+    return true;
+  }catch(e){
+    setCloud('Erreur',false);
+    handleError('delete training session',e);
+    return false;
+  }
+}
+
 function renderTrainingSavedHome(){
   const box=$('#trainingSavedSeasons'),count=$('#trainingSavedCount');
   if(!box)return;
@@ -9140,13 +9217,14 @@ function renderTrainingSavedHome(){
     const body=document.createElement('div');body.className='trainingSeasonBody';
     list.forEach(sess=>{
       const row=document.createElement('div');row.className='trainingSavedSession';
-      row.innerHTML=`<div class="trainingSavedSessionTop"><div class="trainingSavedSessionTitle"><strong>${escapeHtml(sess.trained_on?formatDateShort(sess.trained_on):'')}${sess.theme?' · '+escapeHtml(sess.theme):(sess.label?' · '+escapeHtml(sess.label):'')}</strong><div class="small" style="margin-top:4px">${escapeHtml(sess.group?.name||sess.team?.name||'Groupe')}${sess.duration_minutes?' · '+escapeHtml(sess.duration_minutes)+' min':''}</div></div><div class="trainingSavedSessionActions"><button class="ghost" data-home-duplicate-session="${sess.id}">Dupliquer</button></div></div>`;
+      row.innerHTML=`<div class="trainingSavedSessionTop"><div class="trainingSavedSessionTitle"><strong>${escapeHtml(sess.trained_on?formatDateShort(sess.trained_on):'')}${sess.theme?' · '+escapeHtml(sess.theme):(sess.label?' · '+escapeHtml(sess.label):'')}</strong><div class="small" style="margin-top:4px">${escapeHtml(sess.group?.name||sess.team?.name||'Groupe')}${sess.duration_minutes?' · '+escapeHtml(sess.duration_minutes)+' min':''}</div></div><div class="trainingSavedSessionActions"><button class="ghost" data-home-duplicate-session="${sess.id}">Dupliquer</button><button class="ghost dangerAction" data-home-delete-session="${sess.id}">Supprimer</button></div></div>`;
       row.setAttribute('role','button');
       row.tabIndex=0;
       const openSession=()=>editTrainingSessionById(sess.id).catch(e=>handleError('open training session',e));
       row.onclick=openSession;
       row.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openSession()}};
       row.querySelector('[data-home-duplicate-session]').onclick=e=>{e.stopPropagation();duplicateTrainingSessionById(sess.id).catch(err=>handleError('duplicate training session',err))};
+      row.querySelector('[data-home-delete-session]').onclick=e=>{e.stopPropagation();deleteTrainingSessionById(sess.id).catch(err=>handleError('delete training session',err))};
       body.append(row);
     });
     details.append(summary,body);box.append(details);
@@ -9174,6 +9252,7 @@ function renderDuplicateTrainingSessions(){
       </div>
       <div class="row" style="gap:6px;flex:0 0 auto">
         <button class="ghost" data-duplicate-session="${sess.id}">Dupliquer</button>
+        <button class="ghost dangerAction" data-delete-session="${sess.id}">Supprimer</button>
       </div>
     </div>`;
     d.style.cursor='pointer';
@@ -9183,6 +9262,7 @@ function renderDuplicateTrainingSessions(){
     d.onclick=openSession;
     d.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openSession()}};
     d.querySelector('[data-duplicate-session]').onclick=e=>{e.stopPropagation();duplicateTrainingSessionById(sess.id).catch(err=>handleError('duplicate training session',err))};
+    d.querySelector('[data-delete-session]').onclick=e=>{e.stopPropagation();deleteTrainingSessionById(sess.id).catch(err=>handleError('delete training session',err))};
     box.append(d);
   });
 }
@@ -9998,7 +10078,6 @@ function switchStatsMatchView(view){
   root.querySelector('#statsMatchViewSummary')?.classList.toggle('hidden',statsState.statsMatchView!=='summary');
   root.querySelector('#statsMatchViewAdvanced')?.classList.toggle('hidden',statsState.statsMatchView!=='advanced');
 }
-
 async function renderStatsMatchesSelection(){
   const box=$('#statsMatchSummary');
   const groupId=$('#statsGroup').value;
