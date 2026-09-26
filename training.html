@@ -4739,17 +4739,7 @@ $('#saveNewPassword').onclick=async()=>{
   setTimeout(closeResetPasswordPopup,900);
 };
 
-
-function returnToIndexFast(){
-  try{
-    const ref=document.referrer?new URL(document.referrer):null;
-    const fromIndex=ref&&ref.origin===location.origin&&(/\/index\.html$/.test(ref.pathname)||/\/$/.test(ref.pathname));
-    if(fromIndex&&history.length>1){history.back();return}
-  }catch{}
-  window.location.href='index.html';
-}
-
-$('#homeBtn').onclick=returnToIndexFast;
+$('#homeBtn').onclick=()=>{window.location.href='index.html'};
 $('#profileBtn').onclick=openProfilePopup;
 $('#closeProfilePopup').onclick=(ev)=>{ev.preventDefault();ev.stopPropagation();closeProfilePopup();};
 $('#cancelProfile').onclick=(ev)=>{ev.preventDefault();ev.stopPropagation();closeProfilePopup();};
@@ -8464,12 +8454,18 @@ function unpackTrainingNotes(raw){
   const encoded=text.slice(pos+TRAINING_PLAN_MARKER.length,-2);
   try{
     const parsed=JSON.parse(decodeURIComponent(encoded));
-    return {notes:text.slice(0,pos).trimEnd(),plan:Array.isArray(parsed)?parsed:[]};
+    const plan=Array.isArray(parsed)?parsed.map(b=>({
+      ...b,
+      // Rétrocompatibilité avec les séances enregistrées avant la persistance du champ draft :
+      // les blocs envoyés au brouillon avaient déjà leur heure vidée.
+      draft:b?.draft===true||(b?.draft==null&&!String(b?.start||'').trim())
+    })):[];
+    return {notes:text.slice(0,pos).trimEnd(),plan};
   }catch(_){return {notes:text,plan:[]}}
 }
 function packTrainingNotes(notes,plan){
   const clean=(notes||'').trim();
-  const blocks=(plan||[]).map(({id,start,duration,track,title,details,attention,sourceType,exerciseId,collectStats,focus})=>({id,start,duration,track,title,details,attention,sourceType:sourceType||'free',exerciseId:exerciseId||null,collectStats:!!collectStats,focus:focus||null}));
+  const blocks=(plan||[]).map(({id,start,duration,track,title,details,attention,sourceType,exerciseId,collectStats,focus,draft})=>({id,start,duration,track,title,details,attention,sourceType:sourceType||'free',exerciseId:exerciseId||null,collectStats:!!collectStats,focus:focus||null,draft:!!draft}));
   if(!blocks.length)return clean||null;
   return `${clean}${TRAINING_PLAN_MARKER}${encodeURIComponent(JSON.stringify(blocks))}]]`;
 }
@@ -11052,7 +11048,7 @@ $('#matchReadDelete').onclick=async()=>{
 $('#matchLibrarySearch').oninput=renderMatchLibrary;
 $('#matchLibraryGroup').onchange=renderMatchLibrary;
 $('#matchLibraryType').onchange=renderMatchLibrary;
-$('#trainingBackHome').onclick=returnToIndexFast;
+$('#trainingBackHome').onclick=()=>{window.location.href='index.html'};
 
 $('#groupsBackHome').onclick=showAppHome;
 $('#groupDetailBack').onclick=showAppHome;
