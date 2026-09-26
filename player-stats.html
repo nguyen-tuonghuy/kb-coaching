@@ -405,7 +405,7 @@ async function init(){
     const chosen=(requestedGroup&&state.accesses.find(a=>a.group_id===requestedGroup))||state.accesses[0];state.groupId=chosen.group_id;state.playerId=chosen.player_id;state.playerName=chosen.player_name||'';state.groupName=chosen.group_name||'';
     if(state.accesses.length>1){$('#groupField').classList.remove('hidden');$('#groupSelect').innerHTML=state.accesses.map(a=>`<option value="${esc(a.group_id)}">${esc(a.group_name)} · ${esc(a.player_name)}</option>`).join('');$('#groupSelect').value=state.groupId;$('#groupSelect').onchange=()=>loadGroup($('#groupSelect').value).catch(showError)}
   }
-  if(state.isCoach){const back=`index.html?staff_group=${encodeURIComponent(state.groupId)}&staff_player=${encodeURIComponent(state.playerId)}#player-home`;$('#nav').innerHTML=`<a href="${back}" id="statsBackPlayer" class="backNav">← ${esc(state.playerName)}</a><a href="index.html">Accueil entraîneur</a><a href="player-stats.html?group=${encodeURIComponent(state.groupId)}&player=${encodeURIComponent(state.playerId)}" class="active">Statistiques · ${esc(state.playerName)}</a><a href="videos.html?group=${encodeURIComponent(state.groupId)}&player=${encodeURIComponent(state.playerId)}" id="videosLink">Vidéos</a>`}
+  if(state.isCoach){const back=`index.html?staff_group=${encodeURIComponent(state.groupId)}&staff_player=${encodeURIComponent(state.playerId)}#player-home`;$('#nav').innerHTML=`<a href="${back}" id="statsBackPlayer" class="backNav">← ${esc(state.playerName)}</a><a href="index.html" id="statsCoachHomeLink">Accueil entraîneur</a><a href="player-stats.html?group=${encodeURIComponent(state.groupId)}&player=${encodeURIComponent(state.playerId)}" class="active">Statistiques · ${esc(state.playerName)}</a><a href="videos.html?group=${encodeURIComponent(state.groupId)}&player=${encodeURIComponent(state.playerId)}" id="videosLink">Vidéos</a>`}
   await loadGroup(state.groupId)
 }
 $('#selectAll').onclick=()=>{state.selected=state.matches.map(m=>m.id);renderMatches();render().catch(showError)};
@@ -414,7 +414,7 @@ $$('[data-scope]').forEach(b=>b.onclick=()=>{state.scope=b.dataset.scope;$$('[da
 $('#restart').onchange=e=>{state.restartLocation=e.target.value;render().catch(showError)};
 $('#logout').onclick=async()=>{if(!confirm('Voulez-vous vraiment vous déconnecter ?'))return;await db.auth.signOut();location.href='index.html'};
 document.addEventListener('click',e=>{
-  const link=e.target.closest?.('#statsHomeLink');
+  const link=e.target.closest?.('#statsHomeLink,#statsCoachHomeLink');
   if(!link)return;
   e.preventDefault();
   returnToIndexWithoutReload();

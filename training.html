@@ -4739,7 +4739,17 @@ $('#saveNewPassword').onclick=async()=>{
   setTimeout(closeResetPasswordPopup,900);
 };
 
-$('#homeBtn').onclick=()=>{window.location.href='index.html'};
+
+function returnToIndexFast(){
+  try{
+    const ref=document.referrer?new URL(document.referrer):null;
+    const fromIndex=ref&&ref.origin===location.origin&&(/\/index\.html$/.test(ref.pathname)||/\/$/.test(ref.pathname));
+    if(fromIndex&&history.length>1){history.back();return}
+  }catch{}
+  window.location.href='index.html';
+}
+
+$('#homeBtn').onclick=returnToIndexFast;
 $('#profileBtn').onclick=openProfilePopup;
 $('#closeProfilePopup').onclick=(ev)=>{ev.preventDefault();ev.stopPropagation();closeProfilePopup();};
 $('#cancelProfile').onclick=(ev)=>{ev.preventDefault();ev.stopPropagation();closeProfilePopup();};
@@ -11042,7 +11052,7 @@ $('#matchReadDelete').onclick=async()=>{
 $('#matchLibrarySearch').oninput=renderMatchLibrary;
 $('#matchLibraryGroup').onchange=renderMatchLibrary;
 $('#matchLibraryType').onchange=renderMatchLibrary;
-$('#trainingBackHome').onclick=()=>{window.location.href='index.html'};
+$('#trainingBackHome').onclick=returnToIndexFast;
 
 $('#groupsBackHome').onclick=showAppHome;
 $('#groupDetailBack').onclick=showAppHome;

@@ -4367,6 +4367,8 @@ async function openPlayerPortal(accesses){
   playerPortalSetView(wanted);syncStandaloneVideoLinks();setCloud('Synchronisé',true);window.scrollTo({top:0,behavior:'instant'});return true
 }
 
+function dismissStartupScreen(){document.getElementById('startupScreen')?.remove()}
+
 async function initAuthenticated(user){
   currentUser=user;
   const pendingInvite=pendingPlayerInviteFromUser(user);
@@ -4382,15 +4384,21 @@ async function initAuthenticated(user){
     setCloud('Accès joueur à compléter',false);
     throw e
   }
-  const accesses=await fetchMyPlayerAccesses();
-  await fetchMyGroups();
-  await refreshMessageNotifications('coach').catch(e=>handleError('message notifications',e));
-  await refreshVideoNotifications().catch(e=>handleError('video notifications',e));
+  const [accesses]=await Promise.all([fetchMyPlayerAccesses(),fetchMyGroups()]);
   if(accesses.length&&(invitedPlayerFlow||!groupState.groups.length)){await openPlayerPortal(accesses);return}
   $('#appHome').classList.remove('hidden');$('#trainingHome').classList.add('hidden');$('#groupsHome').classList.add('hidden');$('#groupDetail').classList.add('hidden');$('#trainingSession').classList.add('hidden');$('#trainingHistory').classList.add('hidden');$('#homeBtn').classList.remove('hidden');$('#profileBtn').classList.remove('hidden');$('#playerSpaceBtn').classList.toggle('hidden',!accesses.length);$('#newMatchTop').classList.add('hidden');
-  await ensureWorkspace();await ensureMyProfile();await refreshAdminAccess();await fetchMyGroups();
   const returnParams=new URLSearchParams(location.search||'');
   const staffGroup=returnParams.get('staff_group'),staffPlayer=returnParams.get('staff_player');
+  // L'accueil est utilisable dès que session + accès + groupes sont connus.
+  if(!(staffGroup&&staffPlayer))dismissStartupScreen();
+  // Données secondaires : chargement en parallèle, sans bloquer l'affichage de l'accueil.
+  Promise.allSettled([
+    ensureWorkspace(),
+    ensureMyProfile(),
+    refreshAdminAccess(),
+    refreshMessageNotifications('coach'),
+    refreshVideoNotifications()
+  ]).then(results=>results.forEach((r,i)=>{if(r.status==='rejected')console.warn('background init '+i,r.reason)}));
   if(staffGroup&&staffPlayer&&groupState.groups.some(g=>g.id===staffGroup)){
     groupState.currentGroupId=staffGroup;
     await openGroupDetail(staffGroup);
@@ -4399,6 +4407,7 @@ async function initAuthenticated(user){
       history.replaceState(null,'',location.pathname+'#player-home');
     }
   }
+  dismissStartupScreen();
 }
 
 async function initAuth(){
@@ -5091,6 +5100,7 @@ window.scrollTo({top:0,behavior:'instant'});
 
 async function start(){
   try{
+    if(!state.workspaceId)await ensureWorkspace();
     setCloud('Enregistrement…',true);
     state.matchName=$('#matchName').value.trim()||'Match';
     state.matchTypeId=$('#matchType').value||null;

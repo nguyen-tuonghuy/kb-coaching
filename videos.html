@@ -311,32 +311,12 @@ const escapeHtml=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;'
 const params=new URLSearchParams(location.search);
 
 function returnFromVideoToHome(){
-  const diag={
-    page:'videos',
-    at:new Date().toISOString(),
-    stateUser:!!state.user,
-    stateSession:!!state.session,
-    stateAccessToken:!!state.session?.access_token,
-    stateRefreshToken:!!state.session?.refresh_token,
-    localStorageKeys:Object.keys(localStorage).filter(k=>k.startsWith('sb-')),
-    sessionStorageKeys:Object.keys(sessionStorage)
-  };
   try{
-    if(state.session?.access_token&&state.session?.refresh_token){
-      sessionStorage.setItem('kb_video_auth_handoff',JSON.stringify({
-        access_token:state.session.access_token,
-        refresh_token:state.session.refresh_token,
-        saved_at:Date.now()
-      }));
-      diag.handoffPresent=true;
-    }else{
-      diag.handoffPresent=false;
-    }
-    sessionStorage.setItem('kb_auth_diag_from_video',JSON.stringify(diag));
-  }catch(e){
-    // Query parameter still guarantees the diagnostic page is shown even if storage fails.
-  }
-  location.href='./?authdiag=1';
+    const ref=document.referrer?new URL(document.referrer):null;
+    const fromIndex=ref&&ref.origin===location.origin&&(/\/index\.html$/.test(ref.pathname)||/\/$/.test(ref.pathname));
+    if(fromIndex&&history.length>1){history.back();return}
+  }catch{}
+  location.href='./';
 }
 function returnFromVideoToDashboard(){
   if(state?.isCoach && state.groupId){
