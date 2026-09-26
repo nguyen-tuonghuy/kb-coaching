@@ -6,31 +6,31 @@
 <title>Kinball Coach · Mes statistiques</title>
 <style>
 :root{
-  --bg:#0f1217;--panel:#171c24;--panel2:#1d232d;--line:#303845;--text:#f4f6f8;--muted:#9aa5b4;
-  --primary:#3478f6;--good:#5ac98b;--bad:#ff7a7a;--warn:#f3c65f
+  --bg:#eef2f6;--panel:#ffffff;--panel2:#f4f7fa;--line:#d4dce7;--text:#172033;--muted:#65738a;
+  --primary:#3478f6;--good:#218a50;--bad:#bd4141;--warn:#b47a14
 }
 *{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-button,input,select{font:inherit}button,a.button{border:1px solid var(--line);border-radius:12px;background:#171c24;color:var(--text);padding:10px 13px;text-decoration:none;cursor:pointer}
+button,input,select{font:inherit}button,a.button{border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--text);padding:10px 13px;text-decoration:none;cursor:pointer}
 button:hover,a.button:hover{border-color:#587197}.hidden{display:none!important}.small{font-size:12px;color:var(--muted);line-height:1.45}.analysisSubtle{font-size:11px;color:var(--muted)}
 .shell{max-width:1180px;margin:0 auto;padding:18px}.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.brand{font-size:22px;font-weight:800}.topActions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.status{display:inline-flex;align-items:center;gap:7px;border-radius:999px;background:#1e2530;padding:8px 11px;font-size:13px}.dot{width:9px;height:9px;border-radius:50%;background:#4ed28b}
+.status{display:inline-flex;align-items:center;gap:7px;border-radius:999px;background:#e9eef5;padding:8px 11px;font-size:13px}.dot{width:9px;height:9px;border-radius:50%;background:#4ed28b}
 .panel{border:1px solid var(--line);border-radius:20px;background:var(--panel);padding:16px}.nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
-.nav a{border:1px solid var(--line);border-radius:12px;padding:10px 13px;color:var(--text);text-decoration:none;font-weight:700}.nav a.active{border-color:#fff;background:#212833}
+.nav a{border:1px solid var(--line);border-radius:12px;padding:10px 13px;color:var(--text);text-decoration:none;font-weight:700}.nav a.active{border-color:#fff;background:#e8eef8}
 .header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}.header h1{margin:3px 0 2px;font-size:25px}
-.field{display:grid;gap:5px}.field label{font-size:12px;color:var(--muted)}select{width:100%;border:1px solid var(--line);border-radius:11px;background:#121720;color:var(--text);padding:10px}
+.field{display:grid;gap:5px}.field label{font-size:12px;color:var(--muted)}select{width:100%;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--text);padding:10px}
 .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:14px 0}.matches{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-bottom:12px}
-.matchItem{border:1px solid var(--line);border-radius:12px;padding:10px;background:#181d25;display:flex;gap:9px;align-items:flex-start}.matchItem.checked{border-color:#65769a}.matchItem input{margin-top:3px}.matchItem span{display:grid;gap:2px}
+.matchItem{border:1px solid var(--line);border-radius:12px;padding:10px;background:#f8fafc;display:flex;gap:9px;align-items:flex-start}.matchItem.checked{border-color:#65769a}.matchItem input{margin-top:3px}.matchItem span{display:grid;gap:2px}
 .tabs{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0 12px}.tabs button.active{background:var(--primary);border-color:var(--primary);color:#fff}
 .statsEmpty{border:1px dashed var(--line);border-radius:14px;padding:18px;color:var(--muted);text-align:center}
 .sheet{display:grid;gap:14px}.sheet h3{margin:2px 0 0;font-size:22px}.sheetHeader{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
 .counts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.count{border:1px solid var(--line);border-radius:14px;padding:13px;background:var(--panel2);display:grid;gap:4px}.count span{font-size:12px;color:var(--muted)}.count strong{font-size:24px}
-.reliability{font-size:11px!important;font-weight:700}.warning{border:1px solid #66592f;border-radius:13px;background:#252213;padding:12px;color:#e9dca5;font-size:12px;line-height:1.5}.warning.critical{border-color:#6a3939;background:#281a1d;color:#ffd0d0}
-.takeaways{border:1px solid var(--line);border-radius:14px;background:#151b24;padding:13px;display:grid;gap:8px}.takeaways h4{margin:0}.takeaway{display:flex;gap:8px;align-items:flex-start}.takeawayDot{width:7px;height:7px;border-radius:50%;background:var(--primary);margin-top:7px;flex:none}
+.reliability{font-size:11px!important;font-weight:700}.warning{border:1px solid #66592f;border-radius:13px;background:#fff7df;padding:12px;color:#75560b;font-size:12px;line-height:1.5}.warning.critical{border-color:#6a3939;background:#fff0f0;color:#8d2929}
+.takeaways{border:1px solid var(--line);border-radius:14px;background:#f8fafc;padding:13px;display:grid;gap:8px}.takeaways h4{margin:0}.takeaway{display:flex;gap:8px;align-items:flex-start}.takeawayDot{width:7px;height:7px;border-radius:50%;background:var(--primary);margin-top:7px;flex:none}
 .mainMetrics,.secondaryMetrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.metric,.secondary{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--panel2);display:grid;gap:5px}.metric span,.secondary span{font-size:12px;color:var(--muted)}.metric strong{font-size:30px}.secondary strong{font-size:25px}.metric small,.secondary small{color:var(--muted);line-height:1.45}
 .positive{color:#7ce2a9}.negative{color:#ff9696}.neutral{color:var(--text)}.benchmark{padding:0 2px}
-details{border:1px solid var(--line);border-radius:14px;background:#151b24;padding:0 13px}summary{cursor:pointer;padding:12px 0;font-weight:800}.explain{padding:0 0 13px;color:#c7cfda;line-height:1.55}.formula{border-left:3px solid var(--primary);padding:8px 10px;margin:8px 0;background:#121720;border-radius:8px}
+details{border:1px solid var(--line);border-radius:14px;background:#f8fafc;padding:0 13px}summary{cursor:pointer;padding:12px 0;font-weight:800}.explain{padding:0 0 13px;color:#c7cfda;line-height:1.55}.formula{border-left:3px solid var(--primary);padding:8px 10px;margin:8px 0;background:#fff;border-radius:8px}
 .tableWrap{overflow:auto;padding-bottom:12px}.table{width:100%;border-collapse:collapse;min-width:760px}.table th,.table td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.table th{font-size:11px;color:var(--muted)}
-.opponentBlock{border:1px solid var(--line);border-radius:14px;background:#151b24;padding:13px}
+.opponentBlock{border:1px solid var(--line);border-radius:14px;background:#f8fafc;padding:13px}
 .opponentBlock h4{margin:0 0 4px;font-size:17px}
 .opponentToggle{cursor:pointer;user-select:none;display:flex;align-items:center;gap:7px}
 .opponentToggle .chev{display:inline-block;transition:transform .15s ease}
@@ -47,6 +47,10 @@ details{border:1px solid var(--line);border-radius:14px;background:#151b24;paddi
 .startupScreen{position:fixed;inset:0;z-index:99999;background:#0f1217;color:#f4f6f8;display:flex;align-items:center;justify-content:center;padding:24px;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 .startupScreenInner{text-align:center}.startupScreenBrand{font-size:24px;font-weight:800;margin-bottom:8px}.startupScreenText{font-size:13px;color:#9aa5b4}
 
+
+.nav a.backNav{background:#e6edf7;border-color:#b9c8dc;color:#23436e}
+@media(max-width:760px){.shell{padding:10px}.panel{padding:12px}.matches{grid-template-columns:repeat(2,minmax(0,1fr))}.nav{overflow-x:auto;flex-wrap:nowrap}.nav a{white-space:nowrap}}
+@media(max-width:520px){.matches{grid-template-columns:1fr}.counts,.mainMetrics,.secondaryMetrics{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -282,7 +286,7 @@ async function loadGroup(groupId){
   renderMatches();
   $('#content').innerHTML=sheet(data,data?.details||[])+opponentHtml(opponentsRes.data||[]);bindOpponentBreakdowns();
   const q=state.isCoach?`?group=${encodeURIComponent(state.groupId)}&player=${encodeURIComponent(state.playerId)}`:`?group=${encodeURIComponent(state.groupId)}`;
-  $('#videosLink').href='videos.html'+q
+  const videosLink=$('#videosLink');if(videosLink)videosLink.href='videos.html'+q
 }
 async function init(){
   const {data:{session}}=await db.auth.getSession();if(!session?.user){location.href='index.html';return}state.user=session.user;$('#cloudText').textContent='Synchronisé';
@@ -296,7 +300,7 @@ async function init(){
     const chosen=(requestedGroup&&state.accesses.find(a=>a.group_id===requestedGroup))||state.accesses[0];state.groupId=chosen.group_id;state.playerId=chosen.player_id;state.playerName=chosen.player_name||'';state.groupName=chosen.group_name||'';
     if(state.accesses.length>1){$('#groupField').classList.remove('hidden');$('#groupSelect').innerHTML=state.accesses.map(a=>`<option value="${esc(a.group_id)}">${esc(a.group_name)} · ${esc(a.player_name)}</option>`).join('');$('#groupSelect').value=state.groupId;$('#groupSelect').onchange=()=>loadGroup($('#groupSelect').value).catch(showError)}
   }
-  if(state.isCoach){$('#nav').innerHTML=`<a href="index.html" id="statsHomeLink">Accueil entraîneur</a><a href="player-stats.html?group=${encodeURIComponent(state.groupId)}&player=${encodeURIComponent(state.playerId)}" class="active">Statistiques · ${esc(state.playerName)}</a><a href="videos.html?group=${encodeURIComponent(state.groupId)}&player=${encodeURIComponent(state.playerId)}">Vidéos</a>`}
+  if(state.isCoach){const back=`index.html?staff_group=${encodeURIComponent(state.groupId)}&staff_player=${encodeURIComponent(state.playerId)}#player-home`;$('#nav').innerHTML=`<a href="${back}" id="statsBackPlayer" class="backNav">← ${esc(state.playerName)}</a><a href="index.html">Accueil entraîneur</a><a href="player-stats.html?group=${encodeURIComponent(state.groupId)}&player=${encodeURIComponent(state.playerId)}" class="active">Statistiques · ${esc(state.playerName)}</a><a href="videos.html?group=${encodeURIComponent(state.groupId)}&player=${encodeURIComponent(state.playerId)}" id="videosLink">Vidéos</a>`}
   await loadGroup(state.groupId)
 }
 $('#selectAll').onclick=()=>{state.selected=state.matches.map(m=>m.id);renderMatches();render().catch(showError)};
