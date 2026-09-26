@@ -4481,13 +4481,15 @@ async function initAuthenticated(user){
   }
   const accesses=await fetchMyPlayerAccesses();
   await fetchMyGroups();
-  await refreshMessageNotifications('coach').catch(e=>handleError('message notifications',e));
-  await refreshVideoNotifications().catch(e=>handleError('video notifications',e));
+  await Promise.all([
+    refreshMessageNotifications('coach').catch(e=>handleError('message notifications',e)),
+    refreshVideoNotifications().catch(e=>handleError('video notifications',e))
+  ]);
   if(accesses.length&&(invitedPlayerFlow||!groupState.groups.length)){await openPlayerPortal(accesses);return}
   // Page dédiée Entraînements : ne jamais afficher l'accueil général, même brièvement.
   $('#appHome').classList.add('hidden');$('#trainingHome').classList.remove('hidden');$('#groupsHome').classList.add('hidden');$('#groupDetail').classList.add('hidden');$('#trainingSession').classList.add('hidden');$('#trainingHistory').classList.add('hidden');$('#homeBtn').classList.remove('hidden');$('#profileBtn').classList.remove('hidden');$('#playerSpaceBtn').classList.toggle('hidden',!accesses.length);$('#newMatchTop').classList.add('hidden');
   if($('#trainingSavedSeasons')) $('#trainingSavedSeasons').innerHTML='<div class="small">Chargement des séances…</div>';
-  await ensureWorkspace();await ensureMyProfile();await refreshAdminAccess();await fetchMyGroups();
+  await ensureWorkspace();await ensureMyProfile();await refreshAdminAccess();
   await openTrainingModule();
 }
 
@@ -8320,12 +8322,12 @@ async function fetchTrainingPlayers(groupId=null){
   trainingState.players=gid?await fetchGroupPlayers(gid):[];
   renderTrainingAttendance();renderHistoryPlayers();
 }
-async function fetchTrainingExercises(){
+async function fetchTrainingExercises({withProfiles=true}={}){
   await fetchExerciseCategories();
   const {data,error}=await db.from('exercises').select('id,name,category,category_id,copied_from_exercise_id,measurement_type,description,objective,attack_instruction,defense_instruction,created_by,created_at,updated_by,updated_at,active').order('name');
   if(error) throw error;
   trainingState.exercises=data||[];
-  await fetchProfiles(trainingState.exercises.flatMap(ex=>[ex.created_by,ex.updated_by]));
+  if(withProfiles)await fetchProfiles(trainingState.exercises.flatMap(ex=>[ex.created_by,ex.updated_by]));
   const sel=$('#trainingExerciseSelect');
   sel.innerHTML='<option value="">— Choisir —</option>';
   trainingState.exercises.filter(ex=>ex.active).forEach(ex=>{
@@ -8335,12 +8337,26 @@ async function fetchTrainingExercises(){
 }
 async function openTrainingModule(){
   try{
-    await fetchMyGroups();
+    // Afficher immédiatement la page : les données arrivent ensuite sans bloquer le clic.
     hideMainModules();
     setMatchHeaderMode(false);$('#trainingHome').classList.remove('hidden');
-    await Promise.all([fetchTrainingExercises(),fetchRecentTrainingSessions()]);
-    renderTrainingSavedHome();
+    if($('#trainingSavedSeasons'))$('#trainingSavedSeasons').innerHTML='<div class="small">Chargement des séances…</div>';
     window.scrollTo({top:0,behavior:'instant'});
+
+    // Les groupes sont déjà chargés à l'authentification dans le cas normal.
+    if(!groupState.groups.length)await fetchMyGroups();
+
+    // Exercices et séances sont indépendants : chargement en parallèle.
+    // Les profils d'auteurs sont mutualisés en une seule requête.
+    await Promise.all([
+      fetchTrainingExercises({withProfiles:false}),
+      fetchRecentTrainingSessions({withProfiles:false})
+    ]);
+    await fetchProfiles([
+      ...trainingState.exercises.flatMap(ex=>[ex.created_by,ex.updated_by]),
+      ...trainingState.recentSessions.flatMap(sess=>[sess.created_by,sess.updated_by])
+    ]);
+    renderTrainingSavedHome();
   }catch(e){handleError('openTrainingModule',e)}
 }
 function renderTrainingAttendance(){
@@ -9084,7 +9100,7 @@ async function createExerciseFromPopup(){
 }
 
 
-async function fetchRecentTrainingSessions(){
+async function fetchRecentTrainingSessions({withProfiles=true}={}){
   const ids=groupState.groups.map(g=>g.id);
   if(!ids.length){trainingState.recentSessions=[];return}
   const {data,error}=await db.from('training_sessions')
@@ -9094,7 +9110,7 @@ async function fetchRecentTrainingSessions(){
     .limit(200);
   if(error) throw error;
   trainingState.recentSessions=data||[];
-  await fetchProfiles(trainingState.recentSessions.flatMap(x=>[x.created_by,x.updated_by]));
+  if(withProfiles)await fetchProfiles(trainingState.recentSessions.flatMap(x=>[x.created_by,x.updated_by]));
 }
 
 function trainingSeasonLabel(dateValue){
