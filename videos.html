@@ -599,12 +599,13 @@ function closeVideo(){
 /* Annotations */
 function setAnnotationMode(enabled){
   state.annotationMode=!!enabled && !!state.isCoach;
-  const overlay=$('#overlay'),button=$('#annotationModeBtn'),video=$('#video');
+  const overlay=$('#overlay'),button=$('#annotationModeBtn'),video=$('#video'),composer=$('#composer');
   if(overlay){overlay.style.pointerEvents=state.annotationMode?'auto':'none';overlay.style.touchAction=state.annotationMode?'none':'auto';overlay.classList.toggle('annotationActive',state.annotationMode)}
   if(button){
     button.classList.toggle('active',state.annotationMode);
     button.textContent=state.annotationMode?'✓ Annotation active':'✏️ Annoter / dessiner';
   }
+  if(composer)composer.classList.toggle('hidden',!state.annotationMode);
   if(state.annotationMode)video?.pause();
   if(!state.annotationMode){
     state.activeShape=null;
@@ -663,7 +664,7 @@ function captureComposite(){
 async function loadNotes(videoId){
   state.shapes=[];drawOverlay();resetDraft();
   const item=state.videos.find(v=>v.id===videoId),list=$('#noteList');
-  $('#composer').classList.toggle('hidden',!state.isCoach);
+  $('#composer').classList.add('hidden');
   $('#annotationModeBtn').classList.toggle('hidden',!state.isCoach);
   setAnnotationMode(false);
   $('#playerAnnotationInfo').classList.toggle('hidden',state.isCoach);
