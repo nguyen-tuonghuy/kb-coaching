@@ -6,8 +6,9 @@
 <title>Kinball Coach · Entraînements</title>
 <style>
 :root{
- --bg:#0f1115;--panel:#171a21;--panel2:#20242d;--text:#f5f7fa;--muted:#aab1bc;
- --accent:#3d7bfd;--good:#218a50;--bad:#bd4141;--warn:#d29a29;--line:#2e3440;
+ --bg:#F3F6FA;--panel:#FFFFFF;--panel2:#F7F9FC;--text:#172033;--muted:#53657A;
+ --accent:#2563EB;--primary:#2563EB;--good:#18794E;--bad:#B42318;--warn:#B45309;--line:#CBD5E1;
+ --nav:#0F172A;--nav2:#1E293B;--navLine:#334155;--focus:#93C5FD;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:16px system-ui,-apple-system,Segoe UI,sans-serif}
@@ -1973,6 +1974,108 @@ button.playerPortalHomeCard:hover,a.playerPortalHomeCard:hover{border-color:var(
 .startupScreen{position:fixed;inset:0;z-index:99999;background:#0f1217;color:#f4f6f8;display:flex;align-items:center;justify-content:center;padding:24px;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 .startupScreenInner{text-align:center}.startupScreenBrand{font-size:24px;font-weight:800;margin-bottom:8px}.startupScreenText{font-size:13px;color:#9aa5b4}
 
+
+/* KC UX BATCH 2026-09-26 — accessible light surfaces + dark navigation */
+html{background:var(--bg)}
+body{background:var(--bg);color:var(--text)}
+.panel{background:var(--panel);border-color:var(--line);box-shadow:0 1px 2px rgba(15,23,42,.04)}
+input,select,textarea{background:#fff!important;color:var(--text)!important;border-color:var(--line)!important}
+button{color:var(--text)}
+button.primary,.primary,.on,.tab.active{background:var(--accent)!important;color:#fff!important}
+.good{background:var(--good)!important;color:#fff!important}
+.bad{background:var(--bad)!important;color:#fff!important}
+.warn{background:var(--warn)!important;color:#fff!important}
+.ghost{background:#fff;color:var(--text);border-color:var(--line)}
+.ghost:hover{background:#EEF3F8;border-color:#AAB8CA}
+.ghost.backNav{background:#E8F0FE!important;border-color:#B7CAF4!important;color:#1E478F!important}
+.ghost.backNav:hover{background:#DDE9FC!important;border-color:#9DB6EA!important}
+
+.top{
+  background:var(--nav);color:#F8FAFC;padding:10px 12px;border-radius:16px;
+  box-shadow:0 6px 18px rgba(15,23,42,.12)
+}
+.top .sub,.top .small{color:#CBD5E1}
+.top .badge{background:var(--nav2);color:#F8FAFC;border:1px solid var(--navLine)}
+.top button,.top a.button{
+  background:#111827;color:#F8FAFC;border:1px solid var(--navLine)
+}
+.top button:hover,.top a.button:hover{background:#1E293B;border-color:#475569}
+.top .primary{background:var(--accent)!important;border-color:var(--accent)!important;color:#fff!important}
+
+.sheet{background:var(--panel)!important;color:var(--text)!important}
+.sheetTop{background:var(--panel)!important}
+#popup .popupActionBar,
+#popup.centerDefenseCompact .popupActionBar{
+  background:linear-gradient(to bottom,rgba(255,255,255,.94),#fff 22%)!important
+}
+.actionOutcomeDropdown{
+  background:#fff!important;
+  box-shadow:0 14px 34px rgba(15,23,42,.18)!important
+}
+.quickOutcomeBtn.point{background:#18794E!important;color:#fff!important}
+.quickOutcomeBtn.defended{background:#315B8A!important;color:#fff!important}
+.quickOutcomeBtn.fault{background:#A83A3A!important;color:#fff!important}
+.quickOutcomeBtn.illegal{background:#9A5B16!important;color:#fff!important}
+
+.resultRow,
+.playerPortalMessageBubble,
+.playerObjectiveItem,
+.playerVideoCard,
+.staffRecentMessage,
+.statsImpactPlayerExplainerFormula,
+.trainingSavedSession{
+  background:#F8FAFC!important;color:var(--text)!important;border:1px solid var(--line)!important
+}
+.playerPortalMessageRow.mine .playerPortalMessageBubble{
+  background:#DBEAFE!important;border-color:#93C5FD!important
+}
+.playerObjectiveItem.completed{background:#F1F5F9!important}
+.playerVideoBadge{background:#E9EEF5!important;color:#41546D!important}
+.playerVideoBadge.new{background:#FEECEC!important;color:#8F241E!important}
+.playerVideoBadge.seen{background:#E8F0FE!important;color:#1E478F!important}
+.playerVideoBadge.reviewed{background:#E7F5EC!important;color:#17633E!important}
+.groupPlayerUnread{background:#FEECEC!important;color:#8F241E!important}
+.playerVideoUploadProgress{background:#E2E8F0!important}
+.playerVideoPlayer{background:#0F172A!important;color:#F8FAFC!important}
+.playerVideoSpeedButton.active{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}
+.trainingSavedSession:hover{background:#EEF3F8!important;border-color:#AAB8CA!important}
+.startupScreen{background:var(--nav)!important;color:#F8FAFC!important}
+.startupScreenText{color:#CBD5E1!important}
+
+/* Accordion groupes : l'ouverture révèle directement la fiche, sans second clic */
+.groupAccordion{border:1px solid var(--line);border-radius:14px;background:var(--panel2);margin-bottom:9px;overflow:hidden}
+.groupAccordion>summary{background:#F8FAFC}
+.groupAccordion[open]>summary{background:#EEF4FD}
+.groupAccordionBody{background:#fff;padding:0 16px 14px;border-top:1px solid var(--line)}
+.groupAccordionLoading{padding-top:14px}
+#groupDetail.groupDetailEmbedded{
+  margin:0;padding:14px 0 0;border:0;box-shadow:none;background:transparent
+}
+#groupDetail.groupDetailEmbedded #groupDetailName,
+#groupDetail.groupDetailEmbedded #groupDetailClub,
+#groupDetail.groupDetailEmbedded #groupDetailCreateGroup,
+#groupDetail.groupDetailEmbedded #groupDetailBack{display:none!important}
+
+/* Lisibilité des statuts / cartes */
+.messageUnreadBadge,.videoUnreadBadge{color:#fff!important}
+.statsEmpty{color:var(--muted)}
+@media(max-width:760px){
+  .top{border-radius:14px;padding:9px 10px}
+}
+
+/* KC UX BATCH — legacy dark surfaces normalized */
+#popup.fieldMode .popupActionBar{
+  background:linear-gradient(to top,#fff 78%,rgba(255,255,255,.94))!important
+}
+.statsImpactCoachMessage,
+.playerPortalReadOnlyMessage,
+.playerPortalVolumeBadge,
+.coachMessageHistoryItem{
+  background:#F8FAFC!important;color:var(--text)!important;border-color:var(--line)!important
+}
+.statsImpactOpponentMatchRow td{background:#F1F5F9!important}
+.statsImpactVolumeWarning strong{color:#7A4A08!important}
+.statsImpactVolumeWarning.critical strong{color:#8F241E!important}
 </style>
 </head>
 <body>
@@ -6648,6 +6751,8 @@ async function fetchGroupPlayers(groupId){
 }
 async function openGroupsModule(){
   // Afficher immédiatement le module : le clic ne dépend plus d'un chargement réseau.
+  restoreGroupDetailStandalone();
+  groupState.currentGroupId=null;
   hideMainModules();
   setMatchHeaderMode(false);
   $('#groupsHome').classList.remove('hidden');
@@ -6655,28 +6760,49 @@ async function openGroupsModule(){
   try{
     await fetchMyGroups();
     renderGroupsList();
-    if(groupState.groups.length){
-      const target=groupState.groups.find(g=>g.id===groupState.currentGroupId)||groupState.groups[0];
-      await openGroupDetail(target.id);
-    }
   }catch(e){
     handleError('openGroupsModule',e);
     renderGroupsList();
   }
 }
+function restoreGroupDetailStandalone(){
+  const detail=$('#groupDetail');
+  const groupsHome=$('#groupsHome');
+  if(!detail)return;
+  if(groupsHome?.contains(detail))groupsHome.after(detail);
+  detail.classList.remove('groupDetailEmbedded');
+  detail.classList.add('hidden');
+}
 function renderGroupsList(){
-  const box=$('#groupsList');if(!box)return;box.innerHTML='';
+  const box=$('#groupsList');if(!box)return;
+  restoreGroupDetailStandalone();
+  box.innerHTML='';
   if(!groupState.groups.length){
     box.innerHTML='<div class="small">Tu n’es encore entraîneur d’aucun groupe. Crée-en un ou rejoins-en un avec son code.</div>';return;
   }
+  const single=groupState.groups.length===1;
   groupState.groups.forEach(g=>{
-    const d=document.createElement('button');d.className='historyItem';d.style='width:100%;text-align:left;margin-bottom:8px';
-    d.innerHTML=`<strong>${escapeHtml(g.name)}</strong><div class="small">${escapeHtml(g.club||'Club non renseigné')} · ${g.role==='owner'?'Créateur':'Entraîneur'}</div>`;
-    d.onclick=()=>openGroupDetail(g.id);
-    box.append(d);
+    const d=document.createElement('details');d.className='groupAccordion';
+    const summary=document.createElement('summary');
+    summary.innerHTML=`<span><span>${escapeHtml(g.name)}</span><div class="groupAccordionMeta">${escapeHtml(g.club||'Club non renseigné')} · ${g.role==='owner'?'Créateur':'Entraîneur'}</div></span>`;
+    const body=document.createElement('div');body.className='groupAccordionBody';
+    body.innerHTML='<div class="groupAccordionLoading small">Chargement du groupe…</div>';
+    d.addEventListener('toggle',()=>{
+      if(!d.open){
+        if(groupState.currentGroupId===g.id){
+          restoreGroupDetailStandalone();
+          groupState.currentGroupId=null;
+        }
+        return;
+      }
+      box.querySelectorAll('.groupAccordion[open]').forEach(other=>{if(other!==d)other.open=false});
+      openGroupDetail(g.id,{inlineBody:body}).catch(e=>handleError('openGroupDetail',e));
+    });
+    d.append(summary,body);box.append(d);
+    if(single)d.open=true;
   });
 }
-async function openGroupDetail(groupId){
+async function openGroupDetail(groupId,{inlineBody=null}={}){
   try{
     let g=groupState.groups.find(x=>x.id===groupId);
     if(!g){
@@ -6685,11 +6811,21 @@ async function openGroupDetail(groupId){
     }
     if(!g)return;
 
-    // Basculer tout de suite sur la fiche du groupe, puis charger son contenu.
+    // Dans la liste des groupes, le contenu complet est directement celui de l’accordéon.
+    // Les autres appels conservent la vue autonome historique.
     groupState.currentGroupId=groupId;
-    hideMainModules();
     setMatchHeaderMode(false);
-    $('#groupDetail').classList.remove('hidden');
+    const detail=$('#groupDetail');
+    if(inlineBody){
+      inlineBody.querySelector('.groupAccordionLoading')?.remove();
+      inlineBody.append(detail);
+      detail.classList.add('groupDetailEmbedded');
+      detail.classList.remove('hidden');
+    }else{
+      restoreGroupDetailStandalone();
+      hideMainModules();
+      detail.classList.remove('hidden');
+    }
     $('#groupDetailName').textContent=g.name;
     $('#groupDetailClub').textContent=g.club||'';
     $('#groupInviteCode').textContent=g.invite_code||'—';
@@ -6697,7 +6833,7 @@ async function openGroupDetail(groupId){
     $('#groupNameEditRow').classList.add('hidden');
     $('#groupNameEditInput').value=g.name||'';
     $('#groupNameEditStatus').textContent='Chargement…';
-    window.scrollTo({top:0,behavior:'instant'});
+    if(!inlineBody)window.scrollTo({top:0,behavior:'instant'});
 
     groupState.currentPlayers=await fetchGroupPlayers(groupId);
     const {data:playerAccessRows,error:playerAccessError}=await db.rpc('get_coaching_group_player_access',{p_group_id:groupId});

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Kinball Coach — Face-à-face</title>
 <style>
-:root{--bg:#0f1115;--panel:#171a21;--panel2:#20242d;--text:#f5f7fa;--muted:#aab1bc;--accent:#3d7bfd;--good:#58d68d;--bad:#ff7b7b;--warn:#e2b84b;--line:#2e3440}
+:root{--bg:#F3F6FA;--panel:#FFFFFF;--panel2:#F7F9FC;--text:#172033;--muted:#53657A;--accent:#2563EB;--primary:#2563EB;--good:#18794E;--bad:#B42318;--warn:#B45309;--line:#CBD5E1;--nav:#0F172A;--nav2:#1E293B;--navLine:#334155}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:15px system-ui,-apple-system,Segoe UI,sans-serif}
 .app{max-width:1050px;margin:auto;padding:14px 14px 40px}
@@ -48,6 +48,19 @@ button{border:0;border-radius:12px;padding:11px 13px;background:var(--panel2);co
   .contextHead{display:block}.reference{text-align:left;margin-top:4px}
   .helpGrid{grid-template-columns:1fr}
 }
+
+/* KC UX BATCH 2026-09-26 */
+body{background:var(--bg);color:var(--text)}
+.panel{background:#fff;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+select{background:#fff!important;color:var(--text)!important;border-color:var(--line)!important}
+button{background:#fff;color:var(--text);border:1px solid var(--line)}
+button:hover{background:#EEF3F8;border-color:#AAB8CA}.primary{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}
+.ghost{background:#fff;color:var(--text)}
+.app>.row:first-child{background:var(--nav);color:#F8FAFC;padding:10px 12px;border-radius:16px;box-shadow:0 6px 18px rgba(15,23,42,.12)}
+.app>.row:first-child .small{color:#CBD5E1}.app>.row:first-child button{background:#111827;color:#F8FAFC;border-color:#334155}
+.status,.faceoffTitle,.helpItem{background:#F8FAFC}.context{background:#F8FAFC}.formula{background:#EEF3F8;color:var(--text)}
+.good{color:#18794E!important}.bad{color:#B42318!important}.sampleWarn{color:#7A4A08!important}
+.helpModal{background:#fff;color:var(--text)}
 </style>
 </head>
 <body>
