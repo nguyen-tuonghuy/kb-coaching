@@ -2076,6 +2076,36 @@ button.primary,.primary,.on,.tab.active{background:var(--accent)!important;color
 .statsImpactOpponentMatchRow td{background:#F1F5F9!important}
 .statsImpactVolumeWarning strong{color:#7A4A08!important}
 .statsImpactVolumeWarning.critical strong{color:#8F241E!important}
+
+
+/* KC UX BATCH 2 2026-09-26 — light chrome, neutral home cards */
+.top{
+  background:#FFFFFF!important;color:var(--text)!important;border:1px solid var(--line)!important;
+  box-shadow:0 1px 3px rgba(15,23,42,.06)!important
+}
+.top .sub,.top .small{color:var(--muted)!important}
+.top .badge{background:#ECFDF3!important;color:#17633E!important;border:1px solid #B7E4C7!important}
+.top button,.top a.button{background:#FFFFFF!important;color:var(--text)!important;border:1px solid var(--line)!important}
+.top button:hover,.top a.button:hover{background:#F8FAFC!important;border-color:#94A3B8!important}
+.top .primary{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}
+.moduleCard{background:#FFFFFF!important;color:var(--text)!important}
+.moduleCard span{color:var(--muted)!important}
+.moduleCard:hover{background:#F8FAFC!important;border-color:#94A3B8!important;box-shadow:0 2px 7px rgba(15,23,42,.06)}
+.startupScreen{background:var(--bg)!important;color:var(--text)!important}
+.startupScreenInner{background:#FFFFFF;border:1px solid var(--line);border-radius:18px;padding:24px 28px;box-shadow:0 12px 34px rgba(15,23,42,.10)}
+.startupScreenText{color:var(--muted)!important}
+.playerVideoPlayer{background:#FFFFFF!important;color:var(--text)!important;border-color:var(--line)!important}
+.playerVideoPlayerHeader,.playerVideoAdvancedControls{color:var(--text)!important}
+.playerVideoTimeDisplay,.playerVideoHint{color:var(--muted)!important}
+
+.trainingPlan{background:#FFFFFF!important;border-color:var(--line)!important;box-shadow:0 1px 3px rgba(15,23,42,.05)}
+.trainingPlanBlock{background:#F8FAFC!important;border-color:var(--line)!important}
+.trainingPlanStatBox,.trainingDraftCard{background:#FFFFFF!important;border-color:var(--line)!important}
+.trainingDraftList{background:#FBFDFF!important}
+.trainingPlanMetaTag.stats{color:#1D4ED8!important;border-color:#93C5FD!important;background:#EFF6FF!important}
+.trainingTimelineTime{color:var(--text)!important}
+.trainingPlanStartField input,.trainingPlanNotes textarea,.trainingGeneralNotes{background:#FFFFFF!important;color:var(--text)!important}
+
 </style>
 </head>
 <body>
@@ -2141,7 +2171,7 @@ button.primary,.primary,.on,.tab.active{background:var(--accent)!important;color
    <h2 style="font-size:20px;margin-bottom:6px">Que veux-tu faire ?</h2>
    <p class="small" style="margin-bottom:14px">Choisis le module à utiliser.</p>
    <div class="moduleGrid">
-    <button class="moduleCard primary" id="openMatchModule"><strong>🏐 Matchs</strong><span>Prise de notes et statistiques partagées du groupe</span></button>
+    <button class="moduleCard" id="openMatchModule"><strong>🏐 Matchs</strong><span>Prise de notes et statistiques partagées du groupe</span></button>
     <button class="moduleCard" id="openTrainingModule"><strong>🎯 Entraînements</strong><span>Séances, exercices, résultats et progression des joueurs</span></button>
     <button class="moduleCard" id="openStatsModule"><strong>📊 Statistiques</strong><span>Entraînements, matchs, performance joueurs et référentiel offensif</span></button>
     <button class="moduleCard" id="openVideosDashboardModule"><strong>🎥 Vidéos <span class="videoUnreadBadge hidden" id="homeVideoUnreadBadge">0</span></strong><span>Vidéos déposées par les joueurs et analyse vidéo</span></button>
