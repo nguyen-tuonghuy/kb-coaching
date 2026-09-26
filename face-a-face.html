@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Kinball Coach — Face-à-face</title>
 <style>
-:root{--bg:#F3F6FA;--panel:#FFFFFF;--panel2:#F7F9FC;--text:#172033;--muted:#53657A;--accent:#2563EB;--primary:#2563EB;--good:#18794E;--bad:#B42318;--warn:#B45309;--line:#CBD5E1;--nav:#0F172A;--nav2:#1E293B;--navLine:#334155}
+:root{--bg:#F3F6FA;--panel:#FFFFFF;--panel2:#F7F9FC;--text:#172033;--muted:#53657A;--accent:#2563EB;--primary:#2563EB;--good:#005A9C;--bad:#B54708;--warn:#B45309;--line:#CBD5E1;--nav:#0F172A;--nav2:#1E293B;--navLine:#334155}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:15px system-ui,-apple-system,Segoe UI,sans-serif}
 .app{max-width:1050px;margin:auto;padding:14px 14px 40px}
@@ -32,15 +32,15 @@ button{border:0;border-radius:12px;padding:11px 13px;background:var(--panel2);co
 .context{border:1px solid var(--line);border-radius:14px;padding:10px;background:rgba(255,255,255,.018);margin-top:10px}
 .contextHead{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:8px}
 .contextHead strong{font-size:14px}.reference{text-align:right;font-size:11px;color:var(--muted);line-height:1.35}
-.helpBtn{width:34px;height:34px;min-width:34px;padding:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);background:var(--panel2);font-weight:900;font-size:18px}
-.helpBackdrop{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:15px}
+.helpBtn{width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);background:var(--panel2);font-weight:900;font-size:18px}
+.helpBackdrop{position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.42);display:flex;align-items:center;justify-content:center;padding:15px}
 .hidden{display:none!important}
-.helpModal{width:min(820px,96vw);max-height:90vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px}
+.helpModal{width:min(820px,96vw);max-height:90vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 18px 55px rgba(15,23,42,.18)}
 .helpGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:12px}
 .helpItem{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px}
 .helpItem strong{display:block;margin-bottom:4px}
-.formula{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:rgba(255,255,255,.06);padding:6px 8px;border-radius:8px;margin-top:5px}
-.sampleWarn{color:var(--warn);font-size:11px;font-weight:600}
+.formula{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#EEF3F8;padding:6px 8px;border-radius:8px;margin-top:5px}
+.sampleWarn{color:#7A4A08;font-size:11px;font-weight:700}
 @media(max-width:640px){
   .app{padding:8px 8px 24px}
   .faceoffRow{grid-template-columns:minmax(0,1fr) 92px minmax(0,1fr);padding:8px}
@@ -49,17 +49,17 @@ button{border:0;border-radius:12px;padding:11px 13px;background:var(--panel2);co
   .helpGrid{grid-template-columns:1fr}
 }
 
-/* KC UX BATCH 2026-09-26 */
+/* KC UX FINAL 2026-09-26 */
 body{background:var(--bg);color:var(--text)}
 .panel{background:#fff;box-shadow:0 1px 2px rgba(15,23,42,.04)}
 select{background:#fff!important;color:var(--text)!important;border-color:var(--line)!important}
 button{background:#fff;color:var(--text);border:1px solid var(--line)}
 button:hover{background:#EEF3F8;border-color:#AAB8CA}.primary{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}
 .ghost{background:#fff;color:var(--text)}
-.app>.row:first-child{background:var(--nav);color:#F8FAFC;padding:10px 12px;border-radius:16px;box-shadow:0 6px 18px rgba(15,23,42,.12)}
-.app>.row:first-child .small{color:#CBD5E1}.app>.row:first-child button{background:#111827;color:#F8FAFC;border-color:#334155}
+.app>.row:first-child{background:#fff;color:var(--text);padding:10px 12px;border:1px solid var(--line);border-radius:16px;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+.app>.row:first-child .small{color:var(--muted)}.app>.row:first-child button{background:#E8F0FE;color:#1E478F;border-color:#B7CAF4}
 .status,.faceoffTitle,.helpItem{background:#F8FAFC}.context{background:#F8FAFC}.formula{background:#EEF3F8;color:var(--text)}
-.good{color:#18794E!important}.bad{color:#B42318!important}.sampleWarn{color:#7A4A08!important}
+.good{color:#005A9C!important}.bad{color:#B54708!important}.sampleWarn{color:#7A4A08!important}
 .helpModal{background:#fff;color:var(--text)}
 </style>
 </head>
@@ -117,6 +117,7 @@ const SUPABASE_URL='https://chrbzchthloxowlzdvpe.supabase.co';
 const SUPABASE_KEY='sb_publishable_4pQGJ5DSzMRBuHLrAUb30g_MGZVYvEY';
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=s=>document.querySelector(s);
+const params=new URLSearchParams(location.search||'');
 const OFFENSIVE_CONTEXTS=[
   {key:'game_center',label:'Jeu courant · centre'},
   {key:'restart_center',label:'Remise · centre'},
@@ -170,20 +171,22 @@ function perfDisplay(value,n){
   return n<=15?`${valueHtml}<br><span class="sampleWarn">Échantillon limité</span>`:valueHtml;
 }
 async function fetchGroups(){
-  const {data,error}=await db.from('coaching_group_coaches')
-    .select('group:coaching_groups!coaching_group_coaches_group_id_fkey(id,name)')
-    .eq('user_id',currentUser.id);
-  if(error)throw error;
-  groups=(data||[]).map(x=>x.group).filter(Boolean);
+  const [{data:coachRows,error:coachError},{data:playerRows,error:playerError}]=await Promise.all([
+    db.from('coaching_group_coaches').select('group:coaching_groups!coaching_group_coaches_group_id_fkey(id,name)').eq('user_id',currentUser.id),
+    db.rpc('get_my_player_access')
+  ]);
+  if(coachError)throw coachError;if(playerError)throw playerError;
+  const map=new Map();
+  (coachRows||[]).map(x=>x.group).filter(Boolean).forEach(g=>map.set(g.id,g));
+  (playerRows||[]).filter(x=>x.stats_access==='group').forEach(x=>map.set(x.group_id,{id:x.group_id,name:x.group_name}));
+  groups=[...map.values()];
   $('#groupSelect').innerHTML='<option value="">— Choisir un groupe —</option>'+groups.map(g=>`<option value="${g.id}">${escapeHtml(g.name)}</option>`).join('');
 }
 async function loadReference(pop){
   const counts=emptyCounts();
   let quickCount=0,detailedCount=0;
-
   const {data,error}=await db.rpc('get_global_offensive_reference',{p_population:pop});
   if(error)throw error;
-
   (data||[]).forEach(row=>{
     const n=Number(row.n)||0;
     const context=row.attack_context;
@@ -194,16 +197,10 @@ async function loadReference(pop){
     if(row.source==='quick')quickCount+=n;
     else if(row.source==='detailed')detailedCount+=n;
   });
-
   const contexts={};
   OFFENSIVE_CONTEXTS.forEach(c=>{
     const x=counts[c.key];
-    contexts[c.key]={
-      ...x,
-      p:x.total?x.point/x.total:0,
-      q:x.total?x.attack_fault/x.total:0,
-      mu:x.total?(x.point-2*x.attack_fault)/x.total:0
-    };
+    contexts[c.key]={...x,p:x.total?x.point/x.total:0,q:x.total?x.attack_fault/x.total:0,mu:x.total?(x.point-2*x.attack_fault)/x.total:0};
   });
   return {population:pop,contexts,total:quickCount+detailedCount,quickCount,detailedCount};
 }
@@ -228,12 +225,7 @@ async function loadGroupData(groupId){
         if(e.opponent_team_id===m.opponent_team_1_id||e.opponent_team_id===m.opponent1?.id)opponent_name=m.opponent1?.name||null;
         else if(e.opponent_team_id===m.opponent_team_2_id||e.opponent_team_id===m.opponent2?.id)opponent_name=m.opponent2?.name||null;
       }
-      return {...e,
-        opponent_name,
-        match_label:m?.label||'Match',
-        match_date:m?.played_on||'',
-        match_id:e.match_id
-      };
+      return {...e,opponent_name,match_label:m?.label||'Match',match_date:m?.played_on||'',match_id:e.match_id};
     });
   }
   reference=await loadReference(population);
@@ -244,139 +236,56 @@ async function loadGroupData(groupId){
   $('#status').textContent=`${mids.length} match${mids.length>1?'s':''} · référentiel ${population==='H'?'Hommes':'Femmes'} · ${reference.total} observations de référence.`;
   $('#content').innerHTML='<div class="small">Choisis un adversaire pour afficher le face-à-face.</div>';
 }
-
-function formatDateFr(iso){
-  if(!iso)return '';
-  const m=String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  return m?`${m[3]}/${m[2]}/${m[1]}`:iso;
-}
+function formatDateFr(iso){if(!iso)return '';const m=String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${m[3]}/${m[2]}/${m[1]}`:iso}
 function matchesForCountry(country){
   const byId=new Map();
-  events.filter(e=>(e.opponent_name||'').trim()===country).forEach(e=>{
-    if(!byId.has(e.match_id)){
-      byId.set(e.match_id,{
-        id:e.match_id,
-        label:e.match_label||'Match',
-        date:e.match_date||''
-      });
-    }
-  });
+  events.filter(e=>(e.opponent_name||'').trim()===country).forEach(e=>{if(!byId.has(e.match_id))byId.set(e.match_id,{id:e.match_id,label:e.match_label||'Match',date:e.match_date||''})});
   return [...byId.values()].sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(a.label||'').localeCompare(b.label||'','fr'));
 }
 function populateMatchScope(country){
   const sel=$('#matchScopeSelect');
-  if(!country){
-    sel.innerHTML='<option value="all">Tous les matchs</option>';
-    sel.disabled=true;
-    return;
-  }
-  const ms=matchesForCountry(country);
-  sel.disabled=false;
-  sel.innerHTML=`<option value="all">Cumul — ${ms.length} match${ms.length>1?'s':''}</option>`+
-    ms.map((m,i)=>{
-      const date=formatDateFr(m.date);
-      const label=[date,m.label].filter(Boolean).join(' · ')||`Match ${i+1}`;
-      return `<option value="${m.id}">${escapeHtml(label)}</option>`;
-    }).join('');
+  if(!country){sel.innerHTML='<option value="all">Tous les matchs</option>';sel.disabled=true;return}
+  const ms=matchesForCountry(country);sel.disabled=false;
+  sel.innerHTML=`<option value="all">Cumul — ${ms.length} match${ms.length>1?'s':''}</option>`+ms.map((m,i)=>{const date=formatDateFr(m.date);const label=[date,m.label].filter(Boolean).join(' · ')||`Match ${i+1}`;return `<option value="${m.id}">${escapeHtml(label)}</option>`}).join('');
 }
-function scopedEvents(country){
-  const scope=$('#matchScopeSelect').value||'all';
-  return events.filter(e=>(e.opponent_name||'').trim()===country && (scope==='all'||e.match_id===scope));
-}
-function currentScopeLabel(country){
-  const scope=$('#matchScopeSelect').value||'all';
-  if(scope==='all'){
-    const n=matchesForCountry(country).length;
-    return `Cumul de ${n} match${n>1?'s':''}`;
-  }
-  const opt=$('#matchScopeSelect').selectedOptions?.[0];
-  return opt?.textContent||'Match sélectionné';
-}
-
+function scopedEvents(country){const scope=$('#matchScopeSelect').value||'all';return events.filter(e=>(e.opponent_name||'').trim()===country&&(scope==='all'||e.match_id===scope))}
+function currentScopeLabel(country){const scope=$('#matchScopeSelect').value||'all';if(scope==='all'){const n=matchesForCountry(country).length;return `Cumul de ${n} match${n>1?'s':''}`}const opt=$('#matchScopeSelect').selectedOptions?.[0];return opt?.textContent||'Match sélectionné'}
 function performance(sourceEvents,mode){
-  const byContext={};
-  OFFENSIVE_CONTEXTS.forEach(c=>byContext[c.key]={attacks:0,points:0,faults:0,realValue:0,expectedValue:0});
+  const byContext={};OFFENSIVE_CONTEXTS.forEach(c=>byContext[c.key]={attacks:0,points:0,faults:0,realValue:0,expectedValue:0});
   let attacks=0,realValue=0,expectedValue=0;
   sourceEvents.forEach(e=>{
-    if(mode==='ours' && !['attaque','faute'].includes(e.action_type))return;
-    if(mode==='theirs' && e.action_type!=='defense')return;
-    const o=observation(e);if(!o)return;
-    const ref=reference?.contexts?.[o.context];if(!ref||!ref.total)return;
+    if(mode==='ours'&&!['attaque','faute'].includes(e.action_type))return;
+    if(mode==='theirs'&&e.action_type!=='defense')return;
+    const o=observation(e);if(!o)return;const ref=reference?.contexts?.[o.context];if(!ref||!ref.total)return;
     const v=o.outcome==='point'?1:o.outcome==='attack_fault'?-2:0;
-    const x=byContext[o.context];x.attacks++;attacks++;
-    if(o.outcome==='point')x.points++;
-    if(o.outcome==='attack_fault')x.faults++;
-    x.realValue+=v;realValue+=v;x.expectedValue+=ref.mu;expectedValue+=ref.mu;
+    const x=byContext[o.context];x.attacks++;attacks++;if(o.outcome==='point')x.points++;if(o.outcome==='attack_fault')x.faults++;x.realValue+=v;realValue+=v;x.expectedValue+=ref.mu;expectedValue+=ref.mu;
   });
-  const perf=realValue-expectedValue;
-  return {byContext,attacks,realValue,expectedValue,performance:perf,performance100:attacks?100*perf/attacks:null};
+  const perf=realValue-expectedValue;return {byContext,attacks,realValue,expectedValue,performance:perf,performance100:attacks?100*perf/attacks:null};
 }
-function metricRow(label,left,right,leftClass='',rightClass=''){
-  return `<div class="faceoffRow"><div class="faceoffValue left ${leftClass}">${left}</div><div class="faceoffMetric">${label}</div><div class="faceoffValue right ${rightClass}">${right}</div></div>`;
-}
+function metricRow(label,left,right,leftClass='',rightClass=''){return `<div class="faceoffRow"><div class="faceoffValue left ${leftClass}">${left}</div><div class="faceoffMetric">${label}</div><div class="faceoffValue right ${rightClass}">${right}</div></div>`}
 function renderCountry(country){
-  const selected=scopedEvents(country);
-  const ours=performance(selected,'ours'),theirs=performance(selected,'theirs');
-  const scopeLabel=currentScopeLabel(country);
-  const overall=[
-    metricRow('Attaques',ours.attacks,theirs.attacks),
-    metricRow('Valeur réelle',signed1(ours.realValue),signed1(theirs.realValue)),
-    metricRow('Valeur attendue',signed1(ours.expectedValue),signed1(theirs.expectedValue)),
-    metricRow('Performance /100',perfDisplay(ours.performance100,ours.attacks),perfDisplay(theirs.performance100,theirs.attacks))
-  ].join('');
+  const selected=scopedEvents(country);const ours=performance(selected,'ours'),theirs=performance(selected,'theirs');const scopeLabel=currentScopeLabel(country);
+  const overall=[metricRow('Attaques',ours.attacks,theirs.attacks),metricRow('Valeur réelle',signed1(ours.realValue),signed1(theirs.realValue)),metricRow('Valeur attendue',signed1(ours.expectedValue),signed1(theirs.expectedValue)),metricRow('Performance /100',perfDisplay(ours.performance100,ours.attacks),perfDisplay(theirs.performance100,theirs.attacks))].join('');
   const contexts=OFFENSIVE_CONTEXTS.map(c=>{
     const ref=reference.contexts[c.key];
-    const side=x=>{
-      const p=x.attacks?x.points/x.attacks:null,q=x.attacks?x.faults/x.attacks:null,mu=x.attacks?p-2*q:null;
-      return {n:x.attacks,p,q,mu,dp:p==null?null:p-ref.p,dq:q==null?null:q-ref.q,dmu:mu==null?null:mu-ref.mu,perf100:mu==null?null:100*(mu-ref.mu)};
-    };
+    const side=x=>{const p=x.attacks?x.points/x.attacks:null,q=x.attacks?x.faults/x.attacks:null,mu=x.attacks?p-2*q:null;return {n:x.attacks,p,q,mu,dp:p==null?null:p-ref.p,dq:q==null?null:q-ref.q,dmu:mu==null?null:mu-ref.mu,perf100:mu==null?null:100*(mu-ref.mu)}};
     const a=side(ours.byContext[c.key]),b=side(theirs.byContext[c.key]);
-    const rows=[
-      metricRow('N',a.n,b.n),
-      metricRow('% point',pct(a.p),pct(b.p)),
-      metricRow('Δ point',signedPct(a.dp),signedPct(b.dp),valueClass(a.dp),valueClass(b.dp)),
-      metricRow('% faute',pct(a.q),pct(b.q)),
-      metricRow('Δ faute',signedPct(a.dq),signedPct(b.dq),faultClass(a.dq),faultClass(b.dq)),
-      metricRow('Performance /100',perfDisplay(a.perf100,a.n),perfDisplay(b.perf100,b.n))
-    ].join('');
+    const rows=[metricRow('N',a.n,b.n),metricRow('% point',pct(a.p),pct(b.p)),metricRow('Δ point',signedPct(a.dp),signedPct(b.dp),valueClass(a.dp),valueClass(b.dp)),metricRow('% faute',pct(a.q),pct(b.q)),metricRow('Δ faute',signedPct(a.dq),signedPct(b.dq),faultClass(a.dq),faultClass(b.dq)),metricRow('Performance /100',perfDisplay(a.perf100,a.n),perfDisplay(b.perf100,b.n))].join('');
     return `<div class="context"><div class="contextHead"><strong>${c.label}</strong><div class="reference">Réf. : point ${pct(ref.p)} · faute ${pct(ref.q)}</div></div><div class="faceoffRows">${rows}</div></div>`;
   }).join('');
-  $('#content').innerHTML=`
-    <div class="row" style="justify-content:space-between;margin-bottom:8px">
-      <div class="small">${escapeHtml(scopeLabel)}</div>
-      <div class="small">${selected.length} action${selected.length>1?'s':''} exploitables/collectées dans ce périmètre</div>
-    </div>
-    <div class="faceoffTitle"><div class="left">Nous</div><div class="mid">comparaison</div><div class="right">${escapeHtml(country)}</div></div>
-    <div class="faceoffRows" style="margin-top:10px">${overall}</div>${contexts}`;
+  $('#content').innerHTML=`<div class="row" style="justify-content:space-between;margin-bottom:8px"><div class="small">${escapeHtml(scopeLabel)}</div><div class="small">${selected.length} action${selected.length>1?'s':''} exploitables/collectées dans ce périmètre</div></div><div class="faceoffTitle"><div class="left">Nous</div><div class="mid">comparaison</div><div class="right">${escapeHtml(country)}</div></div><div class="faceoffRows" style="margin-top:10px">${overall}</div>${contexts}`;
 }
-
 async function init(){
-  const {data:{user},error}=await db.auth.getUser();
-  if(error)throw error;
-  if(!user){
-    $('#status').textContent='Tu dois être connecté à Kinball Coach pour accéder à cette page.';
-    return;
-  }
-  currentUser=user;
-  await fetchGroups();
-  const params=new URLSearchParams(location.search);
+  const {data:{user},error}=await db.auth.getUser();if(error)throw error;if(!user){$('#status').textContent='Tu dois être connecté à Kinball Coach pour accéder à cette page.';return}
+  currentUser=user;await fetchGroups();
   const requested=params.get('group');
   const initial=(requested&&groups.some(g=>g.id===requested))?requested:(groups[0]?.id||'');
-  if(initial){$('#groupSelect').value=initial;await loadGroupData(initial)}
-  else $('#status').textContent='Aucun groupe disponible.';
+  if(initial){$('#groupSelect').value=initial;await loadGroupData(initial)}else $('#status').textContent='Aucun groupe disponible.';
 }
 $('#groupSelect').onchange=()=>loadGroupData($('#groupSelect').value).catch(e=>$('#status').textContent=e.message||String(e));
-$('#countrySelect').onchange=()=>{
-  const c=$('#countrySelect').value;
-  populateMatchScope(c);
-  if(c)renderCountry(c);
-  else $('#content').innerHTML='<div class="small">Choisis un adversaire pour afficher le face-à-face.</div>';
-};
-$('#matchScopeSelect').onchange=()=>{
-  const c=$('#countrySelect').value;
-  if(c)renderCountry(c);
-};
-$('#backBtn').onclick=()=>window.location.href='index.html';
+$('#countrySelect').onchange=()=>{const c=$('#countrySelect').value;populateMatchScope(c);if(c)renderCountry(c);else $('#content').innerHTML='<div class="small">Choisis un adversaire pour afficher le face-à-face.</div>'};
+$('#matchScopeSelect').onchange=()=>{const c=$('#countrySelect').value;if(c)renderCountry(c)};
+$('#backBtn').onclick=()=>window.location.href=params.get('viewer')==='1'?'index.html#team-stats':'index.html';
 $('#helpBtn').onclick=()=>$('#helpBackdrop').classList.remove('hidden');
 $('#helpClose').onclick=()=>$('#helpBackdrop').classList.add('hidden');
 $('#helpBackdrop').onclick=e=>{if(e.target===$('#helpBackdrop'))$('#helpBackdrop').classList.add('hidden')};

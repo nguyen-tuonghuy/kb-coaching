@@ -281,6 +281,7 @@ button:active{transform:scale(.985)}
 @media(max-width:520px){.moduleGrid{grid-template-columns:1fr}.miniGrid{grid-template-columns:1fr}.trainingPlanFields{grid-template-columns:1fr}.trainingPlanFields .planTitleField,.trainingPlanFields .planTrackField{grid-column:auto}}
 
 .statsTabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+.statsTabs button{border:1px solid var(--line);min-height:44px;background:#fff}
 .statsDomainTabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:14px 0 12px}
 .statsMatchViewTabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:14px 0 10px}
 .statsMatchViewTabs button{min-height:44px}
@@ -502,9 +503,9 @@ button:active{transform:scale(.985)}
 }
 
 .statsHelpBtn{
-  width:34px;height:34px;min-width:34px;padding:0;border-radius:50%;
+  width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border-radius:50%;
   display:inline-flex;align-items:center;justify-content:center;
-  border:1px solid var(--line);background:var(--panel2);font-weight:900;font-size:18px
+  border:1px solid var(--line);background:#fff;font-weight:900;font-size:18px
 }
 .statsHelpBtn:hover{background:var(--accent)}
 .statsHelpBackdrop{
@@ -1373,8 +1374,8 @@ button:active{transform:scale(.985)}
 .analysisPeriodBars{height:125px;display:flex;align-items:flex-end;justify-content:center;gap:4px}
 .analysisPeriodBar{width:15px;border-radius:5px 5px 2px 2px;min-height:2px}
 .analysisPeriodBar.attack{background:var(--accent)}
-.analysisPeriodBar.defense{background:#7ddc9f}
-.analysisPeriodBar.attackFault{background:var(--warn)}
+.analysisPeriodBar.defense{background:#8A3B00}
+.analysisPeriodBar.attackFault{background:#6B3FA0}
 .analysisPeriodLabel{font-size:11px;color:var(--muted);margin-top:6px}
 .statsImpactEvolutionBlock{margin-top:14px;border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--panel2)}
 .statsImpactEvolutionControls{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:10px}
@@ -1389,23 +1390,23 @@ button:active{transform:scale(.985)}
 .statsImpactEvolutionToggle[open] summary::before{transform:rotate(90deg)}
 .statsImpactEvolutionSvgWrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:10px 0 2px}
 .statsImpactEvolutionSvg{display:block}
-.statsImpactGridLine{stroke:rgba(255,255,255,.09);stroke-width:1}
-.statsImpactAxis{stroke:rgba(255,255,255,.16);stroke-width:1}
+.statsImpactGridLine{stroke:rgba(83,101,122,.18);stroke-width:1}
+.statsImpactAxis{stroke:rgba(83,101,122,.32);stroke-width:1}
 .statsImpactTick{font-size:10px;fill:var(--muted)}
 .statsImpactLineSimple{fill:none;stroke:var(--accent);stroke-width:2.5}
 .statsImpactPointSimple{fill:var(--accent)}
 .statsImpactPointLimited{fill:var(--warn)}
-.statsImpactPointInsufficient{fill:rgba(255,255,255,.35)}
+.statsImpactPointInsufficient{fill:#94A3B8}
 .statsImpactMatchLabel{font-size:10px;fill:var(--muted)}
-.statsImpactValueLabel{font-size:10px;fill:#fff;font-weight:700}
+.statsImpactValueLabel{font-size:10px;fill:var(--text);font-weight:700}
 .analysisOpponentPeriodCharts{display:grid;grid-template-columns:1fr;gap:10px;margin-top:12px}
 .analysisOpponentPeriodCard{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px}
 .analysisOpponentPeriodTitle{font-size:13px;font-weight:800;margin-bottom:6px}
 @media(min-width:760px){.analysisOpponentPeriodCharts{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .analysisLegend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-bottom:6px}
 .analysisLegend span::before{content:"";display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:-1px;background:var(--accent)}
-.analysisLegend span.defense::before{background:#7ddc9f}
-.analysisLegend span.attackFault::before{background:var(--warn)}
+.analysisLegend span.defense::before{background:#8A3B00}
+.analysisLegend span.attackFault::before{background:#6B3FA0}
 .analysisSubtle{font-size:11px;color:var(--muted);line-height:1.35}
 .analysisTimelineFilters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:10px}
 .analysisTimelineItem{display:grid;grid-template-columns:46px minmax(0,1fr);gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}
@@ -1436,13 +1437,13 @@ button:active{transform:scale(.985)}
 .analysisOpponentCompareGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 10px;align-items:stretch}
 .analysisOpponentCompareTitle{font-size:12px;font-weight:800;color:var(--muted);margin:0 0 1px}
 .analysisOpponentCompareGrid>.analysisMetric{height:100%;min-width:0}
-.analysisMetricRateOwn{background:rgba(61,123,253,.14);border-color:rgba(61,123,253,.5)}
-.analysisMetricRateOwn .label,.analysisMetricRateOwn .value{color:#9fc0ff}
-.analysisMetricRateOpponent{background:rgba(125,220,159,.12);border-color:rgba(125,220,159,.45)}
-.analysisMetricRateOpponent .label,.analysisMetricRateOpponent .value{color:#9fe8b9}
+.analysisMetricRateOwn{background:#EAF4FB;border-color:#6DA9D2}
+.analysisMetricRateOwn .label,.analysisMetricRateOwn .value{color:#005A9C}
+.analysisMetricRateOpponent{background:#FFF4E5;border-color:#D5A061}
+.analysisMetricRateOpponent .label,.analysisMetricRateOpponent .value{color:#8A3B00}
 .analysisOpponentComparePlaceholder{visibility:hidden}
-.analysisImpactPositive{color:#8ee3aa;font-weight:800}
-.analysisImpactNegative{color:#ff9b9b;font-weight:800}
+.analysisImpactPositive{color:#005A9C;font-weight:800}
+.analysisImpactNegative{color:#B54708;font-weight:800}
 .analysisImpactNeutral{color:var(--text);font-weight:800}
 .referenceManager{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
 .referenceManagerHeader{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
@@ -2105,6 +2106,8 @@ button.primary,.primary,.on,.tab.active{background:var(--accent)!important;color
 .startupScreen{background:var(--bg)!important;color:var(--text)!important}
 .startupScreenInner{background:#FFFFFF;border:1px solid var(--line);border-radius:18px;padding:24px 28px;box-shadow:0 12px 34px rgba(15,23,42,.10)}
 .startupScreenText{color:var(--muted)!important}
+.statsReadOnlyBadge{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border-radius:999px;background:#EEF2FF;color:#3730A3;border:1px solid #C7D2FE;font-size:12px;font-weight:750}
+.statsReadOnlyBadge.hidden{display:none!important}
 .playerVideoPlayer{background:#FFFFFF!important;color:var(--text)!important;border-color:var(--line)!important}
 .playerVideoPlayerHeader,.playerVideoAdvancedControls{color:var(--text)!important}
 .playerVideoTimeDisplay,.playerVideoHint{color:var(--muted)!important}
@@ -2306,6 +2309,7 @@ button.primary,.primary,.on,.tab.active{background:var(--accent)!important;color
   <div class="playerPortalTopNav">
    <a class="ghost active" id="playerPortalNavHome" href="index.html#player-home">Accueil <span class="messageUnreadBadge hidden" id="playerUnreadBadge">0</span></a>
    <a class="ghost" id="playerPortalNavStats" href="player-stats.html">Mes statistiques</a>
+   <a class="ghost hidden" id="playerPortalNavGroupStats" href="index.html#team-stats">Statistiques équipe</a>
    <a class="ghost" id="playerPortalNavVideos" href="videos.html">Mes vidéos <span class="videoUnreadBadge hidden" id="playerVideoNavBadge">0</span></a>
    <a class="ghost" id="playerPortalNavProfile" href="index.html#player-profile">Mon profil</a>
    <button type="button" class="ghost hidden" id="playerPortalBackStaff">Retour espace entraîneur</button>
@@ -2327,6 +2331,12 @@ button.primary,.primary,.on,.tab.active{background:var(--accent)!important;color
      <h3><span aria-hidden="true">📊</span> Mes statistiques</h3>
      <p>Consulte tes indicateurs offensifs, le référentiel, les repères anonymisés du groupe et le message des entraîneurs.</p>
      <span class="cardAction">Voir mes statistiques →</span>
+    </a>
+    <a class="playerPortalHomeCard hidden" id="playerPortalHomeGroupStatsCard" href="index.html#team-stats">
+     <div class="analysisSubtle">Accès élargi</div>
+     <h3><span aria-hidden="true">📈</span> Statistiques équipe</h3>
+     <p>Consulte en lecture seule les statistiques complètes du groupe : entraînements, matchs et performances offensives.</p>
+     <span class="cardAction">Voir les statistiques du groupe →</span>
     </a>
     <a class="playerPortalHomeCard" id="playerPortalHomeVideosCard" href="videos.html">
      <div class="analysisSubtle">Vidéo</div>
@@ -2408,7 +2418,7 @@ button.primary,.primary,.on,.tab.active{background:var(--accent)!important;color
 
  <section class="panel hidden" id="statsHome">
    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
-    <div><h2 style="font-size:20px">📊 Statistiques</h2><div class="small">Centre d’analyse : entraînements, matchs et performance offensive</div></div>
+    <div><div class="row" style="gap:8px;align-items:center"><h2 style="font-size:20px">📊 Statistiques</h2><span class="statsReadOnlyBadge hidden" id="statsReadOnlyBadge">Lecture seule</span></div><div class="small">Centre d’analyse : entraînements, matchs et performance offensive</div></div>
     <div class="row" style="gap:8px">
       <button class="statsHelpBtn" id="statsHelpBtn" type="button" title="Aide sur les statistiques" aria-label="Aide sur les statistiques">?</button>
       <button class="ghost" id="statsBackHome">← Accueil</button>
@@ -3202,6 +3212,14 @@ button.primary,.primary,.on,.tab.active{background:var(--accent)!important;color
    </select>
   </div>
   <div class="field" style="margin-top:12px">
+   <label>Accès aux statistiques</label>
+   <select id="groupPlayerFollowupStatsAccess">
+    <option value="personal">Statistiques personnelles uniquement</option>
+    <option value="group">Statistiques complètes du groupe · lecture seule</option>
+   </select>
+   <div class="small" style="margin-top:5px">À réserver aux joueurs auxquels le staff souhaite donner une vision complète du groupe (par exemple un capitaine).</div>
+  </div>
+  <div class="field" style="margin-top:12px">
    <label>Message des entraîneurs</label>
    <textarea id="groupPlayerFollowupMessage" class="coachMessageTextarea" maxlength="2000" placeholder="Retour général, point fort, axe de travail ou consigne…"></textarea>
    <div class="small" style="margin-top:5px">Ce message apparaît sur la page d’accueil du joueur. Une nouvelle version est ajoutée à l’historique lorsqu’il est modifié.</div>
@@ -3944,13 +3962,28 @@ function syncStandaloneVideoLinks(){
   if(cardVideo)cardVideo.href=videoHref;
   if(navStats)navStats.href=statsHref;
   if(cardStats)cardStats.href=statsHref;
+  const navGroupStats=$('#playerPortalNavGroupStats'),cardGroupStats=$('#playerPortalHomeGroupStatsCard');
+  if(navGroupStats)navGroupStats.href='index.html#team-stats';
+  if(cardGroupStats)cardGroupStats.href='index.html#team-stats';
 }
 window.addEventListener('hashchange',()=>{
   if($('#playerPortal')?.classList.contains('hidden'))return;
+  if(location.hash==='#team-stats'){
+    const access=playerPortalAccessForGroup(playerPortalState.groupId)||playerPortalState.accesses?.[0];
+    if(playerPortalCanViewGroupStats(access))openGroupStatsViewer(access).catch(e=>handleError('team stats hash',e));
+    return;
+  }
   const wanted=location.hash==='#player-profile'?'profile':location.hash==='#player-home'?'home':null;
   if(wanted)playerPortalSetView(wanted);
 });
 document.addEventListener('click',e=>{
+  const teamStatsLink=e.target.closest?.('#playerPortalNavGroupStats,#playerPortalHomeGroupStatsCard');
+  if(teamStatsLink){
+    e.preventDefault();
+    const access=playerPortalAccessForGroup(playerPortalState.groupId)||playerPortalState.accesses?.[0];
+    if(playerPortalCanViewGroupStats(access))openGroupStatsViewer(access).catch(err=>handleError('open team stats',err));
+    return;
+  }
   const link=e.target.closest?.('#playerPortalNavHome,#playerPortalNavStats,#playerPortalNavProfile,#playerPortalHomeStatsCard,#playerPortalHomeProfileCard');
   if(!link)return;
   const href=link.getAttribute('href')||'';
@@ -3972,6 +4005,19 @@ function refreshPlayerPortalIdentity(){
   if($('#playerPortalProfileSubtitle'))$('#playerPortalProfileSubtitle').textContent=group;
 }
 function playerPortalAccessForGroup(groupId){return (playerPortalState.accesses||[]).find(a=>a.group_id===groupId)||null}
+function playerPortalCanViewGroupStats(access=playerPortalAccessForGroup(playerPortalState.groupId)){return access?.stats_access==='group'}
+function syncPlayerPortalGroupStatsAccess(){
+  const access=playerPortalAccessForGroup(playerPortalState.groupId)||playerPortalState.accesses?.[0];
+  const allowed=playerPortalCanViewGroupStats(access);
+  $('#playerPortalNavGroupStats')?.classList.toggle('hidden',!allowed);
+  $('#playerPortalHomeGroupStatsCard')?.classList.toggle('hidden',!allowed);
+}
+function statsGroupMeta(groupId){
+  const coachGroup=groupState.groups.find(g=>g.id===groupId);
+  if(coachGroup)return coachGroup;
+  const access=(playerPortalState.accesses||[]).find(a=>a.group_id===groupId);
+  return access?{id:access.group_id,name:access.group_name,role:'viewer'}:null;
+}
 function playerPortalTargetPlayerId(){return playerPortalState.staffPreview?playerPortalState.staffPlayerId:(playerPortalAccessForGroup(playerPortalState.groupId)?.player_id||null)}
 function playerPortalMetricsArgs(groupId,matchIds,scope){
   return {p_group_id:groupId,p_match_ids:matchIds,p_scope:scope,p_player_id:playerPortalState.staffPreview?playerPortalState.staffPlayerId:null};
@@ -4222,7 +4268,7 @@ function playerPortalSheetHtml(data,allDetails){
   return `<div class="statsImpactPlayerSheet"><div class="statsImpactPlayerHeader"><div><div class="analysisSubtle">${escapeHtml(playerPortalScopeLabel(playerPortalEffectiveScope()))}</div><h3>${escapeHtml(data.player_name||'')}</h3></div></div>${data?.is_test_mirror?`<div class="playerPortalTestDataNotice">Profil de test : les statistiques affichées sont une copie de celles de ${escapeHtml(data.stats_source_player_name||'un joueur source')} afin de tester un profil complet.</div>`:''}<div class="playerPortalExactCounts"><div class="playerPortalExactCount"><span>Nombre de frappes</span><strong>${n}</strong>${rel.label?`<span class="reliability">${escapeHtml(rel.label)}</span>`:''}</div><div class="playerPortalExactCount"><span>Points marqués</span><strong>${Number(x.points)||0}</strong></div><div class="playerPortalExactCount"><span>Fautes</span><strong>${Number(x.faults)||0}</strong></div></div>${playerVolumeWarningHtml(n)}${playerPortalTakeawaysHtml(x,n)}<div class="statsImpactPlayerMainMetrics"><div class="statsImpactPlayerMetric"><span>Création /100</span><strong class="${playerPortalImpactClass(x.creation100)}">${n?playerPortalSigned(x.creation100):'—'}</strong><small>Moyenne groupe ${playerPortalSigned(avg.creation100)}</small></div><div class="statsImpactPlayerMetric"><span>Sécurité /100</span><strong class="${playerPortalImpactClass(x.safety100)}">${n?playerPortalSigned(x.safety100):'—'}</strong><small>Moyenne groupe ${playerPortalSigned(avg.safety100)}</small></div></div><div class="statsImpactPlayerSecondaryMetrics"><div class="statsImpactPlayerSecondary"><span>% points</span><strong>${n?playerPortalPct(x.point_rate):'—'}</strong><small>${Number(x.points)||0} point${Number(x.points)===1?'':'s'} marqué${Number(x.points)===1?'':'s'} · Référentiel ${playerPortalPct(x.expected_point_rate)} · Moyenne groupe ${playerPortalPct(avg.point_rate)}</small></div><div class="statsImpactPlayerSecondary"><span>% fautes</span><strong>${n?playerPortalPct(x.fault_rate):'—'}</strong><small>${Number(x.faults)||0} faute${Number(x.faults)===1?'':'s'} · Référentiel ${playerPortalPct(x.expected_fault_rate)} · Moyenne groupe ${playerPortalPct(avg.fault_rate)}</small></div></div><div class="analysisSubtle statsImpactPlayerBenchmarkNote">La moyenne du groupe est calculée sans afficher les résultats des autres joueurs. Elle sert uniquement de repère collectif.</div><details class="statsImpactPlayerExplainer" open><summary>Comprendre le référentiel et les scores</summary><div class="statsImpactPlayerExplainerBody"><p><strong>Le référentiel</strong> (${escapeHtml(referenceVersion)}) est construit à partir des attaques de la compétition de référence sélectionnées par le staff. Les données Hommes et Femmes sont séparées, ainsi que le jeu au centre et les remises au centre, sur ligne et sur coin.</p><p>Pour chaque situation, il donne le <strong>taux de points</strong> et le <strong>taux de fautes</strong> observés sur l'ensemble des attaques retenues.</p><div class="statsImpactPlayerExplainerFormula"><strong>Création /100</strong> : nombre de points produits en plus ou en moins sur 100 attaques par rapport au nombre attendu selon le référentiel.</div><div class="statsImpactPlayerExplainerFormula"><strong>Sécurité /100</strong> : nombre de fautes évitées ou ajoutées sur 100 attaques par rapport au nombre attendu selon le référentiel.</div><p><strong>Un score de 0</strong> signifie que ta performance correspond au niveau moyen de la compétition ayant servi à construire le référentiel, en tenant compte des situations que tu as réellement jouées. Positif = au-dessus du référentiel ; négatif = en dessous.</p><p><strong>Attention au volume analysé.</strong> Les scores sont ramenés à 100 attaques : avec peu d’actions, une seule action peut donc faire fortement bouger le résultat. En pratique, <strong>N &lt; 5</strong> est trop faible pour conclure ; entre <strong>5 et 15</strong>, le score donne seulement une tendance provisoire ; au-delà de <strong>15</strong>, il devient plus stable, sans pour autant supprimer l’incertitude.</p><p>Exemple : <strong>Création +5</strong> correspond à environ 5 points de plus que prévu sur 100 attaques ; <strong>Sécurité +3</strong> à environ 3 fautes de moins que prévu sur 100 attaques.</p></div></details>${playerPortalDetailsHtml(allDetails||data.details||[])}</div>`
 }
 async function playerPortalRender(){const box=$('#playerPortalContent');if(!box||!playerPortalState.groupId)return;const ids=playerPortalState.selected||[];if(!ids.length){box.innerHTML='<div class="statsEmpty">Sélectionne au moins un match.</div>';return}if(playerPortalState.loading)return;playerPortalState.loading=true;box.innerHTML='<div class="statsEmpty">Calcul de tes statistiques…</div>';try{const scope=playerPortalEffectiveScope();const calls=[db.rpc('get_player_portal_metrics',playerPortalMetricsArgs(playerPortalState.groupId,ids,scope))];if(scope!=='all')calls.push(db.rpc('get_player_portal_metrics',playerPortalMetricsArgs(playerPortalState.groupId,ids,'all')));const results=await Promise.all(calls);results.forEach(r=>{if(r.error)throw r.error});const data=results[0].data||{};const details=(results[1]?.data||data).details||[];box.innerHTML=playerPortalSheetHtml(data,details)}finally{playerPortalState.loading=false}}
-async function loadPlayerPortalGroup(groupId){playerPortalState.groupId=groupId;syncPlayerPortalRole(groupId);refreshPlayerPortalIdentity();playerPortalState.scope='all';playerPortalState.restartLocation='all';document.querySelectorAll('#playerPortalScopeTabs [data-player-scope]').forEach(b=>b.classList.toggle('active',b.dataset.playerScope==='all'));$('#playerPortalRestartField')?.classList.add('hidden');if($('#playerPortalRestart'))$('#playerPortalRestart').value='all';const {data,error}=await db.rpc('get_player_portal_metrics',playerPortalMetricsArgs(groupId,null,'all'));if(error)throw error;playerPortalState.matches=data?.matches||[];playerPortalState.selected=playerPortalState.matches.map(m=>m.id);$('#playerPortalTitle').textContent=data?.player_name?`Mes statistiques · ${data.player_name}`:'Mes statistiques';$('#playerPortalSubtitle').textContent=data?.group_name||'';await refreshMessageNotifications(playerPortalState.staffPreview?'coach':'player').catch(e=>handleError('message notifications',e));await loadPlayerPortalConversation();await loadPlayerObjectives().catch(e=>handleError('player objectives',e));syncStandaloneVideoLinks();playerPortalRenderMatches();$('#playerPortalContent').innerHTML=playerPortalSheetHtml(data,data?.details||[])}
+async function loadPlayerPortalGroup(groupId){playerPortalState.groupId=groupId;syncPlayerPortalRole(groupId);refreshPlayerPortalIdentity();syncPlayerPortalGroupStatsAccess();playerPortalState.scope='all';playerPortalState.restartLocation='all';document.querySelectorAll('#playerPortalScopeTabs [data-player-scope]').forEach(b=>b.classList.toggle('active',b.dataset.playerScope==='all'));$('#playerPortalRestartField')?.classList.add('hidden');if($('#playerPortalRestart'))$('#playerPortalRestart').value='all';const {data,error}=await db.rpc('get_player_portal_metrics',playerPortalMetricsArgs(groupId,null,'all'));if(error)throw error;playerPortalState.matches=data?.matches||[];playerPortalState.selected=playerPortalState.matches.map(m=>m.id);$('#playerPortalTitle').textContent=data?.player_name?`Mes statistiques · ${data.player_name}`:'Mes statistiques';$('#playerPortalSubtitle').textContent=data?.group_name||'';await refreshMessageNotifications(playerPortalState.staffPreview?'coach':'player').catch(e=>handleError('message notifications',e));await loadPlayerPortalConversation();await loadPlayerObjectives().catch(e=>handleError('player objectives',e));syncStandaloneVideoLinks();playerPortalRenderMatches();$('#playerPortalContent').innerHTML=playerPortalSheetHtml(data,data?.details||[])}
 async function openPlayerPortal(accesses){
   playerPortalState.accesses=accesses||await fetchMyPlayerAccesses();
   if(!playerPortalState.accesses.length)return false;
@@ -4241,6 +4287,10 @@ async function openPlayerPortal(accesses){
   sel.onchange=()=>loadPlayerPortalGroup(sel.value).catch(e=>handleError('player portal group',e));
   await loadPlayerPortalGroup(playerPortalState.accesses[0].group_id);
   syncPlayerPortalMessagePolling();
+  if(location.hash==='#team-stats'){
+    const access=playerPortalAccessForGroup(playerPortalState.groupId)||playerPortalState.accesses?.[0];
+    if(playerPortalCanViewGroupStats(access))return await openGroupStatsViewer(access);
+  }
   const wanted=location.hash==='#player-profile'?'profile':'home';
   playerPortalSetView(wanted);syncStandaloneVideoLinks();setCloud('Synchronisé',true);window.scrollTo({top:0,behavior:'instant'});return true
 }
@@ -6347,7 +6397,7 @@ $('#matchTypeCreateForm').onsubmit=event=>{
 let playerPortalState={accesses:[],groupId:null,matches:[],selected:[],scope:'all',restartLocation:'all',loading:false,view:'home',hasStaffAccess:false,staffPreview:false,staffPlayerId:null,staffReturnGroupId:null,messageNotifications:[],objectives:[],videos:[],videoConfig:null};
 let groupState={groups:[],currentGroupId:null,currentPlayers:[],matchPlayers:[],profiles:{},messageNotifications:[]};
 let adminState={isAdmin:false,groups:[]};
-let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',impactRestartLocation:'all',impactView:'staff',impactSortField:'impact100',impactSortDirection:'desc',impactPlayerName:'',impactMatchManualOrder:[],statsMatchView:'summary',reference:null,referenceMeta:null,referenceSources:[],referenceVersions:[],impactReference:null};
+let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',impactRestartLocation:'all',impactView:'staff',impactSortField:'impact100',impactSortDirection:'desc',impactPlayerName:'',impactMatchManualOrder:[],statsMatchView:'summary',reference:null,referenceMeta:null,referenceSources:[],referenceVersions:[],impactReference:null,readOnlyViewer:false,viewerReturnGroupId:null};
 
 
 
@@ -6613,10 +6663,10 @@ function populateGroupSelectors(){
 async function fetchGroupPlayers(groupId){
   if(!groupId)return[];
   const {data,error}=await db.from('coaching_group_players')
-    .select('player_id,active,preferred_role,player:players!coaching_group_players_player_id_fkey(id,display_name)')
+    .select('player_id,active,preferred_role,stats_access,player:players!coaching_group_players_player_id_fkey(id,display_name)')
     .eq('group_id',groupId).eq('active',true);
   if(error)throw error;
-  return (data||[]).filter(x=>x.player).map(x=>({...x.player,preferred_role:x.preferred_role||'AP'})).sort((a,b)=>a.display_name.localeCompare(b.display_name,'fr'));
+  return (data||[]).filter(x=>x.player).map(x=>({...x.player,preferred_role:x.preferred_role||'AP',stats_access:x.stats_access||'personal'})).sort((a,b)=>a.display_name.localeCompare(b.display_name,'fr'));
 }
 async function openGroupsModule(){
   // Afficher immédiatement le module : le clic ne dépend plus d'un chargement réseau.
@@ -6809,10 +6859,13 @@ function renderGroupPlayers(){
     const info=document.createElement('div');info.style.flex='1';info.style.minWidth='140px';
     const notif=messageNotificationFor(groupState.currentGroupId,p.id);const unread=Number(notif?.unread_count||0);
     const videoUnread=videoNotificationCountFor(groupState.currentGroupId,p.id);
-    info.innerHTML=`<strong>${escapeHtml(p.display_name)}${unread?`<span class="groupPlayerUnread">💬 ${unread} nouveau${unread>1?'x':''}</span>`:''}${videoUnread?`<span class="videoUnreadBadge">📹 ${videoUnread}</span>`:''}</strong><div class="small">${escapeHtml(roleLabel[p.preferred_role||'AP'])} · ${groupState.playerAccess?.[p.id]?'Compte joueur lié':'Accès joueur non encore activé'}</div>`;
+    const statsAccessLabel=p.stats_access==='group'?' · Stats groupe en lecture seule':'';
+    info.innerHTML=`<strong>${escapeHtml(p.display_name)}${unread?`<span class="groupPlayerUnread">💬 ${unread} nouveau${unread>1?'x':''}</span>`:''}${videoUnread?`<span class="videoUnreadBadge">📹 ${videoUnread}</span>`:''}</strong><div class="small">${escapeHtml(roleLabel[p.preferred_role||'AP'])} · ${groupState.playerAccess?.[p.id]?'Compte joueur lié':'Accès joueur non encore activé'}${statsAccessLabel}</div>`;
+    const manage=document.createElement('button');manage.type='button';manage.className='ghost';manage.textContent='Suivi / droits';
+    manage.onclick=()=>openGroupPlayerFollowup(p.id).catch(e=>handleError('open player followup',e));
     const open=document.createElement('button');open.type='button';open.className='ghost';open.textContent='Fiche joueur';
     open.onclick=()=>openStaffPlayerPortal(p.id).catch(e=>handleError('open staff player portal',e));
-    row.append(info,open);d.append(row);box.append(d);
+    row.append(info,manage,open);d.append(row);box.append(d);
   })
 }
 
@@ -6860,7 +6913,7 @@ async function openStaffPlayerPortal(playerId){
   playerPortalState.staffPreview=true;
   playerPortalState.staffPlayerId=playerId;
   playerPortalState.staffReturnGroupId=groupId;
-  const previewAccess=[{group_id:groupId,group_name:g.name,player_id:p.id,player_name:p.display_name,preferred_role:p.preferred_role||'AP'}];
+  const previewAccess=[{group_id:groupId,group_name:g.name,player_id:p.id,player_name:p.display_name,preferred_role:p.preferred_role||'AP',stats_access:p.stats_access||'personal'}];
   await openPlayerPortal(previewAccess);
 }
 async function openGroupPlayerFollowup(playerId){
@@ -6870,6 +6923,7 @@ async function openGroupPlayerFollowup(playerId){
   groupPlayerFollowupState.playerId=playerId;
   $('#groupPlayerFollowupTitle').textContent=`Suivi joueur · ${p.display_name}`;
   $('#groupPlayerFollowupRole').value=p.preferred_role||'AP';
+  $('#groupPlayerFollowupStatsAccess').value=p.stats_access||'personal';
   const linked=!!groupState.playerAccess?.[playerId];
   $('#groupPlayerFollowupAccessStatus').textContent=linked?'Compte joueur lié':'Accès joueur non encore activé';
   $('#groupPlayerFollowupUnlink').classList.toggle('hidden',!linked);
@@ -6895,12 +6949,13 @@ async function saveGroupPlayerFollowup(){
   const groupId=groupState.currentGroupId,playerId=groupPlayerFollowupState.playerId;
   if(!groupId||!playerId)return;
   const role=$('#groupPlayerFollowupRole').value||'AP';
+  const statsAccess=$('#groupPlayerFollowupStatsAccess').value==='group'?'group':'personal';
   const message=$('#groupPlayerFollowupMessage').value.trim();
   const status=$('#groupPlayerFollowupStatus');
   const save=$('#saveGroupPlayerFollowup');
   save.disabled=true;status.textContent='Enregistrement…';
   try{
-    const {error:roleError}=await db.from('coaching_group_players').update({preferred_role:role}).eq('group_id',groupId).eq('player_id',playerId);
+    const {error:roleError}=await db.from('coaching_group_players').update({preferred_role:role,stats_access:statsAccess}).eq('group_id',groupId).eq('player_id',playerId);
     if(roleError)throw roleError;
     const messageInput=$('#groupPlayerFollowupMessage');
     const previous=(messageInput.dataset.currentMessage||'').trim();
@@ -6913,7 +6968,7 @@ async function saveGroupPlayerFollowup(){
     }
     messageInput.dataset.currentMessage=message;
     await loadGroupPlayerMessageHistory(groupId,playerId);
-    const p=groupState.currentPlayers.find(x=>x.id===playerId);if(p)p.preferred_role=role;
+    const p=groupState.currentPlayers.find(x=>x.id===playerId);if(p){p.preferred_role=role;p.stats_access=statsAccess}
     status.textContent='Suivi joueur enregistré ✓';
     renderGroupPlayers();
     setCloud('Synchronisé',true);
@@ -8668,8 +8723,11 @@ function teamOffensivePerformanceHtml(perf,population){
 
 function openDetailedFaceoff(){
   const groupId=$('#statsGroup')?.value||'';
-  const url='face-a-face.html'+(groupId?`?group=${encodeURIComponent(groupId)}`:'');
-  window.location.href=url;
+  const params=new URLSearchParams();
+  if(groupId)params.set('group',groupId);
+  if(statsState.readOnlyViewer)params.set('viewer','1');
+  const query=params.toString();
+  window.location.href='face-a-face.html'+(query?'?'+query:'');
 }
 
 function statsAnalysisSummaryHtml(events){
@@ -8730,7 +8788,7 @@ async function renderStatsMatchesSelection(){
 
   const attacks=statsOutcomeCounts(ds.events,'attack');
   const adverse=statsOutcomeCounts(ds.events,'defense');
-  const group=groupState.groups.find(g=>g.id===groupId);
+  const group=statsGroupMeta(groupId);
   const population=groupPopulationFromName(group?.name)||'H';
   let offensiveReference=null;
   try{offensiveReference=await loadOffensiveReference(population)}catch(e){console.error('stats 1v1 reference',e)}
@@ -9562,28 +9620,55 @@ async function loadStatsImpact(){
   await renderStatsImpactSelection();
 }
 
+async function prepareStatsModuleForGroup(groupId,{readOnly=false}={}){
+  hideMainModules();setMatchHeaderMode(false);
+  $('#statsHome').classList.remove('hidden');
+  statsState.readOnlyViewer=!!readOnly;
+  statsState.viewerReturnGroupId=readOnly?groupId:null;
+  $('#statsReadOnlyBadge')?.classList.toggle('hidden',!readOnly);
+  if($('#statsBackHome'))$('#statsBackHome').textContent=readOnly?'← Espace joueur':'← Accueil';
+  $('#openQuickCollectionFromReference')?.classList.toggle('hidden',!!readOnly);
+  if(readOnly)$('#statsReferenceManager')?.classList.add('hidden');
+  statsState.tab='group';statsState.domain='training';statsState.leaderMode='recent';
+  $$('.statsLeaderboardMode').forEach(b=>b.classList.toggle('active',b.dataset.leaderMode==='recent'));
+  switchStatsTab('group');
+  switchStatsDomain('training');
+  await loadStatsData(groupId);
+  const group=statsGroupMeta(groupId);
+  const pop=groupPopulationFromName(group?.name)||'H';
+  if($('#statsReferencePopulation'))$('#statsReferencePopulation').value=pop;
+  if($('#statsImpactPopulation'))$('#statsImpactPopulation').value=pop;
+  if($('#statsImpactSortField'))$('#statsImpactSortField').value=statsState.impactSortField||'impact100';
+  if($('#statsImpactSortDirection'))$('#statsImpactSortDirection').value=statsState.impactSortDirection||'desc';
+  if($('#statsImpactRestartLocation'))$('#statsImpactRestartLocation').value=statsState.impactRestartLocation||'all';
+  $('#statsImpactRestartFilter')?.classList.toggle('hidden',(statsState.impactScope||'all')!=='restart');
+  window.scrollTo({top:0,behavior:'instant'});
+}
 async function openStatsModule(){
   try{
+    statsState.readOnlyViewer=false;
     await fetchMyGroups();
-    hideMainModules();setMatchHeaderMode(false);
-    $('#statsHome').classList.remove('hidden');
-    if($('#statsGroup'))$('#statsGroup').value=groupState.groups[0]?.id||'';
-    statsState.tab='group';statsState.domain='training';statsState.leaderMode='recent';
-    $$('.statsLeaderboardMode').forEach(b=>b.classList.toggle('active',b.dataset.leaderMode==='recent'));
-    switchStatsTab('group');
-    switchStatsDomain('training');
-    await loadStatsData($('#statsGroup')?.value||'');
-    const group=groupState.groups.find(g=>g.id===($('#statsGroup')?.value||''));
-    const pop=groupPopulationFromName(group?.name)||'H';
-    if($('#statsReferencePopulation'))$('#statsReferencePopulation').value=pop;
-    if($('#statsImpactPopulation'))$('#statsImpactPopulation').value=pop;
-    if($('#statsImpactSortField'))$('#statsImpactSortField').value=statsState.impactSortField||'impact100';
-    if($('#statsImpactSortDirection'))$('#statsImpactSortDirection').value=statsState.impactSortDirection||'desc';
-    if($('#statsImpactRestartLocation'))$('#statsImpactRestartLocation').value=statsState.impactRestartLocation||'all';
-    $('#statsImpactRestartFilter')?.classList.toggle('hidden',(statsState.impactScope||'all')!=='restart');
-    window.scrollTo({top:0,behavior:'instant'});
+    const sel=$('#statsGroup');
+    if(sel){sel.disabled=false;sel.innerHTML='<option value="">— Choisir un groupe —</option>';groupState.groups.forEach(g=>{const o=document.createElement('option');o.value=g.id;o.textContent=g.name;sel.append(o)});sel.value=groupState.groups[0]?.id||''}
+    await prepareStatsModuleForGroup(sel?.value||'',{readOnly:false});
   }catch(e){handleError('stats',e);$('#statsStatus').textContent=e.message||String(e)}
 }
+async function openGroupStatsViewer(access){
+  try{
+    if(!access||access.stats_access!=='group')throw new Error('Cet accès aux statistiques du groupe n’est pas autorisé.');
+    const allowed=(playerPortalState.accesses||[]).filter(a=>a.stats_access==='group');
+    const sel=$('#statsGroup');
+    if(sel){
+      sel.innerHTML=allowed.map(a=>`<option value="${escapeHtml(a.group_id)}">${escapeHtml(a.group_name)}</option>`).join('');
+      sel.value=access.group_id;
+      sel.disabled=allowed.length<=1;
+    }
+    history.replaceState(null,'',location.pathname+'#team-stats');
+    await prepareStatsModuleForGroup(access.group_id,{readOnly:true});
+    return true;
+  }catch(e){handleError('group stats viewer',e);alert(e.message||String(e));return false}
+}
+
 
 $('#openMatchModule').onclick=()=>openMatchLibrary().catch(e=>handleError('match library',e));
 $('#openTrainingModule').onclick=()=>{window.location.href='training.html'};
@@ -9679,7 +9764,8 @@ function bindStatsControls(){
   if(statsGroup)statsGroup.onchange=async()=>{
     try{
       await loadStatsData(statsGroup.value);
-      const group=groupState.groups.find(g=>g.id===statsGroup.value);
+      if(statsState.readOnlyViewer&&!((playerPortalState.accesses||[]).some(a=>a.group_id===statsGroup.value&&a.stats_access==='group')))return;
+      const group=statsGroupMeta(statsGroup.value);
       const pop=groupPopulationFromName(group?.name)||'H';
       if($('#statsReferencePopulation'))if($('#statsReferencePopulation'))$('#statsReferencePopulation').value=pop;
       if($('#statsImpactPopulation'))if($('#statsImpactPopulation'))$('#statsImpactPopulation').value=pop;
@@ -9792,7 +9878,7 @@ bindStatsControls();
 $('#openStatsModule').onclick=()=>openStatsModule();
 $('#openVideosDashboardModule').onclick=()=>{window.location.href='coach-videos.html'};
 if($('#openQuickCollectionFromReference'))$('#openQuickCollectionFromReference').onclick=()=>{window.location.href='quick-collection.html'};
-$('#statsBackHome').onclick=showAppHome;
+$('#statsBackHome').onclick=()=>{if(statsState.readOnlyViewer){history.replaceState(null,'',location.pathname+'#player-home');enterMyPlayerPortal().catch(e=>handleError('return player portal',e));}else showAppHome()};
 if($('#statsMatchLatest'))$('#statsMatchLatest').onclick=()=>{
   const list=statsState.matchList||[];
   const latest=list[list.length-1];

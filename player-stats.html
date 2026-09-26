@@ -28,7 +28,7 @@ button:hover,a.button:hover{border-color:#587197}.hidden{display:none!important}
 .reliability{font-size:11px!important;font-weight:700}.warning{border:1px solid #66592f;border-radius:13px;background:#fff7df;padding:12px;color:#75560b;font-size:12px;line-height:1.5}.warning.critical{border-color:#6a3939;background:#fff0f0;color:#8d2929}
 .takeaways{border:1px solid var(--line);border-radius:14px;background:#f8fafc;padding:13px;display:grid;gap:8px}.takeaways h4{margin:0}.takeaway{display:flex;gap:8px;align-items:flex-start}.takeawayDot{width:7px;height:7px;border-radius:50%;background:var(--primary);margin-top:7px;flex:none}
 .mainMetrics,.secondaryMetrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.metric,.secondary{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--panel2);display:grid;gap:5px}.metric span,.secondary span{font-size:12px;color:var(--muted)}.metric strong{font-size:30px}.secondary strong{font-size:25px}.metric small,.secondary small{color:var(--muted);line-height:1.45}
-.positive{color:#7ce2a9}.negative{color:#ff9696}.neutral{color:var(--text)}.benchmark{padding:0 2px}
+.positive{color:#005A9C}.negative{color:#B54708}.neutral{color:var(--text)}.benchmark{padding:0 2px}
 details{border:1px solid var(--line);border-radius:14px;background:#f8fafc;padding:0 13px}summary{cursor:pointer;padding:12px 0;font-weight:800}.explain{padding:0 0 13px;color:#c7cfda;line-height:1.55}.formula{border-left:3px solid var(--primary);padding:8px 10px;margin:8px 0;background:#fff;border-radius:8px}
 .tableWrap{overflow:auto;padding-bottom:12px}.table{width:100%;border-collapse:collapse;min-width:760px}.table th,.table td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.table th{font-size:11px;color:var(--muted)}
 .opponentBlock{border:1px solid var(--line);border-radius:14px;background:#f8fafc;padding:13px}
@@ -72,7 +72,7 @@ select,input,textarea{background:#fff!important;color:var(--text)!important;bord
 .matchItem,.takeaways,details,.opponentBlock{background:#F8FAFC}
 .opponentMatchRow td{background:#F1F5F9!important}
 .explain{color:var(--muted)!important}
-.positive{color:#18794E!important}.negative{color:#B42318!important}
+.positive{color:#005A9C!important}.negative{color:#B54708!important}
 .error{color:#B42318!important}
 .warning{border-color:#E2B86B;background:#FFF7E6;color:#7A4A08}
 .warning.critical{border-color:#E3AAA7;background:#FFF0EF;color:#8F241E}
@@ -107,6 +107,7 @@ select,input,textarea{background:#fff!important;color:var(--text)!important;bord
     <nav class="nav" id="nav">
       <a href="index.html#player-home" id="statsHomeLink">Accueil</a>
       <a href="player-stats.html" class="active">Mes statistiques</a>
+      <a href="index.html#team-stats" id="teamStatsLink" class="hidden">Statistiques équipe</a>
       <a href="videos.html" id="videosLink">Mes vidéos</a>
       <a href="index.html#player-profile">Mon profil</a>
     </nav>
@@ -305,6 +306,7 @@ function showError(e){console.error(e);$('#content').innerHTML=`<div class="stat
 
 async function loadGroup(groupId){
   state.groupId=groupId;state.scope='all';state.restartLocation='all';
+  const access=(state.accesses||[]).find(a=>a.group_id===groupId);const teamStatsLink=$('#teamStatsLink');if(teamStatsLink)teamStatsLink.classList.toggle('hidden',state.isCoach||access?.stats_access!=='group');
   $$('[data-scope]').forEach(b=>b.classList.toggle('active',b.dataset.scope==='all'));
   $('#restartField').classList.add('hidden');$('#restart').value='all';
 

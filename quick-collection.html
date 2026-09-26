@@ -54,14 +54,14 @@ button{border:0;border-radius:14px;padding:12px 11px;background:var(--panel2);co
   .top .sub{font-size:11px}
 }
 
-/* KC UX BATCH 2026-09-26 */
+/* KC UX FINAL 2026-09-26 */
 body{background:var(--bg);color:var(--text)}
 .panel{background:#fff;box-shadow:0 1px 2px rgba(15,23,42,.04)}
 input,select{background:#fff!important;color:var(--text)!important;border-color:var(--line)!important}
 button{background:#fff;color:var(--text);border:1px solid var(--line)}
 button:hover{background:#EEF3F8;border-color:#AAB8CA}.primary{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}.ghost{background:#fff;color:var(--text)}
-.top{background:var(--nav);color:#F8FAFC;padding:10px 12px;border-radius:16px;box-shadow:0 6px 18px rgba(15,23,42,.12)}
-.top .sub,.top .small{color:#CBD5E1}.top button{background:#111827;color:#F8FAFC;border-color:#334155}
+.top{background:#fff;color:var(--text);padding:10px 12px;border:1px solid var(--line);border-radius:16px;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+.top .sub,.top .small{color:var(--muted)}.top button{background:#E8F0FE;color:#1E478F;border-color:#B7CAF4}.top button:hover{background:#DDE9FC;border-color:#9DB6EA}
 .speedDetails,.statusBox,.metric{background:#F8FAFC}.shortcutKey{background:#E9EEF5;color:#41546D;border:1px solid var(--line)}
 .shortcutBtn.active,.speedBtn.active{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}
 .outcomeBtn.point{background:#18794E!important;color:#fff!important}.outcomeBtn.defended{background:#315B8A!important;color:#fff!important}.outcomeBtn.fault{background:#A83A3A!important;color:#fff!important}
@@ -214,8 +214,6 @@ async function loadWorkspace(){
   const {data,error}=await db.from('workspace_members').select('workspace_id').eq('user_id',currentUser.id).limit(1); if(error)throw error; if(!data?.length)throw new Error('Aucun workspace associé à ce compte.'); workspaceId=data[0].workspace_id;
 }
 async function loadSessions(){
-  // Dataset mutualisé : toutes les sessions de collecte rapide visibles
-  // par les utilisateurs authentifiés, indépendamment du workspace d'origine.
   const {data,error}=await db.from('quick_collection_sessions').select('*').order('created_at',{ascending:false}).limit(100); if(error)throw error;
   const sel=$('#existingSessions'); sel.innerHTML='<option value="">— Sessions récentes —</option>';
   (data||[]).forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=`${s.sex} · ${s.label||s.youtube_video_id}${s.category?' · '+s.category:''}${s.competition_level?' · '+s.competition_level:''}`;o.dataset.session=JSON.stringify(s);sel.append(o)});
