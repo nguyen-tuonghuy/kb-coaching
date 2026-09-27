@@ -1,8 +1,55 @@
-/* Kinball Coach — identité visuelle 2026 */
+/* Kinball Coach — système visuel commun */
 :root{
-  --brand-navy:#0B315B;--brand-pink:#F4267D;--brand-blue:#1768B3;--brand-teal:#0AA89E;--brand-yellow:#FFB62E;
-  --bg:#F6F8FB;--panel:#FFFFFF;--panel2:#F8FAFC;--text:#172033;--muted:#627083;--line:#D5DCE5;
-  --accent:#1768B3;--primary:#1768B3;--nav:#0B315B;--nav2:#164A7A;--navLine:#2D5D89;--focus:#8DB9E8;
+  --brand-navy:#0B315B;
+  --brand-pink:#F4267D;
+  --brand-blue:#1768B3;
+  --brand-teal:#0AA89E;
+  --brand-yellow:#FFB62E;
+
+  --bg:#F6F8FB;
+  --panel:#FFFFFF;
+  --panel2:#F8FAFC;
+  --text:#172033;
+  --muted:#627083;
+  --line:#D5DCE5;
+
+  --accent:var(--brand-blue);
+  --primary:var(--brand-blue);
+  --nav:var(--brand-navy);
+  --nav2:#164A7A;
+  --navLine:#2D5D89;
+  --focus:#8DB9E8;
+
+  --neutral-bg:#E9EEF5;
+  --neutral-text:#41546D;
+  --control-hover:#EEF3F8;
+  --control-border-hover:#94A3B8;
+
+  --info:#1E478F;
+  --info-bg:#E8F0FE;
+  --info-border:#B7CAF4;
+
+  --success:#18794E;
+  --success-text:#17633E;
+  --success-bg:#ECFDF3;
+  --success-border:#B7E4C7;
+
+  --warning:#B45309;
+  --warning-text:#7A4A08;
+  --warning-bg:#FFF1DD;
+  --warning-border:#E2B86B;
+
+  --danger:#B42318;
+  --danger-text:#8F241E;
+  --danger-bg:#FFF7F6;
+  --danger-bg-strong:#FFF0EF;
+  --danger-border:#E3AAA7;
+
+  --radius-control:12px;
+  --radius-card:14px;
+  --radius-panel:18px;
+  --radius-header:16px;
+  --shadow-panel:0 1px 3px rgba(15,23,42,.06);
 }
 .kcBrand{display:inline-flex;align-items:center;gap:8px;min-width:0}
 .kcBrandMark{width:44px;height:34px;display:block;flex:0 0 auto;object-fit:contain}
@@ -59,4 +106,139 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .top,.topbar{grid-template-columns:1fr!important}
   .topActions{grid-column:1/-1;justify-content:flex-start!important;width:100%}
   .kcBrand{justify-self:start}
+}
+
+
+/* ==========================================================
+   Composants communs — normalisation visuelle inter-pages
+   ========================================================== */
+html,body{background:var(--bg);color:var(--text)}
+body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+
+/* Surfaces */
+.panel{
+  background:var(--panel)!important;
+  border:1px solid var(--line)!important;
+  border-radius:var(--radius-panel)!important;
+  box-shadow:var(--shadow-panel)!important;
+}
+.card,.count,.metric,.secondary,.matchItem,.takeaways,details,.opponentBlock{
+  border-color:var(--line);
+}
+
+/* En-têtes d'application */
+.top,.topbar{
+  background:var(--panel)!important;
+  color:var(--text)!important;
+  border:1px solid var(--line)!important;
+  border-radius:var(--radius-header)!important;
+  box-shadow:var(--shadow-panel)!important;
+  padding:10px 12px;
+}
+.top .sub,.top .small,.topbar .sub,.topbar .small{color:var(--muted)!important}
+.top .badge,.top .status,.topbar .badge,.topbar .status{
+  background:var(--success-bg)!important;
+  color:var(--success-text)!important;
+  border:1px solid var(--success-border)!important;
+}
+
+/* Contrôles neutres */
+button,a.button{
+  border-radius:var(--radius-control);
+}
+button:not(.primary):not(.good):not(.bad):not(.warn):not(.on):not(.choice):not(.active),
+a.button:not(.primary):not(.active){
+  background:#fff;
+  color:var(--text);
+  border-color:var(--line);
+}
+button:not(.primary):not(.good):not(.bad):not(.warn):not(.on):not(.choice):hover,
+a.button:not(.primary):hover{
+  background:var(--control-hover);
+  border-color:var(--control-border-hover);
+}
+input,select,textarea{
+  background:#fff!important;
+  color:var(--text)!important;
+  border-color:var(--line)!important;
+  border-radius:var(--radius-control)!important;
+}
+
+/* États d'action */
+button.primary,.primary,.on,.tab.active{
+  background:var(--primary)!important;
+  border-color:var(--primary)!important;
+  color:#fff!important;
+}
+.good{background:var(--success)!important;color:#fff!important}
+.bad{background:var(--danger)!important;color:#fff!important}
+.warn{background:var(--warning)!important;color:#fff!important}
+
+/* Navigation secondaire */
+.nav a,.ghost.backNav{
+  border-radius:var(--radius-control);
+}
+.nav a.active,.nav a.backNav,.ghost.backNav{
+  background:var(--info-bg)!important;
+  border-color:var(--info-border)!important;
+  color:var(--info)!important;
+}
+.nav a.active:hover,.nav a.backNav:hover,.ghost.backNav:hover{
+  background:#DDE9FC!important;
+  border-color:#9DB6EA!important;
+}
+
+/* Badges et états */
+.status,.badge,.chip{border-radius:999px}
+.chip:not(.unread),.badge:not(.unread){background:var(--neutral-bg);color:var(--neutral-text)}
+.chip.unread,.badge.unread{
+  background:var(--warning-bg)!important;
+  color:var(--warning-text)!important;
+  border-color:var(--warning-border)!important;
+}
+.error{color:var(--danger)!important}
+.warning{
+  border-color:var(--warning-border)!important;
+  background:#FFF7E6!important;
+  color:var(--warning-text)!important;
+}
+.warning.critical{
+  border-color:var(--danger-border)!important;
+  background:var(--danger-bg-strong)!important;
+  color:var(--danger-text)!important;
+}
+
+/* Typographie utilitaire */
+.small{font-size:12px;color:var(--muted);line-height:1.45}
+
+/* Écran de chargement : une seule définition commune */
+.startupScreen{
+  position:fixed;
+  inset:0;
+  z-index:99999;
+  background:var(--bg)!important;
+  color:var(--text)!important;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+.startupScreenInner{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  background:transparent!important;
+  border:0!important;
+  border-radius:0!important;
+  padding:0!important;
+  box-shadow:none!important;
+  min-width:120px;
+  min-height:120px;
+}
+.kcStartupText{color:var(--muted)!important}
+
+@media(max-width:760px){
+  .top,.topbar{border-radius:14px!important;padding:9px 10px}
 }
