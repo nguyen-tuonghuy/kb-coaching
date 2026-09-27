@@ -37,7 +37,6 @@ details{border:1px solid var(--line);border-radius:14px;background:#f8fafc;paddi
 .startupScreenInner{text-align:center}.startupScreenBrand{font-size:24px;font-weight:800;margin-bottom:8px}.startupScreenText{font-size:13px;color:#9aa5b4}
 
 
-.nav a.backNav{background:#e6edf7;border-color:#b9c8dc;color:#23436e}
 @media(max-width:760px){.shell{padding:10px}.panel{padding:12px}.matches{grid-template-columns:repeat(2,minmax(0,1fr))}.nav{overflow-x:auto;flex-wrap:nowrap}.nav a{white-space:nowrap}}
 @media(max-width:520px){.matches{grid-template-columns:1fr}.counts,.mainMetrics,.secondaryMetrics{grid-template-columns:1fr}}
 
@@ -56,7 +55,6 @@ button:hover,a.button:hover{background:var(--control-hover);border-color:var(--c
 select,input,textarea{background:#fff!important;color:var(--text)!important;border-color:var(--line)!important}
 .nav a{background:#fff}
 .nav a.active{background:var(--info-bg);border-color:var(--info-border);color:var(--info)}
-.nav a.backNav{background:var(--info-bg);border-color:var(--info-border);color:var(--info)}
 .matchItem,.takeaways,details,.opponentBlock{background:#F8FAFC}
 .opponentMatchRow td{background:#F1F5F9!important}
 .explain{color:var(--muted)!important}

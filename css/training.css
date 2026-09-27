@@ -13,8 +13,8 @@ input,select,button{font:inherit}
 input,select{width:100%;padding:12px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:12px}
 button{border:0;border-radius:14px;padding:13px 11px;background:var(--panel2);color:var(--text);font-weight:750;cursor:pointer}
 button:active{transform:scale(.985)}
-.primary{background:var(--accent)} .good{background:var(--good)} .bad{background:var(--bad)}
-.warn{background:var(--warn);color:#121212}.ghost{background:transparent;border:1px solid var(--line)}
+.primary{background:var(--accent);color:#fff} .good{background:var(--good)} .bad{background:var(--bad)}
+.warn{background:var(--warn);color:#fff}.ghost{background:transparent;border:1px solid var(--line)}
 .hidden{display:none!important}
 .players{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .periodSettingsPanel,.livePlayersDetails{padding:0;overflow:hidden}
@@ -39,9 +39,9 @@ button:active{transform:scale(.985)}
 @media(max-width:520px){.quickRestartGrid{gap:6px}.quickRestartGrid button{min-height:56px;padding:8px 5px;font-size:11px}}
 
 .players button{min-height:54px}
-.on{background:var(--accent)} .off{color:var(--muted)}
+.on{background:var(--accent);color:#fff} .off{color:var(--muted)}
 .tabs{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
-.tab.active{background:var(--accent)}
+.tab.active{background:var(--accent);color:#fff}
 .actiongrid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
 .actiongrid button{min-height:68px;font-size:16px}
 .popupBackdrop{
@@ -286,10 +286,10 @@ button:active{transform:scale(.985)}
 .statsMatchViewTabs button.active{background:var(--accent);color:#fff}
 
 .statsDomainTab{border:1px solid var(--line);min-height:46px}
-.statsDomainTab.active{background:var(--accent);border-color:#78a2ff}
+.statsDomainTab.active{background:var(--accent);border-color:var(--accent);color:#fff}
 .matchCaptureMode{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .matchCaptureMode button{border:1px solid var(--line)}
-.matchCaptureMode button.active{background:var(--accent);border-color:#78a2ff}
+.matchCaptureMode button.active{background:var(--accent);border-color:var(--accent);color:#fff}
 .matchVideoPanel{margin-bottom:12px}
 .matchVideoSticky{position:relative}
 .matchVideoWrap{aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden}
@@ -299,7 +299,7 @@ button:active{transform:scale(.985)}
 .matchVideoSpeed{margin-top:8px;border:1px solid var(--line);border-radius:12px;background:var(--panel2)}
 .matchVideoSpeed summary{display:none;cursor:pointer;padding:10px 12px;font-weight:750}
 .matchVideoSpeedRow{display:flex;gap:7px;flex-wrap:wrap;padding:8px 0 0}
-.matchVideoSpeedBtn.active{background:var(--accent)}
+.matchVideoSpeedBtn.active{background:var(--accent);color:#fff}
 
 
 /* Analyse vidéo sur ordinateur : lecteur à gauche, saisie à droite.
@@ -494,6 +494,7 @@ button:active{transform:scale(.985)}
 }
 .statsImpactScopeTabs button.active{
   background:var(--accent);
+  color:#fff;
   border-color:#78a2ff;
 }
 @media(max-width:620px){
@@ -505,7 +506,7 @@ button:active{transform:scale(.985)}
   display:inline-flex;align-items:center;justify-content:center;
   border:1px solid var(--line);background:#fff;font-weight:900;font-size:18px
 }
-.statsHelpBtn:hover{background:var(--accent)}
+.statsHelpBtn:hover{background:var(--accent);color:#fff}
 .statsHelpBackdrop{
   position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.72);
   display:flex;align-items:center;justify-content:center;padding:18px
@@ -571,7 +572,7 @@ button:active{transform:scale(.985)}
 
 @media(max-width:760px){.statsDomainTabs{grid-template-columns:repeat(2,minmax(0,1fr))}.statsMatchGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
-.statsTab.active{background:var(--accent)}
+.statsTab.active{background:var(--accent);color:#fff}
 .statsMetrics{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin:10px 0 14px}
 .statsMetric{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:12px}
 .statsMetric .value{font-size:24px;font-weight:800;margin-top:3px}
@@ -1976,8 +1977,6 @@ button.primary,.primary,.on,.tab.active{background:var(--accent)!important;color
 .warn{background:var(--warn)!important;color:#fff!important}
 .ghost{background:#fff;color:var(--text);border-color:var(--line)}
 .ghost:hover{background:var(--control-hover);border-color:var(--control-border-hover)}
-.ghost.backNav{background:var(--info-bg)!important;border-color:var(--info-border)!important;color:var(--info)!important}
-.ghost.backNav:hover{background:#DDE9FC!important;border-color:#9DB6EA!important}
 
 .top{
   background:var(--nav);color:#F8FAFC;padding:10px 12px;border-radius:16px;

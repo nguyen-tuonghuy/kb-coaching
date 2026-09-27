@@ -45,6 +45,11 @@
   --danger-bg-strong:#FFF0EF;
   --danger-border:#E3AAA7;
 
+  /* Aliases legacy centralisés */
+  --good:var(--success);
+  --bad:var(--danger);
+  --warn:var(--warning);
+
   --radius-control:12px;
   --radius-card:14px;
   --radius-panel:18px;
@@ -241,4 +246,192 @@ button.primary,.primary,.on,.tab.active{
 
 @media(max-width:760px){
   .top,.topbar{border-radius:14px!important;padding:9px 10px}
+}
+
+/* Navigation retour — rendu strictement uniforme sur toutes les pages */
+a.backNav,button.backNav,.ghost.backNav,.nav a.backNav{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  min-height:40px;
+  padding:9px 12px;
+  border:1px solid var(--info-border)!important;
+  border-radius:var(--radius-control)!important;
+  background:var(--info-bg)!important;
+  color:var(--info)!important;
+  font-weight:700;
+  text-decoration:none;
+  box-shadow:none!important;
+}
+a.backNav:hover,button.backNav:hover,.ghost.backNav:hover,.nav a.backNav:hover{
+  background:#DDE9FC!important;
+  border-color:#9DB6EA!important;
+  box-shadow:none!important;
+}
+a.backNav:focus:not(:focus-visible),button.backNav:focus:not(:focus-visible){
+  outline:none!important;
+  box-shadow:none!important;
+}
+a.backNav:focus-visible,button.backNav:focus-visible{
+  outline:3px solid color-mix(in srgb,var(--brand-blue) 35%,transparent)!important;
+  outline-offset:2px;
+  box-shadow:none!important;
+}
+
+
+/* ==========================================================
+   Uniformisation finale des composants interactifs
+   2026-09-27
+   Cette couche est volontairement chargée après les CSS de page.
+   ========================================================== */
+:root{
+  --primary-hover:#125894;
+  --primary-pressed:#0E4778;
+  --info-hover:#DDE9FC;
+  --info-border-hover:#9DB6EA;
+  --surface-muted:#F8FAFC;
+  --surface-subtle:#F1F5F9;
+}
+
+/* Tous les contrôles bleus interactifs ont le même contraste texte/fond. */
+button.primary,a.button.primary,.primary,
+button.on,.on,
+.tab.active,.tabs button.active,
+.statsDomainTab.active,
+.matchCaptureMode button.active,
+.matchVideoSpeedBtn.active,
+.statsImpactScopeTabs button.active,
+.statsTab.active,
+.statsMatchViewTabs button.active,
+.matchAnalysisTabs button.active,
+.statsImpactViewTabs .active,
+.playerPortalScopeTabs button.active,
+.playerPortalTopNav button.active,
+.playerPortalTopNav a.active,
+.entryAction.selected,
+.choice.active,
+.player .rate.active,
+.playerVideoSpeedButton.active,
+.statsHelpBtn:hover{
+  background:var(--primary)!important;
+  border-color:var(--primary)!important;
+  color:#FFFFFF!important;
+  box-shadow:none!important;
+}
+
+/* Hover homogène sur les actions bleues, sans retour accidentel au gris. */
+button.primary:hover,a.button.primary:hover,.primary:hover,
+button.on:hover,.on:hover,
+.tab.active:hover,.tabs button.active:hover,
+.statsDomainTab.active:hover,
+.matchCaptureMode button.active:hover,
+.matchVideoSpeedBtn.active:hover,
+.statsImpactScopeTabs button.active:hover,
+.statsTab.active:hover,
+.statsMatchViewTabs button.active:hover,
+.matchAnalysisTabs button.active:hover,
+.statsImpactViewTabs .active:hover,
+.playerPortalScopeTabs button.active:hover,
+.playerPortalTopNav button.active:hover,
+.playerPortalTopNav a.active:hover,
+.entryAction.selected:hover,
+.player .rate.active:hover,
+.playerVideoSpeedButton.active:hover{
+  background:var(--primary-hover)!important;
+  border-color:var(--primary-hover)!important;
+  color:#FFFFFF!important;
+}
+
+/* Boutons neutres : mêmes fond, texte et bordure partout. */
+button.ghost,a.button.ghost,
+button.secondary,a.button.secondary{
+  background:#FFFFFF!important;
+  color:var(--text)!important;
+  border-color:var(--line)!important;
+  box-shadow:none!important;
+}
+button.ghost:hover,a.button.ghost:hover,
+button.secondary:hover,a.button.secondary:hover{
+  background:var(--control-hover)!important;
+  color:var(--text)!important;
+  border-color:var(--control-border-hover)!important;
+}
+
+/* Les boutons de retour restent un composant d'information, pas un bouton primaire. */
+a.backNav,button.backNav,.ghost.backNav,.nav a.backNav{
+  background:var(--info-bg)!important;
+  border-color:var(--info-border)!important;
+  color:var(--info)!important;
+  box-shadow:none!important;
+}
+a.backNav:hover,button.backNav:hover,.ghost.backNav:hover,.nav a.backNav:hover{
+  background:var(--info-hover)!important;
+  border-color:var(--info-border-hover)!important;
+  color:var(--info)!important;
+}
+
+/* Surfaces claires communes : neutralise les reliquats de l'ancien thème sombre. */
+.sheet,.sheetTop,.actionOutcomeDropdown,.actionDetailPanel>.sheet,
+.resultRow,.trainingPlanStatBox,.trainingDraftCard,
+.statsImpactCoachMessage,.statsImpactPlayerExplainerFormula,
+.playerPortalReadOnlyMessage,.playerPortalVolumeBadge,
+.coachMessageHistoryItem,.playerPortalMessageBubble,.playerObjectiveItem,
+.staffRecentMessage,.trainingSavedSession,
+.opponentMatchRow td{
+  background:var(--surface-muted)!important;
+  color:var(--text)!important;
+  border-color:var(--line)!important;
+}
+#popup .popupActionBar,
+#popup.centerDefenseCompact .popupActionBar,
+#popup.fieldMode .popupActionBar{
+  background:var(--panel)!important;
+  color:var(--text)!important;
+  border-color:var(--line)!important;
+}
+.statsImpactPlayerExplainerFormula{
+  border:1px solid var(--line)!important;
+}
+.playerVideoUploadProgress,.progress{
+  background:var(--surface-subtle)!important;
+}
+
+/* Cartes, blocs explicatifs et tableaux : même famille de surfaces. */
+.matchItem,.takeaways,details,.opponentBlock,.card,.readonly,.composer,.note{
+  border-color:var(--line)!important;
+}
+.opponentMatchRow td{background:var(--surface-subtle)!important}
+.explain{color:var(--muted)!important}
+
+/* Badges d'état. */
+.chip:not(.unread),.badge:not(.unread){
+  background:var(--neutral-bg)!important;
+  color:var(--neutral-text)!important;
+  border-color:var(--line)!important;
+}
+.chip.unread,.badge.unread{
+  background:var(--warning-bg)!important;
+  color:var(--warning-text)!important;
+  border-color:var(--warning-border)!important;
+}
+.card.unread{
+  border-color:var(--warning-border)!important;
+  box-shadow:inset 0 0 0 1px var(--warning-border)!important;
+}
+
+/* Liens/actions internes aux cartes. */
+.actions a.button,.actions a{
+  border-radius:var(--radius-control);
+}
+
+/* Focus : un seul halo, uniquement pour navigation clavier. */
+button:focus:not(:focus-visible),a:focus:not(:focus-visible),
+input:focus:not(:focus-visible),select:focus:not(:focus-visible),textarea:focus:not(:focus-visible){
+  outline:none;
+}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:3px solid color-mix(in srgb,var(--brand-blue) 35%,transparent)!important;
+  outline-offset:2px;
+  box-shadow:none!important;
 }
