@@ -7641,7 +7641,7 @@ function bindStatsControls(){
     }
   };
 
-  $$('.statsDomainTab').forEach(b=>b.onclick=()=>switchStatsDomain(b.dataset.statsDomain));
+  $$('.statsDomainTab[data-stats-domain]').forEach(b=>b.onclick=()=>switchStatsDomain(b.dataset.statsDomain));
   $$('.statsTab').forEach(b=>b.onclick=()=>switchStatsTab(b.dataset.statsTab));
 
   const refPopulation=$('#statsReferencePopulation');
@@ -7741,6 +7741,13 @@ bindStatsControls();
 $('#openStatsModule').onclick=()=>openStatsModule();
 $('#openVideosDashboardModule').onclick=()=>{window.location.href='coach-videos.html'};
 if($('#openQuickCollectionFromReference'))$('#openQuickCollectionFromReference').onclick=()=>{window.location.href='quick-collection.html'};
+if($('#openFaceToFaceFromStats'))$('#openFaceToFaceFromStats').onclick=()=>{
+  const params=new URLSearchParams();
+  const groupId=$('#statsGroup')?.value||'';
+  if(groupId)params.set('group',groupId);
+  if(statsState.readOnlyViewer)params.set('viewer','1');
+  window.location.href=`face-a-face.html${params.toString()?'?'+params.toString():''}`;
+};
 $('#statsBackHome').onclick=()=>{if(statsState.readOnlyViewer){history.replaceState(null,'',location.pathname+'#player-home');enterMyPlayerPortal().catch(e=>handleError('return player portal',e));}else showAppHome()};
 if($('#statsMatchLatest'))$('#statsMatchLatest').onclick=()=>{
   const list=statsState.matchList||[];

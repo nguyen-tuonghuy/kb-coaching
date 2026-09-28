@@ -15,7 +15,7 @@
   <div class="topbar">
     <div class="kcBrand" aria-label="Kinball Coach"><img class="kcBrandMark" src="kinball-brand/logo-symbol.png" alt="" aria-hidden="true"><span class="kcBrandWord"><span class="kcBrandKin">Kinball</span><span class="kcBrandCoach">Coach</span></span></div>
     <div class="topActions">
-      <span class="status"><span class="dot"></span><span id="cloudText">Connexion…</span></span>
+      <div class="badge syncStatus" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudText">Connexion…</span></div>
       <a class="button homeIcon" id="globalHomeLink" href="index.html" aria-label="Accueil" title="Accueil"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" style="display:block">
   <path d="M3 11.2 12 4l9 7.2v8.3a.5.5 0 0 1-.5.5H15v-6H9v6H3.5a.5.5 0 0 1-.5-.5v-8.3Z" fill="currentColor"/>
 </svg></a>
@@ -186,6 +186,12 @@ const state={
 };
 
 function setStatus(text,cls=''){const el=$('#status');el.textContent=text||'';el.className='small '+cls}
+function setCloud(text,ok=true){
+  $('#cloudText').textContent=text;
+  const dot=$('#cloudDot');
+  dot.classList.toggle('online',ok);
+  dot.classList.toggle('offline',!ok);
+}
 function errorText(e){return e?.message||String(e)||'Erreur'}
 function formatDate(v){try{return new Date(v).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'})}catch{return String(v||'')}}
 function statusLabel(v){return v.status==='reviewed'?'Analysée':v.status==='seen'?'Vue par le staff':'Nouvelle'}
@@ -199,7 +205,7 @@ async function init(){
   if(!session?.user){location.href='index.html';return}
   state.session=session;
   state.user=session.user;
-  $('#cloudText').textContent='Synchronisé';
+  setCloud('Synchronisé',true);
 
   const requestedGroup=params.get('group');
   const requestedPlayer=params.get('player');
@@ -643,7 +649,7 @@ document.addEventListener('keydown',e=>{
   else if(e.key===' '){e.preventDefault();togglePlay()}
 });
 
-init().catch(e=>{console.error(e);setStatus(errorText(e),'error');$('#videoList').innerHTML='<div class="error">Impossible de charger le module vidéo.</div>'}).finally(()=>document.getElementById('startupScreen')?.remove());
+init().catch(e=>{console.error(e);setCloud('Erreur',false);setStatus(errorText(e),'error');$('#videoList').innerHTML='<div class="error">Impossible de charger le module vidéo.</div>'}).finally(()=>document.getElementById('startupScreen')?.remove());
 </script>
 </body>
 </html>

@@ -270,7 +270,7 @@ button:active{transform:scale(.985)}
 
 .statsTabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
 .statsTabs button{border:1px solid var(--line);min-height:44px;background:#fff}
-.statsDomainTabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:14px 0 12px}
+.statsDomainTabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:14px 0 12px}
 .statsMatchViewTabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:14px 0 10px}
 .statsMatchViewTabs button{min-height:44px}
 .statsMatchViewTabs button.active{background:var(--accent);color:#fff}
@@ -560,6 +560,7 @@ button:active{transform:scale(.985)}
   .statsHelpModalHeader{top:-12px}
 }
 
+@media(max-width:1000px){.statsDomainTabs{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:760px){.statsDomainTabs{grid-template-columns:repeat(2,minmax(0,1fr))}.statsMatchGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 .statsTab.active{background:var(--accent);color:#fff}

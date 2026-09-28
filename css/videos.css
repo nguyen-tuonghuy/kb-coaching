@@ -4,7 +4,6 @@ button:hover,a.button:hover{border-color:#587197}button.primary{background:var(-
 button.ghost,a.ghost{background:transparent}.hidden{display:none!important}.small{font-size:12px;color:var(--muted);line-height:1.45}.muted{color:var(--muted)}
 .shell{max-width:1180px;margin:0 auto;padding:18px}
 .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.brand{font-size:22px;font-weight:800}.topActions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.homeIcon{min-width:48px;padding-left:12px!important;padding-right:12px!important;display:inline-flex!important;align-items:center;justify-content:center}
-.status{display:inline-flex;align-items:center;gap:7px;border-radius:999px;background:var(--neutral-bg);padding:8px 11px;font-size:13px}.dot{width:9px;height:9px;border-radius:50%;background:var(--success)}
 .panel{border:1px solid var(--line);border-radius:20px;background:var(--panel);padding:16px}
 .nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}.nav a{border:1px solid var(--line);border-radius:12px;padding:10px 13px;color:var(--text);text-decoration:none}.nav a.active{border-color:#fff;background:#e8eef8;font-weight:700}
 .head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap}.head h1{font-size:25px;margin:3px 0 2px}.headActions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -55,7 +54,6 @@ html,body{background:var(--bg);color:var(--text)}
   background:var(--nav);color:#F8FAFC;padding:10px 12px;border-radius:16px;
   box-shadow:0 6px 18px rgba(15,23,42,.12)
 }
-.topbar .status{background:var(--nav2);color:#F8FAFC;border:1px solid var(--navLine)}
 .topbar button,.topbar a.button{background:#111827;color:#F8FAFC;border-color:var(--navLine)}
 .topbar button:hover,.topbar a.button:hover{background:#1E293B;border-color:#475569}
 button,a.button{background:#fff;color:var(--text);border-color:var(--line)}
@@ -80,7 +78,6 @@ input,textarea,select{background:#fff!important;color:var(--text)!important;bord
 
 /* KC UX BATCH 2 2026-09-26 — light video analysis workspace */
 .topbar{background:#FFFFFF!important;color:var(--text)!important;border:1px solid var(--line)!important;padding:10px 12px;border-radius:16px;box-shadow:0 1px 3px rgba(15,23,42,.06)!important}
-.topbar .status{background:var(--success-bg)!important;color:var(--success-text)!important;border:1px solid var(--success-border)!important}
 .topbar button,.topbar a.button{background:#FFFFFF!important;color:var(--text)!important;border-color:var(--line)!important}
 .topbar button:hover,.topbar a.button:hover{background:#F8FAFC!important;border-color:var(--control-border-hover)!important}
 .player{background:#FFFFFF!important;color:var(--text)!important;border-color:var(--line)!important;box-shadow:0 1px 3px rgba(15,23,42,.05)}

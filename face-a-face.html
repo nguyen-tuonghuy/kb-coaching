@@ -231,7 +231,7 @@ async function init(){
 $('#groupSelect').onchange=()=>loadGroupData($('#groupSelect').value).catch(e=>$('#status').textContent=e.message||String(e));
 $('#countrySelect').onchange=()=>{const c=$('#countrySelect').value;populateMatchScope(c);if(c)renderCountry(c);else $('#content').innerHTML='<div class="small">Choisis un adversaire pour afficher le face-à-face.</div>'};
 $('#matchScopeSelect').onchange=()=>{const c=$('#countrySelect').value;if(c)renderCountry(c)};
-$('#backBtn').onclick=()=>window.location.href=params.get('viewer')==='1'?'index.html#team-stats':'index.html';
+$('#backBtn').onclick=()=>window.location.href=params.get('viewer')==='1'?'index.html#team-stats':'index.html#stats';
 $('#helpBtn').onclick=()=>$('#helpBackdrop').classList.remove('hidden');
 $('#helpClose').onclick=()=>$('#helpBackdrop').classList.add('hidden');
 $('#helpBackdrop').onclick=e=>{if(e.target===$('#helpBackdrop'))$('#helpBackdrop').classList.add('hidden')};

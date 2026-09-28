@@ -17,7 +17,7 @@
  <div class="top">
    <div class="kcBrand" aria-label="Kinball Coach"><img class="kcBrandMark" src="kinball-brand/logo-symbol.png" alt="" aria-hidden="true"><span class="kcBrandWord"><span class="kcBrandKin">Kinball</span><span class="kcBrandCoach">Coach</span></span></div>
    <div class="topActions">
-    <div class="badge" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
+    <div class="badge syncStatus" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
     <div class="badge hidden" id="count">0 actions</div>
     <button class="ghost hidden" id="newMatchTop">Nouveau match</button>
     <button class="ghost hidden" id="homeBtn" aria-label="Accueil" title="Accueil" style="min-width:48px;padding-left:12px;padding-right:12px;display:inline-flex;align-items:center;justify-content:center">
@@ -76,7 +76,7 @@
    <div class="moduleGrid">
     <button class="moduleCard" id="openMatchModule"><strong>🏐 Matchs</strong><span>Prise de notes et statistiques partagées du groupe</span></button>
     <button class="moduleCard" id="openTrainingModule"><strong>🎯 Entraînements</strong><span>Planification, bibliothèque d’exercices et collecte statistique</span></button>
-    <button class="moduleCard" id="openStatsModule"><strong>📊 Statistiques</strong><span>Entraînements, matchs, performance joueurs et référentiel offensif</span></button>
+    <button class="moduleCard" id="openStatsModule"><strong>📊 Statistiques</strong><span>Entraînements, matchs, performance joueurs, face-à-face et référentiel offensif</span></button>
     <button class="moduleCard" id="openVideosDashboardModule"><strong>🎥 Vidéos <span class="videoUnreadBadge hidden" id="homeVideoUnreadBadge">0</span></strong><span>Vidéos déposées par les joueurs et analyse vidéo</span></button>
     <button class="moduleCard" id="openGroupsModule"><strong>👥 Groupes <span class="messageUnreadBadge hidden" id="groupsUnreadBadge">0</span><span class="videoUnreadBadge hidden" id="videoUnreadBadge">0</span></strong><span>Effectifs, messages et vidéos joueurs</span></button>
     <button class="moduleCard" id="openSettingsModule"><strong>⚙️ Paramètres</strong><span>Catégories d’exercices · Types de match</span></button>
@@ -315,7 +315,7 @@
 
  <section class="panel hidden" id="statsHome">
    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
-    <div><div class="row" style="gap:8px;align-items:center"><h2 style="font-size:20px">📊 Statistiques</h2><span class="statsReadOnlyBadge hidden" id="statsReadOnlyBadge">Lecture seule</span></div><div class="small">Centre d’analyse : entraînements, matchs et performance offensive</div></div>
+    <div><div class="row" style="gap:8px;align-items:center"><h2 style="font-size:20px">📊 Statistiques</h2><span class="statsReadOnlyBadge hidden" id="statsReadOnlyBadge">Lecture seule</span></div><div class="small">Centre d’analyse : entraînements, matchs, performance offensive et face-à-face</div></div>
     <div class="row" style="gap:8px">
       <button class="statsHelpBtn" id="statsHelpBtn" type="button" title="Aide sur les statistiques" aria-label="Aide sur les statistiques">?</button>
       <button class="ghost backNav" id="statsBackHome">← Accueil</button>
@@ -332,6 +332,7 @@
     <button class="statsDomainTab" data-stats-domain="matches">Matchs</button>
     <button class="statsDomainTab" data-stats-domain="impact">Performance offensive joueurs</button>
     <button class="statsDomainTab" data-stats-domain="reference">Référentiel offensif</button>
+    <button class="statsDomainTab" id="openFaceToFaceFromStats" type="button">Face-à-face</button>
    </div>
 
    <div id="statsStatus" class="small" style="margin-bottom:10px"></div>

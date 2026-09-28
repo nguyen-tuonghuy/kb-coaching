@@ -142,10 +142,44 @@ body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,
 }
 .top .sub,.top .small,.topbar .sub,.topbar .small{color:var(--muted)!important}
 .top .badge,.top .status,.topbar .badge,.topbar .status{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  min-height:36px;
+  padding:8px 11px;
+  font-size:13px;
+  font-weight:650;
   background:var(--success-bg)!important;
   color:var(--success-text)!important;
   border:1px solid var(--success-border)!important;
 }
+.statusDot{
+  display:inline-block;
+  width:8px;
+  height:8px;
+  flex:0 0 8px;
+  border-radius:50%;
+  background:var(--neutral-text);
+}
+.statusDot.online{background:var(--success)}
+.statusDot.offline{background:var(--warning)}
+
+/* État de synchronisation du header — composant unique inter-pages. */
+.syncStatus{
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:7px!important;
+  min-height:36px;
+  padding:8px 11px!important;
+  border:1px solid var(--line)!important;
+  border-radius:999px!important;
+  background:var(--neutral-bg)!important;
+  color:var(--neutral-text)!important;
+  font-size:13px;
+  font-weight:650;
+  box-shadow:none!important;
+}
+.syncStatus .statusDot{margin:0}
 
 /* Contrôles neutres */
 button,a.button{
@@ -441,3 +475,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   outline-offset:2px;
   box-shadow:none!important;
 }
+
+/* Synchronisation du header : rendu strictement identique dans tous les modules. */
+.top .syncStatus,.topbar .syncStatus{
+  background:var(--neutral-bg)!important;
+  color:var(--neutral-text)!important;
+  border-color:var(--line)!important;
+  box-shadow:none!important;
+}
+.top .syncStatus .statusDot,.topbar .syncStatus .statusDot{margin:0}
