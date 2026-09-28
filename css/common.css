@@ -54,7 +54,7 @@
   --radius-card:14px;
   --radius-panel:18px;
   --radius-header:16px;
-  --shadow-panel:0 1px 3px rgba(15,23,42,.06);
+  --shadow-panel:none;
 }
 .kcBrand{display:inline-flex;align-items:center;gap:8px;min-width:0}
 .kcBrandMark{width:44px;height:34px;display:block;flex:0 0 auto;object-fit:contain}
@@ -149,7 +149,13 @@ body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,
 
 /* Contrôles neutres */
 button,a.button{
+  border:1px solid var(--line);
   border-radius:var(--radius-control);
+  box-shadow:none;
+}
+input,select,textarea{
+  border:1px solid var(--line)!important;
+  box-shadow:none!important;
 }
 button:not(.primary):not(.good):not(.bad):not(.warn):not(.on):not(.choice):not(.active),
 a.button:not(.primary):not(.active){

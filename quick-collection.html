@@ -3,77 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="preconnect" href="https://chrbzchthloxowlzdvpe.supabase.co" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <title>Kinball Coach — Collecte rapide</title>
-<style>
-:root{--bg:#F3F6FA;--panel:#FFFFFF;--panel2:#F7F9FC;--text:#172033;--muted:#53657A;--accent:#2563EB;--primary:#2563EB;--good:#18794E;--bad:#B42318;--warn:#B45309;--line:#CBD5E1;--nav:#0F172A;--nav2:#1E293B;--navLine:#334155}
-*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:16px system-ui,-apple-system,Segoe UI,sans-serif}
-.app{max-width:1050px;margin:auto;padding:14px 14px 40px}.top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
-h1,h2,h3,p{margin:0}.sub,.small{font-size:12px;color:var(--muted)}.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:12px}
-.row{display:flex;gap:9px;flex-wrap:wrap}.field{flex:1 1 180px}label{display:block;font-size:13px;color:var(--muted);margin-bottom:5px}
-input,select,button{font:inherit}input,select{width:100%;padding:12px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:12px}
-button{border:0;border-radius:14px;padding:12px 11px;background:var(--panel2);color:var(--text);font-weight:750;cursor:pointer}button:active{transform:scale(.985)}button:disabled{opacity:.45;cursor:not-allowed}.primary{background:var(--accent)}.ghost{background:transparent;border:1px solid var(--line)}.good{background:var(--good)}.bad{background:var(--bad)}.hidden{display:none!important}
-.videoSticky{margin-top:12px}.videoWrap{aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden}.videoWrap iframe,.videoWrap>div{width:100%;height:100%}
-.transportRow{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.transportRow .ghost{flex:1 1 90px}.speedDetails{margin-top:8px;border:1px solid var(--line);border-radius:12px;background:var(--panel2)}.speedDetails summary{display:none;cursor:pointer;padding:10px 12px;font-weight:750}.speedRow{display:flex;gap:7px;flex-wrap:wrap;padding:0}.speedBtn.active{background:var(--accent)}.speedDetails[open] .speedRow{padding:8px 0 0}
-.shortcutGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}.shortcutBtn{min-height:68px;border:1px solid var(--line);text-align:left}.shortcutBtn.active{background:var(--accent);border-color:#78a2ff}.shortcutKey{display:inline-block;min-width:28px;padding:4px 7px;border-radius:8px;background:rgba(255,255,255,.1);margin-right:6px;text-align:center}
-.outcomeGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px}.outcomeBtn{min-height:62px}.outcomeBtn.point{background:#215b3b}.outcomeBtn.defended{background:#294b73}.outcomeBtn.fault{background:#703838}
-.statusBox{padding:12px;border-radius:12px;background:var(--panel2);margin-top:10px}.pending{font-size:18px;font-weight:800}.flash{animation:flash .35s ease}@keyframes flash{0%{outline:3px solid #fff}100%{outline:0 solid transparent}}
-.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}.metric{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px}.metric strong{display:block;font-size:22px}.metric span{font-size:11px;color:var(--muted)}
-.tableWrap{overflow:auto;margin-top:10px}table{width:100%;border-collapse:collapse;min-width:630px;font-size:12px}th,td{padding:8px;border-bottom:1px solid var(--line);text-align:right}th:first-child,td:first-child{text-align:left}th{color:var(--muted)}
-.lastLine{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}.authStatus{font-size:13px;min-height:18px;margin-top:8px}.ok{color:#7ddc9f}.err{color:#ff8d8d}
-
-@media(max-width:1100px){
-  .videoSticky{
-    position:sticky;
-    top:0;
-    z-index:40;
-    background:var(--panel);
-    padding:4px 0 8px;
-    margin:0 -2px 6px;
-    box-shadow:0 10px 18px rgba(0,0,0,.35);
-  }
-}
-
-@media(max-width:720px){.shortcutGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.outcomeGrid{grid-template-columns:1fr}.app{padding-bottom:24px}}
-@media(max-width:640px){
-  .app{padding:8px 8px 22px}
-  #collectorPanel{padding:10px;overflow:visible}
-  #collectorPanel>.row:first-child{margin-bottom:4px}
-  .videoSticky{position:sticky;top:0;z-index:40;background:var(--panel);padding:4px 0 8px;margin:0 -2px 6px;box-shadow:0 10px 18px rgba(0,0,0,.35)}
-  .videoWrap{border-radius:10px}
-  .transportRow{margin-top:7px}
-  .transportRow .ghost{padding:10px 8px;min-height:42px}
-  .speedDetails{margin-top:7px}
-  .speedDetails summary{display:block}
-  .speedDetails .speedRow{padding:0 8px 8px}
-  .speedDetails:not([open]) .speedRow,.speedDetails:not([open]) #speedStatus{display:none}
-  .shortcutKey,.keyboardOnly{display:none!important}
-  .shortcutBtn{min-height:58px;text-align:center;padding:10px 7px}
-  .outcomeBtn{min-height:56px}
-  .statusBox{padding:9px;margin-top:8px}
-  .pending{font-size:15px}
-  .top .sub{font-size:11px}
-}
-
-/* KC UX FINAL 2026-09-26 */
-body{background:var(--bg);color:var(--text)}
-.panel{background:#fff;box-shadow:0 1px 2px rgba(15,23,42,.04)}
-input,select{background:#fff!important;color:var(--text)!important;border-color:var(--line)!important}
-button{background:#fff;color:var(--text);border:1px solid var(--line)}
-button:hover{background:#EEF3F8;border-color:#AAB8CA}.primary{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}.ghost{background:#fff;color:var(--text)}
-.top{background:#fff;color:var(--text);padding:10px 12px;border:1px solid var(--line);border-radius:16px;box-shadow:0 1px 3px rgba(15,23,42,.06)}
-.top .sub,.top .small{color:var(--muted)}.top button{background:#E8F0FE;color:#1E478F;border-color:#B7CAF4}.top button:hover{background:#DDE9FC;border-color:#9DB6EA}
-.speedDetails,.statusBox,.metric{background:#F8FAFC}.shortcutKey{background:#E9EEF5;color:#41546D;border:1px solid var(--line)}
-.shortcutBtn.active,.speedBtn.active{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}
-.outcomeBtn.point{background:#18794E!important;color:#fff!important}.outcomeBtn.defended{background:#315B8A!important;color:#fff!important}.outcomeBtn.fault{background:#A83A3A!important;color:#fff!important}
-.ok{color:#18794E!important}.err{color:#B42318!important}
-.videoSticky{box-shadow:0 8px 18px rgba(15,23,42,.10)!important}
-</style>
+<link rel="stylesheet" href="css/quick-collection.css">
+<link rel="stylesheet" href="css/common.css">
 </head>
 <body>
 <div class="app">
   <div class="top">
     <div><h1>⚡ Collecte rapide</h1><div class="sub">Dataset partagé · attaques seulement<span class="keyboardOnly"> · 1–4 puis S / D / F</span></div></div>
-    <button class="ghost" id="backHome">← Kinball Coach</button>
+    <button class="ghost backNav" id="backHome">← Kinball Coach</button>
   </div>
 
   <section class="panel" id="sessionPanel">

@@ -1,0 +1,89 @@
+/* Kinball Coach — Collecte rapide
+   Styles spécifiques à la page. Les composants communs (palette, panneaux,
+   champs, boutons, navigation retour...) sont définis dans common.css. */
+*{box-sizing:border-box}
+body{margin:0;font-size:16px}
+.app{max-width:1050px;margin:auto;padding:14px 14px 40px}
+.top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+h1,h2,h3,p{margin:0}
+.sub{font-size:12px;color:var(--muted)}
+.panel{padding:14px;margin-bottom:12px}
+.row{display:flex;gap:9px;flex-wrap:wrap}
+.field{flex:1 1 180px}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:5px}
+input,select,button{font:inherit}
+input,select{width:100%;padding:12px}
+button{padding:12px 11px;font-weight:750;cursor:pointer}
+button:active{transform:scale(.985)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.hidden{display:none!important}
+
+.videoSticky{margin-top:12px}
+.videoWrap{aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden}
+.videoWrap iframe,.videoWrap>div{width:100%;height:100%}
+.transportRow{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.transportRow .ghost{flex:1 1 90px}
+.speedDetails{margin-top:8px;border:1px solid var(--line);border-radius:12px;background:var(--surface-muted)}
+.speedDetails summary{display:none;cursor:pointer;padding:10px 12px;font-weight:750}
+.speedRow{display:flex;gap:7px;flex-wrap:wrap;padding:0}
+.speedDetails[open] .speedRow{padding:8px 0 0}
+.speedBtn.active{background:var(--primary)!important;border-color:var(--primary)!important;color:#fff!important}
+
+.shortcutGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}
+.shortcutBtn{min-height:68px;border:1px solid var(--line);text-align:left}
+.shortcutBtn.active{background:var(--primary)!important;border-color:var(--primary)!important;color:#fff!important}
+.shortcutKey{display:inline-block;min-width:28px;padding:4px 7px;border-radius:8px;background:var(--neutral-bg);color:var(--neutral-text);border:1px solid var(--line);margin-right:6px;text-align:center}
+.shortcutBtn.active .shortcutKey,.outcomeBtn .shortcutKey{background:rgba(255,255,255,.16);color:#fff;border-color:rgba(255,255,255,.35)}
+
+.outcomeGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px}
+.outcomeBtn{min-height:62px}
+.outcomeBtn.point{background:var(--success)!important;border-color:var(--success)!important;color:#fff!important}
+.outcomeBtn.defended{background:#315B8A!important;border-color:#315B8A!important;color:#fff!important}
+.outcomeBtn.fault{background:var(--danger)!important;border-color:var(--danger)!important;color:#fff!important}
+
+.statusBox{padding:12px;border-radius:12px;background:var(--surface-muted);margin-top:10px}
+.pending{font-size:18px;font-weight:800}
+.flash{animation:flash .35s ease}
+@keyframes flash{0%{outline:3px solid #fff}100%{outline:0 solid transparent}}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}
+.metric{background:var(--surface-muted);border:1px solid var(--line);border-radius:12px;padding:10px}
+.metric strong{display:block;font-size:22px}
+.metric span{font-size:11px;color:var(--muted)}
+.tableWrap{overflow:auto;margin-top:10px}
+table{width:100%;border-collapse:collapse;min-width:630px;font-size:12px}
+th,td{padding:8px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted)}
+.lastLine{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.authStatus{font-size:13px;min-height:18px;margin-top:8px}
+.ok{color:var(--success)!important}
+.err{color:var(--danger)!important}
+
+@media(max-width:1100px){
+  .videoSticky{position:sticky;top:0;z-index:40;background:var(--panel);padding:4px 0 8px;margin:0 -2px 6px;box-shadow:0 8px 18px rgba(15,23,42,.10)}
+}
+@media(max-width:720px){
+  .shortcutGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .outcomeGrid{grid-template-columns:1fr}
+  .app{padding-bottom:24px}
+}
+@media(max-width:640px){
+  .app{padding:8px 8px 22px}
+  #collectorPanel{padding:10px;overflow:visible}
+  #collectorPanel>.row:first-child{margin-bottom:4px}
+  .videoSticky{position:sticky;top:0;z-index:40;background:var(--panel);padding:4px 0 8px;margin:0 -2px 6px;box-shadow:0 8px 18px rgba(15,23,42,.10)}
+  .videoWrap{border-radius:10px}
+  .transportRow{margin-top:7px}
+  .transportRow .ghost{padding:10px 8px;min-height:42px}
+  .speedDetails{margin-top:7px}
+  .speedDetails summary{display:block}
+  .speedDetails .speedRow{padding:0 8px 8px}
+  .speedDetails:not([open]) .speedRow,.speedDetails:not([open]) #speedStatus{display:none}
+  .shortcutKey,.keyboardOnly{display:none!important}
+  .shortcutBtn{min-height:58px;text-align:center;padding:10px 7px}
+  .outcomeBtn{min-height:56px}
+  .statusBox{padding:9px;margin-top:8px}
+  .pending{font-size:15px}
+  .top .sub{font-size:11px}
+}

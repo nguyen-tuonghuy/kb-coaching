@@ -376,12 +376,30 @@ const handleError=(where,error)=>{
   alert((error&&error.message)||String(error)||'Erreur de synchronisation');
 };
 
+const KC_STARTUP_T0=performance.now();
+function startupTiming(label){
+  console.info(`[startup] ${label}: ${Math.round(performance.now()-KC_STARTUP_T0)} ms`);
+}
 function hideStartupScreen(){
   const splash=document.getElementById('startupScreen');
-  if(splash)splash.remove();
+  if(splash){
+    splash.remove();
+    startupTiming('splash masqué');
+  }
 }
 function runStartupBackground(label,task){
   Promise.resolve().then(task).catch(error=>console.warn('[startup background]',label,error));
+}
+function runStartupDeferred(label,task,delay=900){
+  setTimeout(()=>runStartupBackground(label,task),delay);
+}
+function startSecondaryStartupTasks(){
+  // Workspace peut être utile rapidement à certains anciens écrans ; le reste attend le premier affichage.
+  runStartupBackground('workspace',()=>ensureWorkspace());
+  runStartupDeferred('notifications messages',()=>refreshMessageNotifications('coach'));
+  runStartupDeferred('notifications vidéos',()=>refreshVideoNotifications());
+  runStartupDeferred('profil',()=>ensureMyProfile());
+  runStartupDeferred('droits admin',()=>refreshAdminAccess());
 }
 
 function saveLocal(){
@@ -957,8 +975,7 @@ async function initAuthenticated(user){
   $('#logout').classList.remove('hidden');
   setCloud('Connexion…',true);
 
-  // Garde-fou : une requête lente ne doit pas garder le splash indéfiniment.
-  // À ce stade la session est déjà connue et le panneau de connexion est masqué.
+  // Le garde-fou reste utile si Supabase répond exceptionnellement lentement.
   const splashGuard=setTimeout(hideStartupScreen,4000);
   try{
     try{await claimPlayerInviteIfPresent(user)}catch(e){
@@ -971,23 +988,48 @@ async function initAuthenticated(user){
       throw e
     }
 
-    // Les deux seules données nécessaires pour choisir la bonne vue sont indépendantes.
-    const [accesses]=await Promise.all([
-      fetchMyPlayerAccesses(),
-      fetchMyGroups()
-    ]);
+    // Démarrer les deux lectures en parallèle, mais ne pas attendre les accès joueur
+    // pour un entraîneur déjà rattaché à au moins un groupe.
+    const accessesPromise=fetchMyPlayerAccesses().catch(error=>{
+      console.warn('[startup] accès joueur',error);
+      playerPortalState.accesses=[];
+      return [];
+    });
+    await fetchMyGroups();
+    startupTiming('groupes entraîneur chargés');
 
-    // Notifications, profil, droits admin et workspace ne bloquent plus l'affichage.
-    runStartupBackground('notifications messages',()=>refreshMessageNotifications('coach'));
-    runStartupBackground('notifications vidéos',()=>refreshVideoNotifications());
-    runStartupBackground('workspace',()=>ensureWorkspace());
-    runStartupBackground('profil',()=>ensureMyProfile());
-    runStartupBackground('droits admin',()=>refreshAdminAccess());
+    // Cas majoritaire entraîneur : le groupe suffit pour afficher l'accueil.
+    // L'accès éventuel à « Mon espace joueur » se synchronise ensuite sans bloquer.
+    if(groupState.groups.length&&!invitedPlayerFlow){
+      $('#appHome').classList.remove('hidden');$('#trainingHome').classList.add('hidden');$('#groupsHome').classList.add('hidden');$('#groupDetail').classList.add('hidden');$('#trainingSession').classList.add('hidden');$('#trainingHistory').classList.add('hidden');$('#homeBtn').classList.remove('hidden');$('#profileBtn').classList.remove('hidden');$('#playerSpaceBtn').classList.add('hidden');$('#newMatchTop').classList.add('hidden');
+      setCloud('Synchronisé',true);
+      clearTimeout(splashGuard);
+      hideStartupScreen();
 
+      accessesPromise.then(accesses=>$('#playerSpaceBtn').classList.toggle('hidden',!accesses.length));
+      startSecondaryStartupTasks();
+
+      // Un retour vers une fiche joueur peut continuer après affichage de l'accueil.
+      const returnParams=new URLSearchParams(location.search||'');
+      const staffGroup=returnParams.get('staff_group'),staffPlayer=returnParams.get('staff_player');
+      if(staffGroup&&staffPlayer&&groupState.groups.some(g=>g.id===staffGroup)){
+        await openGroupDetail(staffGroup);
+        if(groupState.currentPlayers.some(p=>p.id===staffPlayer)){
+          await openStaffPlayerPortal(staffPlayer);
+          history.replaceState(null,'',location.pathname+'#player-home');
+        }
+      }
+      return;
+    }
+
+    // Pour un compte sans groupe entraîneur, il faut connaître les accès joueur
+    // afin de choisir correctement entre portail joueur et accueil de création de groupe.
+    const accesses=await accessesPromise;
     if(accesses.length&&(invitedPlayerFlow||!groupState.groups.length)){
       const portalPromise=openPlayerPortal(accesses);
       clearTimeout(splashGuard);
       hideStartupScreen();
+      startSecondaryStartupTasks();
       await portalPromise;
       return;
     }
@@ -996,18 +1038,7 @@ async function initAuthenticated(user){
     setCloud('Synchronisé',true);
     clearTimeout(splashGuard);
     hideStartupScreen();
-
-    // Un retour vers une fiche joueur peut continuer après affichage de l'accueil.
-    const returnParams=new URLSearchParams(location.search||'');
-    const staffGroup=returnParams.get('staff_group'),staffPlayer=returnParams.get('staff_player');
-    if(staffGroup&&staffPlayer&&groupState.groups.some(g=>g.id===staffGroup)){
-      groupState.currentGroupId=staffGroup;
-      await openGroupDetail(staffGroup);
-      if(groupState.currentPlayers.some(p=>p.id===staffPlayer)){
-        await openStaffPlayerPortal(staffPlayer);
-        history.replaceState(null,'',location.pathname+'#player-home');
-      }
-    }
+    startSecondaryStartupTasks();
   }finally{
     clearTimeout(splashGuard);
   }
@@ -1022,6 +1053,7 @@ async function initAuth(){
   const queryParams=new URLSearchParams(location.search||'');
   const recoveryLink=hashParams.get('type')==='recovery'||queryParams.get('type')==='recovery';
   const {data:{session}}=await db.auth.getSession();
+  startupTiming('session Supabase disponible');
   if(session?.user){
     if(playerGroupInviteToken()&&!playerGroupInvitePlayerId()){
       currentUser=session.user;
@@ -1030,7 +1062,8 @@ async function initAuth(){
       $('#logout').classList.remove('hidden');
       setCloud('Accès joueur',true);
       authMessage('Tu es déjà connecté : sélectionne ton prénom puis continue.');
-      await loadSharedPlayerInvite();
+      hideStartupScreen();
+      runStartupBackground('invitation joueur',()=>loadSharedPlayerInvite());
     }else{
       try{await initAuthenticated(session.user)}catch(e){console.error('initAuthenticated',e)}
     }
@@ -1039,8 +1072,12 @@ async function initAuth(){
     $('#authPanel').classList.remove('hidden');
     $('#setup').classList.add('hidden');
     setCloud('Non connecté',false);
+    hideStartupScreen();
     if(playerInviteToken())authMessage('Invitation joueur détectée : connecte-toi ou crée ton compte pour accéder à ta page personnelle.');
-    if(playerGroupInviteToken()){authMessage('Accès joueur détecté : sélectionne ton prénom puis connecte-toi ou crée ton compte.');await loadSharedPlayerInvite()}
+    if(playerGroupInviteToken()){
+      authMessage('Accès joueur détecté : sélectionne ton prénom puis connecte-toi ou crée ton compte.');
+      runStartupBackground('invitation joueur',()=>loadSharedPlayerInvite());
+    }
   }
   db.auth.onAuthStateChange(async (event,session)=>{
     if(session?.user && (!currentUser || currentUser.id!==session.user.id)){
@@ -3525,6 +3562,7 @@ async function saveCurrentGroupName(){
   }
   if(name===g.name){
     $('#groupNameEditRow').classList.add('hidden');
+    $('#editGroupNameBtn').classList.remove('hidden');
     status.textContent='';
     return;
   }
@@ -3539,6 +3577,7 @@ async function saveCurrentGroupName(){
     g.name=name;
     $('#groupDetailName').textContent=name;
     $('#groupNameEditRow').classList.add('hidden');
+    $('#editGroupNameBtn').classList.remove('hidden');
     status.textContent='Nom du groupe mis à jour ✓';
     status.className='authStatus cloudOk';
     populateGroupSelectors();
@@ -6442,18 +6481,21 @@ $('#editGroupNameBtn').onclick=()=>{
   if(!g||g.role!=='owner')return;
   $('#groupNameEditInput').value=g.name||'';
   $('#groupNameEditRow').classList.remove('hidden');
+  $('#editGroupNameBtn').classList.add('hidden');
   $('#groupNameEditStatus').textContent='';
   $('#groupNameEditInput').focus();
   $('#groupNameEditInput').select();
 };
 $('#cancelGroupNameEdit').onclick=()=>{
   $('#groupNameEditRow').classList.add('hidden');
+  const g=groupState.groups.find(x=>x.id===groupState.currentGroupId);
+  $('#editGroupNameBtn').classList.toggle('hidden',g?.role!=='owner');
   $('#groupNameEditStatus').textContent='';
 };
 $('#saveGroupNameEdit').onclick=()=>saveCurrentGroupName();
 $('#groupNameEditInput').onkeydown=e=>{
   if(e.key==='Enter'){e.preventDefault();saveCurrentGroupName()}
-  if(e.key==='Escape'){$('#groupNameEditRow').classList.add('hidden');$('#groupNameEditStatus').textContent=''}
+  if(e.key==='Escape'){$('#groupNameEditRow').classList.add('hidden');const g=groupState.groups.find(x=>x.id===groupState.currentGroupId);$('#editGroupNameBtn').classList.toggle('hidden',g?.role!=='owner');$('#groupNameEditStatus').textContent=''}
 };
 $('#showCreateGroup').onclick=()=>{$('#createGroupBox').classList.toggle('hidden');$('#joinGroupBox').classList.add('hidden')};
 $('#showJoinGroup').onclick=()=>{$('#joinGroupBox').classList.toggle('hidden');$('#createGroupBox').classList.add('hidden')};

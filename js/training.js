@@ -375,12 +375,30 @@ const handleError=(where,error)=>{
   alert((error&&error.message)||String(error)||'Erreur de synchronisation');
 };
 
+const KC_STARTUP_T0=performance.now();
+function startupTiming(label){
+  console.info(`[startup] ${label}: ${Math.round(performance.now()-KC_STARTUP_T0)} ms`);
+}
 function hideStartupScreen(){
   const splash=document.getElementById('startupScreen');
-  if(splash)splash.remove();
+  if(splash){
+    splash.remove();
+    startupTiming('splash masqué');
+  }
 }
 function runStartupBackground(label,task){
   Promise.resolve().then(task).catch(error=>console.warn('[startup background]',label,error));
+}
+function runStartupDeferred(label,task,delay=900){
+  setTimeout(()=>runStartupBackground(label,task),delay);
+}
+function startSecondaryStartupTasks(){
+  // Workspace peut être utile rapidement à certains anciens écrans ; le reste attend le premier affichage.
+  runStartupBackground('workspace',()=>ensureWorkspace());
+  runStartupDeferred('notifications messages',()=>refreshMessageNotifications('coach'));
+  runStartupDeferred('notifications vidéos',()=>refreshVideoNotifications());
+  runStartupDeferred('profil',()=>ensureMyProfile());
+  runStartupDeferred('droits admin',()=>refreshAdminAccess());
 }
 
 function saveLocal(){
@@ -929,7 +947,6 @@ async function initAuthenticated(user){
   $('#logout').classList.remove('hidden');
   setCloud('Connexion…',true);
 
-  // Garde-fou : après identification de la session, le splash ne peut plus rester bloqué.
   const splashGuard=setTimeout(hideStartupScreen,4000);
   try{
     try{await claimPlayerInviteIfPresent(user)}catch(e){
@@ -942,36 +959,48 @@ async function initAuthenticated(user){
       throw e
     }
 
-    // Accès joueur et groupes sont indépendants : chargement en parallèle.
-    const [accesses]=await Promise.all([
-      fetchMyPlayerAccesses(),
-      fetchMyGroups()
-    ]);
+    // Groupes et accès joueur partent ensemble, mais un entraîneur n'attend plus
+    // le RPC d'accès joueur avant de voir la page Entraînement.
+    const accessesPromise=fetchMyPlayerAccesses().catch(error=>{
+      console.warn('[startup] accès joueur',error);
+      playerPortalState.accesses=[];
+      return [];
+    });
+    await fetchMyGroups();
+    startupTiming('groupes entraîneur chargés');
 
-    // Les données secondaires ne doivent jamais retenir l'écran de chargement.
-    runStartupBackground('notifications messages',()=>refreshMessageNotifications('coach'));
-    runStartupBackground('notifications vidéos',()=>refreshVideoNotifications());
-    runStartupBackground('workspace',()=>ensureWorkspace());
-    runStartupBackground('profil',()=>ensureMyProfile());
-    runStartupBackground('droits admin',()=>refreshAdminAccess());
+    if(groupState.groups.length&&!invitedPlayerFlow){
+      $('#appHome').classList.add('hidden');$('#trainingHome').classList.remove('hidden');$('#groupsHome').classList.add('hidden');$('#groupDetail').classList.add('hidden');$('#trainingSession').classList.add('hidden');$('#trainingHistory').classList.add('hidden');$('#homeBtn').classList.remove('hidden');$('#profileBtn').classList.remove('hidden');$('#playerSpaceBtn').classList.add('hidden');$('#newMatchTop').classList.add('hidden');
+      if($('#trainingSavedSeasons'))$('#trainingSavedSeasons').innerHTML='<div class="small">Chargement des séances…</div>';
+      setCloud('Synchronisé',true);
+      clearTimeout(splashGuard);
+      hideStartupScreen();
 
+      accessesPromise.then(accesses=>$('#playerSpaceBtn').classList.toggle('hidden',!accesses.length));
+
+      // Priorité aux données réellement visibles de la page Entraînement.
+      await openTrainingModule();
+      startSecondaryStartupTasks();
+      return;
+    }
+
+    const accesses=await accessesPromise;
     if(accesses.length&&(invitedPlayerFlow||!groupState.groups.length)){
       const portalPromise=openPlayerPortal(accesses);
       clearTimeout(splashGuard);
       hideStartupScreen();
+      startSecondaryStartupTasks();
       await portalPromise;
       return;
     }
 
-    // Afficher immédiatement le module Entraînements avec son état de chargement local.
     $('#appHome').classList.add('hidden');$('#trainingHome').classList.remove('hidden');$('#groupsHome').classList.add('hidden');$('#groupDetail').classList.add('hidden');$('#trainingSession').classList.add('hidden');$('#trainingHistory').classList.add('hidden');$('#homeBtn').classList.remove('hidden');$('#profileBtn').classList.remove('hidden');$('#playerSpaceBtn').classList.toggle('hidden',!accesses.length);$('#newMatchTop').classList.add('hidden');
     if($('#trainingSavedSeasons'))$('#trainingSavedSeasons').innerHTML='<div class="small">Chargement des séances…</div>';
     setCloud('Synchronisé',true);
     clearTimeout(splashGuard);
     hideStartupScreen();
-
-    // Les exercices et séances se chargent ensuite dans la page déjà visible.
     await openTrainingModule();
+    startSecondaryStartupTasks();
   }finally{
     clearTimeout(splashGuard);
   }
@@ -986,6 +1015,7 @@ async function initAuth(){
   const queryParams=new URLSearchParams(location.search||'');
   const recoveryLink=hashParams.get('type')==='recovery'||queryParams.get('type')==='recovery';
   const {data:{session}}=await db.auth.getSession();
+  startupTiming('session Supabase disponible');
   if(session?.user){
     if(playerGroupInviteToken()&&!playerGroupInvitePlayerId()){
       currentUser=session.user;
@@ -994,7 +1024,8 @@ async function initAuth(){
       $('#logout').classList.remove('hidden');
       setCloud('Accès joueur',true);
       authMessage('Tu es déjà connecté : sélectionne ton prénom puis continue.');
-      await loadSharedPlayerInvite();
+      hideStartupScreen();
+      runStartupBackground('invitation joueur',()=>loadSharedPlayerInvite());
     }else{
       try{await initAuthenticated(session.user)}catch(e){console.error('initAuthenticated',e)}
     }
@@ -1003,8 +1034,12 @@ async function initAuth(){
     $('#authPanel').classList.remove('hidden');
     $('#setup').classList.add('hidden');
     setCloud('Non connecté',false);
+    hideStartupScreen();
     if(playerInviteToken())authMessage('Invitation joueur détectée : connecte-toi ou crée ton compte pour accéder à ta page personnelle.');
-    if(playerGroupInviteToken()){authMessage('Accès joueur détecté : sélectionne ton prénom puis connecte-toi ou crée ton compte.');await loadSharedPlayerInvite()}
+    if(playerGroupInviteToken()){
+      authMessage('Accès joueur détecté : sélectionne ton prénom puis connecte-toi ou crée ton compte.');
+      runStartupBackground('invitation joueur',()=>loadSharedPlayerInvite());
+    }
   }
   db.auth.onAuthStateChange(async (event,session)=>{
     if(session?.user && (!currentUser || currentUser.id!==session.user.id)){
@@ -4808,8 +4843,11 @@ async function fetchTrainingPlayers(groupId=null){
   renderTrainingAttendance();renderHistoryPlayers();
 }
 async function fetchTrainingExercises({withProfiles=true}={}){
-  await fetchExerciseCategories();
-  const {data,error}=await db.from('exercises').select('id,name,category,category_id,copied_from_exercise_id,measurement_type,description,objective,attack_instruction,defense_instruction,created_by,created_at,updated_by,updated_at,active').order('name');
+  // Catégories et exercices sont indépendants : une seule latence réseau au lieu de deux successives.
+  const categoriesPromise=fetchExerciseCategories();
+  const exercisesPromise=db.from('exercises').select('id,name,category,category_id,copied_from_exercise_id,measurement_type,description,objective,attack_instruction,defense_instruction,created_by,created_at,updated_by,updated_at,active').order('name');
+  const [,result]=await Promise.all([categoriesPromise,exercisesPromise]);
+  const {data,error}=result;
   if(error) throw error;
   trainingState.exercises=data||[];
   if(withProfiles)await fetchProfiles(trainingState.exercises.flatMap(ex=>[ex.created_by,ex.updated_by]));
@@ -4828,20 +4866,24 @@ async function openTrainingModule(){
     if($('#trainingSavedSeasons'))$('#trainingSavedSeasons').innerHTML='<div class="small">Chargement des séances…</div>';
     window.scrollTo({top:0,behavior:'instant'});
 
-    // Les groupes sont déjà chargés à l'authentification dans le cas normal.
     if(!groupState.groups.length)await fetchMyGroups();
 
-    // Exercices et séances sont indépendants : chargement en parallèle.
-    // Les profils d'auteurs sont mutualisés en une seule requête.
+    // Données visibles prioritaires : exercices/catégories et séances partent en parallèle.
     await Promise.all([
       fetchTrainingExercises({withProfiles:false}),
       fetchRecentTrainingSessions({withProfiles:false})
     ]);
-    await fetchProfiles([
-      ...trainingState.exercises.flatMap(ex=>[ex.created_by,ex.updated_by]),
-      ...trainingState.recentSessions.flatMap(sess=>[sess.created_by,sess.updated_by])
-    ]);
     renderTrainingSavedHome();
+    startupTiming('séances et exercices affichés');
+
+    // Les noms des auteurs sont secondaires : ils ne retardent plus l'affichage des séances.
+    runStartupBackground('profils entraînement',async()=>{
+      await fetchProfiles([
+        ...trainingState.exercises.flatMap(ex=>[ex.created_by,ex.updated_by]),
+        ...trainingState.recentSessions.flatMap(sess=>[sess.created_by,sess.updated_by])
+      ]);
+      renderExerciseLibrary();
+    });
   }catch(e){handleError('openTrainingModule',e)}
 }
 function renderTrainingAttendance(){

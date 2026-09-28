@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="preconnect" href="https://chrbzchthloxowlzdvpe.supabase.co" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <title>Kinball Coach · Entraînements</title>
 <link rel="icon" type="image/png" href="kinball-brand/favicon.png">
 <link rel="stylesheet" href="css/training.css">
@@ -204,7 +206,7 @@
    <a class="ghost hidden" id="playerPortalNavGroupStats" href="index.html#team-stats">Statistiques équipe</a>
    <a class="ghost" id="playerPortalNavVideos" href="videos.html">Mes vidéos <span class="videoUnreadBadge hidden" id="playerVideoNavBadge">0</span></a>
    <a class="ghost" id="playerPortalNavProfile" href="index.html#player-profile">Mon profil</a>
-   <button type="button" class="ghost hidden" id="playerPortalBackStaff">Retour espace entraîneur</button>
+   <button type="button" class="ghost hidden backNav" id="playerPortalBackStaff">Retour espace entraîneur</button>
   </div>
 
   <div id="playerPortalHomeView">
@@ -321,7 +323,7 @@
  <section class="panel hidden" id="trainingSession">
    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
     <div><h2 style="font-size:20px">Nouvelle séance</h2><div class="small">1. Informations · 2. Présents · 3. Exercices · 4. Résultats</div></div>
-    <button class="ghost" id="cancelTraining">← Retour</button>
+    <button class="ghost backNav" id="cancelTraining">← Retour</button>
    </div>
    <div class="row">
     <div class="field"><label>Date</label><input id="trainingDate" type="text" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AA" autocomplete="off"></div>
@@ -375,7 +377,7 @@
  <section class="panel hidden" id="trainingDuplicate">
    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
     <div><h2 style="font-size:20px">Séances enregistrées</h2><div class="small">Clique sur une séance pour l’ouvrir, ou duplique-la pour repartir de son contenu.</div></div>
-    <button class="ghost" id="trainingDuplicateBack">← Retour</button>
+    <button class="ghost backNav" id="trainingDuplicateBack">← Retour</button>
    </div>
    <div id="trainingDuplicateStatus" class="small" style="margin-bottom:10px"></div>
    <div id="trainingDuplicateList"></div>
@@ -384,7 +386,7 @@
  <section class="panel hidden" id="exerciseLibrary">
    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
     <div><h2 style="font-size:20px">Bibliothèque d’exercices</h2><div class="small">Exercices réutilisables dans toutes les séances</div></div>
-    <button class="ghost" id="exerciseLibraryBack">← Retour</button>
+    <button class="ghost backNav" id="exerciseLibraryBack">← Retour</button>
    </div>
    <button class="primary" id="libraryCreateExercise" style="width:100%;margin-bottom:14px">＋ Créer un exercice</button>
    <div class="field" style="margin-bottom:9px">
@@ -406,7 +408,7 @@
  <section class="panel hidden" id="trainingHistory">
    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
     <div><h2 style="font-size:20px">Historique joueur</h2><div class="small">Séances et résultats enregistrés</div></div>
-    <button class="ghost" id="historyBack">← Retour</button>
+    <button class="ghost backNav" id="historyBack">← Retour</button>
    </div>
    <div class="row">
     <div class="field"><label>Groupe</label><select id="historyGroup"><option value="">— Choisir un groupe —</option></select></div>
@@ -706,7 +708,7 @@
       <h2 style="font-size:20px">Analyse groupée</h2>
       <div class="small">Sélectionne un type de match pour pré-sélectionner la compétition, puis ajuste librement les matchs inclus.</div>
     </div>
-    <button class="ghost" id="matchAnalysisSelectBack">← Matchs</button>
+    <button class="ghost backNav" id="matchAnalysisSelectBack">← Matchs</button>
    </div>
    <div class="analysisSelectionToolbar">
     <div class="field"><label>Groupe</label><select id="groupAnalysisGroup"><option value="">Tous les groupes</option></select></div>
@@ -729,7 +731,7 @@
       <h2 style="font-size:20px" id="matchReadTitle">Match</h2>
       <div class="small" id="matchReadMeta"></div>
     </div>
-    <button class="ghost" id="matchReadBack">← Bibliothèque</button>
+    <button class="ghost backNav" id="matchReadBack">← Bibliothèque</button>
    </div>
    <div class="row" style="margin-bottom:12px">
     <button class="primary" id="matchReadResume">Reprendre la prise de notes</button>
@@ -750,7 +752,7 @@
       <h2 style="font-size:20px" id="matchAnalysisTitle">Analyse du match</h2>
       <div class="small" id="matchAnalysisMeta"></div>
     </div>
-    <button class="ghost" id="matchAnalysisBack">← Bibliothèque</button>
+    <button class="ghost backNav" id="matchAnalysisBack">← Bibliothèque</button>
    </div>
 
    <div class="analysisScopeNote" id="matchAnalysisScope">
@@ -835,7 +837,7 @@
       <h2 style="font-size:18px">Nouveau match</h2>
       <div class="small">Prépare les équipes, les joueurs et la période avant de commencer la prise de notes.</div>
     </div>
-    <button class="ghost" id="matchBackHome">← Matchs</button>
+    <button class="ghost backNav" id="matchBackHome">← Matchs</button>
    </div>
    <div id="matchAuditMeta" class="small hidden" style="margin:-4px 0 10px"></div>
    <div class="field" style="margin-bottom:10px">

@@ -3,76 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="preconnect" href="https://chrbzchthloxowlzdvpe.supabase.co" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <title>Kinball Coach — Face-à-face</title>
-<style>
-:root{--bg:#F3F6FA;--panel:#FFFFFF;--panel2:#F7F9FC;--text:#172033;--muted:#53657A;--accent:#2563EB;--primary:#2563EB;--good:#005A9C;--bad:#B54708;--warn:#B45309;--line:#CBD5E1;--nav:#0F172A;--nav2:#1E293B;--navLine:#334155}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:15px system-ui,-apple-system,Segoe UI,sans-serif}
-.app{max-width:1050px;margin:auto;padding:14px 14px 40px}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:12px}
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-h1,h2,h3,p{margin:0}
-.small{font-size:12px;color:var(--muted)}
-.field{flex:1 1 220px}
-label{display:block;color:var(--muted);font-size:13px;margin-bottom:5px}
-select,button{font:inherit}
-select{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--text)}
-button{border:0;border-radius:12px;padding:11px 13px;background:var(--panel2);color:var(--text);font-weight:750;cursor:pointer}
-.primary{background:var(--accent)}
-.ghost{border:1px solid var(--line);background:transparent}
-.good{color:var(--good)!important}.bad{color:var(--bad)!important}
-.status{padding:10px 12px;background:var(--panel2);border-radius:12px;margin-top:10px}
-.faceoffTitle{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px;padding:10px 12px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;font-weight:850}
-.faceoffTitle .left{text-align:left}.faceoffTitle .mid{text-align:center;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}.faceoffTitle .right{text-align:right}
-.faceoffRows{border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.faceoffRow{display:grid;grid-template-columns:minmax(0,1fr) minmax(115px,.8fr) minmax(0,1fr);align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line)}
-.faceoffRow:last-child{border-bottom:0}
-.faceoffValue{font-weight:800}.faceoffValue.left{text-align:left}.faceoffValue.right{text-align:right}
-.faceoffMetric{text-align:center;color:var(--muted);font-size:12px;font-weight:750}
-.context{border:1px solid var(--line);border-radius:14px;padding:10px;background:rgba(255,255,255,.018);margin-top:10px}
-.contextHead{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:8px}
-.contextHead strong{font-size:14px}.reference{text-align:right;font-size:11px;color:var(--muted);line-height:1.35}
-.helpBtn{width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);background:var(--panel2);font-weight:900;font-size:18px}
-.helpBackdrop{position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.42);display:flex;align-items:center;justify-content:center;padding:15px}
-.hidden{display:none!important}
-.helpModal{width:min(820px,96vw);max-height:90vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 18px 55px rgba(15,23,42,.18)}
-.helpGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:12px}
-.helpItem{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px}
-.helpItem strong{display:block;margin-bottom:4px}
-.formula{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#EEF3F8;padding:6px 8px;border-radius:8px;margin-top:5px}
-.sampleWarn{color:#7A4A08;font-size:11px;font-weight:700}
-@media(max-width:640px){
-  .app{padding:8px 8px 24px}
-  .faceoffRow{grid-template-columns:minmax(0,1fr) 92px minmax(0,1fr);padding:8px}
-  .faceoffValue{font-size:13px}.faceoffMetric{font-size:11px}
-  .contextHead{display:block}.reference{text-align:left;margin-top:4px}
-  .helpGrid{grid-template-columns:1fr}
-}
-
-/* KC UX FINAL 2026-09-26 */
-body{background:var(--bg);color:var(--text)}
-.panel{background:#fff;box-shadow:0 1px 2px rgba(15,23,42,.04)}
-select{background:#fff!important;color:var(--text)!important;border-color:var(--line)!important}
-button{background:#fff;color:var(--text);border:1px solid var(--line)}
-button:hover{background:#EEF3F8;border-color:#AAB8CA}.primary{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}
-.ghost{background:#fff;color:var(--text)}
-.app>.row:first-child{background:#fff;color:var(--text);padding:10px 12px;border:1px solid var(--line);border-radius:16px;box-shadow:0 1px 3px rgba(15,23,42,.06)}
-.app>.row:first-child .small{color:var(--muted)}.app>.row:first-child button{background:#E8F0FE;color:#1E478F;border-color:#B7CAF4}
-.status,.faceoffTitle,.helpItem{background:#F8FAFC}.context{background:#F8FAFC}.formula{background:#EEF3F8;color:var(--text)}
-.good{color:#005A9C!important}.bad{color:#B54708!important}.sampleWarn{color:#7A4A08!important}
-.helpModal{background:#fff;color:var(--text)}
-</style>
+<link rel="stylesheet" href="css/face-a-face.css">
+<link rel="stylesheet" href="css/common.css">
 </head>
-<body>
+<body class="faceoffPage">
 <div class="app">
-  <div class="row" style="justify-content:space-between;margin-bottom:12px">
+  <div class="top faceoffHeader">
     <div>
       <h1 style="font-size:23px">⚔️ Face-à-face offensif</h1>
       <div class="small">Comparaison détaillée Nous / adversaire, centrée sur les écarts au référentiel et la performance offensive.</div>
     </div>
-    <div class="row">
+    <div class="row topActions">
       <button class="helpBtn" id="helpBtn" type="button">?</button>
-      <button class="ghost" id="backBtn" type="button">← Statistiques</button>
+      <button class="ghost backNav" id="backBtn" type="button">← Statistiques</button>
     </div>
   </div>
 
