@@ -194,6 +194,23 @@
    <div class="small" style="margin:-4px 0 10px">Le poste préféré se renseigne dans la fiche joueur ou directement par le joueur dans son profil.</div>
    <div id="groupPlayersList"></div>
 
+   <div class="groupSelectionsSection">
+    <div class="groupSelectionsHeader">
+     <div><h3 style="font-size:16px;margin:0">Sélections</h3><div class="small" style="margin-top:3px">Sous-effectifs du groupe pour une compétition, un stage ou un autre contexte. Les joueurs restent membres du groupe principal.</div></div>
+    </div>
+    <div class="groupSelectionCreate">
+     <div class="row" style="align-items:flex-end">
+      <div class="field" style="flex:2 1 220px"><label>Nom</label><input id="groupSelectionName" maxlength="100" placeholder="ex. CDE 2026"></div>
+      <div class="field" style="flex:1 1 150px"><label>Type</label><select id="groupSelectionType"><option value="competition">Compétition</option><option value="stage">Stage</option><option value="other">Autre</option></select></div>
+      <div class="field" style="flex:1 1 150px"><label>Début <span class="small">(facultatif)</span></label><input id="groupSelectionStart" type="date"></div>
+      <div class="field" style="flex:1 1 150px"><label>Fin <span class="small">(facultatif)</span></label><input id="groupSelectionEnd" type="date"></div>
+      <button class="primary" id="groupSelectionCreate" type="button">＋ Créer</button>
+     </div>
+     <div class="authStatus" id="groupSelectionStatus"></div>
+    </div>
+    <div id="groupSelectionsList"></div>
+   </div>
+
    <h3 style="font-size:16px;margin:18px 0 8px">Entraîneurs</h3>
    <div id="groupCoachesList"></div>
    <div class="authStatus" id="groupCoachesStatus"></div>
@@ -348,7 +365,12 @@
 
    <div style="margin-top:18px">
     <h3 style="font-size:16px;margin:0 0 7px">Joueurs présents</h3>
-    <div class="small" style="margin-bottom:8px">L’effectif vient du groupe sélectionné. Les modifications se font dans le volet Groupes.</div>
+    <div class="small" style="margin-bottom:8px">L’effectif vient du groupe sélectionné. Les modifications se font dans le volet Groupes. Une sélection sert uniquement à préremplir les présences : la séance reste rattachée au groupe complet.</div>
+    <div class="trainingAttendancePreset">
+     <div class="field"><label>Préremplir les présents avec</label><select id="trainingAttendancePreset"><option value="">Tout le groupe</option></select></div>
+     <button class="ghost" type="button" id="applyTrainingAttendancePreset">Appliquer</button>
+     <span class="small" id="trainingAttendancePresetStatus"></span>
+    </div>
     <div class="roster" id="trainingAttendance"></div>
    </div>
 
@@ -680,6 +702,7 @@
     <div class="field"><label>Nom du match</label><input id="editMatchName"></div>
     <div class="field"><label>Date</label><input id="editMatchDate" type="text" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AA" autocomplete="off"></div>
     <div class="field"><label>Type de match</label><select id="editMatchType"><option value="">— Aucun type —</option></select></div>
+    <div class="field"><label>Sélection</label><select id="editMatchSelection"><option value="">Tout le groupe</option></select></div>
    </div>
    <div class="row" style="margin-top:10px">
     <div class="field"><label>Équipe adverse 1</label><input id="editMatchOpponent1"></div>
@@ -841,9 +864,15 @@
     <button class="ghost backNav" id="matchBackHome">← Matchs</button>
    </div>
    <div id="matchAuditMeta" class="small hidden" style="margin:-4px 0 10px"></div>
-   <div class="field" style="margin-bottom:10px">
-    <label>Groupe suivi</label>
-    <select id="matchGroup"><option value="">— Choisir un groupe —</option></select>
+   <div class="row" style="margin-bottom:10px;align-items:flex-end">
+    <div class="field">
+     <label>Groupe suivi</label>
+     <select id="matchGroup"><option value="">— Choisir un groupe —</option></select>
+    </div>
+    <div class="field">
+     <label>Sélection <span class="small">(facultatif)</span></label>
+     <select id="matchSelection" disabled><option value="">Tout le groupe</option></select>
+    </div>
    </div>
    <div class="row">
     <div class="field"><label>Match</label><input id="matchName" value="Match test vidéo"></div>

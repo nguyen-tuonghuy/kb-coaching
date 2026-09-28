@@ -2135,3 +2135,9 @@ background:#111827;color:#F8FAFC;border:1px solid var(--navLine)
 .trainingPlanNotes textarea::-webkit-scrollbar,
 .trainingGeneralNotes::-webkit-scrollbar,
 .trainingResultNoteField .tr-note::-webkit-scrollbar{display:none}
+
+/* Préremplissage des présences depuis une sélection de groupe */
+.trainingAttendancePreset{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.trainingAttendancePreset .field{flex:1 1 260px;max-width:420px}
+.trainingAttendancePreset button{min-height:42px}
+@media(max-width:640px){.trainingAttendancePreset .field{max-width:none;flex-basis:100%}.trainingAttendancePreset button{width:100%}}

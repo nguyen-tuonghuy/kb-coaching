@@ -484,3 +484,53 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   box-shadow:none!important;
 }
 .top .syncStatus .statusDot,.topbar .syncStatus .statusDot{margin:0}
+
+/* ==========================================================
+   Sélections de groupe
+   ========================================================== */
+.groupSelectionsSection{
+  margin-top:18px;
+  padding-top:14px;
+  border-top:1px solid var(--line);
+}
+.groupSelectionsHeader{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:10px}
+.groupSelectionCreate{
+  padding:12px;
+  border:1px solid var(--line);
+  border-radius:var(--radius-card);
+  background:var(--surface-muted);
+  margin-bottom:10px;
+}
+.groupSelectionCard{
+  border:1px solid var(--line)!important;
+  border-radius:var(--radius-card)!important;
+  background:var(--panel)!important;
+  margin-top:8px;
+  overflow:hidden;
+}
+.groupSelectionCard>summary{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:11px 12px;
+  cursor:pointer;
+  list-style:none;
+  background:var(--surface-muted);
+}
+.groupSelectionCard>summary::-webkit-details-marker{display:none}
+.groupSelectionCard[open] .groupSelectionChevron{transform:rotate(180deg)}
+.groupSelectionChevron{transition:transform .15s ease;color:var(--muted)}
+.groupSelectionMeta{display:block;margin-top:3px;font-size:12px;font-weight:500;color:var(--muted)}
+.groupSelectionBody{padding:12px;border-top:1px solid var(--line)}
+.groupSelectionRoster{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:7px}
+.groupSelectionRoster .check{min-width:0}
+.groupSelectionActions{margin-top:12px;align-items:center;gap:8px}
+.groupSelectionCard.archived{opacity:.72}
+.groupSelectionCard.archived>summary{background:var(--surface-subtle)}
+@media(max-width:640px){
+  .groupSelectionRoster{grid-template-columns:1fr 1fr}
+  .groupSelectionCreate .row,.groupSelectionEditFields{align-items:stretch!important}
+  .groupSelectionCreate .field,.groupSelectionEditFields .field{flex:1 1 100%!important}
+}
+@media(max-width:420px){.groupSelectionRoster{grid-template-columns:1fr}}

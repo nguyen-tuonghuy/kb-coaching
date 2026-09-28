@@ -1704,8 +1704,9 @@ async function start(){
     matchVideoResumeToken++;
     if(state.captureMode==='video'&&!state.youtubeVideoId){alert('Renseigne une URL YouTube valide pour le mode vidéo.');return}
     const groupId=$('#matchGroup').value;
+    const selectionId=$('#matchSelection')?.value||null;
     if(!groupId){alert('Choisis le groupe suivi.');return}
-    if(groupState.matchPlayers.length<4){alert('Le groupe doit contenir au moins 4 joueurs.');return}
+    if(groupState.matchPlayers.length<4){alert(selectionId?'La sélection choisie doit contenir au moins 4 joueurs.':'Le groupe doit contenir au moins 4 joueurs.');return}
     state.players=groupState.matchPlayers.map(p=>p.display_name);
     state.playerIds=Object.fromEntries(groupState.matchPlayers.map(p=>[p.display_name,p.id]));
     state.playerRolePreferences=Object.fromEntries(groupState.matchPlayers.map(p=>[p.display_name,p.preferred_role||'AP']));
@@ -1729,6 +1730,7 @@ async function start(){
     const {data:m,error}=await db.from('matches').insert({
       workspace_id:state.workspaceId,
       group_id:groupId,
+      selection_id:selectionId,
       team_id:state.currentTeamId,
       opponent_team_1_id:state.opponentTeamIds[state.opponentTeams[0]],
       opponent_team_2_id:state.opponentTeamIds[state.opponentTeams[1]],
@@ -1857,7 +1859,7 @@ async function loadMatch(matchId){
   try{
     setCloud('Chargement…',true);
     const [{data:m,error:me},{data:players,error:pe},{data:events,error:ee}] = await Promise.all([
-      db.from('matches').select('id,label,played_on,group_id,team_id,match_type_id,opponent_team_1_id,opponent_team_2_id,capture_mode,youtube_url,followed_team:teams!matches_team_id_fkey(name)').eq('id',matchId).single(),
+      db.from('matches').select('id,label,played_on,group_id,selection_id,team_id,match_type_id,opponent_team_1_id,opponent_team_2_id,capture_mode,youtube_url,followed_team:teams!matches_team_id_fkey(name)').eq('id',matchId).single(),
       Promise.resolve({data:[],error:null}),
       db.from('match_events').select('*').eq('match_id',matchId).order('sequence_no',{ascending:true})
     ]);
@@ -1972,7 +1974,7 @@ async function loadMatch(matchId){
     $('#matchDate').value=isoToFrInput(state.matchDate||today());
     setMatchCaptureMode(state.captureMode);
     if($('#matchYoutubeUrl'))$('#matchYoutubeUrl').value=state.youtubeUrl||'';
-    if(m.group_id){$('#matchGroup').value=m.group_id;await loadMatchGroupPlayers(m.group_id);}
+    if(m.group_id){$('#matchGroup').value=m.group_id;await loadMatchSelectionOptions(m.group_id,m.selection_id||'');await loadMatchGroupPlayers(m.group_id,m.selection_id||'');}
     $('#setup').classList.add('hidden');
     $('#live').classList.remove('hidden');
     initOrLoadMatchVideo();
@@ -3077,9 +3079,9 @@ $('#matchTypeCreateForm').onsubmit=event=>{
   });
 };
 
-let trainingState={players:[],exercises:[],sessionExercises:[],planBlocks:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{}};
+let trainingState={players:[],selections:[],exercises:[],sessionExercises:[],planBlocks:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{}};
 let playerPortalState={accesses:[],groupId:null,matches:[],selected:[],scope:'all',restartLocation:'all',loading:false,view:'home',hasStaffAccess:false,staffPreview:false,staffPlayerId:null,staffReturnGroupId:null,messageNotifications:[],objectives:[],videos:[],videoConfig:null};
-let groupState={groups:[],currentGroupId:null,currentPlayers:[],matchPlayers:[],profiles:{},messageNotifications:[]};
+let groupState={groups:[],currentGroupId:null,currentPlayers:[],currentSelections:[],matchPlayers:[],matchSelections:[],profiles:{},messageNotifications:[]};
 let adminState={isAdmin:false,groups:[]};
 let statsState={groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',impactRestartLocation:'all',impactView:'staff',impactSortField:'impact100',impactSortDirection:'desc',impactPlayerName:'',impactMatchManualOrder:[],statsMatchView:'summary',reference:null,referenceMeta:null,referenceSources:[],referenceVersions:[],impactReference:null,readOnlyViewer:false,viewerReturnGroupId:null};
 
@@ -3352,6 +3354,46 @@ async function fetchGroupPlayers(groupId){
   if(error)throw error;
   return (data||[]).filter(x=>x.player).map(x=>({...x.player,preferred_role:x.preferred_role||'AP',stats_access:x.stats_access||'personal'})).sort((a,b)=>a.display_name.localeCompare(b.display_name,'fr'));
 }
+async function fetchGroupSelections(groupId,{includeArchived=false}={}){
+  if(!groupId)return[];
+  let query=db.from('coaching_group_selections')
+    .select('id,group_id,name,selection_type,starts_on,ends_on,archived,created_at,updated_at')
+    .eq('group_id',groupId)
+    .order('created_at',{ascending:true});
+  if(!includeArchived)query=query.eq('archived',false);
+  const {data:selections,error}=await query;
+  if(error)throw error;
+  const ids=(selections||[]).map(s=>s.id);
+  let members=[];
+  if(ids.length){
+    const {data,error}=await db.from('coaching_group_selection_players')
+      .select('selection_id,player_id')
+      .in('selection_id',ids);
+    if(error)throw error;
+    members=data||[];
+  }
+  const bySelection=new Map();
+  members.forEach(row=>{if(!bySelection.has(row.selection_id))bySelection.set(row.selection_id,[]);bySelection.get(row.selection_id).push(row.player_id)});
+  return (selections||[]).map(s=>({...s,player_ids:bySelection.get(s.id)||[]}));
+}
+function groupSelectionTypeLabel(type){return type==='competition'?'Compétition':type==='stage'?'Stage':'Autre'}
+function groupSelectionPeriodLabel(selection){
+  const fmt=v=>{if(!v)return'';const m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${m[3]}/${m[2]}/${m[1]}`:v};
+  if(selection.starts_on&&selection.ends_on)return selection.starts_on===selection.ends_on?fmt(selection.starts_on):`${fmt(selection.starts_on)} → ${fmt(selection.ends_on)}`;
+  return fmt(selection.starts_on||selection.ends_on)||'';
+}
+function fillGroupSelectionSelect(select,selections,{selectedId='',allLabel='Tout le groupe'}={}){
+  if(!select)return;
+  select.innerHTML=`<option value="">${escapeHtml(allLabel)}</option>`;
+  (selections||[]).filter(s=>!s.archived||s.id===selectedId).forEach(s=>{
+    const o=document.createElement('option');
+    o.value=s.id;
+    o.textContent=s.archived?`${s.name} · archivée`:s.name;
+    select.append(o);
+  });
+  select.value=(selectedId&&[...select.options].some(o=>o.value===selectedId))?selectedId:'';
+}
+
 async function openGroupsModule(){
   // Afficher immédiatement le module : le clic ne dépend plus d'un chargement réseau.
   restoreGroupDetailStandalone();
@@ -3436,16 +3478,24 @@ async function openGroupDetail(groupId,{inlineBody=null}={}){
     $('#groupNameEditRow').classList.add('hidden');
     $('#groupNameEditInput').value=g.name||'';
     $('#groupNameEditStatus').textContent='Chargement…';
+    if($('#groupSelectionStatus')){$('#groupSelectionStatus').textContent='';$('#groupSelectionStatus').className='authStatus'}
+    if($('#groupSelectionName'))$('#groupSelectionName').value='';
     if(!inlineBody)window.scrollTo({top:0,behavior:'instant'});
 
-    groupState.currentPlayers=await fetchGroupPlayers(groupId);
-    const {data:playerAccessRows,error:playerAccessError}=await db.rpc('get_coaching_group_player_access',{p_group_id:groupId});
-    if(playerAccessError)throw playerAccessError;
-    groupState.playerAccess=Object.fromEntries((playerAccessRows||[]).map(x=>[x.player_id,!!x.linked]));
+    const [players,selections,playerAccessResult]=await Promise.all([
+      fetchGroupPlayers(groupId),
+      fetchGroupSelections(groupId,{includeArchived:true}),
+      db.rpc('get_coaching_group_player_access',{p_group_id:groupId})
+    ]);
+    if(playerAccessResult.error)throw playerAccessResult.error;
+    groupState.currentPlayers=players;
+    groupState.currentSelections=selections;
+    groupState.playerAccess=Object.fromEntries((playerAccessResult.data||[]).map(x=>[x.player_id,!!x.linked]));
     $('#groupNameEditStatus').textContent='';
     await refreshMessageNotifications('coach').catch(e=>handleError('message notifications',e));
     await refreshVideoNotifications().catch(e=>handleError('video notifications',e));
     renderGroupPlayers();
+    renderGroupSelections();
     const {data:coaches,error}=await db.from('coaching_group_coaches').select('user_id,role,joined_at').eq('group_id',groupId).order('joined_at');
     if(error)throw error;
     await fetchProfiles((coaches||[]).map(c=>c.user_id));
@@ -3550,6 +3600,95 @@ function renderGroupPlayers(){
     open.onclick=()=>openStaffPlayerPortal(p.id).catch(e=>handleError('open staff player portal',e));
     row.append(info,manage,open);d.append(row);box.append(d);
   })
+}
+
+function renderGroupSelections(){
+  const box=$('#groupSelectionsList');if(!box)return;
+  box.innerHTML='';
+  const rows=groupState.currentSelections||[];
+  if(!rows.length){box.innerHTML='<div class="small">Aucune sélection pour ce groupe. Les sélections servent à définir un sous-effectif sans dupliquer les joueurs.</div>';return}
+  rows.forEach(selection=>{
+    const details=document.createElement('details');details.className='groupSelectionCard';
+    if(selection.archived)details.classList.add('archived');
+    const period=groupSelectionPeriodLabel(selection);
+    const summary=document.createElement('summary');
+    summary.innerHTML=`<span><strong>${escapeHtml(selection.name)}</strong><span class="groupSelectionMeta">${escapeHtml(groupSelectionTypeLabel(selection.selection_type))}${period?' · '+escapeHtml(period):''} · ${selection.player_ids.length} joueur${selection.player_ids.length>1?'s':''}${selection.archived?' · archivée':''}</span></span><span class="groupSelectionChevron">⌄</span>`;
+    const body=document.createElement('div');body.className='groupSelectionBody';
+    body.innerHTML=`<div class="row groupSelectionEditFields">
+      <div class="field" style="flex:2 1 220px"><label>Nom</label><input data-selection-name maxlength="100" value="${escapeHtml(selection.name)}"></div>
+      <div class="field" style="flex:1 1 150px"><label>Type</label><select data-selection-type><option value="competition">Compétition</option><option value="stage">Stage</option><option value="other">Autre</option></select></div>
+      <div class="field" style="flex:1 1 150px"><label>Début</label><input data-selection-start type="date" value="${escapeHtml(selection.starts_on||'')}"></div>
+      <div class="field" style="flex:1 1 150px"><label>Fin</label><input data-selection-end type="date" value="${escapeHtml(selection.ends_on||'')}"></div>
+    </div>
+    <div class="small" style="margin:10px 0 7px">Joueurs de cette sélection</div>
+    <div class="groupSelectionRoster"></div>
+    <div class="row groupSelectionActions"><button type="button" class="primary" data-selection-save>Enregistrer</button><button type="button" class="ghost" data-selection-archive>${selection.archived?'Réactiver':'Archiver'}</button><span class="small" data-selection-status></span></div>`;
+    body.querySelector('[data-selection-type]').value=selection.selection_type||'competition';
+    const roster=body.querySelector('.groupSelectionRoster');
+    const selected=new Set(selection.player_ids||[]);
+    (groupState.currentPlayers||[]).forEach(p=>{
+      const label=document.createElement('label');label.className='check';
+      const input=document.createElement('input');input.type='checkbox';input.value=p.id;input.checked=selected.has(p.id);
+      label.append(input,document.createTextNode(p.display_name));roster.append(label);
+    });
+    body.querySelector('[data-selection-save]').onclick=()=>saveGroupSelection(selection.id,body).catch(e=>handleError('save group selection',e));
+    body.querySelector('[data-selection-archive]').onclick=()=>toggleGroupSelectionArchive(selection.id,!selection.archived).catch(e=>handleError('archive group selection',e));
+    details.append(summary,body);box.append(details);
+  });
+}
+async function refreshCurrentGroupSelections(){
+  if(!groupState.currentGroupId){groupState.currentSelections=[];return[]}
+  groupState.currentSelections=await fetchGroupSelections(groupState.currentGroupId,{includeArchived:true});
+  renderGroupSelections();
+  return groupState.currentSelections;
+}
+async function createGroupSelection(){
+  const groupId=groupState.currentGroupId,status=$('#groupSelectionStatus');
+  if(!groupId)return;
+  const name=($('#groupSelectionName')?.value||'').trim();
+  if(!name){if(status){status.textContent='Renseigne un nom de sélection.';status.className='authStatus cloudErr'}return}
+  const payload={group_id:groupId,name,selection_type:$('#groupSelectionType')?.value||'competition',starts_on:$('#groupSelectionStart')?.value||null,ends_on:$('#groupSelectionEnd')?.value||null};
+  if(payload.starts_on&&payload.ends_on&&payload.starts_on>payload.ends_on){if(status){status.textContent='La date de fin doit être postérieure à la date de début.';status.className='authStatus cloudErr'}return}
+  try{
+    if(status){status.textContent='Création…';status.className='authStatus'}
+    const {error}=await db.from('coaching_group_selections').insert(payload);
+    if(error)throw error;
+    $('#groupSelectionName').value='';$('#groupSelectionType').value='competition';$('#groupSelectionStart').value='';$('#groupSelectionEnd').value='';
+    if(status){status.textContent='Sélection créée ✓';status.className='authStatus cloudOk'}
+    await refreshCurrentGroupSelections();setCloud('Synchronisé',true);
+  }catch(e){if(status){status.textContent=e?.code==='23505'?'Une sélection porte déjà ce nom.':'Impossible de créer la sélection.';status.className='authStatus cloudErr'}throw e}
+}
+async function saveGroupSelection(selectionId,body){
+  const selection=(groupState.currentSelections||[]).find(s=>s.id===selectionId);if(!selection||!body)return;
+  const status=body.querySelector('[data-selection-status]');
+  const name=(body.querySelector('[data-selection-name]')?.value||'').trim();
+  const type=body.querySelector('[data-selection-type]')?.value||'competition';
+  const startsOn=body.querySelector('[data-selection-start]')?.value||null;
+  const endsOn=body.querySelector('[data-selection-end]')?.value||null;
+  if(!name){status.textContent='Le nom est obligatoire.';return}
+  if(startsOn&&endsOn&&startsOn>endsOn){status.textContent='Dates incohérentes.';return}
+  const wanted=new Set([...body.querySelectorAll('.groupSelectionRoster input:checked')].map(c=>c.value));
+  const current=new Set(selection.player_ids||[]);
+  const additions=[...wanted].filter(id=>!current.has(id));
+  const removals=[...current].filter(id=>!wanted.has(id));
+  status.textContent='Enregistrement…';
+  const {error:updateError}=await db.from('coaching_group_selections').update({name,selection_type:type,starts_on:startsOn,ends_on:endsOn,updated_at:new Date().toISOString()}).eq('id',selectionId);
+  if(updateError)throw updateError;
+  if(additions.length){
+    const {error}=await db.from('coaching_group_selection_players').insert(additions.map(player_id=>({selection_id:selectionId,group_id:selection.group_id,player_id})));
+    if(error)throw error;
+  }
+  if(removals.length){
+    const {error}=await db.from('coaching_group_selection_players').delete().eq('selection_id',selectionId).in('player_id',removals);
+    if(error)throw error;
+  }
+  status.textContent='Sélection enregistrée ✓';
+  await refreshCurrentGroupSelections();setCloud('Synchronisé',true);
+}
+async function toggleGroupSelectionArchive(selectionId,archived){
+  const {error}=await db.from('coaching_group_selections').update({archived,updated_at:new Date().toISOString()}).eq('id',selectionId);
+  if(error)throw error;
+  await refreshCurrentGroupSelections();setCloud('Synchronisé',true);
 }
 
 let groupPlayerFollowupState={playerId:null};
@@ -3740,8 +3879,18 @@ async function joinGroup(){
   await fetchMyGroups();renderGroupsList();
   if(data)await openGroupDetail(data);
 }
-async function loadMatchGroupPlayers(groupId){
-  groupState.matchPlayers=await fetchGroupPlayers(groupId);
+async function loadMatchSelectionOptions(groupId,selectedId=''){
+  const select=$('#matchSelection');
+  groupState.matchSelections=groupId?await fetchGroupSelections(groupId,{includeArchived:true}):[];
+  fillGroupSelectionSelect(select,groupState.matchSelections,{selectedId,allLabel:'Tout le groupe'});
+  if(select)select.disabled=!groupId||!groupState.matchSelections.some(s=>!s.archived||s.id===selectedId);
+  return groupState.matchSelections;
+}
+async function loadMatchGroupPlayers(groupId,selectionId=$('#matchSelection')?.value||''){
+  const allPlayers=await fetchGroupPlayers(groupId);
+  const selection=selectionId?(groupState.matchSelections||[]).find(s=>s.id===selectionId):null;
+  const allowed=selection?new Set(selection.player_ids||[]):null;
+  groupState.matchPlayers=allowed?allPlayers.filter(p=>allowed.has(p.id)):allPlayers;
   state.playerRolePreferences=Object.fromEntries(groupState.matchPlayers.map(p=>[p.display_name,p.preferred_role||'AP']));
   const box=$('#rosterChecks');box.innerHTML='';
   groupState.matchPlayers.forEach((p,i)=>{
@@ -3751,7 +3900,11 @@ async function loadMatchGroupPlayers(groupId){
     l.append(c,document.createTextNode(p.display_name));box.append(l);
   });
   $('#rosterWrap').classList.toggle('hidden',groupState.matchPlayers.length<1);
-  $('#matchGroupHint').textContent=groupState.matchPlayers.length>=4?'Effectif chargé depuis le groupe.':`Ce groupe ne contient que ${groupState.matchPlayers.length} joueur(s). Ajoute au moins 4 joueurs dans Groupes.`;
+  if(selection){
+    $('#matchGroupHint').textContent=groupState.matchPlayers.length>=4?`Sélection « ${selection.name} » · ${groupState.matchPlayers.length} joueurs disponibles.`:`La sélection « ${selection.name} » ne contient que ${groupState.matchPlayers.length} joueur(s).`;
+  }else{
+    $('#matchGroupHint').textContent=groupState.matchPlayers.length>=4?`Effectif complet du groupe · ${groupState.matchPlayers.length} joueurs disponibles.`:`Ce groupe ne contient que ${groupState.matchPlayers.length} joueur(s). Ajoute au moins 4 joueurs dans Groupes.`;
+  }
   updateStartButton();
 }
 async function loadTrainingGroupPlayers(groupId){
@@ -3785,7 +3938,7 @@ async function fetchMatchLibrary(){
   const groupIds=groupState.groups.map(g=>g.id);
   if(!groupIds.length){matchLibraryState.matches=[];return}
   const {data,error}=await db.from('matches')
-    .select('id,label,played_on,status,group_id,match_type_id,created_at,updated_at,created_by,updated_by,match_type:match_types!matches_match_type_id_fkey(name,active),group:coaching_groups!matches_group_id_fkey(name),followed_team:teams!matches_team_id_fkey(name),opponent1:teams!matches_opponent_team_1_id_fkey(name),opponent2:teams!matches_opponent_team_2_id_fkey(name),match_events(count)')
+    .select('id,label,played_on,status,group_id,selection_id,match_type_id,created_at,updated_at,created_by,updated_by,match_type:match_types!matches_match_type_id_fkey(name,active),selection:coaching_group_selections!matches_selection_group_fkey(name),group:coaching_groups!matches_group_id_fkey(name),followed_team:teams!matches_team_id_fkey(name),opponent1:teams!matches_opponent_team_1_id_fkey(name),opponent2:teams!matches_opponent_team_2_id_fkey(name),match_events(count)')
     .in('group_id',groupIds)
     .order('played_on',{ascending:false})
     .order('created_at',{ascending:false});
@@ -3828,7 +3981,7 @@ function renderMatchLibrary(){
     card.innerHTML=`<div class="matchLibraryMain">
       <div class="matchLibraryInfo">
         <div class="matchLibraryTitle">${statsEscape(formatDateShort(m.played_on)||'Date ?')} · ${statsEscape(m.label)}</div>
-        <div class="matchLibraryMeta">${statsEscape(type)}${m.match_type&&!m.match_type.active?'<span class="matchTypeArchived">archivé</span>':''} · ${statsEscape(m.group?.name||m.followed_team?.name||'Groupe')}${opponents?' · vs '+statsEscape(opponents):''}${videoBadge} · ${n} action${n>1?'s':''}</div>
+        <div class="matchLibraryMeta">${statsEscape(type)}${m.match_type&&!m.match_type.active?'<span class="matchTypeArchived">archivé</span>':''} · ${statsEscape(m.group?.name||m.followed_team?.name||'Groupe')}${m.selection?.name?' · Sélection '+statsEscape(m.selection.name):''}${opponents?' · vs '+statsEscape(opponents):''}${videoBadge} · ${n} action${n>1?'s':''}</div>
       </div>
       <div class="matchLibraryActions">
         <button class="primary" data-analyze="${m.id}">Analyser</button>
@@ -3874,13 +4027,15 @@ async function openMatchMetaEditor(matchId){
   setCloud('Chargement…',true);
   await fetchMatchTypes();
   const {data:m,error}=await db.from('matches')
-    .select('id,label,played_on,match_type_id,opponent_team_1_id,opponent_team_2_id,capture_mode,youtube_url,opponent1:teams!matches_opponent_team_1_id_fkey(name),opponent2:teams!matches_opponent_team_2_id_fkey(name)')
+    .select('id,label,played_on,group_id,selection_id,match_type_id,opponent_team_1_id,opponent_team_2_id,capture_mode,youtube_url,opponent1:teams!matches_opponent_team_1_id_fkey(name),opponent2:teams!matches_opponent_team_2_id_fkey(name)')
     .eq('id',matchId).single();
   if(error)throw error;
   editingMatchMetaId=matchId;
   $('#editMatchName').value=m.label||'';
   $('#editMatchDate').value=isoToFrInput(m.played_on||today());
   populateMatchTypeSelect($('#editMatchType'),{selected:m.match_type_id||'',includeArchivedId:m.match_type_id||null});
+  const editSelections=m.group_id?await fetchGroupSelections(m.group_id,{includeArchived:true}):[];
+  fillGroupSelectionSelect($('#editMatchSelection'),editSelections,{selectedId:m.selection_id||'',allLabel:'Tout le groupe'});
   $('#editMatchOpponent1').value=m.opponent1?.name||'';
   $('#editMatchOpponent2').value=m.opponent2?.name||'';
   $('#editMatchYoutubeUrl').value=m.youtube_url||'';
@@ -3894,6 +4049,7 @@ async function saveMatchMetaEditor(){
   const name=$('#editMatchName').value.trim()||'Match';
   const date=frInputToIso($('#editMatchDate').value||isoToFrInput(today()));
   const typeId=$('#editMatchType').value||null;
+  const selectionId=$('#editMatchSelection')?.value||null;
   const opp1=$('#editMatchOpponent1').value.trim();
   const opp2=$('#editMatchOpponent2').value.trim();
   const youtubeUrl=editingMatchCaptureMode==='video'?($('#editMatchYoutubeUrl').value||'').trim():'';
@@ -3903,7 +4059,7 @@ async function saveMatchMetaEditor(){
   try{
     setCloud('Enregistrement…',true);
     const [opp1Id,opp2Id]=await Promise.all([ensureTeam(opp1),ensureTeam(opp2)]);
-    const {error}=await db.from('matches').update({label:name,played_on:date,match_type_id:typeId,opponent_team_1_id:opp1Id,opponent_team_2_id:opp2Id,capture_mode:editingMatchCaptureMode,youtube_url:youtubeUrl||null}).eq('id',editingMatchMetaId);
+    const {error}=await db.from('matches').update({label:name,played_on:date,match_type_id:typeId,selection_id:selectionId,opponent_team_1_id:opp1Id,opponent_team_2_id:opp2Id,capture_mode:editingMatchCaptureMode,youtube_url:youtubeUrl||null}).eq('id',editingMatchMetaId);
     if(error)throw error;
     closeMatchMetaEditor();
     await fetchMatchLibrary();populateMatchLibraryFilters();renderMatchLibrary();setCloud('Synchronisé',true);
@@ -3912,7 +4068,7 @@ async function saveMatchMetaEditor(){
 
 async function openMatchReadOnly(matchId){
   const {data:m,error:me}=await db.from('matches')
-    .select('id,label,played_on,group_id,match_type_id,team_id,created_at,updated_at,created_by,updated_by,match_type:match_types!matches_match_type_id_fkey(name),group:coaching_groups!matches_group_id_fkey(name),followed_team:teams!matches_team_id_fkey(name),opponent1:teams!matches_opponent_team_1_id_fkey(name),opponent2:teams!matches_opponent_team_2_id_fkey(name)')
+    .select('id,label,played_on,group_id,selection_id,match_type_id,team_id,created_at,updated_at,created_by,updated_by,match_type:match_types!matches_match_type_id_fkey(name),selection:coaching_group_selections!matches_selection_group_fkey(name),group:coaching_groups!matches_group_id_fkey(name),followed_team:teams!matches_team_id_fkey(name),opponent1:teams!matches_opponent_team_1_id_fkey(name),opponent2:teams!matches_opponent_team_2_id_fkey(name)')
     .eq('id',matchId).single();
   if(me)throw me;
   const [{data:events,error:ee},{data:mp,error:pe}]=await Promise.all([
@@ -3943,7 +4099,7 @@ async function openMatchReadOnly(matchId){
   }
   $('#matchReadTitle').textContent=m.label;
   const opp=[m.opponent1?.name,m.opponent2?.name].filter(Boolean).join(' / ');
-  $('#matchReadMeta').textContent=`${formatDateShort(m.played_on)} · ${m.match_type?.name||'Sans type'} · ${m.group?.name||m.followed_team?.name||'Groupe'}${opp?' · vs '+opp:''}`;
+  $('#matchReadMeta').textContent=`${formatDateShort(m.played_on)} · ${m.match_type?.name||'Sans type'} · ${m.group?.name||m.followed_team?.name||'Groupe'}${m.selection?.name?' · Sélection '+m.selection.name:''}${opp?' · vs '+opp:''}`;
   $('#matchReadPlayers').textContent=(mp||[]).map(x=>x.players?.display_name).filter(Boolean).join(' · ')||'—';
   const box=$('#matchReadTimeline');box.innerHTML='';
   if(!(events||[]).length)box.innerHTML='<div class="small">Aucune prise de note.</div>';
@@ -4834,13 +4990,36 @@ async function openMatchModule(){
   }
   populateMatchTypeSelect($('#matchType'),{selected:''});
   if(!$('#matchGroup').value && groupState.groups.length) $('#matchGroup').value=groupState.groups[0].id;
-  if($('#matchGroup').value) await loadMatchGroupPlayers($('#matchGroup').value);
+  if($('#matchGroup').value){await loadMatchSelectionOptions($('#matchGroup').value,'');await loadMatchGroupPlayers($('#matchGroup').value,'');}
   window.scrollTo({top:0,behavior:'instant'});
 }
 async function fetchTrainingPlayers(groupId=null){
   const gid=groupId||$('#trainingGroup')?.value||$('#historyGroup')?.value||groupState.groups[0]?.id||null;
-  trainingState.players=gid?await fetchGroupPlayers(gid):[];
-  renderTrainingAttendance();renderHistoryPlayers();
+  if(gid){
+    const [players,selections]=await Promise.all([fetchGroupPlayers(gid),fetchGroupSelections(gid)]);
+    trainingState.players=players;
+    trainingState.selections=selections;
+  }else{
+    trainingState.players=[];
+    trainingState.selections=[];
+  }
+  renderTrainingAttendance();renderHistoryPlayers();populateTrainingAttendancePreset();
+  if($('#trainingAttendancePresetStatus'))$('#trainingAttendancePresetStatus').textContent='';
+}
+function populateTrainingAttendancePreset(){
+  const select=$('#trainingAttendancePreset');if(!select)return;
+  const current=select.value;
+  fillGroupSelectionSelect(select,trainingState.selections||[],{selectedId:current,allLabel:'Tout le groupe'});
+  select.disabled=!(trainingState.players||[]).length;
+}
+function applyTrainingAttendancePreset(){
+  const select=$('#trainingAttendancePreset'),status=$('#trainingAttendancePresetStatus');if(!select)return;
+  const selectionId=select.value||'';
+  const selection=selectionId?(trainingState.selections||[]).find(s=>s.id===selectionId):null;
+  const allowed=selection?new Set(selection.player_ids||[]):null;
+  $$('#trainingAttendance input').forEach(c=>{c.checked=allowed?allowed.has(c.value):true});
+  if(status)status.textContent=selection?`${selection.name} · ${selection.player_ids.length} joueur${selection.player_ids.length>1?'s':''} précoché${selection.player_ids.length>1?'s':''}.`:'Tout le groupe est précoché.';
+  renderTrainingExerciseCards();
 }
 async function fetchTrainingExercises({withProfiles=true}={}){
   // Catégories et exercices sont indépendants : une seule latence réseau au lieu de deux successives.
@@ -5189,6 +5368,8 @@ async function startNewTraining(){
   $('#trainingSaveStatus').textContent='';
   $('#trainingGroup').value=groupState.groups[0]?.id||'';
   await fetchTrainingPlayers($('#trainingGroup').value||null);
+  if($('#trainingAttendancePreset'))$('#trainingAttendancePreset').value='';
+  if($('#trainingAttendancePresetStatus'))$('#trainingAttendancePresetStatus').textContent='';
   $$('#trainingAttendance input').forEach(c=>c.checked=true);
   renderTrainingExerciseCards();
   renderTrainingPlan();
@@ -5801,6 +5982,8 @@ async function duplicateTrainingSessionById(sessionId){
   $('#trainingDate').value=isoToFrInput(today());
   $('#trainingGroup').value=source.group_id||'';
   await fetchTrainingPlayers(source.group_id||null);
+  if($('#trainingAttendancePreset'))$('#trainingAttendancePreset').value='';
+  if($('#trainingAttendancePresetStatus'))$('#trainingAttendancePresetStatus').textContent='';
   $('#trainingTheme').value=source.theme||source.label||'';
   $('#trainingDuration').value=source.duration_minutes||'';
   const sourcePlan=unpackTrainingNotes(source.notes||'');
@@ -5846,6 +6029,8 @@ async function editTrainingSessionById(sessionId){
   $('#trainingDate').value=isoToFrInput(source.trained_on||today());
   $('#trainingGroup').value=source.group_id||'';
   await fetchTrainingPlayers(source.group_id||null);
+  if($('#trainingAttendancePreset'))$('#trainingAttendancePreset').value='';
+  if($('#trainingAttendancePresetStatus'))$('#trainingAttendancePresetStatus').textContent='';
   $('#trainingTheme').value=source.theme||source.label||'';
   $('#trainingDuration').value=source.duration_minutes||'';
   const sourcePlan=unpackTrainingNotes(source.notes||'');
@@ -7560,13 +7745,16 @@ $('#showJoinGroup').onclick=()=>{$('#joinGroupBox').classList.toggle('hidden');$
 $('#createGroupBtn').onclick=()=>createGroup().catch(e=>{const st=$('#createGroupStatus');st.textContent=e.message||String(e);st.className='authStatus cloudErr'});
 $('#joinGroupBtn').onclick=()=>joinGroup().catch(e=>{const st=$('#joinGroupStatus');st.textContent=e.message||String(e);st.className='authStatus cloudErr'});
 $('#groupAddPlayersBtn').onclick=()=>addPlayersToCurrentGroup().catch(e=>handleError('add group players',e));
-$('#matchGroup').onchange=()=>loadMatchGroupPlayers($('#matchGroup').value).catch(e=>handleError('match group',e));
+if($('#groupSelectionCreate'))$('#groupSelectionCreate').onclick=()=>createGroupSelection().catch(e=>handleError('create group selection',e));
+$('#matchGroup').onchange=async()=>{try{const groupId=$('#matchGroup').value;await loadMatchSelectionOptions(groupId,'');await loadMatchGroupPlayers(groupId,'')}catch(e){handleError('match group',e)}};
+if($('#matchSelection'))$('#matchSelection').onchange=()=>loadMatchGroupPlayers($('#matchGroup').value,$('#matchSelection').value).catch(e=>handleError('match selection',e));
 ['#matchDate','#trainingDate'].forEach(sel=>{
   const input=$(sel);
   if(input)input.addEventListener('blur',()=>normalizeFrDateField(input));
 });
 
 $('#trainingGroup').onchange=()=>fetchTrainingPlayers($('#trainingGroup').value).then(()=>renderTrainingExerciseCards()).catch(e=>handleError('training group',e));
+if($('#applyTrainingAttendancePreset'))$('#applyTrainingAttendancePreset').onclick=applyTrainingAttendancePreset;
 $('#historyGroup').onchange=()=>fetchTrainingPlayers($('#historyGroup').value).catch(e=>handleError('history group',e));
 
 $('#newTraining').onclick=()=>startNewTraining().catch(e=>handleError('new training',e));
