@@ -250,7 +250,7 @@ button:active{transform:scale(.985)}
 .trainingPlanFields input,.trainingPlanFields select,.trainingPlanNotes textarea,.trainingPlanLibraryRow select{width:100%;min-width:0;max-width:100%}
 .trainingPlanNotes{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
 .trainingPlanBlock:not([data-track="both"]) .trainingPlanNotes{grid-template-columns:1fr}
-.trainingPlanNotes textarea,.trainingGeneralNotes{display:block;width:100%;min-width:0;max-width:100%;min-height:132px;max-height:320px;resize:vertical;overflow-y:auto;padding:11px 12px;line-height:1.45;border:1px solid var(--line);border-radius:11px;background:var(--panel2);color:var(--text);font:inherit;box-sizing:border-box}
+.trainingPlanNotes textarea,.trainingGeneralNotes{display:block;width:100%;min-width:0;max-width:100%;min-height:132px;height:auto;max-height:none;resize:none;overflow-y:hidden;padding:11px 12px;line-height:1.5;border:1px solid var(--line);border-radius:11px;background:var(--panel2);color:var(--text);font:inherit;box-sizing:border-box;touch-action:manipulation;-webkit-overflow-scrolling:auto}
 .trainingPlanLibraryRow{display:grid;grid-template-columns:minmax(145px,.75fr) minmax(220px,1.8fr);gap:9px;margin-top:10px;align-items:end}
 .trainingPlanLibraryRow .libraryExerciseField{min-width:0}
 .trainingPlanStatBox{margin-top:9px;border:1px solid var(--line);border-radius:11px;background:#171c25;padding:10px 11px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
@@ -2095,3 +2095,42 @@ background:#111827;color:#F8FAFC;border:1px solid var(--navLine)
 .trainingPlanMetaTag.stats{color:#1D4ED8!important;border-color:var(--focus)!important;background:#EFF6FF!important}
 .trainingTimelineTime{color:var(--text)!important}
 .trainingPlanStartField input,.trainingPlanNotes textarea,.trainingGeneralNotes{background:#FFFFFF!important;color:var(--text)!important}
+
+/* Tablet note ergonomics */
+.trainingResultNoteField{margin-top:9px}
+.trainingResultNoteField .tr-note{display:block;width:100%;min-width:0;min-height:76px;height:auto;max-height:none;box-sizing:border-box;padding:11px 12px;line-height:1.5;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--text);font:inherit;resize:none;overflow-y:hidden;touch-action:manipulation}
+@media (pointer:coarse), (max-width:1024px){
+  .trainingPlanNotes textarea,.trainingGeneralNotes,.trainingResultNoteField .tr-note{font-size:16px;line-height:1.5;padding:12px 13px}
+  .trainingPlanNotes{gap:12px}
+  .trainingResultNoteField{margin-top:11px}
+}
+
+/* Tablet training notes: reading mode first, editor only on demand */
+.trainingPlanNoteRead{display:none;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55;padding:11px 12px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--text);min-height:48px;cursor:text}
+.trainingPlanNoteEmpty{color:var(--muted);font-style:italic}
+.trainingPlanNoteActions{display:none;gap:7px;margin-top:7px;justify-content:flex-end}
+@media (pointer:coarse), (max-width:1024px){
+  .trainingPlanNotes{grid-template-columns:1fr!important;gap:14px}
+  .trainingPlanNoteField .trainingPlanNoteRead{display:block}
+  .trainingPlanNoteField .trainingPlanNoteEditor{display:none!important}
+  .trainingPlanNoteField .trainingPlanNoteActions{display:flex}
+  .trainingPlanNoteField.editing .trainingPlanNoteRead{display:none!important}
+  .trainingPlanNoteField.editing .trainingPlanNoteEditor{display:block!important;overflow-y:hidden!important;max-height:none!important;touch-action:pan-y pinch-zoom}
+  .trainingPlanNoteRead{font-size:16px;padding:13px 14px;touch-action:pan-y pinch-zoom;user-select:text}
+  .trainingPlanNoteActions button{min-height:42px;padding:9px 13px}
+}
+
+/* Notes d’entraînement : aucun défilement interne, sur tous les appareils */
+.trainingPlanNotes textarea,
+.trainingGeneralNotes,
+.trainingResultNoteField .tr-note{
+  field-sizing:content;
+  height:auto!important;
+  max-height:none!important;
+  overflow-y:hidden!important;
+  resize:none!important;
+  scrollbar-width:none;
+}
+.trainingPlanNotes textarea::-webkit-scrollbar,
+.trainingGeneralNotes::-webkit-scrollbar,
+.trainingResultNoteField .tr-note::-webkit-scrollbar{display:none}

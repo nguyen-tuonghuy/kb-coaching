@@ -375,6 +375,14 @@ const handleError=(where,error)=>{
   alert((error&&error.message)||String(error)||'Erreur de synchronisation');
 };
 
+function hideStartupScreen(){
+  const splash=document.getElementById('startupScreen');
+  if(splash)splash.remove();
+}
+function runStartupBackground(label,task){
+  Promise.resolve().then(task).catch(error=>console.warn('[startup background]',label,error));
+}
+
 function saveLocal(){
   localStorage.setItem(KEY,JSON.stringify({
     currentMatchId:state.currentMatchId,
@@ -919,26 +927,54 @@ async function initAuthenticated(user){
   $('#authPanel').classList.add('hidden');
   $('#setup').classList.add('hidden');
   $('#logout').classList.remove('hidden');
-  setCloud('Synchronisé',true);
-  try{await claimPlayerInviteIfPresent(user)}catch(e){
-    $('#authPanel').classList.remove('hidden');
-    await loadSharedPlayerInvite().catch(()=>{});
-    authMessage(e.message||'Impossible d’activer cet accès joueur.',true);
-    setCloud('Accès joueur à compléter',false);
-    throw e
+  setCloud('Connexion…',true);
+
+  // Garde-fou : après identification de la session, le splash ne peut plus rester bloqué.
+  const splashGuard=setTimeout(hideStartupScreen,4000);
+  try{
+    try{await claimPlayerInviteIfPresent(user)}catch(e){
+      clearTimeout(splashGuard);
+      $('#authPanel').classList.remove('hidden');
+      await loadSharedPlayerInvite().catch(()=>{});
+      authMessage(e.message||'Impossible d’activer cet accès joueur.',true);
+      setCloud('Accès joueur à compléter',false);
+      hideStartupScreen();
+      throw e
+    }
+
+    // Accès joueur et groupes sont indépendants : chargement en parallèle.
+    const [accesses]=await Promise.all([
+      fetchMyPlayerAccesses(),
+      fetchMyGroups()
+    ]);
+
+    // Les données secondaires ne doivent jamais retenir l'écran de chargement.
+    runStartupBackground('notifications messages',()=>refreshMessageNotifications('coach'));
+    runStartupBackground('notifications vidéos',()=>refreshVideoNotifications());
+    runStartupBackground('workspace',()=>ensureWorkspace());
+    runStartupBackground('profil',()=>ensureMyProfile());
+    runStartupBackground('droits admin',()=>refreshAdminAccess());
+
+    if(accesses.length&&(invitedPlayerFlow||!groupState.groups.length)){
+      const portalPromise=openPlayerPortal(accesses);
+      clearTimeout(splashGuard);
+      hideStartupScreen();
+      await portalPromise;
+      return;
+    }
+
+    // Afficher immédiatement le module Entraînements avec son état de chargement local.
+    $('#appHome').classList.add('hidden');$('#trainingHome').classList.remove('hidden');$('#groupsHome').classList.add('hidden');$('#groupDetail').classList.add('hidden');$('#trainingSession').classList.add('hidden');$('#trainingHistory').classList.add('hidden');$('#homeBtn').classList.remove('hidden');$('#profileBtn').classList.remove('hidden');$('#playerSpaceBtn').classList.toggle('hidden',!accesses.length);$('#newMatchTop').classList.add('hidden');
+    if($('#trainingSavedSeasons'))$('#trainingSavedSeasons').innerHTML='<div class="small">Chargement des séances…</div>';
+    setCloud('Synchronisé',true);
+    clearTimeout(splashGuard);
+    hideStartupScreen();
+
+    // Les exercices et séances se chargent ensuite dans la page déjà visible.
+    await openTrainingModule();
+  }finally{
+    clearTimeout(splashGuard);
   }
-  const accesses=await fetchMyPlayerAccesses();
-  await fetchMyGroups();
-  await Promise.all([
-    refreshMessageNotifications('coach').catch(e=>handleError('message notifications',e)),
-    refreshVideoNotifications().catch(e=>handleError('video notifications',e))
-  ]);
-  if(accesses.length&&(invitedPlayerFlow||!groupState.groups.length)){await openPlayerPortal(accesses);return}
-  // Page dédiée Entraînements : ne jamais afficher l'accueil général, même brièvement.
-  $('#appHome').classList.add('hidden');$('#trainingHome').classList.remove('hidden');$('#groupsHome').classList.add('hidden');$('#groupDetail').classList.add('hidden');$('#trainingSession').classList.add('hidden');$('#trainingHistory').classList.add('hidden');$('#homeBtn').classList.remove('hidden');$('#profileBtn').classList.remove('hidden');$('#playerSpaceBtn').classList.toggle('hidden',!accesses.length);$('#newMatchTop').classList.add('hidden');
-  if($('#trainingSavedSeasons')) $('#trainingSavedSeasons').innerHTML='<div class="small">Chargement des séances…</div>';
-  await ensureWorkspace();await ensureMyProfile();await refreshAdminAccess();
-  await openTrainingModule();
 }
 
 async function initAuth(){
@@ -4919,10 +4955,16 @@ function planExerciseDetails(ex,focus=null){
 }
 function autoGrowPlanTextarea(el){
   if(!el)return;
-  el.style.height='auto';
-  const target=Math.max(132,Math.min(320,el.scrollHeight+2));
-  el.style.height=`${target}px`;
-  el.style.overflowY=el.scrollHeight>322?'auto':'hidden';
+  const grow=()=>{
+    el.style.height='auto';
+    const minHeight=el.classList.contains('tr-note')?76:132;
+    const target=Math.max(minHeight,el.scrollHeight+2);
+    el.style.height=`${target}px`;
+    el.style.maxHeight='none';
+    el.style.overflowY='hidden';
+  };
+  grow();
+  requestAnimationFrame(grow);
 }
 function planGeneratedExercise(block){return trainingState.sessionExercises.find(ex=>ex.fromPlanBlockId===block.id)||null}
 function syncPlanStatExercises(){
@@ -5017,7 +5059,10 @@ function renderTrainingPlan(){
        <div class="field"><label>Type</label><select class="planSourceType"><option value="free"${!libraryMode?' selected':''}>Bloc libre</option><option value="library"${libraryMode?' selected':''}>Exercice de la bibliothèque</option></select></div>
        <div class="field libraryExerciseField${libraryMode?'':' hidden'}"><label>Exercice de la bibliothèque</label><select class="planExercise">${planExerciseOptions(b.exerciseId||'')}</select></div>
       </div>
-      <div class="trainingPlanNotes"><div class="field"><label>Contenu / consignes / variantes</label><textarea class="planDetails" placeholder="Organisation, répétitions, contraintes, variantes…">${escapeHtml(b.details||'')}</textarea></div><div class="field"><label>Encadrement / points d’attention</label><textarea class="planAttention" placeholder="Ce que le staff observe, corrections, joueurs concernés…">${escapeHtml(b.attention||'')}</textarea></div></div>
+      <div class="trainingPlanNotes">
+       <div class="field trainingPlanNoteField"><label>Contenu / consignes / variantes</label><div class="trainingPlanNoteRead" data-plan-note-read="details" tabindex="0">${b.details?escapeHtml(b.details):'<span class="trainingPlanNoteEmpty">Ajouter une note…</span>'}</div><textarea class="planDetails trainingPlanNoteEditor" placeholder="Organisation, répétitions, contraintes, variantes…">${escapeHtml(b.details||'')}</textarea><div class="trainingPlanNoteActions"><button type="button" class="ghost" data-plan-note-edit="details">Modifier</button><button type="button" class="ghost hidden" data-plan-note-done="details">Terminer</button></div></div>
+       <div class="field trainingPlanNoteField"><label>Encadrement / points d’attention</label><div class="trainingPlanNoteRead" data-plan-note-read="attention" tabindex="0">${b.attention?escapeHtml(b.attention):'<span class="trainingPlanNoteEmpty">Ajouter une note…</span>'}</div><textarea class="planAttention trainingPlanNoteEditor" placeholder="Ce que le staff observe, corrections, joueurs concernés…">${escapeHtml(b.attention||'')}</textarea><div class="trainingPlanNoteActions"><button type="button" class="ghost" data-plan-note-edit="attention">Modifier</button><button type="button" class="ghost hidden" data-plan-note-done="attention">Terminer</button></div></div>
+      </div>
       <div class="trainingPlanStatBox${libraryMode&&ex?'':' hidden'}">
        <div><label class="check"><input type="checkbox" class="planCollectStats"${b.collectStats?' checked':''}> Collecter les statistiques de cet exercice</label><div class="trainingPlanStatMeta">${escapeHtml(statMeta||'Mesure définie dans la bibliothèque')}</div></div>
        <div class="trainingPlanStatActions">${dual?`<select class="planFocus"><option value="">Focus…</option><option value="attaque"${b.focus==='attaque'?' selected':''}>Attaque</option><option value="defense"${b.focus==='defense'?' selected':''}>Défense</option></select>`:''}${b.collectStats?'<button type="button" class="ghost" data-plan-results>↓ Saisir les résultats</button>':''}</div>
@@ -5036,7 +5081,9 @@ function renderTrainingPlan(){
       const focus=card.querySelector('.planFocus');if(focus)focus.onchange=e=>{captureTrainingPlan();b.focus=e.target.value||null;syncPlanStatExercises();renderTrainingPlan();renderTrainingExerciseCards()};
       card.querySelector('[data-plan-results]')?.addEventListener('click',()=>{syncPlanStatExercises();renderTrainingExerciseCards();const target=document.querySelector(`[data-exercise-card="plan-${b.id}"]`);if(target){const ex=planGeneratedExercise(b);if(ex)ex.expanded=true;renderTrainingExerciseCards();document.querySelector(`[data-exercise-card="plan-${b.id}"]`)?.scrollIntoView({behavior:'smooth',block:'center'})}});
       card.querySelectorAll('.planDuration,.planTrack,.planTitle').forEach(el=>{el.onchange=()=>{captureTrainingPlan();recalculateTrainingPlanTimes();renderTrainingPlan();renderTrainingExerciseCards()}});
-      card.querySelectorAll('.planDetails,.planAttention').forEach(el=>{autoGrowPlanTextarea(el);el.addEventListener('input',()=>{const target=trainingState.planBlocks.find(x=>x.id===b.id);if(!target)return;if(el.classList.contains('planDetails'))target.details=el.value;else target.attention=el.value;autoGrowPlanTextarea(el)});el.addEventListener('change',captureTrainingPlan)});
+      card.querySelectorAll('.planDetails,.planAttention').forEach(el=>{autoGrowPlanTextarea(el);el.addEventListener('input',()=>{const target=trainingState.planBlocks.find(x=>x.id===b.id);if(!target)return;const key=el.classList.contains('planDetails')?'details':'attention';target[key]=el.value;const read=card.querySelector(`[data-plan-note-read="${key}"]`);if(read)read.innerHTML=el.value?escapeHtml(el.value):'<span class="trainingPlanNoteEmpty">Ajouter une note…</span>';autoGrowPlanTextarea(el)});el.addEventListener('change',captureTrainingPlan)});
+      const tabletNotes=window.matchMedia?.('(pointer: coarse)').matches||window.innerWidth<=1024;
+      card.querySelectorAll('[data-plan-note-edit]').forEach(btn=>{const key=btn.dataset.planNoteEdit;const field=btn.closest('.trainingPlanNoteField');const editor=field?.querySelector(key==='details'?'.planDetails':'.planAttention');const read=field?.querySelector('[data-plan-note-read]');const done=field?.querySelector('[data-plan-note-done]');const startEdit=()=>{if(!field||!editor)return;field.classList.add('editing');read?.classList.add('hidden');btn.classList.add('hidden');done?.classList.remove('hidden');autoGrowPlanTextarea(editor);editor.focus()};btn.addEventListener('click',startEdit);read?.addEventListener('click',()=>{if(tabletNotes)startEdit()});read?.addEventListener('keydown',e=>{if(tabletNotes&&(e.key==='Enter'||e.key===' ')){e.preventDefault();startEdit()}});done?.addEventListener('click',()=>{captureTrainingPlan();field.classList.remove('editing');read?.classList.remove('hidden');btn.classList.remove('hidden');done.classList.add('hidden');editor.blur()})});
       const dragHandle=card.querySelector('[data-plan-drag]');
       dragHandle?.addEventListener('dragstart',e=>{captureTrainingPlan();card.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',b.id)});
       dragHandle?.addEventListener('dragend',()=>{card.classList.remove('dragging');box.classList.remove('drag-over')});
@@ -5249,7 +5296,13 @@ function renderTrainingExerciseCards(){
     present.forEach(p=>{
       const row=document.createElement('div');row.className='resultRow';row.dataset.exercise=ex.localKey;row.dataset.player=p.id;
       const draft=getTrainingDraft(ex.localKey,p.id);
-      row.innerHTML=`<div class="name">${escapeHtml(p.name)}</div>${resultInputsHtml(ex,p)}<div style="margin-top:7px"><label>Note facultative</label><input class="tr-note" placeholder="Observation courte" value="${escapeAttr(draft.note)}"></div>`;
+      row.innerHTML=`<div class="name">${escapeHtml(p.name)}</div>${resultInputsHtml(ex,p)}<div class="trainingResultNoteField"><label>Note facultative</label><textarea class="tr-note" rows="2" placeholder="Observation, correction, point d’attention…">${escapeHtml(draft.note||'')}</textarea></div>`;
+      const noteEl=row.querySelector('.tr-note');
+      if(noteEl){
+        autoGrowPlanTextarea(noteEl);
+        noteEl.addEventListener('input',()=>autoGrowPlanTextarea(noteEl));
+        noteEl.addEventListener('focus',()=>autoGrowPlanTextarea(noteEl));
+      }
       rb.append(row);
     });
 
@@ -7479,6 +7532,7 @@ $('#addTrainingPlanBlock').onclick=()=>addTrainingPlanBlock();
 const trainingPlanStartEl=$('#trainingPlanStart');if(trainingPlanStartEl){trainingPlanStartEl.addEventListener('change',()=>{trainingPlanStartEl.value=normalizePlanTime(trainingPlanStartEl.value)||'13:30';recalculateTrainingPlanTimes();renderTrainingPlan()})}
 $('#clearTrainingPlan').onclick=()=>{if(!trainingState.planBlocks.length||confirm('Vider tout le plan de séance ?')){trainingState.planBlocks=[];renderTrainingPlan()}};
 const trainingNotesEl=$('#trainingNotes');if(trainingNotesEl){trainingNotesEl.addEventListener('input',()=>autoGrowPlanTextarea(trainingNotesEl));autoGrowPlanTextarea(trainingNotesEl)}
+window.addEventListener('resize',()=>document.querySelectorAll('.trainingPlanNotes textarea,.trainingGeneralNotes,.trainingResultNoteField .tr-note').forEach(autoGrowPlanTextarea));
 const duplicateTrainingSessionBtn=$('#duplicateTrainingSession');if(duplicateTrainingSessionBtn)duplicateTrainingSessionBtn.onclick=()=>openTrainingDuplicate();
 $('#trainingDuplicateBack').onclick=()=>openTrainingModule();
 $('#cancelTraining').onclick=()=>openTrainingModule();
@@ -7723,4 +7777,4 @@ function render(){
 
 render();
 initVideoDesktopResizer();
-initAuth().catch(e=>handleError('initAuth',e)).finally(()=>document.getElementById('startupScreen')?.remove());
+initAuth().catch(e=>{handleError('initAuth',e);hideStartupScreen()});

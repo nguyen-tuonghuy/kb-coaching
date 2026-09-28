@@ -376,6 +376,14 @@ const handleError=(where,error)=>{
   alert((error&&error.message)||String(error)||'Erreur de synchronisation');
 };
 
+function hideStartupScreen(){
+  const splash=document.getElementById('startupScreen');
+  if(splash)splash.remove();
+}
+function runStartupBackground(label,task){
+  Promise.resolve().then(task).catch(error=>console.warn('[startup background]',label,error));
+}
+
 function saveLocal(){
   localStorage.setItem(KEY,JSON.stringify({
     currentMatchId:state.currentMatchId,
@@ -947,30 +955,61 @@ async function initAuthenticated(user){
   $('#authPanel').classList.add('hidden');
   $('#setup').classList.add('hidden');
   $('#logout').classList.remove('hidden');
-  setCloud('Synchronisé',true);
-  try{await claimPlayerInviteIfPresent(user)}catch(e){
-    $('#authPanel').classList.remove('hidden');
-    await loadSharedPlayerInvite().catch(()=>{});
-    authMessage(e.message||'Impossible d’activer cet accès joueur.',true);
-    setCloud('Accès joueur à compléter',false);
-    throw e
-  }
-  const accesses=await fetchMyPlayerAccesses();
-  await fetchMyGroups();
-  await refreshMessageNotifications('coach').catch(e=>handleError('message notifications',e));
-  await refreshVideoNotifications().catch(e=>handleError('video notifications',e));
-  if(accesses.length&&(invitedPlayerFlow||!groupState.groups.length)){await openPlayerPortal(accesses);return}
-  $('#appHome').classList.remove('hidden');$('#trainingHome').classList.add('hidden');$('#groupsHome').classList.add('hidden');$('#groupDetail').classList.add('hidden');$('#trainingSession').classList.add('hidden');$('#trainingHistory').classList.add('hidden');$('#homeBtn').classList.remove('hidden');$('#profileBtn').classList.remove('hidden');$('#playerSpaceBtn').classList.toggle('hidden',!accesses.length);$('#newMatchTop').classList.add('hidden');
-  await ensureWorkspace();await ensureMyProfile();await refreshAdminAccess();await fetchMyGroups();
-  const returnParams=new URLSearchParams(location.search||'');
-  const staffGroup=returnParams.get('staff_group'),staffPlayer=returnParams.get('staff_player');
-  if(staffGroup&&staffPlayer&&groupState.groups.some(g=>g.id===staffGroup)){
-    groupState.currentGroupId=staffGroup;
-    await openGroupDetail(staffGroup);
-    if(groupState.currentPlayers.some(p=>p.id===staffPlayer)){
-      await openStaffPlayerPortal(staffPlayer);
-      history.replaceState(null,'',location.pathname+'#player-home');
+  setCloud('Connexion…',true);
+
+  // Garde-fou : une requête lente ne doit pas garder le splash indéfiniment.
+  // À ce stade la session est déjà connue et le panneau de connexion est masqué.
+  const splashGuard=setTimeout(hideStartupScreen,4000);
+  try{
+    try{await claimPlayerInviteIfPresent(user)}catch(e){
+      clearTimeout(splashGuard);
+      $('#authPanel').classList.remove('hidden');
+      await loadSharedPlayerInvite().catch(()=>{});
+      authMessage(e.message||'Impossible d’activer cet accès joueur.',true);
+      setCloud('Accès joueur à compléter',false);
+      hideStartupScreen();
+      throw e
     }
+
+    // Les deux seules données nécessaires pour choisir la bonne vue sont indépendantes.
+    const [accesses]=await Promise.all([
+      fetchMyPlayerAccesses(),
+      fetchMyGroups()
+    ]);
+
+    // Notifications, profil, droits admin et workspace ne bloquent plus l'affichage.
+    runStartupBackground('notifications messages',()=>refreshMessageNotifications('coach'));
+    runStartupBackground('notifications vidéos',()=>refreshVideoNotifications());
+    runStartupBackground('workspace',()=>ensureWorkspace());
+    runStartupBackground('profil',()=>ensureMyProfile());
+    runStartupBackground('droits admin',()=>refreshAdminAccess());
+
+    if(accesses.length&&(invitedPlayerFlow||!groupState.groups.length)){
+      const portalPromise=openPlayerPortal(accesses);
+      clearTimeout(splashGuard);
+      hideStartupScreen();
+      await portalPromise;
+      return;
+    }
+
+    $('#appHome').classList.remove('hidden');$('#trainingHome').classList.add('hidden');$('#groupsHome').classList.add('hidden');$('#groupDetail').classList.add('hidden');$('#trainingSession').classList.add('hidden');$('#trainingHistory').classList.add('hidden');$('#homeBtn').classList.remove('hidden');$('#profileBtn').classList.remove('hidden');$('#playerSpaceBtn').classList.toggle('hidden',!accesses.length);$('#newMatchTop').classList.add('hidden');
+    setCloud('Synchronisé',true);
+    clearTimeout(splashGuard);
+    hideStartupScreen();
+
+    // Un retour vers une fiche joueur peut continuer après affichage de l'accueil.
+    const returnParams=new URLSearchParams(location.search||'');
+    const staffGroup=returnParams.get('staff_group'),staffPlayer=returnParams.get('staff_player');
+    if(staffGroup&&staffPlayer&&groupState.groups.some(g=>g.id===staffGroup)){
+      groupState.currentGroupId=staffGroup;
+      await openGroupDetail(staffGroup);
+      if(groupState.currentPlayers.some(p=>p.id===staffPlayer)){
+        await openStaffPlayerPortal(staffPlayer);
+        history.replaceState(null,'',location.pathname+'#player-home');
+      }
+    }
+  }finally{
+    clearTimeout(splashGuard);
   }
 }
 
@@ -6627,4 +6666,4 @@ function render(){
 render();
 document.querySelectorAll('button.ghost,a.ghost').forEach(el=>{if((el.textContent||'').trim().startsWith('←'))el.classList.add('backNav')});
 initVideoDesktopResizer();
-initAuth().catch(e=>handleError('initAuth',e)).finally(()=>document.getElementById('startupScreen')?.remove());
+initAuth().catch(e=>{handleError('initAuth',e);hideStartupScreen()});
