@@ -3666,9 +3666,13 @@ function renderGroupPlayers(){
     open.onclick=()=>openStaffPlayerPortal(p.id).catch(e=>handleError('open staff player portal',e));
     row.append(info,manage,open);
     if(canRemove){
-      const remove=document.createElement('button');remove.type='button';remove.className='ghost dangerAction';remove.textContent='Retirer';
+      const rename=document.createElement('button');rename.type='button';rename.className='ghost';rename.textContent='Renommer';
+      rename.title='Modifier le nom affiché du joueur sans changer son historique';
+      rename.onclick=()=>renamePlayerInCurrentGroup(p.id,p.display_name);
+      const remove=document.createElement('button');remove.type='button';remove.className='ghost dangerAction';remove.textContent='Retirer du groupe';
+      remove.title='Retire le joueur de cet effectif sans supprimer son historique';
       remove.onclick=()=>removePlayerFromCurrentGroup(p.id,p.display_name);
-      row.append(remove);
+      row.append(rename,remove);
     }
     d.append(row);box.append(d);
   })
@@ -3764,13 +3768,54 @@ async function toggleGroupSelectionArchive(selectionId,archived){
   await refreshCurrentGroupSelections();setCloud('Synchronisé',true);
 }
 
+async function renamePlayerInCurrentGroup(playerId,currentName){
+  const groupId=groupState.currentGroupId;
+  const group=groupState.groups.find(x=>x.id===groupId);
+  if(!groupId||!group||group.role!=='owner')return;
+
+  const entered=prompt(`Nouveau nom pour ${currentName||'ce joueur'} :`,currentName||'');
+  if(entered===null)return;
+  const nextName=entered.trim().replace(/\s+/g,' ');
+  if(!nextName){alert('Le nom du joueur ne peut pas être vide.');return}
+  if(nextName===currentName)return;
+
+  const others=(groupState.currentPlayers||[]).filter(p=>p.id!==playerId);
+  const duplicate=nearDuplicatePlayer(nextName,others);
+  if(duplicate?.type==='exact'){
+    alert(`« ${nextName} » existe déjà dans ce groupe.`);
+    return;
+  }
+  if(duplicate?.type==='near'){
+    const ok=confirm(`« ${nextName} » ressemble beaucoup à « ${duplicate.player.display_name} » déjà présent dans ce groupe.
+
+Confirmer malgré tout le changement de nom ?`);
+    if(!ok)return;
+  }
+
+  try{
+    setCloud('Enregistrement…',true);
+    const {data,error}=await db.from('players')
+      .update({display_name:nextName})
+      .eq('id',playerId)
+      .select('id,display_name')
+      .single();
+    if(error)throw error;
+    if(!data?.id)throw new Error('Le nom du joueur n’a pas pu être modifié.');
+    await openGroupDetail(groupId);
+    setCloud('Synchronisé',true);
+  }catch(e){
+    setCloud('Erreur',false);
+    handleError('rename group player',e);
+  }
+}
+
 async function removePlayerFromCurrentGroup(playerId,displayName){
   const groupId=groupState.currentGroupId;
   const group=groupState.groups.find(x=>x.id===groupId);
   if(!groupId||!group||group.role!=='owner')return;
   if(!confirm(`Retirer ${displayName||'ce joueur'} du groupe « ${group.name} » ?
 
-Ses matchs, séances et statistiques déjà enregistrés seront conservés. Son accès joueur à ce groupe sera désactivé.`))return;
+La fiche joueur, les matchs, les séances et les statistiques déjà enregistrés seront conservés. Le joueur sera également retiré des sélections de ce groupe et son accès joueur à ce groupe sera désactivé.`))return;
   try{
     setCloud('Suppression…',true);
     const {data,error}=await db.from('coaching_group_players').delete().eq('group_id',groupId).eq('player_id',playerId).select('player_id');
