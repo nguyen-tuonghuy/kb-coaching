@@ -450,13 +450,13 @@ body.fieldToolsOpen .fieldToolsDrawer{transform:translateX(0)}
 /* BEGIN: outcome-only active cards + extra-large tablet controls */
 @media (min-width:701px){
   body.fieldCollectionMode .teamPlayersGrid .targetName{
-    font-size:clamp(22px,2.8vw,34px);
-    line-height:1.02;
-    padding:4px 3px 10px;
+    font-size:clamp(20px,2.45vw,30px);
+    line-height:1.05;
+    padding:4px 3px 8px;
   }
 
   body.fieldCollectionMode .teamPlayersGrid .targetLiveStats{
-    font-size:clamp(11px,1.35vw,15px);
+    font-size:clamp(10px,1.2vw,13px);
   }
 
   body.fieldCollectionMode .targetCard.activeTarget{
@@ -473,7 +473,7 @@ body.fieldToolsOpen .fieldToolsDrawer{transform:translateX(0)}
   body.fieldCollectionMode .targetCard.activeTarget .inlineOutcomeGrid{
     display:grid;
     grid-template-columns:repeat(3,minmax(0,1fr));
-    gap:clamp(5px,.7vw,9px);
+    gap:clamp(4px,.55vw,7px);
     width:100%;
     height:100%;
     min-height:0;
@@ -486,96 +486,144 @@ body.fieldToolsOpen .fieldToolsDrawer{transform:translateX(0)}
     height:100%;
     min-width:0;
     min-height:0;
-    padding:5px;
-    font-size:clamp(19px,2.35vw,29px);
+    padding:3px;
+    font-size:clamp(13px,1.45vw,17px);
     line-height:1;
-    font-weight:900;
+    font-weight:850;
+    white-space:nowrap;
+    overflow:hidden;
   }
 
-  body.fieldCollectionMode .teamCollectiveRow .targetCard.activeTarget{
-    display:block;
-    padding:0;
-  }
-
+  body.fieldCollectionMode .teamCollectiveRow .targetCard.activeTarget,
   body.fieldCollectionMode .teamCollectiveRow .targetCard.activeTarget .inlineOutcomeGrid{
     height:100%;
   }
 
   body.fieldCollectionMode .teamCollectiveRow .targetCard.activeTarget .outcomeBtn{
-    height:100%;
-    min-height:0;
-    font-size:clamp(14px,1.75vw,20px);
+    font-size:clamp(12px,1.25vw,15px);
   }
 }
 
 @media (min-width:701px) and (min-height:900px){
   body.fieldCollectionMode .teamPlayersGrid .targetName{
-    font-size:clamp(24px,3vw,38px);
-  }
-
-  body.fieldCollectionMode .teamPlayersGrid .targetLiveStats{
-    font-size:clamp(12px,1.45vw,16px);
-  }
-
-  body.fieldCollectionMode .targetCard.activeTarget .outcomeBtn{
-    font-size:clamp(21px,2.6vw,32px);
+    font-size:clamp(22px,2.65vw,33px);
   }
 }
 /* END: outcome-only active cards + extra-large tablet controls */
 
 
 /* BEGIN: floating fault selector for every target */
+.faultOverlay{
+  position:fixed;
+  inset:0;
+  z-index:85;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  background:rgba(15,23,42,.18);
+}
+
+.faultPanel{
+  width:min(500px,calc(100vw - 36px));
+  max-height:min(430px,calc(100dvh - 48px));
+  overflow:hidden;
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr);
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:var(--panel);
+}
+
+.faultPanelHead{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  padding:11px 12px;
+  border-bottom:1px solid var(--line);
+}
+
+.faultPanelHead>div{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+
+.faultPanelHead strong{font-size:15px}
+.faultPanelHead span{
+  font-size:12px;
+  color:var(--muted);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.faultPanelHead button{
+  flex:0 0 auto;
+  min-width:38px;
+  min-height:38px;
+  padding:4px;
+  font-size:18px;
+}
+
+.faultPanelGrid{
+  min-height:0;
+  overflow:auto;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:7px;
+  padding:10px 12px 12px;
+}
+
+.faultPanelBtn{
+  min-width:0;
+  min-height:48px;
+  padding:8px 10px;
+  border:1px solid var(--danger-border);
+  border-radius:9px;
+  background:var(--danger-bg);
+  color:var(--danger-text);
+  font-size:13px;
+  line-height:1.15;
+  font-weight:750;
+  text-align:center;
+}
+
+.faultPanelBtn[disabled]{opacity:.5}
+
 @media (min-width:701px){
-  body.fieldCollectionMode .targetCard.activeTarget.faultActive{
-    position:relative;
-    display:block;
-    width:100%;
+  body.fieldCollectionMode #collectorPanel{
+    grid-template-rows:auto auto minmax(0,1fr);
+  }
+
+  body.fieldCollectionMode .targetSection{
     height:100%;
-    min-width:0;
     min-height:0;
-    max-height:100%;
-    padding:0;
-    overflow:visible;
-    z-index:20;
+    grid-template-rows:auto auto minmax(0,1fr);
+    padding-bottom:0;
   }
 
-  body.fieldCollectionMode .targetCard.activeTarget.faultActive .faultGrid{
-    position:absolute;
-    z-index:30;
-    top:50%;
-    left:50%;
-    transform:translate(-50%,-50%);
-    display:grid;
-    grid-template-columns:repeat(2,minmax(0,1fr));
-    grid-auto-rows:minmax(42px,auto);
-    gap:6px;
-    width:min(340px,calc(200% + 8px));
+  body.fieldCollectionMode .targetGrid{
     height:auto;
-    max-height:min(270px,55dvh);
-    overflow:auto;
-    margin:0;
-    padding:8px;
-    border:1px solid var(--line);
-    border-radius:11px;
-    background:var(--panel);
-  }
-
-  body.fieldCollectionMode .targetCard.activeTarget.faultActive .faultBtn{
-    width:100%;
-    min-width:0;
-    min-height:42px;
-    height:auto;
-    padding:7px 8px;
-    font-size:clamp(11px,1.25vw,14px);
-    line-height:1.08;
-  }
-
-  body.fieldCollectionMode .teamCollectiveRow .targetCard.activeTarget.faultActive .faultGrid{
-    width:min(360px,100%);
+    min-height:0;
+    overflow:hidden;
+    grid-template-rows:minmax(0,1fr);
+    grid-auto-rows:unset;
+    align-content:stretch;
+    align-items:stretch;
   }
 
   body.fieldCollectionMode .teamBoard{
-    overflow:visible;
+    height:auto;
+    min-height:0;
+    align-self:stretch;
+    overflow:hidden;
+  }
+
+  body.fieldCollectionMode .teamPlayersGrid{
+    min-height:0;
+    height:100%;
   }
 }
 /* END: floating fault selector for every target */

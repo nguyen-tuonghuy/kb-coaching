@@ -175,6 +175,19 @@
       <div class="targetGrid" id="targetGrid"></div>
     </div>
 
+    <div class="faultOverlay hidden" id="faultOverlay" aria-hidden="true">
+      <div class="faultPanel" role="dialog" aria-modal="true" aria-labelledby="faultPanelTitle">
+        <div class="faultPanelHead">
+          <div>
+            <strong id="faultPanelTitle">Type de faute</strong>
+            <span id="faultPanelTarget"></span>
+          </div>
+          <button class="ghost" type="button" id="faultPanelClose" aria-label="Fermer">×</button>
+        </div>
+        <div class="faultPanelGrid" id="faultPanelGrid"></div>
+      </div>
+    </div>
+
     <div class="liveFooter">
       <div class="lastEntryBox">
         <div>

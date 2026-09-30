@@ -396,18 +396,40 @@ function targetStatsHtml(t){
   const s=targetStats(t);return `<div class="targetLiveStats"><span><strong>N</strong> ${s.n}</span><span><strong>Pt</strong> ${s.point}</span><span><strong>Déf</strong> ${s.defended}</span><span><strong>Fa</strong> ${s.fault}</span></div>`;
 }
 function targetCardHtml(t){
-  const active=state.activeTarget?.key===t.key,faultActive=active&&state.faultTarget?.key===t.key;
+  const active=state.activeTarget?.key===t.key;
   const selectedForMove=state.organizingTeams&&t.type==='player'&&state.organizerPlayerId===t.id;
   const swapCandidate=state.organizingTeams&&state.organizerSwapTeam&&t.type==='player'&&teamForPlayer(t.id)===state.organizerSwapTeam&&t.id!==state.organizerPlayerId;
   const organizerClass=selectedForMove?' organizerSelected':swapCandidate?' organizerSwapCandidate':state.organizingTeams&&t.type==='player'?' organizerSelectable':'';
   const teamClass=t.team?` team-${t.team}`:'';
-  if(faultActive){
-    return `<div class="targetCard activeTarget faultActive${teamClass}${organizerClass}" data-expanded-target="${escapeHtml(t.key)}" aria-label="Type de faute pour ${escapeHtml(t.name)}"><div class="faultGrid">${FAULT_TYPES.map(f=>`<button class="faultBtn" type="button" data-fault="${escapeHtml(f)}">${escapeHtml(f)}</button>`).join('')}</div></div>`;
-  }
   if(active){
-    return `<div class="targetCard activeTarget${teamClass}${organizerClass}" data-expanded-target="${escapeHtml(t.key)}" aria-label="Issue pour ${escapeHtml(t.name)}"><div class="inlineOutcomeGrid"><button class="outcomeBtn point" type="button" data-outcome="point" ${state.saving?'disabled':''}>Point</button><button class="outcomeBtn defended" type="button" data-outcome="defended" ${state.saving?'disabled':''}>Défendu</button><button class="outcomeBtn fault" type="button" data-outcome="fault" ${state.saving?'disabled':''}>Faute</button></div></div>`;
+    return `<div class="targetCard activeTarget${teamClass}${organizerClass}" data-expanded-target="${escapeHtml(t.key)}" aria-label="Issue pour ${escapeHtml(t.name)}"><div class="inlineOutcomeGrid"><button class="outcomeBtn point" type="button" data-outcome="point" aria-label="Point" ${state.saving?'disabled':''}>Pt</button><button class="outcomeBtn defended" type="button" data-outcome="defended" aria-label="Défendu" ${state.saving?'disabled':''}>Déf</button><button class="outcomeBtn fault" type="button" data-outcome="fault" aria-label="Faute" ${state.saving?'disabled':''}>Fa</button></div></div>`;
   }
   return `<div class="targetCard${teamClass}${organizerClass}"><button class="targetButton ${t.type==='collective'?'collective':''}" type="button" data-target-key="${escapeHtml(t.key)}"><span class="targetName">${t.type==='collective'?'👥 ':''}${escapeHtml(t.name)}</span>${targetStatsHtml(t)}</button></div>`;
+}
+function closeFaultPanel(cancelTarget=false){
+  state.faultTarget=null;
+  if(cancelTarget)state.activeTarget=null;
+  if(cancelTarget)renderTargets();else renderFaultPanel();
+}
+function renderFaultPanel(){
+  const overlay=$('#faultOverlay'),grid=$('#faultPanelGrid'),targetLabel=$('#faultPanelTarget');
+  if(!overlay||!grid||!targetLabel)return;
+  const target=state.faultTarget;
+  if(!target){
+    overlay.classList.add('hidden');
+    overlay.setAttribute('aria-hidden','true');
+    grid.innerHTML='';
+    targetLabel.textContent='';
+    return;
+  }
+  targetLabel.textContent=target.name;
+  grid.innerHTML=FAULT_TYPES.map(f=>`<button class="faultPanelBtn" type="button" data-panel-fault="${escapeHtml(f)}" ${state.saving?'disabled':''}>${escapeHtml(f)}</button>`).join('');
+  grid.querySelectorAll('[data-panel-fault]').forEach(b=>b.onclick=()=>{
+    if(state.saving||!state.activeTarget)return;
+    saveEvent('fault',b.dataset.panelFault).catch(showFatal);
+  });
+  overlay.classList.remove('hidden');
+  overlay.setAttribute('aria-hidden','false');
 }
 function teamSummary(team){
   const events=state.events.filter(e=>normalizeTeamColor(e.team_color)===team);
@@ -430,9 +452,8 @@ function renderTargets(){
     state.activeTarget=target;state.faultTarget=null;renderTargets();
   });
   box.querySelectorAll('[data-cancel-target]').forEach(b=>b.onclick=()=>{state.activeTarget=null;state.faultTarget=null;renderTargets()});
-  box.querySelectorAll('[data-outcome]').forEach(b=>b.onclick=()=>{if(state.saving||state.organizingTeams||!state.activeTarget)return;if(b.dataset.outcome==='fault'){state.faultTarget={...state.activeTarget};renderTargets()}else saveEvent(b.dataset.outcome,null).catch(showFatal)});
-  box.querySelectorAll('[data-fault]').forEach(b=>b.onclick=()=>{if(state.saving||state.organizingTeams||!state.activeTarget)return;saveEvent('fault',b.dataset.fault).catch(showFatal)});
-  renderTeamOrganizer();
+  box.querySelectorAll('[data-outcome]').forEach(b=>b.onclick=()=>{if(state.saving||state.organizingTeams||!state.activeTarget)return;if(b.dataset.outcome==='fault'){state.faultTarget={...state.activeTarget};renderFaultPanel()}else saveEvent(b.dataset.outcome,null).catch(showFatal)});
+  renderTeamOrganizer();renderFaultPanel();
 }
 
 async function saveEvent(result,faultType){
@@ -487,6 +508,7 @@ $('#collectorPanel').addEventListener('pointerdown',e=>{
     && !state.saving
     && !state.organizingTeams
     && !e.target.closest('[data-expanded-target]')
+    && !e.target.closest('.faultPanel')
     && !e.target.closest('.teamBoardHead');
 });
 $('#collectorPanel').addEventListener('click',()=>{
@@ -502,6 +524,8 @@ $('#saveClassification').onclick=()=>saveClassification().catch(showFatal);
 $('#fieldToolsToggle').onclick=()=>document.body.classList.contains('fieldToolsOpen')?closeFieldTools():openFieldTools();
 $('#fieldToolsClose').onclick=()=>closeFieldTools();
 $('#fieldToolsBackdrop').onclick=()=>closeFieldTools();
+$('#faultPanelClose').onclick=()=>closeFaultPanel(false);
+$('#faultOverlay').onclick=e=>{if(e.target===$('#faultOverlay'))closeFaultPanel(true)};
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.body.classList.contains('fieldToolsOpen'))closeFieldTools()});
 initFieldToolsDrawer();
 
