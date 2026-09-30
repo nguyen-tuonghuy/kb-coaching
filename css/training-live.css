@@ -25,3 +25,97 @@ button[disabled]{opacity:.5;cursor:not-allowed}
 @media(max-width:390px){.attendanceGrid{grid-template-columns:1fr 1fr}.teamPlayersGrid{grid-template-columns:1fr 1fr}.faultGrid{grid-template-columns:1fr}.currentContextPill{width:100%;justify-content:center}.targetHead{align-items:flex-start}}
 
 @media (pointer:coarse) and (min-width:641px){.trainingLiveApp{padding-top:8px}.collectorHead{gap:7px}.collectorTitleBlock h2{font-size:18px}.collectorSessionMeta{font-size:10px}.classificationDetails{margin-top:5px}.contextSection .sectionHead{margin-bottom:5px}.contextSection .sectionHead .small{display:none}.targetSection .sectionHead{margin-bottom:6px}.targetHead .small{font-size:10px}.targetButton,.targetCard.activeTarget{min-height:66px}.teamCollectiveRow .targetButton,.teamCollectiveRow .targetCard.activeTarget{min-height:54px}}
+
+
+/* Field collection mode: full-viewport tablet-first interface */
+.fieldToolsBackdrop,.fieldToolsDrawer{display:none}
+.fieldCloudStatus{font-size:11px;font-weight:750;color:var(--muted);white-space:nowrap}
+.fieldToolsToggle{min-height:36px;padding:7px 10px}
+body.fieldCollectionMode{overflow:hidden;background:var(--bg)}
+body.fieldCollectionMode .trainingLiveApp{max-width:none;width:100%;height:100dvh;min-height:100dvh;margin:0;padding:0}
+body.fieldCollectionMode .trainingLiveApp>.top{display:none}
+body.fieldCollectionMode #collectorPanel{
+  position:fixed;inset:0;z-index:40;
+  display:grid;grid-template-rows:auto auto minmax(0,1fr);
+  gap:0;width:100%;height:100dvh;min-height:100dvh;
+  margin:0;padding:max(6px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));
+  border:0;border-radius:0;background:var(--bg);overflow:hidden
+}
+body.fieldCollectionMode .collectorHead{
+  min-height:42px;flex-wrap:nowrap;align-items:center;gap:8px;
+  padding:1px 2px 6px;border-bottom:1px solid var(--line)
+}
+body.fieldCollectionMode .collectorTitleBlock{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:9px;min-width:0;flex:1}
+body.fieldCollectionMode .collectorTitleBlock h2{font-size:clamp(14px,1.8vw,18px);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.fieldCollectionMode #collectorSessionMeta{grid-column:2;font-size:clamp(9px,1.2vw,11px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.fieldCollectionMode .classificationLine{display:none}
+body.fieldCollectionMode .collectorHeadActions{flex-wrap:nowrap;align-items:center}
+body.fieldCollectionMode .contextSection{margin:0;padding:6px 2px;border-top:0;border-bottom:1px solid var(--line)}
+body.fieldCollectionMode .contextSection .sectionHead{margin:0 0 5px}
+body.fieldCollectionMode .contextSection .sectionHead h3{font-size:clamp(13px,1.7vw,16px)}
+body.fieldCollectionMode .contextSection .sectionHead .small{display:none}
+body.fieldCollectionMode .contextGrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(4px,.7vw,8px)}
+body.fieldCollectionMode .contextBtn{min-height:clamp(42px,6.5dvh,58px);padding:5px 8px;border-radius:9px;text-align:center}
+body.fieldCollectionMode .contextMain{font-size:clamp(11px,1.55vw,15px)}
+body.fieldCollectionMode .contextState{font-size:clamp(8px,1vw,10px);margin-top:1px}
+body.fieldCollectionMode .targetSection{min-height:0;margin:0;padding:6px 2px 2px;border-top:0;display:grid;grid-template-rows:auto auto minmax(0,1fr);overflow:hidden}
+body.fieldCollectionMode .targetSection .sectionHead{margin:0 0 5px;min-height:32px;align-items:center}
+body.fieldCollectionMode .targetHead h3{font-size:clamp(13px,1.8vw,17px);margin:0}
+body.fieldCollectionMode .targetHead .small,body.fieldCollectionMode .currentContextPill{display:none}
+body.fieldCollectionMode .targetHeadActions #organizeTeams{min-height:32px;padding:5px 9px;font-size:11px}
+body.fieldCollectionMode .teamOrganizerBar{margin:0 0 5px;padding:6px 8px;min-height:42px}
+body.fieldCollectionMode .teamOrganizerMessage strong{font-size:11px}
+body.fieldCollectionMode .teamOrganizerMessage span{font-size:9px}
+body.fieldCollectionMode .teamDestination{min-height:32px;padding:4px 8px;font-size:10px}
+body.fieldCollectionMode .targetGrid{min-height:0;height:100%;overflow:auto;align-items:stretch;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(5px,.8vw,9px)}
+body.fieldCollectionMode .targetGrid[data-team-count="2"]{grid-template-columns:repeat(2,minmax(0,1fr))}
+body.fieldCollectionMode .targetGrid[data-team-count="1"]{grid-template-columns:minmax(0,1fr)}
+body.fieldCollectionMode .teamBoard{height:100%;min-height:0;padding:clamp(5px,.7vw,8px);border-radius:11px;display:grid;grid-template-rows:auto minmax(48px,.28fr) minmax(0,1fr)}
+body.fieldCollectionMode .teamBoardHead{margin-bottom:4px;min-height:27px;align-items:center}
+body.fieldCollectionMode .teamBoardHead>div>strong{font-size:clamp(10px,1.35vw,13px)}
+body.fieldCollectionMode .teamBoardHead>div>span,body.fieldCollectionMode .teamBoardStats{font-size:clamp(7px,.95vw,9px)}
+body.fieldCollectionMode .teamCollectiveRow{min-height:0;height:100%;margin-bottom:5px}
+body.fieldCollectionMode .teamPlayersGrid{min-height:0;height:100%;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:clamp(4px,.6vw,7px)}
+body.fieldCollectionMode .targetCard{height:100%;min-height:0}
+body.fieldCollectionMode .targetButton,body.fieldCollectionMode .targetCard.activeTarget{height:100%;min-height:0;padding:clamp(4px,.6vw,7px);border-radius:8px}
+body.fieldCollectionMode .teamCollectiveRow .targetButton,body.fieldCollectionMode .teamCollectiveRow .targetCard.activeTarget{height:100%;min-height:0}
+body.fieldCollectionMode .targetName{font-size:clamp(10px,1.35vw,14px)}
+body.fieldCollectionMode .targetLiveStats{margin-top:clamp(3px,.5dvh,6px);padding-top:clamp(3px,.45dvh,5px);font-size:clamp(7px,.9vw,10px)}
+body.fieldCollectionMode .targetLiveStats strong{font-size:inherit}
+body.fieldCollectionMode .targetActiveHead strong{font-size:clamp(9px,1.2vw,12px)}
+body.fieldCollectionMode .inlineOutcomeGrid{margin-top:4px}
+body.fieldCollectionMode .outcomeBtn{min-height:clamp(28px,4.7dvh,38px);font-size:clamp(9px,1.1vw,11px)}
+body.fieldCollectionMode .faultActive{overflow:auto}
+body.fieldCollectionMode .faultGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:3px}
+body.fieldCollectionMode .faultBtn{min-height:30px;font-size:clamp(8px,1vw,10px)}
+body.fieldCollectionMode .unassignedBoard,body.fieldCollectionMode .legacyBoard{height:auto;min-height:80px}
+body.fieldCollectionMode .unassignedBoard .teamPlayersGrid{grid-template-rows:auto}
+body.fieldCollectionMode .fieldToolsBackdrop{display:block;position:fixed;inset:0;z-index:70;background:rgba(15,23,42,.34);opacity:0;pointer-events:none;transition:opacity .15s ease}
+body.fieldCollectionMode .fieldToolsDrawer{display:grid;grid-template-rows:auto auto minmax(0,1fr);position:fixed;z-index:71;top:0;right:0;width:min(440px,94vw);height:100dvh;background:var(--bg);border-left:1px solid var(--line);transform:translateX(102%);transition:transform .18s ease}
+body.fieldToolsOpen .fieldToolsBackdrop{opacity:1;pointer-events:auto}
+body.fieldToolsOpen .fieldToolsDrawer{transform:translateX(0)}
+.fieldToolsDrawerHead{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px;border-bottom:1px solid var(--line)}
+.fieldToolsDrawerHead>div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.fieldToolsDrawerHead strong{font-size:15px}
+.fieldToolsDrawerHead span{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fieldToolsDrawerHead button{min-width:38px;min-height:38px;padding:5px;font-size:20px}
+.fieldToolsPrimaryActions{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.fieldToolsPrimaryActions button{min-height:42px}
+.fieldToolsScroll{min-height:0;overflow:auto;padding:0 12px 20px}
+.fieldToolsScroll .classificationDetails{margin-top:10px}
+.fieldToolsScroll .liveFooter{margin-top:10px;padding-top:10px}
+.fieldToolsScroll .mergedMetricsNote{margin-top:12px}
+.fieldToolsScroll .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+.fieldToolsScroll .historyDetails{margin-top:12px}
+@media(max-width:700px){
+  body.fieldCollectionMode #collectorPanel{overflow:auto;height:100dvh;grid-template-rows:auto auto auto}
+  body.fieldCollectionMode .targetSection{overflow:visible;min-height:auto}
+  body.fieldCollectionMode .targetGrid,body.fieldCollectionMode .targetGrid[data-team-count="2"],body.fieldCollectionMode .targetGrid[data-team-count="1"]{grid-template-columns:1fr;height:auto;overflow:visible}
+  body.fieldCollectionMode .teamBoard{height:auto;min-height:310px}
+  body.fieldCollectionMode .contextGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-height:650px) and (min-width:701px){
+  body.fieldCollectionMode .contextBtn{min-height:38px}
+  body.fieldCollectionMode .teamBoardHead{min-height:22px}
+  body.fieldCollectionMode .targetLiveStats{margin-top:2px;padding-top:2px}
+}

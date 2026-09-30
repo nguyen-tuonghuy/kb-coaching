@@ -114,6 +114,8 @@
         <div class="classificationLine" id="classificationLine"></div>
       </div>
       <div class="row collectorHeadActions">
+        <span class="fieldCloudStatus" id="fieldCloudStatus" aria-live="polite">Synchronisé</span>
+        <button class="ghost fieldToolsToggle" type="button" id="fieldToolsToggle" aria-expanded="false" aria-controls="fieldToolsDrawer">⋯ Options</button>
         <button class="ghost" type="button" id="finishPeriod">Terminer la période</button>
         <button class="ghost backNav" type="button" id="backToSetup">← Préparation</button>
       </div>
@@ -134,7 +136,7 @@
     <div class="contextSection">
       <div class="sectionHead compact">
         <div>
-          <h3>Contexte de la prochaine frappe</h3>
+          <h3>Contexte</h3>
           <div class="small">Le contexte reste sélectionné jusqu’à ce que tu le changes.</div>
         </div>
       </div>
@@ -192,6 +194,19 @@
       <summary>Historique de la période <span id="historyCount">0 action</span></summary>
       <div class="historyList" id="historyList"></div>
     </details>
+
+    <div class="fieldToolsBackdrop" id="fieldToolsBackdrop" aria-hidden="true"></div>
+    <aside class="fieldToolsDrawer" id="fieldToolsDrawer" aria-hidden="true" aria-label="Options de collecte">
+      <div class="fieldToolsDrawerHead">
+        <div>
+          <strong>Options de collecte</strong>
+          <span id="fieldToolsMeta"></span>
+        </div>
+        <button class="ghost" type="button" id="fieldToolsClose" aria-label="Fermer les options">×</button>
+      </div>
+      <div class="fieldToolsPrimaryActions" id="fieldToolsPrimaryActions"></div>
+      <div class="fieldToolsScroll" id="fieldToolsContent"></div>
+    </aside>
   </section>
 </div>
 

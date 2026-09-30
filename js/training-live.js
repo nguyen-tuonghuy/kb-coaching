@@ -41,7 +41,7 @@ function fmtDate(value){if(!value)return '';try{return new Date(value+'T12:00:00
 function fmtTime(value){if(!value)return '';try{return new Date(value).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}catch{return ''}}
 function plural(n,singular,pluralForm=singular+'s'){return n===1?singular:pluralForm}
 function setStatus(el,text,error=false){if(!el)return;el.textContent=text||'';el.className='authStatus '+(text?(error?'err':'ok'):'')}
-function setCloud(text,ok=null){$('#cloudStatus').textContent=text;const dot=$('#cloudDot');dot.classList.remove('online','offline');if(ok===true)dot.classList.add('online');else if(ok===false)dot.classList.add('offline')}
+function setCloud(text,ok=null){$('#cloudStatus').textContent=text;const fieldStatus=$('#fieldCloudStatus');if(fieldStatus)fieldStatus.textContent=text;const dot=$('#cloudDot');dot.classList.remove('online','offline');if(ok===true)dot.classList.add('online');else if(ok===false)dot.classList.add('offline')}
 function groupById(id){return state.groups.find(g=>g.id===id)||null}
 function sessionById(id){return state.sessions.find(s=>s.id===id)||null}
 function exerciseById(id){return state.exercises.find(e=>e.id===id)||null}
@@ -84,6 +84,39 @@ function renderTeamSetup(){
 function nextPeriodNumber(){return Math.max(0,...state.periods.map(p=>Number(p.period_number)||0))+1}
 function suggestedPeriodLabel(){const ex=exerciseById($('#exerciseSelect').value);const n=nextPeriodNumber();return ex?`${ex.name} ${n}`:`Collecte ${n}`}
 function updateStartState(){const ready=!!state.selectedGroupId && state.attendance.size>0 && !state.saving;$('#startCollection').disabled=!ready}
+function closeFieldTools(){
+  document.body.classList.remove('fieldToolsOpen');
+  const drawer=$('#fieldToolsDrawer'),toggle=$('#fieldToolsToggle');
+  if(drawer)drawer.setAttribute('aria-hidden','true');
+  if(toggle)toggle.setAttribute('aria-expanded','false');
+}
+function openFieldTools(){
+  if(!document.body.classList.contains('fieldCollectionMode'))return;
+  syncFieldToolsMeta();
+  document.body.classList.add('fieldToolsOpen');
+  const drawer=$('#fieldToolsDrawer'),toggle=$('#fieldToolsToggle');
+  if(drawer)drawer.setAttribute('aria-hidden','false');
+  if(toggle)toggle.setAttribute('aria-expanded','true');
+}
+function setFieldCollectionMode(enabled){
+  document.body.classList.toggle('fieldCollectionMode',!!enabled);
+  if(!enabled)closeFieldTools();
+}
+function initFieldToolsDrawer(){
+  const drawer=$('#fieldToolsDrawer'),actions=$('#fieldToolsPrimaryActions'),content=$('#fieldToolsContent');
+  if(!drawer||!actions||!content)return;
+  const finish=$('#finishPeriod'),back=$('#backToSetup');
+  if(finish)actions.append(finish);
+  if(back)actions.append(back);
+  ['.classificationDetails','.liveFooter','.mergedMetricsNote','#metrics','.historyDetails'].forEach(selector=>{
+    const node=$(selector);if(node)content.append(node);
+  });
+}
+function syncFieldToolsMeta(){
+  const meta=$('#fieldToolsMeta');if(!meta)return;
+  const p=state.currentPeriod,s=state.currentSession;
+  meta.textContent=p&&s?`${p.label} · ${s.theme||s.label||'Entraînement'}`:'';
+}
 
 async function loadWorkspace(){
   const {data,error}=await db.from('workspace_members').select('workspace_id').eq('user_id',state.user.id).limit(1);
@@ -252,9 +285,9 @@ async function resumePeriod(periodId){
 }
 async function openPeriod(period){
   state.currentPeriod=period;state.selectedContext='game_center';state.activeTarget=null;state.faultTarget=null;state.organizingTeams=false;state.organizerPlayerId=null;state.organizerSwapTeam=null;
-  $('#collectorExerciseSelect').value=period.exercise_id||'';renderContext();renderClassification();
+  $('#collectorExerciseSelect').value=period.exercise_id||'';renderContext();renderClassification();syncFieldToolsMeta();
   await loadPeriodEvents(period.id);renderTargets();renderEvents();
-  $('#setupPanel').classList.add('hidden');$('#collectorPanel').classList.remove('hidden');window.scrollTo({top:0,behavior:'instant'});
+  $('#setupPanel').classList.add('hidden');$('#collectorPanel').classList.remove('hidden');setFieldCollectionMode(true);closeFieldTools();window.scrollTo({top:0,behavior:'instant'});
 }
 async function loadPeriodEvents(periodId){
   const {data,error}=await db.from('training_live_events')
@@ -370,7 +403,8 @@ function teamSummary(team){
   return `N ${events.length} · Pt ${points} · Déf ${defended} · Fa ${faults}`;
 }
 function renderTargets(){
-  const box=$('#targetGrid'),teamSections=TEAM_ORDER.map(team=>{
+  const box=$('#targetGrid'),activeTeams=TEAM_ORDER.filter(team=>teamPlayers(team).length||state.events.some(e=>normalizeTeamColor(e.team_color)===team));box.dataset.teamCount=String(Math.max(1,activeTeams.length));
+  const teamSections=TEAM_ORDER.map(team=>{
     const players=teamPlayers(team);
     const hasEvents=state.events.some(e=>normalizeTeamColor(e.team_color)===team);
     if(!players.length&&!hasEvents)return '';
@@ -423,7 +457,7 @@ async function finishPeriod(){
   if(error){setStatus($('#saveStatus'),error.message||String(error),true);return}Object.assign(state.currentPeriod,data);setStatus($('#saveStatus'),'Période terminée.');await returnToSetup();
 }
 async function returnToSetup(){
-  $('#collectorPanel').classList.add('hidden');$('#setupPanel').classList.remove('hidden');state.activeTarget=null;state.faultTarget=null;state.organizingTeams=false;state.organizerPlayerId=null;state.organizerSwapTeam=null;
+  closeFieldTools();setFieldCollectionMode(false);$('#collectorPanel').classList.add('hidden');$('#setupPanel').classList.remove('hidden');state.activeTarget=null;state.faultTarget=null;state.organizingTeams=false;state.organizerPlayerId=null;state.organizerSwapTeam=null;
   if(state.currentSession?.id){state.selectedSessionId=state.currentSession.id;$('#sessionSelect').value=state.currentSession.id;syncNewSessionFields();await loadPeriods(state.currentSession.id)}
   window.scrollTo({top:0,behavior:'instant'});
 }
@@ -445,6 +479,11 @@ $('#undoLast').onclick=()=>undoLast().catch(showFatal);
 $('#finishPeriod').onclick=()=>finishPeriod().catch(showFatal);
 $('#backToSetup').onclick=()=>returnToSetup().catch(showFatal);
 $('#saveClassification').onclick=()=>saveClassification().catch(showFatal);
+$('#fieldToolsToggle').onclick=()=>document.body.classList.contains('fieldToolsOpen')?closeFieldTools():openFieldTools();
+$('#fieldToolsClose').onclick=()=>closeFieldTools();
+$('#fieldToolsBackdrop').onclick=()=>closeFieldTools();
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.body.classList.contains('fieldToolsOpen'))closeFieldTools()});
+initFieldToolsDrawer();
 
 (async()=>{
   try{
