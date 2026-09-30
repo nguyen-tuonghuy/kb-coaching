@@ -160,8 +160,7 @@ async function loadSessions(groupId){
   if(error)throw error;state.sessions=data||[];
   const sel=$('#sessionSelect');sel.disabled=false;sel.innerHTML='<option value="__new__">＋ Nouvelle séance aujourd’hui</option>';
   state.sessions.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=`${fmtDate(s.trained_on)} · ${s.theme||s.label||'Entraînement'}`;sel.append(o)});
-  const todaySession=state.sessions.find(s=>s.trained_on===today());
-  sel.value=todaySession?.id||'__new__';state.selectedSessionId=sel.value;
+  sel.value='__new__';state.selectedSessionId='__new__';
 }
 async function loadAttendance(sessionId){
   state.teamByPlayer=new Map();
