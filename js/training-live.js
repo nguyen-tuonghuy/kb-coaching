@@ -50,10 +50,6 @@ function normalizeTeamColor(value){return TEAM_ORDER.includes(value)?value:null}
 function teamForPlayer(playerId){return normalizeTeamColor(state.teamByPlayer.get(playerId))}
 function teamPlayers(team){return presentPlayers().filter(p=>teamForPlayer(p.id)===team)}
 function unassignedPlayers(){return presentPlayers().filter(p=>!teamForPlayer(p.id))}
-function assignPlayerToFirstAvailableTeam(playerId){
-  const team=TEAM_ORDER.find(t=>teamPlayers(t).length<4)||null;
-  state.teamByPlayer.set(playerId,team);
-}
 function autoAssignTeams(){
   const players=presentPlayers(),teamCount=Math.min(3,Math.max(1,Math.ceil(players.length/4)));
   players.forEach((p,index)=>state.teamByPlayer.set(p.id,index<teamCount*4?TEAM_ORDER[Math.min(teamCount-1,Math.floor(index/4))]:null));
@@ -171,8 +167,7 @@ async function loadAttendance(sessionId){
   state.teamByPlayer=new Map();
   if(sessionId==='__new__'){
     state.attendance=new Set(state.players.map(p=>p.id));
-    autoAssignTeams();
-    $('#attendanceHint').textContent='Nouvelle séance : tout le groupe est précoché. Ajuste les présents et les équipes si besoin.';
+    $('#attendanceHint').textContent='Nouvelle séance : tout le groupe est précoché et reste non affecté tant que tu ne constitues pas les équipes.';
     renderAttendance();return;
   }
   const {data,error}=await db.from('training_attendance').select('player_id,present,team_color').eq('session_id',sessionId);
@@ -180,11 +175,10 @@ async function loadAttendance(sessionId){
   if((data||[]).length){
     state.attendance=new Set(data.filter(x=>x.present).map(x=>x.player_id));
     (data||[]).forEach(x=>{if(x.present)state.teamByPlayer.set(x.player_id,normalizeTeamColor(x.team_color))});
-    if(![...state.teamByPlayer.values()].some(Boolean))autoAssignTeams();
-    $('#attendanceHint').textContent='Présences enregistrées pour cette séance. La répartition terrain reste modifiable.';
+    $('#attendanceHint').textContent='Présences enregistrées pour cette séance. La répartition terrain enregistrée est conservée.';
   }else{
-    state.attendance=new Set(state.players.map(p=>p.id));autoAssignTeams();
-    $('#attendanceHint').textContent='Aucune présence enregistrée : tout le groupe est précoché.';
+    state.attendance=new Set(state.players.map(p=>p.id));
+    $('#attendanceHint').textContent='Aucune présence enregistrée : tout le groupe est précoché et non affecté.';
   }
   renderAttendance();
 }
@@ -195,7 +189,7 @@ function renderAttendance(){
     const label=document.createElement('label');label.className='attendanceChoice';
     label.innerHTML=`<input type="checkbox" value="${escapeHtml(p.id)}" ${state.attendance.has(p.id)?'checked':''}><span>${escapeHtml(p.display_name)}</span>`;
     label.querySelector('input').onchange=e=>{
-      if(e.target.checked){state.attendance.add(p.id);if(!teamForPlayer(p.id))assignPlayerToFirstAvailableTeam(p.id)}
+      if(e.target.checked){state.attendance.add(p.id)}
       else{state.attendance.delete(p.id);state.teamByPlayer.delete(p.id)}
       renderTeamSetup();updateStartState();
     };
