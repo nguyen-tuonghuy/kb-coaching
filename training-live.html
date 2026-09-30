@@ -160,7 +160,11 @@
         </div>
       </div>
       <div class="teamOrganizerBar hidden" id="teamOrganizerBar">
-        <div class="teamOrganizerMessage"><strong id="teamOrganizerSelection">Mode organisation</strong><span id="teamOrganizerHint">Touchez un joueur, puis son équipe de destination.</span></div>
+        <div class="teamOrganizerMessage"><strong id="teamOrganizerSelection">Mode organisation</strong><span id="teamOrganizerHint">Touchez un joueur sur le terrain, ou choisissez un joueur hors terrain.</span></div>
+        <div class="teamOrganizerUnassigned">
+          <label for="unassignedPlayerSelect">Joueur hors terrain</label>
+          <select id="unassignedPlayerSelect"><option value="">Choisir un joueur non affecté…</option></select>
+        </div>
         <div class="teamOrganizerDestinations" id="teamOrganizerDestinations">
           <button type="button" class="ghost teamDestination team-blue" data-team-destination="blue">Bleu <span data-team-count="blue">0/4</span></button>
           <button type="button" class="ghost teamDestination team-gray" data-team-destination="gray">Gris <span data-team-count="gray">0/4</span></button>

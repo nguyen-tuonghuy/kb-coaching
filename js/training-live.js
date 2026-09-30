@@ -317,7 +317,19 @@ function renderTeamOrganizer(){
   bar.classList.toggle('hidden',!state.organizingTeams);button.textContent=state.organizingTeams?'Terminer':'Organiser';button.classList.toggle('active',state.organizingTeams);
   TEAM_ORDER.forEach(team=>{const count=organizerTeamCount(team),el=bar.querySelector(`[data-team-count="${team}"]`);if(el)el.textContent=`${count}/4`});
   const player=organizerPlayer(),selection=$('#teamOrganizerSelection'),hint=$('#teamOrganizerHint');
-  if(!state.organizingTeams){if(selection)selection.textContent='Mode organisation';if(hint)hint.textContent='Touchez un joueur, puis son équipe de destination.';return}
+  const free=unassignedPlayers(),freeSelect=$('#unassignedPlayerSelect');
+  if(freeSelect){
+    const selectedFree=player&&!teamForPlayer(player.id)?player.id:'';
+    freeSelect.innerHTML=free.length
+      ? `<option value="">Choisir un joueur non affecté…</option>${free.map(p=>`<option value="${escapeHtml(p.id)}">${escapeHtml(p.display_name)}</option>`).join('')}`
+      : '<option value="">Aucun joueur non affecté</option>';
+    freeSelect.disabled=!state.organizingTeams||!free.length;
+    freeSelect.value=selectedFree;
+    freeSelect.onchange=e=>{
+      state.organizerPlayerId=e.target.value||null;state.organizerSwapTeam=null;state.activeTarget=null;state.faultTarget=null;renderTargets();
+    };
+  }
+  if(!state.organizingTeams){if(selection)selection.textContent='Mode organisation';if(hint)hint.textContent='Touchez un joueur sur le terrain, ou choisissez un joueur hors terrain.';return}
   if(state.organizerSwapTeam&&player){
     if(selection)selection.textContent=`${player.display_name} → ${TEAM_META[state.organizerSwapTeam].label}`;
     if(hint)hint.textContent='Équipe pleine : touchez le joueur avec lequel faire l’échange.';
@@ -325,10 +337,10 @@ function renderTeamOrganizer(){
   }
   if(player){
     if(selection)selection.textContent=`${player.display_name} sélectionné`;
-    if(hint)hint.textContent='Touchez Bleu, Gris, Noir ou Non affecté. Vous pouvez aussi toucher un autre joueur pour changer de sélection.';
+    if(hint)hint.textContent=teamForPlayer(player.id)?'Choisissez Bleu, Gris, Noir ou Non affecté.':'Choisissez Bleu, Gris ou Noir pour faire entrer ce joueur.';
   }else{
     if(selection)selection.textContent='Mode organisation';
-    if(hint)hint.textContent='Touchez un joueur, puis son équipe de destination.';
+    if(hint)hint.textContent=free.length?'Touchez un joueur sur le terrain, ou choisissez un joueur hors terrain dans la liste.':'Touchez un joueur sur le terrain pour le déplacer ou le sortir.';
   }
 }
 function setTeamOrganizerMode(enabled){
@@ -403,20 +415,15 @@ function teamSummary(team){
   return `N ${events.length} · Pt ${points} · Déf ${defended} · Fa ${faults}`;
 }
 function renderTargets(){
-  const box=$('#targetGrid'),activeTeams=TEAM_ORDER.filter(team=>teamPlayers(team).length||state.events.some(e=>normalizeTeamColor(e.team_color)===team));box.dataset.teamCount=String(Math.max(1,activeTeams.length));
+  const box=$('#targetGrid'),activeTeams=TEAM_ORDER.filter(team=>teamPlayers(team).length);box.dataset.teamCount=String(Math.max(1,activeTeams.length));
   const teamSections=TEAM_ORDER.map(team=>{
     const players=teamPlayers(team);
-    const hasEvents=state.events.some(e=>normalizeTeamColor(e.team_color)===team);
-    if(!players.length&&!hasEvents)return '';
+    if(!players.length)return '';
     const collective={key:`collective:${team}`,type:'collective',id:null,team,name:`Collectif ${TEAM_META[team].short.toLowerCase()}`};
     const playerTargets=players.map(p=>({key:`player:${p.id}`,type:'player',id:p.id,team,name:p.display_name}));
     return `<section class="teamBoard team-${team}"><div class="teamBoardHead"><div><strong>${escapeHtml(TEAM_META[team].label)}</strong><span>${players.length} ${plural(players.length,'joueur')}</span></div><span class="teamBoardStats">${teamSummary(team)}</span></div><div class="teamCollectiveRow">${targetCardHtml(collective)}</div><div class="teamPlayersGrid">${playerTargets.map(targetCardHtml).join('')}</div></section>`;
   }).join('');
-  const free=unassignedPlayers();
-  const freeSection=free.length?`<section class="teamBoard unassignedBoard"><div class="teamBoardHead"><div><strong>Non affectés</strong><span>${free.length} ${plural(free.length,'joueur')}</span></div></div><div class="teamPlayersGrid">${free.map(p=>targetCardHtml({key:`player:${p.id}`,type:'player',id:p.id,team:null,name:p.display_name})).join('')}</div></section>`:'';
-  const legacyCollective=state.events.filter(e=>e.attribution_type==='collective'&&!normalizeTeamColor(e.team_color));
-  const legacySection=legacyCollective.length?`<section class="teamBoard legacyBoard"><div class="teamBoardHead"><div><strong>Collectif historique non affecté</strong><span>${legacyCollective.length} ${plural(legacyCollective.length,'action')}</span></div></div></section>`:'';
-  box.innerHTML=teamSections+freeSection+legacySection;
+  box.innerHTML=teamSections||'<div class="fieldNoTeam"><strong>Aucun joueur sur le terrain</strong><span>Utilisez « Organiser » puis choisissez un joueur hors terrain.</span></div>';
   box.querySelectorAll('[data-target-key]').forEach(b=>b.onclick=()=>{
     if(state.saving)return;const target=targetFromKey(b.dataset.targetKey);if(!target)return;
     if(state.organizingTeams){if(target.type==='player')handleOrganizerPlayerTap(target.id).catch(showFatal);return}

@@ -225,3 +225,112 @@ body.fieldToolsOpen .fieldToolsDrawer{transform:translateX(0)}
   }
 }
 /* END: field mode larger player cards */
+
+/* BEGIN: compact off-court players + readable player names */
+.teamOrganizerUnassigned{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  min-width:210px;
+}
+.teamOrganizerUnassigned label{
+  font-size:9px;
+  line-height:1;
+  color:var(--muted);
+  font-weight:750;
+}
+.teamOrganizerUnassigned select{
+  min-height:36px;
+  padding:6px 8px;
+  font-size:11px;
+}
+.fieldNoTeam{
+  grid-column:1/-1;
+  align-self:center;
+  justify-self:center;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  text-align:center;
+  color:var(--muted);
+}
+.fieldNoTeam strong{color:var(--text);font-size:15px}
+.fieldNoTeam span{font-size:11px}
+
+@media (min-width:701px){
+  body.fieldCollectionMode .teamOrganizerBar{
+    flex-wrap:wrap;
+  }
+
+  body.fieldCollectionMode .teamOrganizerUnassigned{
+    flex:0 1 230px;
+    min-width:180px;
+  }
+
+  body.fieldCollectionMode .teamOrganizerUnassigned select{
+    min-height:34px;
+    font-size:10px;
+  }
+
+  body.fieldCollectionMode .teamPlayersGrid .targetButton{
+    justify-content:space-between;
+  }
+
+  body.fieldCollectionMode .teamPlayersGrid .targetName{
+    flex:1 1 auto;
+    min-height:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:4px 2px 8px;
+    white-space:normal;
+    overflow:visible;
+    text-overflow:clip;
+    overflow-wrap:break-word;
+    hyphens:auto;
+    font-size:clamp(17px,2.25vw,25px);
+    font-weight:850;
+    line-height:1.08;
+    text-align:center;
+  }
+
+  body.fieldCollectionMode .teamPlayersGrid .targetLiveStats{
+    flex:0 0 auto;
+    width:100%;
+    margin-top:4px;
+    padding-top:6px;
+    font-size:clamp(10px,1.2vw,13px);
+  }
+
+  body.fieldCollectionMode .teamPlayersGrid .targetActiveHead strong{
+    font-size:clamp(15px,1.8vw,21px);
+    line-height:1.1;
+    white-space:normal;
+    overflow:visible;
+    text-overflow:clip;
+  }
+
+  body.fieldCollectionMode .teamPlayersGrid .outcomeBtn{
+    font-size:clamp(14px,1.7vw,19px);
+  }
+}
+
+@media (min-width:701px) and (min-height:900px){
+  body.fieldCollectionMode .teamPlayersGrid .targetName{
+    font-size:clamp(19px,2.45vw,28px);
+  }
+
+  body.fieldCollectionMode .teamPlayersGrid .targetLiveStats{
+    font-size:clamp(11px,1.3vw,14px);
+  }
+
+  body.fieldCollectionMode .teamPlayersGrid .targetActiveHead strong{
+    font-size:clamp(17px,2vw,23px);
+  }
+}
+
+@media(max-width:700px){
+  .teamOrganizerUnassigned{width:100%;min-width:0}
+}
+/* END: compact off-court players + readable player names */
+
