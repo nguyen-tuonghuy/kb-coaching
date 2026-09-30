@@ -353,9 +353,20 @@
    <div class="trainingPlan">
     <div class="trainingPlanHead">
      <div><h3>Plan de séance</h3><div class="small">Construis ici le déroulé comme dans le Sheet : blocs libres ou exercices de la bibliothèque, terrain(s), consignes et notes. Les heures se recalculent automatiquement selon l’ordre, la durée et les terrains.</div></div>
-     <div class="trainingPlanActions"><div class="trainingPlanStartField"><label>Début de séance</label><input id="trainingPlanStart" inputmode="numeric" maxlength="5" value="13:30" placeholder="13:30"></div><button class="primary" type="button" id="addTrainingPlanBlock">＋ Ajouter un bloc</button><button class="ghost" type="button" id="clearTrainingPlan">Vider le plan</button></div>
+     <div class="trainingPlanActions"><div class="trainingPlanStartField"><label>Début de séance</label><input id="trainingPlanStart" inputmode="numeric" maxlength="5" value="13:30" placeholder="13:30"></div><button class="primary" type="button" id="addTrainingPlanBlock">＋ Ajouter un bloc</button><button class="ghost" type="button" id="organizeTrainingPlan">Organiser</button><button class="ghost" type="button" id="clearTrainingPlan">Vider le plan</button></div>
     </div>
-    <div class="trainingDragHint">Sur ordinateur : maintiens ⠿ Déplacer puis glisse le bloc. Dépose à gauche = Terrain 1, à droite = Terrain 2, au centre = deux terrains. Les boutons ↑ / ↓ restent disponibles.</div>
+    <div class="trainingDragHint">Sur tablette : utilise « Organiser », touche un bloc puis sa destination. Sur ordinateur, le glisser-déposer ⠿ reste disponible. Les boutons ↑ / ↓ restent disponibles dans le bloc.</div>
+    <div class="trainingPlanOrganizer hidden" id="trainingPlanOrganizer">
+     <div class="trainingPlanOrganizerMessage"><strong id="trainingPlanOrganizerSelection">Mode organisation</strong><span id="trainingPlanOrganizerHint">Touchez un bloc à déplacer.</span></div>
+     <div class="trainingPlanOrganizerDestinations">
+      <button type="button" class="ghost" data-plan-organizer-destination="court1">Terrain 1</button>
+      <button type="button" class="ghost" data-plan-organizer-destination="both">Deux terrains</button>
+      <button type="button" class="ghost" data-plan-organizer-destination="court2">Terrain 2</button>
+      <button type="button" class="ghost" data-plan-organizer-destination="other">Hors terrain</button>
+      <button type="button" class="ghost" data-plan-organizer-destination="end">Fin du planning</button>
+      <button type="button" class="ghost" data-plan-organizer-destination="draft">Brouillon</button>
+     </div>
+    </div>
     <div id="trainingPlanTimeline" class="trainingTimeline"></div>
     <div class="trainingDraft">
      <div class="trainingDraftHead"><div><h4>Brouillon / à placer</h4><div class="small">Garde ici les exercices ou idées que tu hésites encore à intégrer. Ils sont sauvegardés avec la séance mais ne modifient pas les horaires et ne lancent pas de collecte statistique.</div></div></div>

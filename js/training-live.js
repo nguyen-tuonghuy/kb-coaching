@@ -32,7 +32,7 @@ const state={
   user:null,workspaceId:null,groups:[],players:[],sessions:[],exercises:[],periods:[],periodCounts:{},
   selectedGroupId:'',selectedSessionId:'__new__',attendance:new Set(),teamByPlayer:new Map(),
   currentSession:null,currentPeriod:null,events:[],selectedContext:'game_center',
-  activeTarget:null,faultTarget:null,saving:false
+  activeTarget:null,faultTarget:null,saving:false,organizingTeams:false,organizerPlayerId:null,organizerSwapTeam:null
 };
 
 function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
@@ -74,8 +74,12 @@ function renderTeamSetup(){
   }).join('');
   const free=unassignedPlayers();
   box.innerHTML=columns+(free.length?`<div class="teamSetupUnassigned"><div class="teamSetupColumnHead"><strong>Non affectés</strong><span>${free.length}</span></div><div class="teamSetupPlayers">${free.map(teamSetupPlayerHtml).join('')}</div></div>`:'');
-  box.querySelectorAll('[data-team-player]').forEach(sel=>sel.onchange=()=>{state.teamByPlayer.set(sel.dataset.teamPlayer,normalizeTeamColor(sel.value));renderTeamSetup()});
-  if(summary)summary.textContent=TEAM_ORDER.map(team=>`${TEAM_META[team].short} : ${teamPlayers(team).length}`).join(' · ')+(free.length?` · Non affectés : ${free.length}`:'');
+  box.querySelectorAll('[data-team-player]').forEach(sel=>sel.onchange=()=>{
+    const playerId=sel.dataset.teamPlayer,nextTeam=normalizeTeamColor(sel.value),currentTeam=teamForPlayer(playerId);
+    if(nextTeam&&nextTeam!==currentTeam&&teamPlayers(nextTeam).length>=4){setStatus($('#setupStatus'),`${TEAM_META[nextTeam].label} est déjà complète (4/4).`,true);renderTeamSetup();return}
+    state.teamByPlayer.set(playerId,nextTeam);setStatus($('#setupStatus'),'');renderTeamSetup();
+  });
+  if(summary)summary.textContent=TEAM_ORDER.map(team=>`${TEAM_META[team].short} : ${teamPlayers(team).length}/4`).join(' · ')+(free.length?` · Non affectés : ${free.length}`:'');
 }
 function nextPeriodNumber(){return Math.max(0,...state.periods.map(p=>Number(p.period_number)||0))+1}
 function suggestedPeriodLabel(){const ex=exerciseById($('#exerciseSelect').value);const n=nextPeriodNumber();return ex?`${ex.name} ${n}`:`Collecte ${n}`}
@@ -247,7 +251,7 @@ async function resumePeriod(periodId){
   await openPeriod(period);
 }
 async function openPeriod(period){
-  state.currentPeriod=period;state.selectedContext='game_center';state.activeTarget=null;state.faultTarget=null;
+  state.currentPeriod=period;state.selectedContext='game_center';state.activeTarget=null;state.faultTarget=null;state.organizingTeams=false;state.organizerPlayerId=null;state.organizerSwapTeam=null;
   $('#collectorExerciseSelect').value=period.exercise_id||'';renderContext();renderClassification();
   await loadPeriodEvents(period.id);renderTargets();renderEvents();
   $('#setupPanel').classList.add('hidden');$('#collectorPanel').classList.remove('hidden');window.scrollTo({top:0,behavior:'instant'});
@@ -273,6 +277,60 @@ function renderContext(){
   $$('.contextBtn').forEach(b=>{const active=b.dataset.context===state.selectedContext;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));const s=b.querySelector('.contextState');if(s)s.textContent=active?'Sélectionné':'Choisir'});
   $('#currentContextPill').textContent=`Contexte : ${CONTEXT_LABEL[state.selectedContext]||'—'}`;
 }
+function organizerPlayer(){return state.players.find(p=>p.id===state.organizerPlayerId)||null}
+function organizerTeamCount(team){return teamPlayers(team).length}
+function renderTeamOrganizer(){
+  const bar=$('#teamOrganizerBar'),button=$('#organizeTeams');if(!bar||!button)return;
+  bar.classList.toggle('hidden',!state.organizingTeams);button.textContent=state.organizingTeams?'Terminer':'Organiser';button.classList.toggle('active',state.organizingTeams);
+  TEAM_ORDER.forEach(team=>{const count=organizerTeamCount(team),el=bar.querySelector(`[data-team-count="${team}"]`);if(el)el.textContent=`${count}/4`});
+  const player=organizerPlayer(),selection=$('#teamOrganizerSelection'),hint=$('#teamOrganizerHint');
+  if(!state.organizingTeams){if(selection)selection.textContent='Mode organisation';if(hint)hint.textContent='Touchez un joueur, puis son équipe de destination.';return}
+  if(state.organizerSwapTeam&&player){
+    if(selection)selection.textContent=`${player.display_name} → ${TEAM_META[state.organizerSwapTeam].label}`;
+    if(hint)hint.textContent='Équipe pleine : touchez le joueur avec lequel faire l’échange.';
+    return;
+  }
+  if(player){
+    if(selection)selection.textContent=`${player.display_name} sélectionné`;
+    if(hint)hint.textContent='Touchez Bleu, Gris, Noir ou Non affecté. Vous pouvez aussi toucher un autre joueur pour changer de sélection.';
+  }else{
+    if(selection)selection.textContent='Mode organisation';
+    if(hint)hint.textContent='Touchez un joueur, puis son équipe de destination.';
+  }
+}
+function setTeamOrganizerMode(enabled){
+  state.organizingTeams=!!enabled;state.organizerPlayerId=null;state.organizerSwapTeam=null;state.activeTarget=null;state.faultTarget=null;
+  renderTeamOrganizer();renderTargets();
+}
+async function persistLiveTeamAssignments(playerIds){
+  if(!state.currentSession?.id)return;
+  const ids=[...new Set((playerIds||[]).filter(Boolean))];if(!ids.length)return;
+  const rows=ids.map(id=>({session_id:state.currentSession.id,player_id:id,present:state.attendance.has(id),team_color:teamForPlayer(id)}));
+  const {error}=await db.from('training_attendance').upsert(rows,{onConflict:'session_id,player_id'});if(error)throw error;
+}
+async function moveOrganizerPlayer(destination){
+  const player=organizerPlayer();if(!player)return;
+  const targetTeam=normalizeTeamColor(destination);const sourceTeam=teamForPlayer(player.id);
+  if(targetTeam===sourceTeam){state.organizerPlayerId=null;state.organizerSwapTeam=null;renderTeamOrganizer();renderTargets();return}
+  if(targetTeam&&organizerTeamCount(targetTeam)>=4){state.organizerSwapTeam=targetTeam;renderTeamOrganizer();renderTargets();return}
+  state.teamByPlayer.set(player.id,targetTeam);
+  await persistLiveTeamAssignments([player.id]);
+  state.organizerPlayerId=null;state.organizerSwapTeam=null;renderTeamOrganizer();renderTargets();setStatus($('#saveStatus'),`${player.display_name} → ${targetTeam?TEAM_META[targetTeam].label:'Non affecté'}`);
+}
+async function handleOrganizerPlayerTap(playerId){
+  const player=state.players.find(p=>p.id===playerId);if(!player)return;
+  if(state.organizerSwapTeam&&state.organizerPlayerId){
+    if(playerId===state.organizerPlayerId)return;
+    if(teamForPlayer(playerId)!==state.organizerSwapTeam){state.organizerPlayerId=playerId;state.organizerSwapTeam=null;renderTeamOrganizer();renderTargets();return}
+    const selectedId=state.organizerPlayerId,sourceTeam=teamForPlayer(selectedId),targetTeam=state.organizerSwapTeam;
+    state.teamByPlayer.set(selectedId,targetTeam);state.teamByPlayer.set(playerId,sourceTeam);
+    await persistLiveTeamAssignments([selectedId,playerId]);
+    const selectedName=state.players.find(p=>p.id===selectedId)?.display_name||'Joueur';
+    state.organizerPlayerId=null;state.organizerSwapTeam=null;renderTeamOrganizer();renderTargets();setStatus($('#saveStatus'),`${selectedName} ↔ ${player.display_name}`);
+    return;
+  }
+  state.organizerPlayerId=state.organizerPlayerId===playerId?null:playerId;state.organizerSwapTeam=null;renderTeamOrganizer();renderTargets();
+}
 function targetFromKey(key){
   if(key.startsWith('collective:')){
     const team=normalizeTeamColor(key.slice('collective:'.length));return team?{key,type:'collective',id:null,team,name:`Collectif ${TEAM_META[team].short.toLowerCase()}`}:null;
@@ -294,14 +352,17 @@ function targetStatsHtml(t){
 }
 function targetCardHtml(t){
   const active=state.activeTarget?.key===t.key,faultActive=active&&state.faultTarget?.key===t.key;
+  const selectedForMove=state.organizingTeams&&t.type==='player'&&state.organizerPlayerId===t.id;
+  const swapCandidate=state.organizingTeams&&state.organizerSwapTeam&&t.type==='player'&&teamForPlayer(t.id)===state.organizerSwapTeam&&t.id!==state.organizerPlayerId;
+  const organizerClass=selectedForMove?' organizerSelected':swapCandidate?' organizerSwapCandidate':state.organizingTeams&&t.type==='player'?' organizerSelectable':'';
   const teamClass=t.team?` team-${t.team}`:'';
   if(faultActive){
-    return `<div class="targetCard activeTarget faultActive${teamClass}" data-expanded-target="${escapeHtml(t.key)}"><div class="targetActiveHead"><strong>${t.type==='collective'?'👥 ':''}${escapeHtml(t.name)}</strong><button class="ghost targetCancel" type="button" data-cancel-target>Annuler</button></div><div class="faultGrid">${FAULT_TYPES.map(f=>`<button class="faultBtn" type="button" data-fault="${escapeHtml(f)}">${escapeHtml(f)}</button>`).join('')}</div>${targetStatsHtml(t)}</div>`;
+    return `<div class="targetCard activeTarget faultActive${teamClass}${organizerClass}" data-expanded-target="${escapeHtml(t.key)}"><div class="targetActiveHead"><strong>${t.type==='collective'?'👥 ':''}${escapeHtml(t.name)}</strong><button class="ghost targetCancel" type="button" data-cancel-target>Annuler</button></div><div class="faultGrid">${FAULT_TYPES.map(f=>`<button class="faultBtn" type="button" data-fault="${escapeHtml(f)}">${escapeHtml(f)}</button>`).join('')}</div>${targetStatsHtml(t)}</div>`;
   }
   if(active){
-    return `<div class="targetCard activeTarget${teamClass}" data-expanded-target="${escapeHtml(t.key)}"><div class="targetActiveHead"><strong>${t.type==='collective'?'👥 ':''}${escapeHtml(t.name)}</strong><button class="ghost targetCancel" type="button" data-cancel-target>×</button></div><div class="inlineOutcomeGrid"><button class="outcomeBtn point" type="button" data-outcome="point" ${state.saving?'disabled':''}>Pt</button><button class="outcomeBtn defended" type="button" data-outcome="defended" ${state.saving?'disabled':''}>Déf</button><button class="outcomeBtn fault" type="button" data-outcome="fault" ${state.saving?'disabled':''}>Fa</button></div>${targetStatsHtml(t)}</div>`;
+    return `<div class="targetCard activeTarget${teamClass}${organizerClass}" data-expanded-target="${escapeHtml(t.key)}"><div class="targetActiveHead"><strong>${t.type==='collective'?'👥 ':''}${escapeHtml(t.name)}</strong><button class="ghost targetCancel" type="button" data-cancel-target>×</button></div><div class="inlineOutcomeGrid"><button class="outcomeBtn point" type="button" data-outcome="point" ${state.saving?'disabled':''}>Pt</button><button class="outcomeBtn defended" type="button" data-outcome="defended" ${state.saving?'disabled':''}>Déf</button><button class="outcomeBtn fault" type="button" data-outcome="fault" ${state.saving?'disabled':''}>Fa</button></div>${targetStatsHtml(t)}</div>`;
   }
-  return `<div class="targetCard${teamClass}"><button class="targetButton ${t.type==='collective'?'collective':''}" type="button" data-target-key="${escapeHtml(t.key)}"><span class="targetName">${t.type==='collective'?'👥 ':''}${escapeHtml(t.name)}</span>${targetStatsHtml(t)}</button></div>`;
+  return `<div class="targetCard${teamClass}${organizerClass}"><button class="targetButton ${t.type==='collective'?'collective':''}" type="button" data-target-key="${escapeHtml(t.key)}"><span class="targetName">${t.type==='collective'?'👥 ':''}${escapeHtml(t.name)}</span>${targetStatsHtml(t)}</button></div>`;
 }
 function teamSummary(team){
   const events=state.events.filter(e=>normalizeTeamColor(e.team_color)===team);
@@ -313,19 +374,26 @@ function renderTargets(){
     const players=teamPlayers(team);
     const hasEvents=state.events.some(e=>normalizeTeamColor(e.team_color)===team);
     if(!players.length&&!hasEvents)return '';
-    const targets=[{key:`collective:${team}`,type:'collective',id:null,team,name:`Collectif ${TEAM_META[team].short.toLowerCase()}`},...players.map(p=>({key:`player:${p.id}`,type:'player',id:p.id,team,name:p.display_name}))];
-    return `<section class="teamBoard team-${team}"><div class="teamBoardHead"><div><strong>${escapeHtml(TEAM_META[team].label)}</strong><span>${players.length} ${plural(players.length,'joueur')}</span></div><span class="teamBoardStats">${teamSummary(team)}</span></div><div class="teamTargetGrid">${targets.map(targetCardHtml).join('')}</div></section>`;
+    const collective={key:`collective:${team}`,type:'collective',id:null,team,name:`Collectif ${TEAM_META[team].short.toLowerCase()}`};
+    const playerTargets=players.map(p=>({key:`player:${p.id}`,type:'player',id:p.id,team,name:p.display_name}));
+    return `<section class="teamBoard team-${team}"><div class="teamBoardHead"><div><strong>${escapeHtml(TEAM_META[team].label)}</strong><span>${players.length} ${plural(players.length,'joueur')}</span></div><span class="teamBoardStats">${teamSummary(team)}</span></div><div class="teamCollectiveRow">${targetCardHtml(collective)}</div><div class="teamPlayersGrid">${playerTargets.map(targetCardHtml).join('')}</div></section>`;
   }).join('');
   const free=unassignedPlayers();
-  const freeSection=free.length?`<section class="teamBoard unassignedBoard"><div class="teamBoardHead"><div><strong>Non affectés</strong><span>${free.length} ${plural(free.length,'joueur')}</span></div></div><div class="teamTargetGrid">${free.map(p=>targetCardHtml({key:`player:${p.id}`,type:'player',id:p.id,team:null,name:p.display_name})).join('')}</div></section>`:'';
+  const freeSection=free.length?`<section class="teamBoard unassignedBoard"><div class="teamBoardHead"><div><strong>Non affectés</strong><span>${free.length} ${plural(free.length,'joueur')}</span></div></div><div class="teamPlayersGrid">${free.map(p=>targetCardHtml({key:`player:${p.id}`,type:'player',id:p.id,team:null,name:p.display_name})).join('')}</div></section>`:'';
   const legacyCollective=state.events.filter(e=>e.attribution_type==='collective'&&!normalizeTeamColor(e.team_color));
   const legacySection=legacyCollective.length?`<section class="teamBoard legacyBoard"><div class="teamBoardHead"><div><strong>Collectif historique non affecté</strong><span>${legacyCollective.length} ${plural(legacyCollective.length,'action')}</span></div></div></section>`:'';
   box.innerHTML=teamSections+freeSection+legacySection;
-  box.querySelectorAll('[data-target-key]').forEach(b=>b.onclick=()=>{if(state.saving)return;state.activeTarget=targetFromKey(b.dataset.targetKey);state.faultTarget=null;renderTargets()});
+  box.querySelectorAll('[data-target-key]').forEach(b=>b.onclick=()=>{
+    if(state.saving)return;const target=targetFromKey(b.dataset.targetKey);if(!target)return;
+    if(state.organizingTeams){if(target.type==='player')handleOrganizerPlayerTap(target.id).catch(showFatal);return}
+    state.activeTarget=target;state.faultTarget=null;renderTargets();
+  });
   box.querySelectorAll('[data-cancel-target]').forEach(b=>b.onclick=()=>{state.activeTarget=null;state.faultTarget=null;renderTargets()});
-  box.querySelectorAll('[data-outcome]').forEach(b=>b.onclick=()=>{if(state.saving||!state.activeTarget)return;if(b.dataset.outcome==='fault'){state.faultTarget={...state.activeTarget};renderTargets()}else saveEvent(b.dataset.outcome,null).catch(showFatal)});
-  box.querySelectorAll('[data-fault]').forEach(b=>b.onclick=()=>{if(state.saving||!state.activeTarget)return;saveEvent('fault',b.dataset.fault).catch(showFatal)});
+  box.querySelectorAll('[data-outcome]').forEach(b=>b.onclick=()=>{if(state.saving||state.organizingTeams||!state.activeTarget)return;if(b.dataset.outcome==='fault'){state.faultTarget={...state.activeTarget};renderTargets()}else saveEvent(b.dataset.outcome,null).catch(showFatal)});
+  box.querySelectorAll('[data-fault]').forEach(b=>b.onclick=()=>{if(state.saving||state.organizingTeams||!state.activeTarget)return;saveEvent('fault',b.dataset.fault).catch(showFatal)});
+  renderTeamOrganizer();
 }
+
 async function saveEvent(result,faultType){
   if(!state.currentPeriod||!state.currentSession||!state.activeTarget)return;const target={...state.activeTarget},context=state.selectedContext;state.saving=true;renderTargets();setStatus($('#saveStatus'),'Enregistrement…');setCloud('Enregistrement…',null);
   try{
@@ -355,7 +423,7 @@ async function finishPeriod(){
   if(error){setStatus($('#saveStatus'),error.message||String(error),true);return}Object.assign(state.currentPeriod,data);setStatus($('#saveStatus'),'Période terminée.');await returnToSetup();
 }
 async function returnToSetup(){
-  $('#collectorPanel').classList.add('hidden');$('#setupPanel').classList.remove('hidden');state.activeTarget=null;state.faultTarget=null;
+  $('#collectorPanel').classList.add('hidden');$('#setupPanel').classList.remove('hidden');state.activeTarget=null;state.faultTarget=null;state.organizingTeams=false;state.organizerPlayerId=null;state.organizerSwapTeam=null;
   if(state.currentSession?.id){state.selectedSessionId=state.currentSession.id;$('#sessionSelect').value=state.currentSession.id;syncNewSessionFields();await loadPeriods(state.currentSession.id)}
   window.scrollTo({top:0,behavior:'instant'});
 }
@@ -366,6 +434,8 @@ $('#sessionSelect').onchange=()=>handleSessionChange();
 $('#selectAllPlayers').onclick=()=>{state.attendance=new Set(state.players.map(p=>p.id));renderAttendance()};
 $('#clearAllPlayers').onclick=()=>{state.attendance.clear();state.teamByPlayer.clear();renderAttendance()};
 $('#autoAssignTeams').onclick=()=>autoAssignTeams();
+$('#organizeTeams').onclick=()=>setTeamOrganizerMode(!state.organizingTeams);
+$$('[data-team-destination]').forEach(b=>b.onclick=()=>{if(state.organizingTeams)moveOrganizerPlayer(b.dataset.teamDestination).catch(showFatal)});
 $('#exerciseSelect').onchange=()=>{$('#periodLabel').value=suggestedPeriodLabel()};
 $('#startCollection').onclick=()=>startCollection();
 $('#refreshPeriods').onclick=()=>loadPeriods(state.selectedSessionId).catch(showFatal);

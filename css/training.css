@@ -216,6 +216,15 @@ button:active{transform:scale(.985)}
 .trainingPlanStartField label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
 .trainingPlanStartField input{width:118px}
 .trainingDragHint{font-size:12px;color:var(--muted);margin:4px 0 10px}
+.trainingPlanOrganizer{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 11px;padding:9px 10px;border:1px solid var(--accent);border-radius:12px;background:var(--info-bg)}
+.trainingPlanOrganizerMessage{display:flex;flex-direction:column;gap:2px;min-width:210px}.trainingPlanOrganizerMessage strong{font-size:13px}.trainingPlanOrganizerMessage span{font-size:11px;color:var(--muted)}
+.trainingPlanOrganizerDestinations{display:flex;gap:6px;flex-wrap:wrap}.trainingPlanOrganizerDestinations button{padding:7px 9px;font-size:12px;min-height:38px}
+#organizeTrainingPlan.active{border-color:var(--accent);background:var(--info-bg);color:var(--info)}
+.trainingPlan.organizerMode .trainingPlanDragHandle{display:none}
+.trainingPlan.organizerMode .trainingDraftCardActions{display:none}
+.trainingPlanBlock.organizerSelected,.trainingDraftCard.organizerSelected{outline:3px solid var(--accent);outline-offset:2px;background:var(--info-bg)!important}
+.trainingPlanBlock.organizerTarget{outline:1px dashed var(--accent);outline-offset:2px}
+.trainingPlanBlock.organizerTarget .trainingPlanBlockOverview::after{content:'Placer avant';margin-left:auto;align-self:center;padding:3px 6px;border:1px solid var(--accent);border-radius:999px;color:var(--info);font-size:10px;font-weight:750;white-space:nowrap}
 .trainingPlanBlock.dragging{opacity:.45;outline:2px dashed var(--accent)}
 .trainingTimeline.drag-over{outline:2px dashed var(--accent);outline-offset:5px;border-radius:12px}
 .trainingPlanDragHandle{cursor:grab;user-select:none;touch-action:none;display:inline-flex;align-items:center;gap:5px}
@@ -274,7 +283,7 @@ button:active{transform:scale(.985)}
 .trainingDraftEmpty{grid-column:1/-1;text-align:center;color:var(--muted);font-size:12px;padding:12px}
 .trainingSectionLabel{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap}
 .trainingSectionLabel h3{font-size:16px;margin:0 0 5px}
-@media(max-width:920px){.trainingTimelineTracks{grid-template-columns:1fr}.trainingPlanBlock[data-track="court1"],.trainingPlanBlock[data-track="court2"],.trainingPlanBlock[data-track="both"],.trainingPlanBlock[data-track="other"]{grid-column:auto}.trainingPlanNotes{grid-template-columns:1fr}}
+@media(max-width:920px){.trainingTimelineTracks{grid-template-columns:1fr}.trainingPlanBlock[data-track="court1"],.trainingPlanBlock[data-track="court2"],.trainingPlanBlock[data-track="both"],.trainingPlanBlock[data-track="other"]{grid-column:auto}.trainingPlanNotes{grid-template-columns:1fr}.trainingPlanOrganizer{align-items:stretch}.trainingPlanOrganizerDestinations{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%}}
 @media(max-width:680px){.trainingDraftList{grid-template-columns:1fr}.trainingPlanFields{grid-template-columns:1fr 1fr}.trainingPlanFields .planTrackField{grid-column:1/-1}.trainingPlanLibraryRow{grid-template-columns:1fr}.trainingPlanFields .planTitleField{grid-column:1/-1}}
 @media(max-width:520px){.moduleGrid{grid-template-columns:1fr}.miniGrid{grid-template-columns:1fr}.trainingPlanFields{grid-template-columns:1fr}.trainingPlanFields .planTitleField,.trainingPlanFields .planTrackField{grid-column:auto}}
 
@@ -2141,3 +2150,9 @@ background:#111827;color:#F8FAFC;border:1px solid var(--navLine)
 .trainingAttendancePreset .field{flex:1 1 260px;max-width:420px}
 .trainingAttendancePreset button{min-height:42px}
 @media(max-width:640px){.trainingAttendancePreset .field{max-width:none;flex-basis:100%}.trainingAttendancePreset button{width:100%}}
+
+@media (pointer:coarse){
+  .trainingPlanDragHandle{display:none}
+  .trainingPlanOrganizerDestinations button{min-height:44px}
+  .trainingPlanOrganizer{padding:10px}
+}

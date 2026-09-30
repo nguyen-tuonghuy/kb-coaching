@@ -119,14 +119,17 @@
       </div>
     </div>
 
-    <div class="classificationEditor">
-      <div class="field">
-        <label for="collectorExerciseSelect">Exercice associé</label>
-        <select id="collectorExerciseSelect"><option value="">À classer · aucun exercice</option></select>
+    <details class="classificationDetails">
+      <summary>Classer / changer l’exercice</summary>
+      <div class="classificationEditor">
+        <div class="field">
+          <label for="collectorExerciseSelect">Exercice associé</label>
+          <select id="collectorExerciseSelect"><option value="">À classer · aucun exercice</option></select>
+        </div>
+        <button class="ghost" type="button" id="saveClassification">Enregistrer l’association</button>
+        <div class="authStatus" id="classificationStatus" role="status" aria-live="polite"></div>
       </div>
-      <button class="ghost" type="button" id="saveClassification">Enregistrer l’association</button>
-      <div class="authStatus" id="classificationStatus" role="status" aria-live="polite"></div>
-    </div>
+    </details>
 
     <div class="contextSection">
       <div class="sectionHead compact">
@@ -149,7 +152,19 @@
           <h3>Qui frappe ?</h3>
           <div class="small">Touchez un joueur ou un collectif : Pt / Déf / Fa s’affichent directement dans sa fiche.</div>
         </div>
-        <div class="currentContextPill" id="currentContextPill">Contexte : Jeu au centre</div>
+        <div class="targetHeadActions">
+          <div class="currentContextPill" id="currentContextPill">Contexte : Jeu au centre</div>
+          <button class="ghost" type="button" id="organizeTeams">Organiser</button>
+        </div>
+      </div>
+      <div class="teamOrganizerBar hidden" id="teamOrganizerBar">
+        <div class="teamOrganizerMessage"><strong id="teamOrganizerSelection">Mode organisation</strong><span id="teamOrganizerHint">Touchez un joueur, puis son équipe de destination.</span></div>
+        <div class="teamOrganizerDestinations" id="teamOrganizerDestinations">
+          <button type="button" class="ghost teamDestination team-blue" data-team-destination="blue">Bleu <span data-team-count="blue">0/4</span></button>
+          <button type="button" class="ghost teamDestination team-gray" data-team-destination="gray">Gris <span data-team-count="gray">0/4</span></button>
+          <button type="button" class="ghost teamDestination team-black" data-team-destination="black">Noir <span data-team-count="black">0/4</span></button>
+          <button type="button" class="ghost teamDestination" data-team-destination="">Non affecté</button>
+        </div>
       </div>
       <div class="targetGrid" id="targetGrid"></div>
     </div>

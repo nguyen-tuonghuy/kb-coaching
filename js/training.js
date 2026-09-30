@@ -3079,7 +3079,7 @@ $('#matchTypeCreateForm').onsubmit=event=>{
   });
 };
 
-let trainingState={players:[],selections:[],exercises:[],sessionExercises:[],planBlocks:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{}};
+let trainingState={players:[],selections:[],exercises:[],sessionExercises:[],planBlocks:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{},planOrganizerMode:false,planOrganizerSelectedId:null};
 let playerPortalState={accesses:[],groupId:null,matches:[],selected:[],scope:'all',restartLocation:'all',loading:false,view:'home',hasStaffAccess:false,staffPreview:false,staffPlayerId:null,staffReturnGroupId:null,messageNotifications:[],objectives:[],videos:[],videoConfig:null};
 let groupState={groups:[],currentGroupId:null,currentPlayers:[],currentSelections:[],matchPlayers:[],matchSelections:[],profiles:{},messageNotifications:[]};
 let adminState={isAdmin:false,groups:[]};
@@ -5323,8 +5323,54 @@ function reorderTrainingPlanBlock(dragId,targetId,newTrack){
   trainingState.planBlocks.splice(to,0,item);
   recalculateTrainingPlanTimes();syncPlanStatExercises();renderTrainingPlan();renderTrainingExerciseCards();
 }
+function trainingPlanOrganizerSelectedBlock(){return trainingState.planBlocks.find(b=>b.id===trainingState.planOrganizerSelectedId)||null}
+function renderTrainingPlanOrganizer(){
+  const panel=$('#trainingPlanOrganizer'),button=$('#organizeTrainingPlan'),plan=document.querySelector('.trainingPlan');
+  if(!panel||!button)return;
+  panel.classList.toggle('hidden',!trainingState.planOrganizerMode);
+  button.textContent=trainingState.planOrganizerMode?'Terminer':'Organiser';
+  button.classList.toggle('active',trainingState.planOrganizerMode);
+  button.setAttribute('aria-pressed',String(trainingState.planOrganizerMode));
+  plan?.classList.toggle('organizerMode',trainingState.planOrganizerMode);
+  const selected=trainingPlanOrganizerSelectedBlock(),label=$('#trainingPlanOrganizerSelection'),hint=$('#trainingPlanOrganizerHint');
+  panel.querySelectorAll('[data-plan-organizer-destination]').forEach(b=>b.disabled=!selected);
+  if(!trainingState.planOrganizerMode){if(label)label.textContent='Mode organisation';if(hint)hint.textContent='Touchez un bloc à déplacer.';return}
+  if(selected){
+    const title=selected.title||planExerciseById(selected.exerciseId)?.name||'Bloc sans titre';
+    if(label)label.textContent=`${title} sélectionné`;
+    if(hint)hint.textContent=selected.draft?'Choisis un terrain pour le remettre dans le planning, ou touche un bloc pour le placer avant lui.':'Touchez un autre bloc pour le placer avant lui, ou choisissez sa destination.';
+  }else{
+    if(label)label.textContent='Mode organisation';
+    if(hint)hint.textContent='Touchez un bloc du planning ou du brouillon.';
+  }
+}
+function setTrainingPlanOrganizerMode(enabled){
+  captureTrainingPlan();trainingState.planOrganizerMode=!!enabled;trainingState.planOrganizerSelectedId=null;
+  if(trainingState.planOrganizerMode)trainingState.planBlocks.forEach(b=>b.expanded=false);
+  renderTrainingPlan();
+}
+function selectTrainingPlanOrganizerBlock(id){
+  if(!trainingState.planOrganizerMode)return;
+  const block=trainingState.planBlocks.find(b=>b.id===id);if(!block)return;
+  const selected=trainingPlanOrganizerSelectedBlock();
+  if(!selected){trainingState.planOrganizerSelectedId=id;renderTrainingPlan();return}
+  if(selected.id===id){trainingState.planOrganizerSelectedId=null;renderTrainingPlan();return}
+  if(block.draft){trainingState.planOrganizerSelectedId=id;renderTrainingPlan();return}
+  const selectedId=selected.id;trainingState.planOrganizerSelectedId=null;reorderTrainingPlanBlock(selectedId,id,null);
+}
+function applyTrainingPlanOrganizerDestination(destination){
+  const block=trainingPlanOrganizerSelectedBlock();if(!block)return;
+  const id=block.id;trainingState.planOrganizerSelectedId=null;
+  if(destination==='draft'){sendTrainingPlanBlockToDraft(id);return}
+  if(destination==='end'){reorderTrainingPlanBlock(id,null,null);return}
+  if(!['court1','court2','both','other'].includes(destination))return;
+  if(block.draft){reorderTrainingPlanBlock(id,null,destination);return}
+  captureTrainingPlan();const current=trainingState.planBlocks.find(b=>b.id===id);if(!current)return;
+  current.track=destination;recalculateTrainingPlanTimes();syncPlanStatExercises();renderTrainingPlan();renderTrainingExerciseCards();
+}
 function renderTrainingPlan(){
-  const box=$('#trainingPlanTimeline');if(!box)return;recalculateTrainingPlanTimes();box.innerHTML='';
+  const box=$('#trainingPlanTimeline');if(!box)return;recalculateTrainingPlanTimes();box.innerHTML='';renderTrainingPlanOrganizer();
+  const coarsePointer=window.matchMedia?.('(pointer: coarse)').matches||false;
   const scheduled=trainingState.planBlocks.filter(b=>!b.draft);
   const drafts=trainingState.planBlocks.filter(b=>b.draft);
   if(!scheduled.length)box.innerHTML='<div class="trainingPlanEmpty">Aucun bloc placé pour le moment. Ajoute un bloc ou remets un élément du brouillon dans le planning.</div>';
@@ -5343,7 +5389,9 @@ function renderTrainingPlan(){
       const libraryMode=b.sourceType==='library';
       const dual=libraryMode&&ex&&isDualExercise(ex);
       const statMeta=ex?`${measurementLabel(ex.measurement_type)}${categoryLabel(ex)?' · '+categoryLabel(ex):''}`:'';
-      const card=document.createElement('div');card.className='trainingPlanBlock'+(b.expanded?' expanded':'');card.dataset.planId=b.id;card.dataset.track=b.track||'both';
+      const organizerSelected=trainingState.planOrganizerMode&&trainingState.planOrganizerSelectedId===b.id;
+      const organizerTarget=trainingState.planOrganizerMode&&trainingState.planOrganizerSelectedId&&trainingState.planOrganizerSelectedId!==b.id;
+      const card=document.createElement('div');card.className='trainingPlanBlock'+(b.expanded?' expanded':'')+(organizerSelected?' organizerSelected':'')+(organizerTarget?' organizerTarget':'');card.dataset.planId=b.id;card.dataset.track=b.track||'both';
       card.innerHTML=`<div class="trainingPlanBlockHead"><div class="trainingPlanBlockOverview" data-plan-overview role="button" tabindex="0" aria-expanded="${b.expanded?'true':'false'}"><button type="button" class="ghost trainingPlanDragHandle" draggable="true" data-plan-drag title="Maintenir et déplacer">⠿</button><div class="trainingPlanBlockMain"><div class="trainingPlanBlockTitle">${escapeHtml(b.title||ex?.name||'Nouveau bloc')}</div><div class="trainingPlanCompactMeta"><span class="trainingTrackTag">${escapeHtml(trainingTrackLabel(b.track))}</span><span class="trainingPlanMetaTag">${escapeHtml(String(b.duration||0))} min</span>${libraryMode?'<span class="trainingPlanMetaTag">Bibliothèque</span>':''}${b.collectStats?'<span class="trainingPlanMetaTag stats">Stats</span>':''}</div></div></div><button type="button" class="ghost trainingPlanToggle" data-plan-toggle title="${b.expanded?'Replier':'Déplier'}" aria-label="${b.expanded?'Replier':'Déplier'}">${b.expanded?'▴':'▾'}</button></div>
       <div class="trainingPlanBlockBody">
       <div class="trainingPlanBlockActions"><button type="button" class="ghost" data-plan-up title="Monter">↑</button><button type="button" class="ghost" data-plan-down title="Descendre">↓</button><button type="button" class="ghost" data-plan-copy>Dupliquer le bloc</button><button type="button" class="ghost" data-plan-draft>Mettre en brouillon</button><button type="button" class="ghost" data-plan-remove>Supprimer</button></div>
@@ -5367,10 +5415,10 @@ function renderTrainingPlan(){
       </div>
       </div>`;
       const togglePlanBlock=()=>{captureTrainingPlan();b.expanded=!b.expanded;renderTrainingPlan()};
-      card.querySelector('[data-plan-toggle]').onclick=e=>{e.stopPropagation();togglePlanBlock()};
+      card.querySelector('[data-plan-toggle]').onclick=e=>{e.stopPropagation();if(trainingState.planOrganizerMode){selectTrainingPlanOrganizerBlock(b.id);return}togglePlanBlock()};
       const overview=card.querySelector('[data-plan-overview]');
-      overview.onclick=e=>{if(e.target.closest('button,input,select,textarea,a'))return;togglePlanBlock()};
-      overview.onkeydown=e=>{if((e.key==='Enter'||e.key===' ')&&!e.target.closest('button,input,select,textarea,a')){e.preventDefault();togglePlanBlock()}};
+      overview.onclick=e=>{if(e.target.closest('button,input,select,textarea,a'))return;if(trainingState.planOrganizerMode){selectTrainingPlanOrganizerBlock(b.id);return}togglePlanBlock()};
+      overview.onkeydown=e=>{if((e.key==='Enter'||e.key===' ')&&!e.target.closest('button,input,select,textarea,a')){e.preventDefault();if(trainingState.planOrganizerMode)selectTrainingPlanOrganizerBlock(b.id);else togglePlanBlock()}};
       card.querySelector('[data-plan-up]').disabled=index===0;card.querySelector('[data-plan-down]').disabled=index===trainingState.planBlocks.length-1;
       card.querySelector('[data-plan-up]').onclick=()=>moveTrainingPlanBlock(b.id,-1);card.querySelector('[data-plan-down]').onclick=()=>moveTrainingPlanBlock(b.id,1);card.querySelector('[data-plan-copy]').onclick=()=>duplicateTrainingPlanBlock(b.id);card.querySelector('[data-plan-draft]').onclick=()=>sendTrainingPlanBlockToDraft(b.id);card.querySelector('[data-plan-remove]').onclick=()=>{if(confirm('Supprimer définitivement ce bloc ?'))removeTrainingPlanBlock(b.id)};
       card.querySelector('.planSourceType').onchange=e=>{captureTrainingPlan();b.sourceType=e.target.value;b.exerciseId=b.sourceType==='library'?b.exerciseId:null;b.collectStats=b.sourceType==='library'?b.collectStats:false;renderTrainingPlan();renderTrainingExerciseCards()};
@@ -5383,7 +5431,8 @@ function renderTrainingPlan(){
       const tabletNotes=window.matchMedia?.('(pointer: coarse)').matches||window.innerWidth<=1024;
       card.querySelectorAll('[data-plan-note-edit]').forEach(btn=>{const key=btn.dataset.planNoteEdit;const field=btn.closest('.trainingPlanNoteField');const editor=field?.querySelector(key==='details'?'.planDetails':'.planAttention');const read=field?.querySelector('[data-plan-note-read]');const done=field?.querySelector('[data-plan-note-done]');const startEdit=()=>{if(!field||!editor)return;field.classList.add('editing');read?.classList.add('hidden');btn.classList.add('hidden');done?.classList.remove('hidden');autoGrowPlanTextarea(editor);editor.focus()};btn.addEventListener('click',startEdit);read?.addEventListener('click',()=>{if(tabletNotes)startEdit()});read?.addEventListener('keydown',e=>{if(tabletNotes&&(e.key==='Enter'||e.key===' ')){e.preventDefault();startEdit()}});done?.addEventListener('click',()=>{captureTrainingPlan();field.classList.remove('editing');read?.classList.remove('hidden');btn.classList.remove('hidden');done.classList.add('hidden');editor.blur()})});
       const dragHandle=card.querySelector('[data-plan-drag]');
-      dragHandle?.addEventListener('dragstart',e=>{captureTrainingPlan();card.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',b.id)});
+      if(dragHandle)dragHandle.draggable=!trainingState.planOrganizerMode&&!coarsePointer;
+      dragHandle?.addEventListener('dragstart',e=>{if(trainingState.planOrganizerMode||coarsePointer){e.preventDefault();return}captureTrainingPlan();card.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',b.id)});
       dragHandle?.addEventListener('dragend',()=>{card.classList.remove('dragging');box.classList.remove('drag-over')});
       tracks.append(card);
     });
@@ -5392,16 +5441,18 @@ function renderTrainingPlan(){
   const draftBox=$('#trainingPlanDraft');
   if(draftBox){
     draftBox.innerHTML='';
-    if(!drafts.length)draftBox.innerHTML='<div class="trainingDraftEmpty">Aucun élément en brouillon. Tu peux y envoyer un bloc avec « Mettre en brouillon » ou en le faisant glisser ici.</div>';
+    if(!drafts.length)draftBox.innerHTML='<div class="trainingDraftEmpty">Aucun élément en brouillon. Tu peux y envoyer un bloc avec « Mettre en brouillon », via « Organiser », ou en le faisant glisser ici sur ordinateur.</div>';
     drafts.forEach(b=>{
       const ex=planExerciseById(b.exerciseId);
-      const card=document.createElement('div');card.className='trainingDraftCard';card.dataset.planId=b.id;card.draggable=true;
+      const organizerSelected=trainingState.planOrganizerMode&&trainingState.planOrganizerSelectedId===b.id;
+      const card=document.createElement('div');card.className='trainingDraftCard'+(organizerSelected?' organizerSelected':'');card.dataset.planId=b.id;card.draggable=!trainingState.planOrganizerMode&&!coarsePointer;
       const preview=(b.details||b.attention||'').trim();
       card.innerHTML=`<div class="trainingDraftCardTitle">${escapeHtml(b.title||ex?.name||'Bloc sans titre')}</div><div class="trainingDraftCardMeta">${escapeHtml(b.sourceType==='library'&&ex?'Bibliothèque · '+ex.name:'Bloc libre')} · ${escapeHtml(trainingTrackLabel(b.track))} · ${escapeHtml(String(b.duration||0))} min</div>${preview?`<div class="trainingDraftCardText">${escapeHtml(preview)}</div>`:''}<div class="trainingDraftCardActions"><button type="button" class="primary" data-draft-restore>Remettre dans le planning</button><button type="button" class="ghost" data-draft-copy>Dupliquer</button><button type="button" class="ghost" data-draft-remove>Supprimer</button></div>`;
       card.querySelector('[data-draft-restore]').onclick=()=>restoreTrainingPlanBlockFromDraft(b.id,b.track);
       card.querySelector('[data-draft-copy]').onclick=()=>{const i=trainingState.planBlocks.findIndex(x=>x.id===b.id);if(i<0)return;trainingState.planBlocks.splice(i+1,0,{...b,id:crypto.randomUUID(),draft:true,start:''});renderTrainingPlan()};
       card.querySelector('[data-draft-remove]').onclick=()=>{if(confirm('Supprimer définitivement ce brouillon ?'))removeTrainingPlanBlock(b.id)};
-      card.addEventListener('dragstart',e=>{card.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',b.id)});
+      card.addEventListener('click',e=>{if(trainingState.planOrganizerMode&&!e.target.closest('button,input,select,textarea,a'))selectTrainingPlanOrganizerBlock(b.id)});
+      card.addEventListener('dragstart',e=>{if(trainingState.planOrganizerMode||coarsePointer){e.preventDefault();return}card.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',b.id)});
       card.addEventListener('dragend',()=>card.classList.remove('dragging'));
       draftBox.append(card);
     });
@@ -5428,6 +5479,7 @@ async function startNewTraining(){
   trainingState.planBlocks=[];
   trainingState.currentSessionId=null;
   trainingState.resultDraft={};
+  trainingState.planOrganizerMode=false;trainingState.planOrganizerSelectedId=null;
   $('#saveTrainingSession').textContent='Enregistrer la séance';
   if(!groupState.groups.length)await fetchMyGroups();
   if(!groupState.groups.length){
@@ -6040,6 +6092,7 @@ async function duplicateTrainingSessionById(sessionId){
   if(!source) return;
   trainingState.currentSessionId=null;
   trainingState.resultDraft={};
+  trainingState.planOrganizerMode=false;trainingState.planOrganizerSelectedId=null;
   $('#saveTrainingSession').textContent='Enregistrer la séance';
 
   const [{data:attendance,error:ae},{data:sessionExercises,error:xe}]=await Promise.all([
@@ -6099,6 +6152,7 @@ async function editTrainingSessionById(sessionId){
 
   trainingState.currentSessionId=sessionId;
   trainingState.resultDraft={};
+  trainingState.planOrganizerMode=false;trainingState.planOrganizerSelectedId=null;
   trainingState.sessionExercises=(sessionExercises||[])
     .filter(x=>x.exercise)
     .map(x=>({...x.exercise,localKey:crypto.randomUUID(),expanded:false,variant:x.variant||null,target:x.target||null,focus:x.focus||null}));
@@ -7836,8 +7890,10 @@ $('#historyGroup').onchange=()=>fetchTrainingPlayers($('#historyGroup').value).c
 
 $('#newTraining').onclick=()=>startNewTraining().catch(e=>handleError('new training',e));
 $('#addTrainingPlanBlock').onclick=()=>addTrainingPlanBlock();
+$('#organizeTrainingPlan').onclick=()=>setTrainingPlanOrganizerMode(!trainingState.planOrganizerMode);
+$$('[data-plan-organizer-destination]').forEach(b=>b.onclick=()=>applyTrainingPlanOrganizerDestination(b.dataset.planOrganizerDestination));
 const trainingPlanStartEl=$('#trainingPlanStart');if(trainingPlanStartEl){trainingPlanStartEl.addEventListener('change',()=>{trainingPlanStartEl.value=normalizePlanTime(trainingPlanStartEl.value)||'13:30';recalculateTrainingPlanTimes();renderTrainingPlan()})}
-$('#clearTrainingPlan').onclick=()=>{if(!trainingState.planBlocks.length||confirm('Vider tout le plan de séance ?')){trainingState.planBlocks=[];renderTrainingPlan()}};
+$('#clearTrainingPlan').onclick=()=>{if(!trainingState.planBlocks.length||confirm('Vider tout le plan de séance ?')){trainingState.planBlocks=[];trainingState.planOrganizerSelectedId=null;renderTrainingPlan()}};
 const trainingNotesEl=$('#trainingNotes');if(trainingNotesEl){trainingNotesEl.addEventListener('input',()=>autoGrowPlanTextarea(trainingNotesEl));autoGrowPlanTextarea(trainingNotesEl)}
 window.addEventListener('resize',()=>document.querySelectorAll('.trainingPlanNotes textarea,.trainingGeneralNotes,.trainingResultNoteField .tr-note').forEach(autoGrowPlanTextarea));
 const duplicateTrainingSessionBtn=$('#duplicateTrainingSession');if(duplicateTrainingSessionBtn)duplicateTrainingSessionBtn.onclick=()=>openTrainingDuplicate();
