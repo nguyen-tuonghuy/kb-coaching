@@ -169,12 +169,12 @@ async function loadAttendance(sessionId){
     $('#attendanceHint').textContent='Nouvelle séance : tout le groupe est précoché et reste non affecté tant que tu ne constitues pas les équipes.';
     renderAttendance();return;
   }
-  const {data,error}=await db.from('training_attendance').select('player_id,present,team_color').eq('session_id',sessionId);
+  const {data,error}=await db.from('training_attendance').select('player_id,present').eq('session_id',sessionId);
   if(error)throw error;
   if((data||[]).length){
     state.attendance=new Set(data.filter(x=>x.present).map(x=>x.player_id));
-    (data||[]).forEach(x=>{if(x.present)state.teamByPlayer.set(x.player_id,normalizeTeamColor(x.team_color))});
-    $('#attendanceHint').textContent='Présences enregistrées pour cette séance. La répartition terrain enregistrée est conservée.';
+    state.teamByPlayer=new Map();
+    $('#attendanceHint').textContent='Présences enregistrées pour cette séance. Le terrain repart vide : constitue les équipes pour cette nouvelle prise de note.';
   }else{
     state.attendance=new Set(state.players.map(p=>p.id));
     $('#attendanceHint').textContent='Aucune présence enregistrée : tout le groupe est précoché et non affecté.';
@@ -479,7 +479,14 @@ async function finishPeriod(){
 }
 async function returnToSetup(){
   closeFieldTools();setFieldCollectionMode(false);$('#collectorPanel').classList.add('hidden');$('#setupPanel').classList.remove('hidden');state.activeTarget=null;state.faultTarget=null;state.organizingTeams=false;state.organizerPlayerId=null;state.organizerSwapTeam=null;
-  if(state.currentSession?.id){state.selectedSessionId=state.currentSession.id;$('#sessionSelect').value=state.currentSession.id;syncNewSessionFields();await loadPeriods(state.currentSession.id)}
+  if(state.currentSession?.id){
+    state.selectedSessionId=state.currentSession.id;
+    $('#sessionSelect').value=state.currentSession.id;
+    state.teamByPlayer=new Map();
+    syncNewSessionFields();
+    renderTeamSetup();
+    await loadPeriods(state.currentSession.id);
+  }
   window.scrollTo({top:0,behavior:'instant'});
 }
 function showFatal(error){console.error(error);setCloud('Erreur',false);setStatus($('#saveStatus'),error?.message||String(error),true);setStatus($('#setupStatus'),error?.message||String(error),true)}
