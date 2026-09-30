@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="preconnect" href="https://chrbzchthloxowlzdvpe.supabase.co" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<title>Kinball Coach — Collecte entraînement</title>
+<link rel="stylesheet" href="css/training-live.css">
+<link rel="stylesheet" href="css/common.css">
+</head>
+<body>
+<div class="app trainingLiveApp">
+  <div class="top">
+    <div>
+      <h1>⚡ Collecte entraînement</h1>
+      <div class="sub">Attaque · saisie terrain en direct</div>
+    </div>
+    <div class="topActions">
+      <div class="badge syncStatus" id="cloudBadge"><span class="statusDot" id="cloudDot"></span><span id="cloudStatus">Connexion…</span></div>
+      <a class="button ghost backNav" href="index.html">← Accueil</a>
+    </div>
+  </div>
+
+  <section class="panel" id="setupPanel">
+    <div class="sectionHead">
+      <div>
+        <h2>Préparer la collecte</h2>
+        <div class="small">Choisis le groupe, la séance et les joueurs présents.</div>
+      </div>
+    </div>
+
+    <div class="setupGrid">
+      <div class="field">
+        <label for="groupSelect">Groupe</label>
+        <select id="groupSelect"><option value="">— Chargement —</option></select>
+      </div>
+      <div class="field">
+        <label for="sessionSelect">Séance</label>
+        <select id="sessionSelect" disabled><option value="">— Choisir d’abord un groupe —</option></select>
+      </div>
+      <div class="field newSessionField" id="newDateField">
+        <label for="newSessionDate">Date</label>
+        <input id="newSessionDate" type="date">
+      </div>
+      <div class="field newSessionField" id="newLabelField">
+        <label for="newSessionLabel">Nom de la séance</label>
+        <input id="newSessionLabel" maxlength="120" placeholder="Entraînement">
+      </div>
+    </div>
+
+    <div class="attendanceBlock">
+      <div class="attendanceHead">
+        <div>
+          <h3>Joueurs présents</h3>
+          <div class="small" id="attendanceHint">Sélectionne un groupe.</div>
+        </div>
+        <div class="row attendanceActions">
+          <button class="ghost" type="button" id="selectAllPlayers">Tous</button>
+          <button class="ghost" type="button" id="clearAllPlayers">Aucun</button>
+        </div>
+      </div>
+      <div class="attendanceGrid" id="attendanceGrid"></div>
+    </div>
+
+    <div class="periodSetup">
+      <div class="field">
+        <label for="exerciseSelect">Associer cette collecte à un exercice</label>
+        <select id="exerciseSelect"><option value="">À classer · aucun exercice</option></select>
+        <div class="small">Tu peux laisser « À classer » et rattacher la collecte plus tard sans perdre les données.</div>
+      </div>
+      <div class="field">
+        <label for="periodLabel">Nom de la période</label>
+        <input id="periodLabel" maxlength="100" placeholder="Jeu libre 1">
+      </div>
+    </div>
+
+    <div class="setupActions">
+      <button class="primary" type="button" id="startCollection" disabled>Démarrer la collecte</button>
+      <div class="authStatus" id="setupStatus" role="status" aria-live="polite"></div>
+    </div>
+
+    <div class="existingPeriods hidden" id="existingPeriodsBlock">
+      <div class="periodListHead">
+        <div>
+          <h3>Collectes de cette séance</h3>
+          <div class="small">Les collectes « À classer » restent disponibles pour être associées plus tard.</div>
+        </div>
+        <button class="ghost" type="button" id="refreshPeriods">Actualiser</button>
+      </div>
+      <div class="periodList" id="periodList"></div>
+    </div>
+  </section>
+
+  <section class="panel hidden" id="collectorPanel">
+    <div class="collectorHead">
+      <div class="collectorTitleBlock">
+        <div class="small" id="collectorSessionMeta"></div>
+        <h2 id="collectorTitle">Collecte</h2>
+        <div class="classificationLine" id="classificationLine"></div>
+      </div>
+      <div class="row collectorHeadActions">
+        <button class="ghost" type="button" id="finishPeriod">Terminer la période</button>
+        <button class="ghost backNav" type="button" id="backToSetup">← Préparation</button>
+      </div>
+    </div>
+
+    <div class="classificationEditor">
+      <div class="field">
+        <label for="collectorExerciseSelect">Exercice associé</label>
+        <select id="collectorExerciseSelect"><option value="">À classer · aucun exercice</option></select>
+      </div>
+      <button class="ghost" type="button" id="saveClassification">Enregistrer l’association</button>
+      <div class="authStatus" id="classificationStatus" role="status" aria-live="polite"></div>
+    </div>
+
+    <div class="contextSection">
+      <div class="sectionHead compact">
+        <div>
+          <h3>Contexte de la prochaine frappe</h3>
+          <div class="small">Le contexte reste sélectionné jusqu’à ce que tu le changes.</div>
+        </div>
+      </div>
+      <div class="contextGrid" id="contextGrid">
+        <button type="button" class="contextBtn" data-context="game_center"><span class="contextMain">Jeu au centre</span><span class="contextState">Choisir</span></button>
+        <button type="button" class="contextBtn" data-context="restart_center"><span class="contextMain">Remise centre</span><span class="contextState">Choisir</span></button>
+        <button type="button" class="contextBtn" data-context="restart_line"><span class="contextMain">Remise ligne</span><span class="contextState">Choisir</span></button>
+        <button type="button" class="contextBtn" data-context="restart_corner"><span class="contextMain">Remise coin</span><span class="contextState">Choisir</span></button>
+      </div>
+    </div>
+
+    <div class="targetSection">
+      <div class="sectionHead compact targetHead">
+        <div>
+          <h3>Qui frappe ?</h3>
+          <div class="small">Touchez un joueur : son bouton devient Point / Défendu / Faute.</div>
+        </div>
+        <div class="currentContextPill" id="currentContextPill">Contexte : Jeu au centre</div>
+      </div>
+      <div class="targetGrid" id="targetGrid"></div>
+    </div>
+
+    <div class="liveFooter">
+      <div class="lastEntryBox">
+        <div>
+          <div class="small">Dernière saisie</div>
+          <strong id="lastEntry">—</strong>
+        </div>
+        <button class="ghost" type="button" id="undoLast" disabled>⌫ Annuler ma dernière saisie</button>
+      </div>
+      <div class="authStatus" id="saveStatus" role="status" aria-live="polite"></div>
+    </div>
+
+    <div class="metrics" id="metrics">
+      <div class="metric"><strong id="metricTotal">0</strong><span>Frappes</span></div>
+      <div class="metric"><strong id="metricPoints">0</strong><span>Points</span></div>
+      <div class="metric"><strong id="metricDefended">0</strong><span>Défendues</span></div>
+      <div class="metric"><strong id="metricFaults">0</strong><span>Fautes</span></div>
+    </div>
+
+    <details class="historyDetails" open>
+      <summary>Historique de la période <span id="historyCount">0 action</span></summary>
+      <div class="historyList" id="historyList"></div>
+    </details>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/training-live.js"></script>
+</body>
+</html>
