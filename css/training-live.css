@@ -119,3 +119,109 @@ body.fieldToolsOpen .fieldToolsDrawer{transform:translateX(0)}
   body.fieldCollectionMode .teamBoardHead{min-height:22px}
   body.fieldCollectionMode .targetLiveStats{margin-top:2px;padding-top:2px}
 }
+
+/* BEGIN: field mode larger player cards */
+@media (min-width:701px){
+  body.fieldCollectionMode .targetGrid{
+    grid-auto-rows:minmax(0,1fr);
+    align-content:stretch;
+  }
+
+  body.fieldCollectionMode .teamBoard{
+    min-height:0;
+    height:100%;
+    grid-template-rows:auto clamp(68px,10.5dvh,98px) minmax(0,1fr);
+  }
+
+  body.fieldCollectionMode .teamCollectiveRow,
+  body.fieldCollectionMode .teamPlayersGrid,
+  body.fieldCollectionMode .targetCard{
+    min-height:0;
+    height:100%;
+  }
+
+  body.fieldCollectionMode .teamPlayersGrid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-rows:repeat(2,minmax(0,1fr));
+    align-items:stretch;
+  }
+
+  body.fieldCollectionMode .targetButton,
+  body.fieldCollectionMode .targetCard.activeTarget{
+    min-height:0;
+    height:100%;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:stretch;
+    padding:clamp(8px,1.15dvh,14px) clamp(7px,.9vw,12px);
+  }
+
+  body.fieldCollectionMode .teamCollectiveRow .targetButton,
+  body.fieldCollectionMode .teamCollectiveRow .targetCard.activeTarget{
+    min-height:0;
+    height:100%;
+  }
+
+  body.fieldCollectionMode .targetName{
+    font-size:clamp(13px,1.65vw,18px);
+    line-height:1.15;
+  }
+
+  body.fieldCollectionMode .targetLiveStats{
+    margin-top:clamp(6px,.9dvh,10px);
+    padding-top:clamp(5px,.7dvh,8px);
+    font-size:clamp(9px,1.05vw,12px);
+    gap:clamp(3px,.45vw,7px);
+  }
+
+  body.fieldCollectionMode .targetLiveStats strong{
+    font-size:inherit;
+  }
+
+  body.fieldCollectionMode .targetActiveHead{
+    min-height:clamp(24px,3.5dvh,34px);
+  }
+
+  body.fieldCollectionMode .targetActiveHead strong{
+    font-size:clamp(12px,1.45vw,16px);
+  }
+
+  body.fieldCollectionMode .inlineOutcomeGrid{
+    flex:1 1 auto;
+    min-height:0;
+    align-items:stretch;
+    margin-top:clamp(5px,.8dvh,9px);
+  }
+
+  body.fieldCollectionMode .outcomeBtn{
+    height:100%;
+    min-height:clamp(38px,6.5dvh,64px);
+    font-size:clamp(12px,1.45vw,16px);
+  }
+
+  body.fieldCollectionMode .faultGrid{
+    flex:1 1 auto;
+    min-height:0;
+  }
+
+  body.fieldCollectionMode .faultBtn{
+    min-height:clamp(36px,5.5dvh,52px);
+    font-size:clamp(10px,1.15vw,13px);
+  }
+}
+
+@media (min-width:701px) and (min-height:900px){
+  body.fieldCollectionMode .teamBoard{
+    grid-template-rows:auto clamp(78px,11dvh,112px) minmax(0,1fr);
+  }
+
+  body.fieldCollectionMode .targetName{
+    font-size:clamp(15px,1.8vw,20px);
+  }
+
+  body.fieldCollectionMode .targetLiveStats{
+    font-size:clamp(10px,1.15vw,13px);
+  }
+}
+/* END: field mode larger player cards */
