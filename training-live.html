@@ -63,6 +63,20 @@
       <div class="attendanceGrid" id="attendanceGrid"></div>
     </div>
 
+    <div class="teamSetupBlock">
+      <div class="teamSetupHead">
+        <div>
+          <h3>Équipes terrain</h3>
+          <div class="small">Répartis les joueurs présents entre bleu, gris et noir. Une équipe peut rester vide si la séance se joue à deux équipes.</div>
+        </div>
+        <div class="row teamSetupActions">
+          <span class="small" id="teamSetupSummary"></span>
+          <button class="ghost" type="button" id="autoAssignTeams">Répartir 4 / équipe</button>
+        </div>
+      </div>
+      <div class="teamSetupGrid" id="teamSetupGrid"></div>
+    </div>
+
     <div class="periodSetup">
       <div class="field">
         <label for="exerciseSelect">Associer cette collecte à un exercice</label>
@@ -133,7 +147,7 @@
       <div class="sectionHead compact targetHead">
         <div>
           <h3>Qui frappe ?</h3>
-          <div class="small">Touchez un joueur : son bouton devient Point / Défendu / Faute.</div>
+          <div class="small">Touchez un joueur ou un collectif : Pt / Déf / Fa s’affichent directement dans sa fiche.</div>
         </div>
         <div class="currentContextPill" id="currentContextPill">Contexte : Jeu au centre</div>
       </div>
@@ -151,6 +165,7 @@
       <div class="authStatus" id="saveStatus" role="status" aria-live="polite"></div>
     </div>
 
+    <div class="small mergedMetricsNote">Bilan de la période · toutes équipes confondues</div>
     <div class="metrics" id="metrics">
       <div class="metric"><strong id="metricTotal">0</strong><span>Frappes</span></div>
       <div class="metric"><strong id="metricPoints">0</strong><span>Points</span></div>

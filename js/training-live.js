@@ -12,6 +12,12 @@ const CONTEXTS=[
 ];
 const CONTEXT_LABEL=Object.fromEntries(CONTEXTS.map(x=>[x.key,x.label]));
 const RESULT_LABEL={point:'Point',defended:'Défendu',fault:'Faute'};
+const TEAM_ORDER=['blue','gray','black'];
+const TEAM_META={
+  blue:{label:'Équipe bleue',short:'Bleu'},
+  gray:{label:'Équipe grise',short:'Gris'},
+  black:{label:'Équipe noire',short:'Noir'}
+};
 const FAULT_TYPES=[
   "Faute d'appellation",
   'Manque un contact',
@@ -24,7 +30,7 @@ const FAULT_TYPES=[
 
 const state={
   user:null,workspaceId:null,groups:[],players:[],sessions:[],exercises:[],periods:[],periodCounts:{},
-  selectedGroupId:'',selectedSessionId:'__new__',attendance:new Set(),
+  selectedGroupId:'',selectedSessionId:'__new__',attendance:new Set(),teamByPlayer:new Map(),
   currentSession:null,currentPeriod:null,events:[],selectedContext:'game_center',
   activeTarget:null,faultTarget:null,saving:false
 };
@@ -40,6 +46,37 @@ function groupById(id){return state.groups.find(g=>g.id===id)||null}
 function sessionById(id){return state.sessions.find(s=>s.id===id)||null}
 function exerciseById(id){return state.exercises.find(e=>e.id===id)||null}
 function presentPlayers(){return state.players.filter(p=>state.attendance.has(p.id))}
+function normalizeTeamColor(value){return TEAM_ORDER.includes(value)?value:null}
+function teamForPlayer(playerId){return normalizeTeamColor(state.teamByPlayer.get(playerId))}
+function teamPlayers(team){return presentPlayers().filter(p=>teamForPlayer(p.id)===team)}
+function unassignedPlayers(){return presentPlayers().filter(p=>!teamForPlayer(p.id))}
+function assignPlayerToFirstAvailableTeam(playerId){
+  const team=TEAM_ORDER.find(t=>teamPlayers(t).length<4)||null;
+  state.teamByPlayer.set(playerId,team);
+}
+function autoAssignTeams(){
+  const players=presentPlayers(),teamCount=Math.min(3,Math.max(1,Math.ceil(players.length/4)));
+  players.forEach((p,index)=>state.teamByPlayer.set(p.id,index<teamCount*4?TEAM_ORDER[Math.min(teamCount-1,Math.floor(index/4))]:null));
+  renderTeamSetup();
+}
+function teamSelectHtml(player){
+  const current=teamForPlayer(player.id)||'';
+  return `<select data-team-player="${escapeHtml(player.id)}" aria-label="Équipe de ${escapeHtml(player.display_name)}"><option value="" ${!current?'selected':''}>Non affecté</option>${TEAM_ORDER.map(team=>`<option value="${team}" ${current===team?'selected':''}>${escapeHtml(TEAM_META[team].short)}</option>`).join('')}</select>`;
+}
+function teamSetupPlayerHtml(player){return `<div class="teamSetupPlayer"><span>${escapeHtml(player.display_name)}</span>${teamSelectHtml(player)}</div>`}
+function renderTeamSetup(){
+  const box=$('#teamSetupGrid'),summary=$('#teamSetupSummary');if(!box)return;
+  const players=presentPlayers();
+  if(!players.length){box.innerHTML='<div class="small">Sélectionne d’abord les joueurs présents.</div>';if(summary)summary.textContent='';return}
+  const columns=TEAM_ORDER.map(team=>{
+    const list=teamPlayers(team);
+    return `<div class="teamSetupColumn team-${team}"><div class="teamSetupColumnHead"><strong>${escapeHtml(TEAM_META[team].label)}</strong><span>${list.length}</span></div><div class="teamSetupPlayers">${list.length?list.map(teamSetupPlayerHtml).join(''):'<div class="teamSetupEmpty">Aucun joueur</div>'}</div></div>`;
+  }).join('');
+  const free=unassignedPlayers();
+  box.innerHTML=columns+(free.length?`<div class="teamSetupUnassigned"><div class="teamSetupColumnHead"><strong>Non affectés</strong><span>${free.length}</span></div><div class="teamSetupPlayers">${free.map(teamSetupPlayerHtml).join('')}</div></div>`:'');
+  box.querySelectorAll('[data-team-player]').forEach(sel=>sel.onchange=()=>{state.teamByPlayer.set(sel.dataset.teamPlayer,normalizeTeamColor(sel.value));renderTeamSetup()});
+  if(summary)summary.textContent=TEAM_ORDER.map(team=>`${TEAM_META[team].short} : ${teamPlayers(team).length}`).join(' · ')+(free.length?` · Non affectés : ${free.length}`:'');
+}
 function nextPeriodNumber(){return Math.max(0,...state.periods.map(p=>Number(p.period_number)||0))+1}
 function suggestedPeriodLabel(){const ex=exerciseById($('#exerciseSelect').value);const n=nextPeriodNumber();return ex?`${ex.name} ${n}`:`Collecte ${n}`}
 function updateStartState(){const ready=!!state.selectedGroupId && state.attendance.size>0 && !state.saving;$('#startCollection').disabled=!ready}
@@ -94,27 +131,40 @@ async function loadSessions(groupId){
   sel.value=todaySession?.id||'__new__';state.selectedSessionId=sel.value;
 }
 async function loadAttendance(sessionId){
+  state.teamByPlayer=new Map();
   if(sessionId==='__new__'){
     state.attendance=new Set(state.players.map(p=>p.id));
-    $('#attendanceHint').textContent='Nouvelle séance : tout le groupe est précoché. Ajuste les présents si besoin.';
+    autoAssignTeams();
+    $('#attendanceHint').textContent='Nouvelle séance : tout le groupe est précoché. Ajuste les présents et les équipes si besoin.';
     renderAttendance();return;
   }
-  const {data,error}=await db.from('training_attendance').select('player_id,present').eq('session_id',sessionId);
+  const {data,error}=await db.from('training_attendance').select('player_id,present,team_color').eq('session_id',sessionId);
   if(error)throw error;
-  if((data||[]).length){state.attendance=new Set(data.filter(x=>x.present).map(x=>x.player_id));$('#attendanceHint').textContent='Présences enregistrées pour cette séance.'}
-  else{state.attendance=new Set(state.players.map(p=>p.id));$('#attendanceHint').textContent='Aucune présence enregistrée : tout le groupe est précoché.'}
+  if((data||[]).length){
+    state.attendance=new Set(data.filter(x=>x.present).map(x=>x.player_id));
+    (data||[]).forEach(x=>{if(x.present)state.teamByPlayer.set(x.player_id,normalizeTeamColor(x.team_color))});
+    if(![...state.teamByPlayer.values()].some(Boolean))autoAssignTeams();
+    $('#attendanceHint').textContent='Présences enregistrées pour cette séance. La répartition terrain reste modifiable.';
+  }else{
+    state.attendance=new Set(state.players.map(p=>p.id));autoAssignTeams();
+    $('#attendanceHint').textContent='Aucune présence enregistrée : tout le groupe est précoché.';
+  }
   renderAttendance();
 }
 function renderAttendance(){
   const box=$('#attendanceGrid');box.innerHTML='';
-  if(!state.players.length){box.innerHTML='<div class="small">Aucun joueur actif dans ce groupe.</div>';updateStartState();return}
+  if(!state.players.length){box.innerHTML='<div class="small">Aucun joueur actif dans ce groupe.</div>';renderTeamSetup();updateStartState();return}
   state.players.forEach(p=>{
     const label=document.createElement('label');label.className='attendanceChoice';
     label.innerHTML=`<input type="checkbox" value="${escapeHtml(p.id)}" ${state.attendance.has(p.id)?'checked':''}><span>${escapeHtml(p.display_name)}</span>`;
-    label.querySelector('input').onchange=e=>{if(e.target.checked)state.attendance.add(p.id);else state.attendance.delete(p.id);updateStartState()};
+    label.querySelector('input').onchange=e=>{
+      if(e.target.checked){state.attendance.add(p.id);if(!teamForPlayer(p.id))assignPlayerToFirstAvailableTeam(p.id)}
+      else{state.attendance.delete(p.id);state.teamByPlayer.delete(p.id)}
+      renderTeamSetup();updateStartState();
+    };
     box.append(label);
   });
-  updateStartState();
+  renderTeamSetup();updateStartState();
 }
 async function loadPeriods(sessionId){
   if(!sessionId||sessionId==='__new__'){state.periods=[];state.periodCounts={};renderPeriodList();return}
@@ -143,7 +193,7 @@ function syncNewSessionFields(){
   if(isNew){$('#newSessionDate').value=$('#newSessionDate').value||today();$('#existingPeriodsBlock').classList.add('hidden')}
 }
 async function handleGroupChange(){
-  state.selectedGroupId=$('#groupSelect').value;state.selectedSessionId='__new__';state.sessions=[];state.periods=[];state.players=[];state.attendance=new Set();renderAttendance();renderPeriodList();
+  state.selectedGroupId=$('#groupSelect').value;state.selectedSessionId='__new__';state.sessions=[];state.periods=[];state.players=[];state.attendance=new Set();state.teamByPlayer=new Map();renderAttendance();renderPeriodList();
   if(!state.selectedGroupId){$('#sessionSelect').disabled=true;$('#sessionSelect').innerHTML='<option>— Choisir d’abord un groupe —</option>';return}
   setStatus($('#setupStatus'),'Chargement…');
   try{
@@ -170,7 +220,7 @@ async function createQuickTrainingSession(){
   const sel=$('#sessionSelect'),o=document.createElement('option');o.value=data.id;o.textContent=`${fmtDate(data.trained_on)} · ${data.theme||data.label}`;sel.append(o);sel.value=data.id;syncNewSessionFields();return data;
 }
 async function saveAttendance(sessionId){
-  const rows=state.players.map(p=>({session_id:sessionId,player_id:p.id,present:state.attendance.has(p.id)}));if(!rows.length)return;
+  const rows=state.players.map(p=>({session_id:sessionId,player_id:p.id,present:state.attendance.has(p.id),team_color:state.attendance.has(p.id)?teamForPlayer(p.id):null}));if(!rows.length)return;
   const {error}=await db.from('training_attendance').upsert(rows,{onConflict:'session_id,player_id'});if(error)throw error;
 }
 async function startCollection(){
@@ -192,6 +242,7 @@ async function resumePeriod(periodId){
   const period=state.periods.find(p=>p.id===periodId);if(!period)return;
   state.currentSession=sessionById(period.session_id)||state.currentSession;
   if(!state.currentSession){const {data,error}=await db.from('training_sessions').select('id,group_id,trained_on,label,theme,created_at').eq('id',period.session_id).single();if(error)throw error;state.currentSession=data}
+  await saveAttendance(period.session_id);
   if(period.ended_at){const {data,error}=await db.from('training_live_periods').update({ended_at:null,updated_at:new Date().toISOString()}).eq('id',period.id).select('*').single();if(error)throw error;Object.assign(period,data)}
   await openPeriod(period);
 }
@@ -203,7 +254,7 @@ async function openPeriod(period){
 }
 async function loadPeriodEvents(periodId){
   const {data,error}=await db.from('training_live_events')
-    .select('id,period_id,session_id,group_id,player_id,attribution_type,attack_context,result,fault_type,occurred_at,created_by,created_at')
+    .select('id,period_id,session_id,group_id,player_id,attribution_type,team_color,attack_context,result,fault_type,occurred_at,created_by,created_at')
     .eq('period_id',periodId).order('occurred_at',{ascending:true}).order('created_at',{ascending:true});
   if(error)throw error;state.events=data||[];
 }
@@ -222,16 +273,54 @@ function renderContext(){
   $$('.contextBtn').forEach(b=>{const active=b.dataset.context===state.selectedContext;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));const s=b.querySelector('.contextState');if(s)s.textContent=active?'Sélectionné':'Choisir'});
   $('#currentContextPill').textContent=`Contexte : ${CONTEXT_LABEL[state.selectedContext]||'—'}`;
 }
-function targetFromKey(key){if(key==='collective')return {key,type:'collective',id:null,name:'Collectif'};const id=key.replace(/^player:/,'');const p=state.players.find(x=>x.id===id);return p?{key,type:'player',id:p.id,name:p.display_name}:null}
-function targetButtonHtml(t){return `<button class="targetButton ${t.type==='collective'?'collective':''}" type="button" data-target-key="${escapeHtml(t.key)}"><span>${t.type==='collective'?'👥 ':''}${escapeHtml(t.name)}</span><span class="targetKind">${t.type==='collective'?'Attribution collective':'Joueur'}</span></button>`}
-function expandedTargetHtml(t){
-  const title=`${t.type==='collective'?'👥 ':''}${escapeHtml(t.name)} · ${escapeHtml(CONTEXT_LABEL[state.selectedContext])}`;
-  if(state.faultTarget?.key===t.key){return `<div class="targetCard expanded" data-expanded-target="${escapeHtml(t.key)}"><div class="expandedTitle"><strong>${title} · Faute</strong><button class="ghost" type="button" data-cancel-target>Annuler</button></div><div class="faultGrid">${FAULT_TYPES.map(f=>`<button class="faultBtn" type="button" data-fault="${escapeHtml(f)}">${escapeHtml(f)}</button>`).join('')}</div></div>`}
-  return `<div class="targetCard expanded" data-expanded-target="${escapeHtml(t.key)}"><div class="expandedTitle"><strong>${title}</strong><button class="ghost" type="button" data-cancel-target>Annuler</button></div><div class="outcomeGrid"><button class="outcomeBtn point" type="button" data-outcome="point">POINT</button><button class="outcomeBtn defended" type="button" data-outcome="defended">DÉFENDU</button><button class="outcomeBtn fault" type="button" data-outcome="fault">FAUTE</button></div></div>`;
+function targetFromKey(key){
+  if(key.startsWith('collective:')){
+    const team=normalizeTeamColor(key.slice('collective:'.length));return team?{key,type:'collective',id:null,team,name:`Collectif ${TEAM_META[team].short.toLowerCase()}`}:null;
+  }
+  const id=key.replace(/^player:/,'');const p=state.players.find(x=>x.id===id);
+  return p?{key,type:'player',id:p.id,team:teamForPlayer(p.id),name:p.display_name}:null;
+}
+function targetEvents(t){
+  return state.events.filter(e=>t.type==='collective'
+    ? e.attribution_type==='collective'&&normalizeTeamColor(e.team_color)===t.team
+    : e.attribution_type==='player'&&e.player_id===t.id);
+}
+function targetStats(t){
+  const events=targetEvents(t);
+  return {n:events.length,point:events.filter(e=>e.result==='point').length,defended:events.filter(e=>e.result==='defended').length,fault:events.filter(e=>e.result==='fault').length};
+}
+function targetStatsHtml(t){
+  const s=targetStats(t);return `<div class="targetLiveStats"><span><strong>N</strong> ${s.n}</span><span><strong>Pt</strong> ${s.point}</span><span><strong>Déf</strong> ${s.defended}</span><span><strong>Fa</strong> ${s.fault}</span></div>`;
+}
+function targetCardHtml(t){
+  const active=state.activeTarget?.key===t.key,faultActive=active&&state.faultTarget?.key===t.key;
+  const teamClass=t.team?` team-${t.team}`:'';
+  if(faultActive){
+    return `<div class="targetCard activeTarget faultActive${teamClass}" data-expanded-target="${escapeHtml(t.key)}"><div class="targetActiveHead"><strong>${t.type==='collective'?'👥 ':''}${escapeHtml(t.name)}</strong><button class="ghost targetCancel" type="button" data-cancel-target>Annuler</button></div><div class="faultGrid">${FAULT_TYPES.map(f=>`<button class="faultBtn" type="button" data-fault="${escapeHtml(f)}">${escapeHtml(f)}</button>`).join('')}</div>${targetStatsHtml(t)}</div>`;
+  }
+  if(active){
+    return `<div class="targetCard activeTarget${teamClass}" data-expanded-target="${escapeHtml(t.key)}"><div class="targetActiveHead"><strong>${t.type==='collective'?'👥 ':''}${escapeHtml(t.name)}</strong><button class="ghost targetCancel" type="button" data-cancel-target>×</button></div><div class="inlineOutcomeGrid"><button class="outcomeBtn point" type="button" data-outcome="point" ${state.saving?'disabled':''}>Pt</button><button class="outcomeBtn defended" type="button" data-outcome="defended" ${state.saving?'disabled':''}>Déf</button><button class="outcomeBtn fault" type="button" data-outcome="fault" ${state.saving?'disabled':''}>Fa</button></div>${targetStatsHtml(t)}</div>`;
+  }
+  return `<div class="targetCard${teamClass}"><button class="targetButton ${t.type==='collective'?'collective':''}" type="button" data-target-key="${escapeHtml(t.key)}"><span class="targetName">${t.type==='collective'?'👥 ':''}${escapeHtml(t.name)}</span>${targetStatsHtml(t)}</button></div>`;
+}
+function teamSummary(team){
+  const events=state.events.filter(e=>normalizeTeamColor(e.team_color)===team);
+  const points=events.filter(e=>e.result==='point').length,defended=events.filter(e=>e.result==='defended').length,faults=events.filter(e=>e.result==='fault').length;
+  return `N ${events.length} · Pt ${points} · Déf ${defended} · Fa ${faults}`;
 }
 function renderTargets(){
-  const targets=[{key:'collective',type:'collective',id:null,name:'Collectif'},...presentPlayers().map(p=>({key:`player:${p.id}`,type:'player',id:p.id,name:p.display_name}))];
-  const box=$('#targetGrid');box.innerHTML=targets.map(t=>state.activeTarget?.key===t.key?expandedTargetHtml(t):`<div class="targetCard">${targetButtonHtml(t)}</div>`).join('');
+  const box=$('#targetGrid'),teamSections=TEAM_ORDER.map(team=>{
+    const players=teamPlayers(team);
+    const hasEvents=state.events.some(e=>normalizeTeamColor(e.team_color)===team);
+    if(!players.length&&!hasEvents)return '';
+    const targets=[{key:`collective:${team}`,type:'collective',id:null,team,name:`Collectif ${TEAM_META[team].short.toLowerCase()}`},...players.map(p=>({key:`player:${p.id}`,type:'player',id:p.id,team,name:p.display_name}))];
+    return `<section class="teamBoard team-${team}"><div class="teamBoardHead"><div><strong>${escapeHtml(TEAM_META[team].label)}</strong><span>${players.length} ${plural(players.length,'joueur')}</span></div><span class="teamBoardStats">${teamSummary(team)}</span></div><div class="teamTargetGrid">${targets.map(targetCardHtml).join('')}</div></section>`;
+  }).join('');
+  const free=unassignedPlayers();
+  const freeSection=free.length?`<section class="teamBoard unassignedBoard"><div class="teamBoardHead"><div><strong>Non affectés</strong><span>${free.length} ${plural(free.length,'joueur')}</span></div></div><div class="teamTargetGrid">${free.map(p=>targetCardHtml({key:`player:${p.id}`,type:'player',id:p.id,team:null,name:p.display_name})).join('')}</div></section>`:'';
+  const legacyCollective=state.events.filter(e=>e.attribution_type==='collective'&&!normalizeTeamColor(e.team_color));
+  const legacySection=legacyCollective.length?`<section class="teamBoard legacyBoard"><div class="teamBoardHead"><div><strong>Collectif historique non affecté</strong><span>${legacyCollective.length} ${plural(legacyCollective.length,'action')}</span></div></div></section>`:'';
+  box.innerHTML=teamSections+freeSection+legacySection;
   box.querySelectorAll('[data-target-key]').forEach(b=>b.onclick=()=>{if(state.saving)return;state.activeTarget=targetFromKey(b.dataset.targetKey);state.faultTarget=null;renderTargets()});
   box.querySelectorAll('[data-cancel-target]').forEach(b=>b.onclick=()=>{state.activeTarget=null;state.faultTarget=null;renderTargets()});
   box.querySelectorAll('[data-outcome]').forEach(b=>b.onclick=()=>{if(state.saving||!state.activeTarget)return;if(b.dataset.outcome==='fault'){state.faultTarget={...state.activeTarget};renderTargets()}else saveEvent(b.dataset.outcome,null).catch(showFatal)});
@@ -240,13 +329,13 @@ function renderTargets(){
 async function saveEvent(result,faultType){
   if(!state.currentPeriod||!state.currentSession||!state.activeTarget)return;const target={...state.activeTarget},context=state.selectedContext;state.saving=true;renderTargets();setStatus($('#saveStatus'),'Enregistrement…');setCloud('Enregistrement…',null);
   try{
-    const payload={period_id:state.currentPeriod.id,session_id:state.currentSession.id,group_id:state.currentPeriod.group_id,player_id:target.type==='player'?target.id:null,attribution_type:target.type,result,attack_context:context,fault_type:result==='fault'?faultType:null,created_by:state.user.id};
-    const {data,error}=await db.from('training_live_events').insert(payload).select('id,period_id,session_id,group_id,player_id,attribution_type,attack_context,result,fault_type,occurred_at,created_by,created_at').single();
+    const payload={period_id:state.currentPeriod.id,session_id:state.currentSession.id,group_id:state.currentPeriod.group_id,player_id:target.type==='player'?target.id:null,attribution_type:target.type,team_color:normalizeTeamColor(target.team),result,attack_context:context,fault_type:result==='fault'?faultType:null,created_by:state.user.id};
+    const {data,error}=await db.from('training_live_events').insert(payload).select('id,period_id,session_id,group_id,player_id,attribution_type,team_color,attack_context,result,fault_type,occurred_at,created_by,created_at').single();
     if(error)throw error;state.events.push(data);state.periodCounts[state.currentPeriod.id]=(state.periodCounts[state.currentPeriod.id]||0)+1;state.activeTarget=null;state.faultTarget=null;renderTargets();renderEvents();setStatus($('#saveStatus'),`${target.name} · ${CONTEXT_LABEL[context]} → ${RESULT_LABEL[result]}${faultType?' · '+faultType:''}`);setCloud('Synchronisé',true);
   }catch(e){setStatus($('#saveStatus'),e.message||String(e),true);setCloud('Erreur',false)}finally{state.saving=false;renderTargets()}
 }
 function playerName(id){return state.players.find(p=>p.id===id)?.display_name||'Joueur'}
-function eventTargetLabel(e){return e.attribution_type==='collective'?'Collectif':playerName(e.player_id)}
+function eventTargetLabel(e){const team=normalizeTeamColor(e.team_color);return e.attribution_type==='collective'?`Collectif${team?' '+TEAM_META[team].short.toLowerCase():''}`:playerName(e.player_id)}
 function eventResultLabel(e){return e.result==='fault'?`Faute · ${e.fault_type||'non précisée'}`:RESULT_LABEL[e.result]||e.result}
 function lastOwnEvent(){return [...state.events].reverse().find(e=>e.created_by===state.user.id)||null}
 function renderEvents(){
@@ -259,7 +348,7 @@ function renderEvents(){
 async function undoLast(){
   const e=lastOwnEvent();if(!e)return;$('#undoLast').disabled=true;setStatus($('#saveStatus'),'Annulation…');
   const {error}=await db.from('training_live_events').delete().eq('id',e.id);if(error){setStatus($('#saveStatus'),error.message||String(error),true);renderEvents();return}
-  state.events=state.events.filter(x=>x.id!==e.id);state.periodCounts[state.currentPeriod.id]=Math.max(0,(state.periodCounts[state.currentPeriod.id]||1)-1);renderEvents();setStatus($('#saveStatus'),'Dernière saisie annulée.');setCloud('Synchronisé',true)
+  state.events=state.events.filter(x=>x.id!==e.id);state.periodCounts[state.currentPeriod.id]=Math.max(0,(state.periodCounts[state.currentPeriod.id]||1)-1);renderTargets();renderEvents();setStatus($('#saveStatus'),'Dernière saisie annulée.');setCloud('Synchronisé',true)
 }
 async function finishPeriod(){
   if(!state.currentPeriod)return;const {data,error}=await db.from('training_live_periods').update({ended_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',state.currentPeriod.id).select('*').single();
@@ -275,7 +364,8 @@ function showFatal(error){console.error(error);setCloud('Erreur',false);setStatu
 $('#groupSelect').onchange=()=>handleGroupChange();
 $('#sessionSelect').onchange=()=>handleSessionChange();
 $('#selectAllPlayers').onclick=()=>{state.attendance=new Set(state.players.map(p=>p.id));renderAttendance()};
-$('#clearAllPlayers').onclick=()=>{state.attendance.clear();renderAttendance()};
+$('#clearAllPlayers').onclick=()=>{state.attendance.clear();state.teamByPlayer.clear();renderAttendance()};
+$('#autoAssignTeams').onclick=()=>autoAssignTeams();
 $('#exerciseSelect').onchange=()=>{$('#periodLabel').value=suggestedPeriodLabel()};
 $('#startCollection').onclick=()=>startCollection();
 $('#refreshPeriods').onclick=()=>loadPeriods(state.selectedSessionId).catch(showFatal);
