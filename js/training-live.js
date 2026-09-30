@@ -402,10 +402,10 @@ function targetCardHtml(t){
   const organizerClass=selectedForMove?' organizerSelected':swapCandidate?' organizerSwapCandidate':state.organizingTeams&&t.type==='player'?' organizerSelectable':'';
   const teamClass=t.team?` team-${t.team}`:'';
   if(faultActive){
-    return `<div class="targetCard activeTarget faultActive${teamClass}${organizerClass}" data-expanded-target="${escapeHtml(t.key)}"><div class="targetActiveHead"><strong>${t.type==='collective'?'👥 ':''}${escapeHtml(t.name)}</strong><button class="ghost targetCancel" type="button" data-cancel-target>Annuler</button></div><div class="faultGrid">${FAULT_TYPES.map(f=>`<button class="faultBtn" type="button" data-fault="${escapeHtml(f)}">${escapeHtml(f)}</button>`).join('')}</div>${targetStatsHtml(t)}</div>`;
+    return `<div class="targetCard activeTarget faultActive${teamClass}${organizerClass}" data-expanded-target="${escapeHtml(t.key)}" aria-label="Type de faute pour ${escapeHtml(t.name)}"><div class="faultGrid">${FAULT_TYPES.map(f=>`<button class="faultBtn" type="button" data-fault="${escapeHtml(f)}">${escapeHtml(f)}</button>`).join('')}</div></div>`;
   }
   if(active){
-    return `<div class="targetCard activeTarget${teamClass}${organizerClass}" data-expanded-target="${escapeHtml(t.key)}"><div class="targetActiveHead"><strong>${t.type==='collective'?'👥 ':''}${escapeHtml(t.name)}</strong><button class="ghost targetCancel" type="button" data-cancel-target>×</button></div><div class="inlineOutcomeGrid"><button class="outcomeBtn point" type="button" data-outcome="point" ${state.saving?'disabled':''}>Pt</button><button class="outcomeBtn defended" type="button" data-outcome="defended" ${state.saving?'disabled':''}>Déf</button><button class="outcomeBtn fault" type="button" data-outcome="fault" ${state.saving?'disabled':''}>Fa</button></div>${targetStatsHtml(t)}</div>`;
+    return `<div class="targetCard activeTarget${teamClass}${organizerClass}" data-expanded-target="${escapeHtml(t.key)}" aria-label="Issue pour ${escapeHtml(t.name)}"><div class="inlineOutcomeGrid"><button class="outcomeBtn point" type="button" data-outcome="point" ${state.saving?'disabled':''}>Point</button><button class="outcomeBtn defended" type="button" data-outcome="defended" ${state.saving?'disabled':''}>Défendu</button><button class="outcomeBtn fault" type="button" data-outcome="fault" ${state.saving?'disabled':''}>Faute</button></div></div>`;
   }
   return `<div class="targetCard${teamClass}${organizerClass}"><button class="targetButton ${t.type==='collective'?'collective':''}" type="button" data-target-key="${escapeHtml(t.key)}"><span class="targetName">${t.type==='collective'?'👥 ':''}${escapeHtml(t.name)}</span>${targetStatsHtml(t)}</button></div>`;
 }
@@ -481,7 +481,20 @@ $('#exerciseSelect').onchange=()=>{$('#periodLabel').value=suggestedPeriodLabel(
 $('#startCollection').onclick=()=>startCollection();
 $('#refreshPeriods').onclick=()=>loadPeriods(state.selectedSessionId).catch(showFatal);
 $$('.contextBtn').forEach(b=>b.onclick=()=>{state.selectedContext=b.dataset.context;renderContext()});
-$('#targetGrid').onclick=()=>{};
+let cancelActiveTargetOnClick=false;
+$('#collectorPanel').addEventListener('pointerdown',e=>{
+  cancelActiveTargetOnClick=!!state.activeTarget
+    && !state.saving
+    && !state.organizingTeams
+    && !e.target.closest('[data-expanded-target]')
+    && !e.target.closest('.teamBoardHead');
+});
+$('#collectorPanel').addEventListener('click',()=>{
+  if(!cancelActiveTargetOnClick)return;
+  cancelActiveTargetOnClick=false;
+  if(!state.activeTarget)return;
+  state.activeTarget=null;state.faultTarget=null;renderTargets();
+});
 $('#undoLast').onclick=()=>undoLast().catch(showFatal);
 $('#finishPeriod').onclick=()=>finishPeriod().catch(showFatal);
 $('#backToSetup').onclick=()=>returnToSetup().catch(showFatal);
