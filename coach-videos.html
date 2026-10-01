@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0B315B">
+<link rel="apple-touch-icon" href="kinball-brand/logo-symbol.png">
 <title>Kinball Coach · Vidéos</title>
 <link rel="icon" type="image/png" href="kinball-brand/favicon.png">
 <link rel="stylesheet" href="css/coach-videos.css">
@@ -113,5 +116,6 @@ $('#refreshBtn').onclick=()=>loadDashboard();
 $('#logout').onclick=async()=>{if(!confirm('Voulez-vous vraiment vous déconnecter ?'))return;await db.auth.signOut();location.href='index.html'};
 init().catch(e=>{setCloud('Erreur',false);setStatus(e.message||String(e),true)}).finally(()=>document.getElementById('startupScreen')?.remove());
 </script>
+<script src="js/pwa.js"></script>
 </body>
 </html>

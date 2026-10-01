@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0B315B">
+<link rel="apple-touch-icon" href="kinball-brand/logo-symbol.png">
 <title>Kinball Coach · Vidéos</title>
 <link rel="icon" type="image/png" href="kinball-brand/favicon.png">
 <link rel="stylesheet" href="css/videos.css">
@@ -651,5 +654,6 @@ document.addEventListener('keydown',e=>{
 
 init().catch(e=>{console.error(e);setCloud('Erreur',false);setStatus(errorText(e),'error');$('#videoList').innerHTML='<div class="error">Impossible de charger le module vidéo.</div>'}).finally(()=>document.getElementById('startupScreen')?.remove());
 </script>
+<script src="js/pwa.js"></script>
 </body>
 </html>
