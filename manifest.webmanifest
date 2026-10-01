@@ -1,0 +1,51 @@
+{
+  "id": "./",
+  "name": "Kinball Coach",
+  "short_name": "Kinball Coach",
+  "description": "Coaching, collecte terrain, entraînements et statistiques Kin-Ball.",
+  "lang": "fr-FR",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "background_color": "#F6F8FB",
+  "theme_color": "#0B315B",
+  "categories": [
+    "sports",
+    "productivity"
+  ],
+  "icons": [
+    {
+      "src": "kinball-brand/logo-symbol.png",
+      "sizes": "320x262",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "kinball-brand/favicon.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Collecte entraînement",
+      "short_name": "Collecte",
+      "url": "./training-live.html"
+    },
+    {
+      "name": "Entraînements",
+      "short_name": "Entraînements",
+      "url": "./training.html"
+    },
+    {
+      "name": "Vidéos",
+      "short_name": "Vidéos",
+      "url": "./videos.html"
+    }
+  ]
+}
