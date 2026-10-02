@@ -5333,15 +5333,22 @@ function renderTrainingPlanOrganizer(){
   button.setAttribute('aria-pressed',String(trainingState.planOrganizerMode));
   plan?.classList.toggle('organizerMode',trainingState.planOrganizerMode);
   const selected=trainingPlanOrganizerSelectedBlock(),label=$('#trainingPlanOrganizerSelection'),hint=$('#trainingPlanOrganizerHint');
-  panel.querySelectorAll('[data-plan-organizer-destination]').forEach(b=>b.disabled=!selected);
-  if(!trainingState.planOrganizerMode){if(label)label.textContent='Mode organisation';if(hint)hint.textContent='Touchez un bloc à déplacer.';return}
+
+  if(!trainingState.planOrganizerMode){
+    if(label)label.textContent='Mode organisation';
+    if(hint)hint.textContent='Touchez un exercice à déplacer, puis touchez sa nouvelle position.';
+    return;
+  }
+
   if(selected){
     const title=selected.title||planExerciseById(selected.exerciseId)?.name||'Bloc sans titre';
     if(label)label.textContent=`${title} sélectionné`;
-    if(hint)hint.textContent=selected.draft?'Choisis un terrain pour le remettre dans le planning, ou touche un bloc pour le placer avant lui.':'Touchez un autre bloc pour le placer avant lui, ou choisissez sa destination.';
+    if(hint)hint.textContent=selected.draft
+      ? 'Touchez un exercice du planning pour replacer ce brouillon avant lui.'
+      : 'Touchez directement l’exercice devant lequel le déplacer. Touchez à nouveau le même exercice pour annuler.';
   }else{
     if(label)label.textContent='Mode organisation';
-    if(hint)hint.textContent='Touchez un bloc du planning ou du brouillon.';
+    if(hint)hint.textContent='Touchez un exercice à déplacer.';
   }
 }
 function setTrainingPlanOrganizerMode(enabled){
@@ -5357,16 +5364,6 @@ function selectTrainingPlanOrganizerBlock(id){
   if(selected.id===id){trainingState.planOrganizerSelectedId=null;renderTrainingPlan();return}
   if(block.draft){trainingState.planOrganizerSelectedId=id;renderTrainingPlan();return}
   const selectedId=selected.id;trainingState.planOrganizerSelectedId=null;reorderTrainingPlanBlock(selectedId,id,null);
-}
-function applyTrainingPlanOrganizerDestination(destination){
-  const block=trainingPlanOrganizerSelectedBlock();if(!block)return;
-  const id=block.id;trainingState.planOrganizerSelectedId=null;
-  if(destination==='draft'){sendTrainingPlanBlockToDraft(id);return}
-  if(destination==='end'){reorderTrainingPlanBlock(id,null,null);return}
-  if(!['court1','court2','both','other'].includes(destination))return;
-  if(block.draft){reorderTrainingPlanBlock(id,null,destination);return}
-  captureTrainingPlan();const current=trainingState.planBlocks.find(b=>b.id===id);if(!current)return;
-  current.track=destination;recalculateTrainingPlanTimes();syncPlanStatExercises();renderTrainingPlan();renderTrainingExerciseCards();
 }
 function renderTrainingPlan(){
   const box=$('#trainingPlanTimeline');if(!box)return;recalculateTrainingPlanTimes();box.innerHTML='';renderTrainingPlanOrganizer();
@@ -7891,7 +7888,7 @@ $('#historyGroup').onchange=()=>fetchTrainingPlayers($('#historyGroup').value).c
 $('#newTraining').onclick=()=>startNewTraining().catch(e=>handleError('new training',e));
 $('#addTrainingPlanBlock').onclick=()=>addTrainingPlanBlock();
 $('#organizeTrainingPlan').onclick=()=>setTrainingPlanOrganizerMode(!trainingState.planOrganizerMode);
-$$('[data-plan-organizer-destination]').forEach(b=>b.onclick=()=>applyTrainingPlanOrganizerDestination(b.dataset.planOrganizerDestination));
+
 const trainingPlanStartEl=$('#trainingPlanStart');if(trainingPlanStartEl){trainingPlanStartEl.addEventListener('change',()=>{trainingPlanStartEl.value=normalizePlanTime(trainingPlanStartEl.value)||'13:30';recalculateTrainingPlanTimes();renderTrainingPlan()})}
 $('#clearTrainingPlan').onclick=()=>{if(!trainingState.planBlocks.length||confirm('Vider tout le plan de séance ?')){trainingState.planBlocks=[];trainingState.planOrganizerSelectedId=null;renderTrainingPlan()}};
 const trainingNotesEl=$('#trainingNotes');if(trainingNotesEl){trainingNotesEl.addEventListener('input',()=>autoGrowPlanTextarea(trainingNotesEl));autoGrowPlanTextarea(trainingNotesEl)}

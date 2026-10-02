@@ -2156,3 +2156,20 @@ background:#111827;color:#F8FAFC;border:1px solid var(--navLine)
   .trainingPlanOrganizerDestinations button{min-height:44px}
   .trainingPlanOrganizer{padding:10px}
 }
+
+
+/* organisation tablette v6 : deux terrains visuels */
+.trainingPlanOrganizer{display:block;margin:0 0 11px;padding:5px 0;border:0;background:transparent}
+.trainingPlanOrganizerDestinations{display:none!important}
+.trainingPlanBlock.organizerSelected .trainingPlanBlockOverview::after{content:'Sélectionné';margin-left:auto;align-self:center;padding:3px 6px;border:1px solid var(--accent);border-radius:999px;font-size:10px;font-weight:750;white-space:nowrap}
+.trainingPlanBlock.organizerTarget .trainingPlanBlockOverview::after{content:'Déplacer ici'}
+@media (min-width:521px) and (max-width:920px){
+  .trainingTimelineTracks{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .trainingPlanBlock[data-track="court1"]{grid-column:1!important}
+  .trainingPlanBlock[data-track="court2"]{grid-column:2!important}
+  .trainingPlanBlock[data-track="both"],.trainingPlanBlock[data-track="other"]{grid-column:1/-1!important}
+}
+@media (max-width:520px){
+  .trainingTimelineTracks{grid-template-columns:1fr!important}
+  .trainingPlanBlock[data-track="court1"],.trainingPlanBlock[data-track="court2"],.trainingPlanBlock[data-track="both"],.trainingPlanBlock[data-track="other"]{grid-column:1!important}
+}
