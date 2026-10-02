@@ -356,9 +356,9 @@
    <div class="trainingPlan">
     <div class="trainingPlanHead">
      <div><h3>Plan de séance</h3><div class="small">Construis ici le déroulé comme dans le Sheet : blocs libres ou exercices de la bibliothèque, terrain(s), consignes et notes. Les heures se recalculent automatiquement selon l’ordre, la durée et les terrains.</div></div>
-     <div class="trainingPlanActions"><div class="trainingPlanStartField"><label>Début de séance</label><input id="trainingPlanStart" inputmode="numeric" maxlength="5" value="13:30" placeholder="13:30"></div><button class="primary" type="button" id="addTrainingPlanBlock">＋ Ajouter un bloc</button><button class="ghost" type="button" id="organizeTrainingPlan">Organiser</button><button class="ghost" type="button" id="clearTrainingPlan">Vider le plan</button></div>
+     <div class="trainingPlanActions"><div class="trainingPlanStartField"><label>Début de séance</label><input id="trainingPlanStart" inputmode="numeric" maxlength="5" value="13:30" placeholder="13:30"></div><button class="primary" type="button" id="addTrainingPlanBlock">＋ Ajouter un bloc</button><button class="ghost hidden" type="button" id="organizeTrainingPlan" aria-hidden="true" tabindex="-1">Organiser</button><button class="ghost" type="button" id="clearTrainingPlan">Vider le plan</button></div>
     </div>
-    <div class="trainingDragHint">Sur tablette : utilise « Organiser », touche un bloc puis sa destination. Sur ordinateur, le glisser-déposer ⠿ reste disponible. Les boutons ↑ / ↓ restent disponibles dans le bloc.</div>
+    <div class="trainingDragHint">Sur tablette : déplie un bloc puis utilise ↑ / ↓ pour le déplacer ; le terrain se règle directement dans le bloc. Sur ordinateur, le glisser-déposer ⠿ reste disponible.</div>
     <div class="trainingPlanOrganizer hidden" id="trainingPlanOrganizer">
      <div class="trainingPlanOrganizerMessage"><strong id="trainingPlanOrganizerSelection">Mode organisation</strong><span id="trainingPlanOrganizerHint">Touchez un bloc à déplacer.</span></div>
      <div class="trainingPlanOrganizerDestinations">

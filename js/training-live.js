@@ -199,7 +199,7 @@ function renderAttendance(){
 async function loadPeriods(sessionId){
   if(!sessionId||sessionId==='__new__'){state.periods=[];state.periodCounts={};renderPeriodList();return}
   const [{data:periods,error:pe},{data:events,error:ee}]=await Promise.all([
-    db.from('training_live_periods').select('id,session_id,group_id,exercise_id,period_number,label,started_at,ended_at,created_at').eq('session_id',sessionId).order('period_number'),
+    db.from('training_live_periods').select('id,session_id,group_id,exercise_id,period_number,label,started_at,ended_at,team_assignments,created_at').eq('session_id',sessionId).order('period_number'),
     db.from('training_live_events').select('period_id').eq('session_id',sessionId)
   ]);
   if(pe)throw pe;if(ee)throw ee;
@@ -249,6 +249,85 @@ async function createQuickTrainingSession(){
   state.sessions.unshift(data);state.selectedSessionId=data.id;state.currentSession=data;
   const sel=$('#sessionSelect'),o=document.createElement('option');o.value=data.id;o.textContent=`${fmtDate(data.trained_on)} · ${data.theme||data.label}`;sel.append(o);sel.value=data.id;syncNewSessionFields();return data;
 }
+function currentPeriodTeamSnapshot(){
+  const snapshot={};
+  state.players.forEach(player=>{
+    if(!state.attendance.has(player.id))return;
+    snapshot[player.id]=teamForPlayer(player.id);
+  });
+  return snapshot;
+}
+
+function applyPeriodTeamSnapshot(snapshot){
+  const validPlayerIds=new Set(state.players.map(player=>player.id));
+  const attendance=new Set();
+  const teams=new Map();
+
+  if(snapshot&&typeof snapshot==='object'&&!Array.isArray(snapshot)){
+    Object.entries(snapshot).forEach(([playerId,value])=>{
+      if(!validPlayerIds.has(playerId))return;
+      attendance.add(playerId);
+      const team=normalizeTeamColor(value);
+      if(team)teams.set(playerId,team);
+    });
+  }
+
+  state.attendance=attendance;
+  state.teamByPlayer=teams;
+}
+
+async function persistCurrentPeriodTeamSnapshot(){
+  if(!state.currentPeriod?.id)return;
+  const snapshot=currentPeriodTeamSnapshot();
+  const {data,error}=await db.from('training_live_periods')
+    .update({team_assignments:snapshot,updated_at:new Date().toISOString()})
+    .eq('id',state.currentPeriod.id)
+    .select('team_assignments,updated_at')
+    .single();
+  if(error)throw error;
+  Object.assign(state.currentPeriod,data);
+}
+
+async function restorePeriodTeamSnapshot(period){
+  if(period?.team_assignments!==null&&period?.team_assignments!==undefined){
+    applyPeriodTeamSnapshot(period.team_assignments);
+    renderAttendance();
+    return;
+  }
+
+  const [{data:attendance,error:attendanceError},{data:events,error:eventsError}]=await Promise.all([
+    db.from('training_attendance').select('player_id,present,team_color').eq('session_id',period.session_id),
+    db.from('training_live_events')
+      .select('player_id,attribution_type,team_color,occurred_at,created_at')
+      .eq('period_id',period.id)
+      .order('occurred_at',{ascending:true})
+      .order('created_at',{ascending:true})
+  ]);
+  if(attendanceError)throw attendanceError;
+  if(eventsError)throw eventsError;
+
+  const snapshot={};
+  (attendance||[]).forEach(row=>{
+    if(row.present)snapshot[row.player_id]=normalizeTeamColor(row.team_color);
+  });
+  (events||[]).forEach(event=>{
+    if(event.attribution_type!=='player'||!event.player_id)return;
+    const team=normalizeTeamColor(event.team_color);
+    if(team)snapshot[event.player_id]=team;
+  });
+
+  applyPeriodTeamSnapshot(snapshot);
+
+  const {data,error}=await db.from('training_live_periods')
+    .update({team_assignments:snapshot,updated_at:new Date().toISOString()})
+    .eq('id',period.id)
+    .select('team_assignments,updated_at')
+    .single();
+  if(error)throw error;
+  Object.assign(period,data);
+  renderAttendance();
+}
+
 async function saveAttendance(sessionId){
   const rows=state.players.map(p=>({session_id:sessionId,player_id:p.id,present:state.attendance.has(p.id),team_color:state.attendance.has(p.id)?teamForPlayer(p.id):null}));if(!rows.length)return;
   const {error}=await db.from('training_attendance').upsert(rows,{onConflict:'session_id,player_id'});if(error)throw error;
@@ -263,7 +342,8 @@ async function startCollection(){
     await loadPeriods(session.id);
     const number=nextPeriodNumber(),exerciseId=$('#exerciseSelect').value||null;
     const label=$('#periodLabel').value.trim()||suggestedPeriodLabel();
-    const {data:period,error}=await db.from('training_live_periods').insert({session_id:session.id,group_id:state.selectedGroupId,exercise_id:exerciseId,period_number:number,label,created_by:state.user.id}).select('*').single();
+    const teamAssignments=currentPeriodTeamSnapshot();
+    const {data:period,error}=await db.from('training_live_periods').insert({session_id:session.id,group_id:state.selectedGroupId,exercise_id:exerciseId,period_number:number,label,team_assignments:teamAssignments,created_by:state.user.id}).select('*').single();
     if(error)throw error;state.periods.push(period);state.periodCounts[period.id]=0;state.selectedSessionId=session.id;$('#sessionSelect').value=session.id;
     await openPeriod(period);setStatus($('#setupStatus'),'');setCloud('Synchronisé',true);
   }catch(e){setStatus($('#setupStatus'),e.message||String(e),true);setCloud('Erreur',false)}finally{state.saving=false;updateStartState()}
@@ -272,6 +352,7 @@ async function resumePeriod(periodId){
   const period=state.periods.find(p=>p.id===periodId);if(!period)return;
   state.currentSession=sessionById(period.session_id)||state.currentSession;
   if(!state.currentSession){const {data,error}=await db.from('training_sessions').select('id,group_id,trained_on,label,theme,created_at').eq('id',period.session_id).single();if(error)throw error;state.currentSession=data}
+  await restorePeriodTeamSnapshot(period);
   await saveAttendance(period.session_id);
   if(period.ended_at){const {data,error}=await db.from('training_live_periods').update({ended_at:null,updated_at:new Date().toISOString()}).eq('id',period.id).select('*').single();if(error)throw error;Object.assign(period,data)}
   await openPeriod(period);
@@ -345,6 +426,7 @@ async function persistLiveTeamAssignments(playerIds){
   const ids=[...new Set((playerIds||[]).filter(Boolean))];if(!ids.length)return;
   const rows=ids.map(id=>({session_id:state.currentSession.id,player_id:id,present:state.attendance.has(id),team_color:teamForPlayer(id)}));
   const {error}=await db.from('training_attendance').upsert(rows,{onConflict:'session_id,player_id'});if(error)throw error;
+  await persistCurrentPeriodTeamSnapshot();
 }
 async function moveOrganizerPlayer(destination){
   const player=organizerPlayer();if(!player)return;
