@@ -33,6 +33,8 @@
   --success-text:#17633E;
   --success-bg:#ECFDF3;
   --success-border:#B7E4C7;
+  /* Point de synchronisation en ligne : vert clair, lisible sur --success-bg (3.3:1) */
+  --sync-ok-dot:#1E9E5A;
 
   --warning:#B45309;
   --warning-text:#7A4A08;
@@ -161,7 +163,7 @@ body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,
   border-radius:50%;
   background:var(--neutral-text);
 }
-.statusDot.online{background:var(--success)}
+.statusDot.online{background:var(--sync-ok-dot)}
 .statusDot.offline{background:var(--warning)}
 
 /* État de synchronisation du header — composant unique inter-pages. */
@@ -484,6 +486,16 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   box-shadow:none!important;
 }
 .top .syncStatus .statusDot,.topbar .syncStatus .statusDot{margin:0}
+
+/* État synchronisé : la pastille passe au vert clair.
+   L'état est lu depuis la classe .online du point, donc aucun JS supplémentaire.
+   Sans classe sur le point (« Connexion… », « Erreur »), la pastille reste neutre. */
+.top .syncStatus:has(.statusDot.online),
+.topbar .syncStatus:has(.statusDot.online){
+  background:var(--success-bg)!important;
+  color:var(--success-text)!important;
+  border-color:var(--success-border)!important;
+}
 
 /* ==========================================================
    Sélections de groupe
