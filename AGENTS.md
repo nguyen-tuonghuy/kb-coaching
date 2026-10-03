@@ -252,6 +252,16 @@ Après réussite des contrôles pertinents, ne les répéter ou les élargir que
 
 Ne commiter ou pousser que sur demande explicite. L'autorisation de commit ne vaut pas autorisation de push ni de réécriture d'historique.
 
+### Branches de travail et publication
+
+- Pour les changements significatifs, développer sur une branche de travail dédiée à la fonctionnalité ou au refactor, créée avant les modifications après inspection de l'état local. Un changement de branche ne sauvegarde pas les modifications non commitées ; préserver le travail en cours.
+- Faire des commits cohérents aux étapes validées, si l'utilisateur les autorise. Les push sur la branche de travail nécessitent également son autorisation explicite.
+- GitHub Pages publie actuellement la racine (`/`) de la branche `main`. Un push sur une autre branche ne met pas à jour le site avec cette configuration ; toute mise à jour distante de `main`, par push ou fusion d'une PR sur GitHub, déclenche une publication et nécessite une autorisation explicite.
+- Regrouper idéalement les changements vérifiés pour une publication en fin de journée. Cette cadence concerne les mises à jour de `main`, pas les sauvegardes autorisées sur les branches de travail.
+- Garder un refactor incomplet sur sa branche dédiée, même s'il dure plusieurs jours. Ne pas le fusionner uniquement pour respecter une cadence quotidienne ; vérifier le diff et les tests pertinents avant intégration dans `main`.
+
+### Commits et livrables
+
 Avant commit :
 
 ```bash
