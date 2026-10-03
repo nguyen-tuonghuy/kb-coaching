@@ -1,232 +1,121 @@
 # AGENTS.md — Kinball Coach
 
-Ce fichier définit les règles de travail pour tout agent de développement intervenant sur ce dépôt.
+Instructions pour les agents de développement. **Portée : tout le dépôt**, y compris HTML, CSS, JavaScript, Supabase, tests, UX/UI et livrables.
 
-**Portée : tout le dépôt.**  
-Ces instructions s'appliquent aux fichiers HTML, CSS, JavaScript, Supabase, tests, UX/UI, statistiques, entraînements, groupes, vidéos, messagerie et vues joueurs.
+## 1. Priorités et déroulement
 
-## 1. Priorités
+Respecter cet ordre :
 
-Respecter cet ordre de priorité :
-
-1. préserver les données et la compatibilité ;
-2. éviter toute régression fonctionnelle ;
+1. préserver les données et leur compatibilité ;
+2. éviter les régressions fonctionnelles ;
 3. conserver une architecture cohérente ;
 4. préserver un démarrage rapide ;
 5. maintenir une UI uniforme, responsive et accessible ;
-6. produire des changements minimaux, testables et faciles à relire.
+6. produire des changements minimaux et faciles à vérifier.
 
-Une amélioration visuelle ne doit pas dégrader les performances.  
-Une optimisation ne doit pas modifier les données.  
-Une refactorisation ne doit pas changer le comportement utilisateur sauf demande explicite.
+**Déroulement obligatoire :** inspecter l'état local → identifier la cause → corriger au bon niveau → vérifier → livrer un bilan fidèle.
 
----
+Une amélioration visuelle ne doit pas dégrader les performances. Une optimisation ne doit pas modifier les données. Une refactorisation ne doit pas changer le comportement utilisateur sans demande explicite.
 
-## 2. Source de vérité et version de départ
+Les règles ci-dessous sont obligatoires, sauf celles indiquées comme recommandations ou objectifs. Les exemples illustrent les règles ; ils ne sont pas des blocs à recopier systématiquement.
 
-### Règle absolue
+## 2. État local et protection du travail existant
 
-Toujours travailler à partir de **l'état le plus récent du dépôt local**.
-
-Avant toute modification importante :
+Toujours partir de **l'état le plus récent du dépôt local**. Avant une modification importante :
 
 ```bash
-git status
+git status --short
 git branch --show-current
 git diff
 ```
 
-Ne jamais reconstruire une version depuis :
+- Considérer les changements non commités comme faisant partie de l'état courant ; ne pas les écraser.
+- Inspecter les fichiers actuels, même si un résumé de conversation décrit leur contenu ou leur état Git.
+- Ne pas reconstruire un fichier depuis un ancien ZIP, une ancienne conversation, une copie supposée proche ou une version monolithique remplacée.
+- Ne pas utiliser `git reset --hard`, `git checkout -- .`, `git restore` ou équivalent pour effacer du travail sans autorisation explicite.
+- Ne pas reconstruire un fichier depuis `HEAD` pour réparer une petite édition : cela peut effacer des changements locaux. Corriger le bloc concerné dans le fichier actuel.
+- Les versions historiques peuvent servir à comparer, jamais à remplacer automatiquement la source locale.
 
-- un ancien ZIP ;
-- un ancien fichier de conversation ;
-- une copie supposée « proche » ;
-- une version monolithique remplacée depuis ;
-- une ancienne version de `index.js`, `training.js`, `common.css`, etc.
+Si la source ou la propriété d'un changement est incertaine, inspecter avant d'éditer.
 
-Ne jamais écraser les modifications locales de l'utilisateur.
+## 3. Repères d'architecture
 
-Si des changements non commités sont présents :
-
-- les considérer comme faisant partie de l'état courant ;
-- ne pas les supprimer ;
-- ne pas faire de `git reset --hard`, `git checkout -- .` ou équivalent sans demande explicite.
-
-Si la version source n'est pas certaine, **inspecter avant d'éditer**.
-
----
-
-## 3. Architecture cible
-
-Structure actuelle attendue :
+Projet web statique. Cette arborescence est un **repère non exhaustif**, à vérifier dans le dépôt :
 
 ```text
 /
 ├── AGENTS.md
-├── index.html
-├── training.html
-├── videos.html
-├── player-stats.html
-├── coach-videos.html
-├── quick-collection.html
-├── face-a-face.html
+├── index.html / training.html / training-live.html
+├── videos.html / coach-videos.html / player-stats.html
+├── quick-collection.html / face-a-face.html
 ├── css/
 │   ├── common.css
-│   ├── index.css
-│   ├── training.css
-│   ├── videos.css
-│   ├── player-stats.css
-│   ├── coach-videos.css
-│   ├── quick-collection.css
-│   └── face-a-face.css
+│   └── CSS spécifiques aux pages
 ├── js/
 │   ├── index.js
-│   └── training.js
+│   ├── training.js
+│   ├── training-live.js
+│   └── pwa.js
+├── service-worker.js
+├── manifest.webmanifest
+├── supabase/
+├── tests/
 └── kinball-brand/
     ├── logo-full.png
     ├── logo-symbol.png
     └── favicon.png
 ```
 
-### Règles d'architecture
-
-- Ne pas réintégrer dans le HTML du CSS déjà externalisé.
-- Ne pas réintégrer dans le HTML du JavaScript déjà externalisé.
-- Pour une nouvelle page, créer un CSS spécifique si nécessaire.
-- Réutiliser `common.css` pour les composants partagés.
+- Ne pas réintégrer dans le HTML du CSS ou du JavaScript déjà externalisé.
 - Externaliser un JavaScript dès qu'il devient significatif ou difficile à maintenir inline.
-- Ne pas créer deux implémentations différentes d'un même composant sans raison.
+- Utiliser `common.css` pour les composants partagés ; un CSS de page pour sa structure et ses composants uniques.
+- Ne pas créer de nouvelles implémentations concurrentes d'un même composant sans nécessité.
+- Certains flux sont actuellement dupliqués entre `js/index.js` et `js/training.js`. Lorsqu'un de ces flux change, inspecter les deux versions, appliquer la correction aux deux pages concernées et vérifier leur parité. Ne pas imposer une identité globale à des fichiers dont les fonctions spécifiques diffèrent.
+- Une mutualisation plus large doit répondre au besoin, sans transformer une correction ciblée en refonte.
 
----
+## 4. Design system, CSS et accessibilité
 
-## 4. Design system et CSS
+### Autorité partagée
 
-### `css/common.css` est l'autorité visuelle partagée
+`css/common.css` définit la palette, la typographie, les boutons, champs, panneaux, headers, navigation, états hover/focus/disabled, bordures, rayons et composants réellement partagés.
 
-Les éléments suivants doivent être définis dans `common.css` lorsqu'ils sont communs à plusieurs pages :
-
-- palette ;
-- typographie ;
-- boutons ;
-- champs ;
-- panneaux ;
-- headers communs ;
-- navigation ;
-- états hover/focus/disabled ;
-- `backNav` ;
-- bordures ;
-- rayons ;
-- règles d'apparence génériques ;
-- composants réellement partagés.
-
-Les CSS de page servent uniquement à :
-
-- la structure spécifique ;
-- les grilles propres au module ;
-- les composants uniques ;
-- le responsive propre à la page.
-
-### Ne pas masquer un problème commun par un override local
-
-Avant d'ajouter une règle spécifique, se demander :
-
-> Le problème existe-t-il parce que le composant partagé est mal défini ?
-
-Exemple à éviter :
-
-```css
-.quickCollection .panel {
-  box-shadow: none !important;
-}
-```
-
-si tous les panneaux de l'application doivent être plats.
-
-Dans ce cas, corriger `common.css`.
-
-### Ordre de chargement CSS
-
-Conserver partout :
+Les CSS de page définissent uniquement la structure, les grilles, les composants uniques et le responsive propre au module. Conserver l'ordre :
 
 ```html
 <link rel="stylesheet" href="css/page-specifique.css">
 <link rel="stylesheet" href="css/common.css">
 ```
 
-Ainsi, le design system commun garde le dernier mot sur l'apparence partagée.
+Avant un override local, vérifier si la cause appartient au composant commun. Si oui, corriger `common.css` plutôt qu'empiler des overrides ou des `!important` locaux.
 
-### Apparence actuelle
+Un composant partagé doit fonctionner de manière autonome : structure visuelle, bordure et espacement, pas seulement couleurs. Par exemple, `border-color` seul ne crée pas une bordure. Après une modification partagée, identifier et vérifier ses pages consommatrices, y compris les variantes et états existants.
 
-Par défaut :
+### Apparence
 
-- pas d'ombre portée sur les panneaux ou headers ;
-- boutons et champs plats ;
-- bordures explicites `1px solid`;
-- pas de rendu navigateur `outset` / `inset`;
-- pas d'information transmise uniquement par la couleur.
+- Panneaux et headers sans ombre portée par défaut.
+- Boutons et champs plats, sans rendu navigateur `outset` / `inset`.
+- Bordures des contrôles et surfaces bordées explicitement définies en `1px solid`.
+- Conserver un focus visible ; ne pas le supprimer pour obtenir un aspect plat.
+- Réutiliser les variables du design system.
 
-Les contrôles communs doivent rester explicitement normalisés, par exemple :
+Exemple de normalisation des contrôles :
 
 ```css
-button,
-a.button {
-  border: 1px solid var(--line);
-  box-shadow: none;
-}
-
-input,
-select,
-textarea {
+button, a.button, input, select, textarea {
   border: 1px solid var(--line);
   box-shadow: none;
 }
 ```
 
-### Daltonisme et accessibilité
+Ne jamais communiquer un état uniquement par une couleur : ajouter texte, icône, bordure, graisse ou forme selon le cas. Vérifier la lisibilité et les contrastes, pas seulement les différences de teinte.
 
-Ne jamais distinguer des états uniquement par une couleur.
+Tout vrai bouton de navigation arrière utilisant le design commun porte `class="ghost backNav"`. Ne pas appliquer `backNav` aux contrôles vidéo tels que `−5 s` ni automatiquement aux boutons qui ferment un dialogue.
 
-Utiliser aussi selon le cas :
+## 5. JavaScript, réseau et démarrage
 
-- texte ;
-- icône ;
-- bordure ;
-- graisse ;
-- forme ;
-- libellé explicite.
+L'interface utile doit apparaître dès que les données indispensables sont disponibles. Ne pas attendre notifications, profil secondaire, droits admin secondaires, métriques ou détails différables pour masquer le splash.
 
-Éviter les différences fondées seulement sur une légère variation de teinte.
-
-### Boutons Retour
-
-Tout vrai bouton de navigation arrière utilisant le design commun doit utiliser :
-
-```html
-class="ghost backNav"
-```
-
-Ne pas appliquer `backNav` à un contrôle vidéo tel que `−5 s`.
-
----
-
-## 5. JavaScript et qualité d'exécution
-
-### Premier affichage rapide
-
-L'interface utile doit apparaître dès que les données indispensables sont disponibles.
-
-Ne pas bloquer le premier affichage sur :
-
-- notifications ;
-- profil secondaire ;
-- droits admin secondaires ;
-- métriques ;
-- détails non indispensables ;
-- données qui peuvent être ajoutées après le rendu.
-
-Les tâches secondaires doivent être lancées en arrière-plan et leurs erreurs ne doivent pas bloquer l'application.
-
-Exemple :
+Lancer les tâches secondaires en arrière-plan, avec gestion de leurs erreurs. Exemple :
 
 ```js
 function runStartupBackground(label, task) {
@@ -236,63 +125,16 @@ function runStartupBackground(label, task) {
 }
 ```
 
-### Paralléliser les requêtes indépendantes
-
-Préférer :
-
-```js
-const [a, b] = await Promise.all([
-  loadA(),
-  loadB()
-]);
-```
-
-aux appels séquentiels lorsqu'il n'existe pas de dépendance.
-
-Mais si `a` suffit à afficher l'interface, ne pas attendre `b` avant le rendu.
-
-### Éviter les appels réseau dupliqués
-
-Avant d'ajouter une requête Supabase :
-
-- vérifier si la donnée est déjà en mémoire ;
-- vérifier si un appel identique vient d'être lancé ;
-- réutiliser les résultats existants ;
-- éviter de recharger une liste complète après une petite mutation si un update local suffit.
-
-### Événements et rendu
-
-Éviter :
-
-- doubles `addEventListener` ;
-- listeners ajoutés à chaque rendu ;
-- timers ou polling dupliqués ;
-- re-renders complets inutiles ;
-- manipulations DOM répétitives coûteuses lorsqu'une mise à jour ciblée suffit.
-
-### Erreurs
-
-Une erreur sur une opération utilisateur explicite doit être visible et compréhensible.
-
-Une erreur sur une tâche secondaire peut être journalisée sans bloquer l'écran principal.
-
----
-
-## 6. Performance et instrumentation
+- Paralléliser les requêtes indépendantes ; si une seule suffit au rendu, ne pas attendre les autres via `Promise.all` avant d'afficher.
+- Réutiliser les données en mémoire et les requêtes déjà en cours, avec une clé adaptée au compte et au contexte. Éviter les caches périmés après mutation ou changement de compte.
+- Éviter de recharger une liste complète après une petite mutation si une mise à jour locale suffit.
+- Éviter les listeners ajoutés à chaque rendu, doubles abonnements, timers/polling dupliqués et re-renders complets inutiles.
+- Une erreur sur une action utilisateur doit être visible et compréhensible. Une erreur secondaire peut être journalisée sans bloquer l'écran principal.
+- Une annulation volontaire doit être traitée comme telle, sans message de panne ni journal d'erreur trompeur.
 
 ### Mesurer avant d'optimiser
 
-Ne pas deviner la source d'un ralentissement.
-
-Utiliser :
-
-```js
-performance.now()
-```
-
-et des traces ciblées.
-
-Conserver les traces utiles de démarrage :
+Utiliser `performance.now()` et des traces ciblées. Conserver les traces utiles :
 
 ```text
 [startup] session Supabase disponible: ...
@@ -300,315 +142,144 @@ Conserver les traces utiles de démarrage :
 [startup] splash masqué: ...
 ```
 
-Sur la page entraînement, conserver également les mesures pertinentes pour les séances et exercices.
+Sur les entraînements, conserver aussi les mesures pertinentes pour séances et exercices. Pour une régression, mesurer séparément session, groupes, accès joueur, exercices, séances, profils, vidéos et statistiques selon le flux concerné.
 
-### Objectif de démarrage
+**Objectifs**, sur une connexion normale : session locale quasi immédiate et affichage principal idéalement en moins d'une seconde. Corriger une cause observée, pas une cause supposée.
 
-Sur une connexion normale :
+## 6. Supabase et contrats de données
 
-- session locale : quasi immédiate ;
-- affichage principal : idéalement en moins d'une seconde ;
-- données secondaires : peuvent arriver après.
+**Localhost et la version publiée utilisent actuellement le même projet Supabase.** Une action depuis `http://localhost:8000` peut modifier la production. Ne pas traiter localhost comme un staging ; pour les tests destructifs, utiliser exclusivement des données de test prévues à cet effet.
 
-Le splash ne doit jamais attendre une tâche secondaire.
+- Dans le navigateur, utiliser uniquement la clé publique / publishable ; jamais `service_role`.
+- Respecter les RLS ; ne pas les contourner depuis le front.
+- Toute modification de policy, RPC, trigger ou schéma doit être explicitement demandée ou clairement nécessaire, minimale, vérifiée et compatible avec les données existantes.
+- La présence d'un appel RPC dans le front ne prouve pas que sa définition SQL existe dans le dépôt. Vérifier les sources disponibles avant de proposer une migration.
+- Ne pas appliquer de migration à la base distante dans le cadre d'un simple test local.
 
-### Pour toute régression de performance
+Préserver les contrats existants, notamment `action_type`, `result`, `fault_type`, `family`, `restart_location`, `zone` et leurs valeurs historiques. Pour un nouveau champ, gérer `null`, les anciennes lignes et une interprétation rétrocompatible ; éviter les migrations destructives.
 
-Mesurer séparément :
+Exemple : une séance sans champ `draft` et sans heure de début peut être interprétée comme brouillon.
 
-- session Supabase ;
-- groupes ;
-- accès joueur ;
-- exercices ;
-- séances ;
-- profils ;
-- vidéos ;
-- statistiques.
+Avant une suppression, vérifier ce qui disparaît de l'UI, ce qui est supprimé en base et ce qui doit rester dans l'historique. Retirer un joueur d'un groupe ne doit pas supprimer son identité globale ni son historique.
 
-Corriger la cause observée, pas une cause supposée.
+### Association de compte et consentement
 
----
+Pour un flux d'association exigeant confirmation :
 
-## 7. Supabase et données de production
+- afficher le compte, le joueur et le groupe réellement concernés ; ne pas autoriser une mutation sur la base d'un libellé de repli qui masque une identité non résolue ;
+- ne lancer la mutation qu'après validation explicite ; une auto-sélection ne vaut pas consentement ;
+- un rapprochement de prénoms est indicatif, jamais une preuve d'identité ni une autorisation ;
+- une annulation conserve les informations nécessaires pour réessayer, sans mutation d'association ni nettoyage de l'invitation ;
+- protéger le flux entier contre les soumissions concurrentes, pas seulement le double clic dans le dialogue ;
+- conserver l'autorisation côté serveur/RLS : le dialogue ne remplace pas les contrôles Supabase.
 
-### Localhost utilise actuellement la vraie base
+## 7. Responsive, dialogues et tactile
 
-La version locale et la version publiée utilisent le même projet Supabase.
+Toute modification UI significative doit être vérifiée sur desktop, tablette et mobile. Éviter largeurs fixes inutiles, texte collé aux bords, boutons trop petits, sticky masquant le contenu et grilles difficiles au tactile.
 
-Donc une action depuis :
+Les notes longues d'entraînement doivent s'agrandir automatiquement, sans scroll vertical interne, en laissant la page principale défiler.
 
-```text
-http://localhost:8000
-```
+Pour les dialogues :
 
-peut modifier les vraies données.
+- titre accessible, `role="dialog"` et `aria-modal="true"` lorsque le dialogue est modal ;
+- focus initial approprié, navigation clavier contenue dans le dialogue et restitution du focus à la fermeture ;
+- fermeture cohérente par les contrôles prévus et par Échap, sauf raison fonctionnelle explicite ;
+- résolution unique de la promesse éventuelle et nettoyage des listeners à la fermeture ;
+- contenu et boutons accessibles sur petit écran, y compris avec des libellés longs.
 
-Ne jamais traiter le localhost comme un environnement de staging.
+Pour les annotations vidéo : `touch-action:none` seulement en mode dessin, scroll bloqué uniquement pendant le dessin puis restauré, listeners compatibles avec `preventDefault()` lorsque nécessaire. Après enregistrement, effacer le dessin temporaire. Ne pas confondre contrôles vidéo et navigation générale.
 
-Pour les tests destructifs, utiliser exclusivement des données de test prévues à cet effet.
+## 8. Vérification proportionnée et preuves
 
-### Sécurité
+### Syntaxe et tests existants
 
-Dans le navigateur :
-
-- utiliser uniquement la clé publique / publishable ;
-- ne jamais exposer de `service_role`;
-- respecter les RLS ;
-- ne pas contourner une RLS depuis le front.
-
-Toute modification de policy, fonction RPC, trigger ou schéma doit être :
-
-- explicitement demandée ou clairement nécessaire ;
-- minimale ;
-- vérifiée ;
-- compatible avec les données existantes.
-
-### Compatibilité des données
-
-Ne jamais casser les valeurs existantes.
-
-Préserver notamment les champs/valeurs historiques tels que :
-
-- `action_type`
-- `result`
-- `fault_type`
-- `family`
-- `restart_location`
-- `zone`
-
-et tout autre contrat déjà utilisé par l'application.
-
-Pour tout nouveau champ :
-
-- gérer `null` ;
-- gérer les anciennes lignes ;
-- définir une interprétation rétrocompatible ;
-- éviter les migrations destructives.
-
-Exemple déjà en place :
-
-- une séance sans champ `draft` mais sans heure de début peut être interprétée comme brouillon.
-
-### Suppressions
-
-Avant toute suppression, vérifier :
-
-1. ce qui disparaît de l'UI ;
-2. ce qui est supprimé de Supabase ;
-3. ce qui doit rester dans l'historique.
-
-Exemple : retirer un joueur d'un groupe ne doit pas supprimer son identité globale ni son historique.
-
----
-
-## 8. Responsive et interaction
-
-Toute modification UI significative doit être pensée pour :
-
-- desktop ;
-- tablette ;
-- mobile.
-
-Éviter :
-
-- largeurs fixes non nécessaires ;
-- texte collé aux bordures ;
-- boutons trop petits ;
-- scroll interne inutile dans un textarea ;
-- sticky qui masque le contenu ;
-- grilles difficiles au tactile.
-
-### Notes d'entraînement
-
-Les notes longues doivent :
-
-- s'agrandir automatiquement ;
-- ne pas avoir de scroll vertical interne ;
-- laisser la page principale défiler.
-
----
-
-## 9. Vidéo et tactile
-
-Pour les annotations :
-
-- `touch-action:none` seulement quand le mode dessin est actif ;
-- bloquer le scroll seulement pendant le dessin ;
-- restaurer le scroll normal hors annotation ;
-- utiliser des listeners compatibles avec `preventDefault()` si nécessaire.
-
-Après enregistrement d'une annotation, effacer automatiquement le dessin temporaire.
-
-Ne jamais confondre les contrôles vidéo avec la navigation générale.
-
----
-
-## 10. Tests avant livraison
-
-### Syntaxe JavaScript
-
-Pour tout fichier JS externe modifié :
+Pour chaque JS externe modifié, exécuter `node --check` sur ce fichier. Exemple :
 
 ```bash
 node --check js/index.js
 node --check js/training.js
 ```
 
-et faire l'équivalent pour tout autre fichier concerné.
+Vérifier également les scripts inline modifiés par une méthode adaptée. Une modification documentaire seule appelle une relecture et un contrôle du diff, pas un test fonctionnel de toute l'application.
 
-### Test local
+Le dépôt ne comporte actuellement pas de `package.json`. `tests/categories.test.cjs` utilise `node:test`, `jsdom`, `@electric-sql/pglite` et lit `supabase/migrations/20260913154540_dynamic_exercise_categories.sql`. Cette migration est absente de l'état local vérifié lors de cette mise à jour ; recontrôler sa présence et les dépendances avant de lancer :
 
-Depuis la racine :
+```bash
+node --test tests/categories.test.cjs
+```
+
+Ne pas inventer une commande `npm test` ni installer des dépendances dans le dépôt sans nécessité. Si un prérequis manque, annoncer le blocage ; ne pas déclarer la suite validée.
+
+### Navigateur local
+
+Depuis la racine, réutiliser un serveur existant approprié ou lancer :
 
 ```bash
 python3 -m http.server 8000
 ```
 
-Puis ouvrir :
+Ouvrir `http://localhost:8000`. Après modification CSS/JS, effectuer `Ctrl + Shift + R` et vérifier, si nécessaire, le comportement du service worker/PWA pour distinguer cache et régression.
 
-```text
-http://localhost:8000
-```
+Tester les zones concernées et leurs dépendances. Pour un changement transversal (auth, navigation, CSS commun, données partagées), étendre les contrôles aux modules consommateurs : connexion, accueil, groupes, matchs, statistiques, entraînements, vidéos, vue joueur, Collecte rapide, Face-à-face et navigation Retour selon l'impact.
 
-Après modification CSS/JS :
+Vérifier console et réseau : aucune nouvelle erreur JS, aucun 404, aucune requête en boucle, aucun polling dupliqué.
 
-```text
-Ctrl + Shift + R
-```
+### Fidélité des tests
 
-pour éviter de diagnostiquer un cache périmé comme un bug.
+- Distinguer explicitement tests avec mocks, navigateur local et tests connectés à Supabase. Un mock valide un comportement simulé, pas les droits ni la mutation réels en base.
+- Un harnais doit tester le code actuel. Actualiser les copies JS/CSS après toute modification ; valider sa syntaxe et ses attentes avant de conclure.
+- Éviter les extracteurs fragiles de fonctions par simple comptage d'accolades : paramètres déstructurés, chaînes et templates peuvent les tromper.
+- Exiger une fin explicite de suite et le nombre attendu de résultats : un dump partiel ou une promesse bloquée ne vaut pas réussite.
+- Lire le résultat DOM produit, pas une chaîne de rapport présente dans le source du script.
+- Vérifier la largeur **réelle** du viewport. Un navigateur demandé à 390 px mais exécuté à 500 px ne valide pas un écran de 390 px ; utiliser une émulation adaptée si nécessaire.
+- Les propriétés calculées complètent le contrôle visuel ; elles ne prouvent pas à elles seules la lisibilité ou la qualité globale du rendu.
+- Ajouter des tests durables pour les comportements sensibles ou régressions utiles ; éviter les tests qui reproduisent simplement l'implémentation.
 
-### Smoke test minimum après changement significatif
+Après réussite des contrôles pertinents, ne les répéter ou les élargir que si une nouvelle modification ou un doute concret le justifie.
 
-Vérifier au minimum les zones concernées et leurs voisines :
+## 9. Outils et environnement
 
-- connexion ;
-- accueil ;
-- groupes ;
-- matchs ;
-- statistiques ;
-- entraînements ;
-- vidéos ;
-- vue joueur ;
-- Collecte rapide ;
-- Face-à-face ;
-- navigation Retour ;
-- responsive mobile/tablette.
+- Privilégier les outils dédiés de lecture, recherche et patch ; utiliser le shell pour commandes, Git, serveurs et tests.
+- Faire des patches ciblés avec le contexte exact. Pour une indentation, corriger les lignes concernées plutôt que réécrire le fichier.
+- Utiliser le répertoire de travail de l'outil et citer les chemins contenant des espaces.
+- Créer les harnais et artefacts temporaires hors du projet, dans l'espace temporaire autorisé par l'environnement.
+- Conserver le PID des processus démarrés et arrêter uniquement ceux-ci. Éviter les commandes larges telles que `pkill -f`, qui peuvent viser le shell ou des processus préexistants.
+- Réutiliser ou laisser intact un serveur préexistant ; nettoyer uniquement les artefacts créés pendant l'intervention.
+- Si un outil échoue, diagnostiquer séparément environnement et code. Ne pas remplacer un binaire global, modifier la configuration système ou réparer l'environnement sans autorisation appropriée.
+- Garder les mises à jour utilisateur concises : découvertes, décisions et blocages, plutôt que narration de chaque lecture ou correction.
 
-Vérifier aussi la console :
+## 10. Git et livrables
 
-- aucune erreur JavaScript nouvelle ;
-- aucun 404 ;
-- aucune requête en boucle ;
-- aucun polling dupliqué.
-
----
-
-## 11. Non-régression
-
-Avant de déclarer un changement terminé :
-
-1. inspecter `git diff` ;
-2. vérifier que les changements sont limités au besoin ;
-3. vérifier qu'aucun correctif récent n'a disparu ;
-4. vérifier les fonctionnalités adjacentes ;
-5. vérifier la syntaxe ;
-6. tester localement.
-
-Ne jamais remplacer un fichier récent par un fichier issu d'un ancien package.
-
-Lors d'une consolidation, la version la plus récente du dépôt local est la base. Les anciens ZIP ne sont jamais la base.
-
----
-
-## 12. Patches, ZIP et livrables
-
-### Patch ciblé
-
-Si seuls quelques fichiers changent :
-
-- fournir uniquement ces fichiers ;
-- conserver leur arborescence exacte ;
-- annoncer clairement qu'il s'agit d'un patch.
-
-### Version consolidée
-
-Si une version consolidée est demandée :
-
-- partir de l'état le plus récent ;
-- intégrer les changements dans cet état ;
-- inclure le projet complet ;
-- vérifier les fichiers clés ;
-- exécuter les tests syntaxiques ;
-- vérifier `git diff` ou un diff équivalent ;
-- ne jamais appeler « consolidé » un assemblage provenant d'une ancienne base.
-
----
-
-## 13. Git
+Ne commiter ou pousser que sur demande explicite. L'autorisation de commit ne vaut pas autorisation de push ni de réécriture d'historique.
 
 Avant commit :
 
 ```bash
-git status
+git status --short
 git diff
+git log --oneline -10
 ```
 
-Puis, lorsqu'un commit/push est demandé :
+Stager explicitement les fichiers concernés, vérifier le diff stagé et ne jamais inclure de secrets ou du travail non lié. Exemple à adapter aux fichiers réellement modifiés :
 
 ```bash
-git add .
+git add -- AGENTS.md
+git diff --cached
 git commit -m "Description claire"
-git push
 ```
 
-Ne pas utiliser `--force` par défaut.
+Exécuter `git push` seulement si demandé. Ne pas contourner les hooks, amender ni réécrire l'historique sans autorisation explicite. Si un push forcé est explicitement autorisé et nécessaire, préférer `--force-with-lease` à `--force`, avec la branche et le remote vérifiés.
 
-Si un push forcé est explicitement nécessaire, préférer :
+Si un patch est demandé, fournir les seuls fichiers concernés avec leur arborescence exacte. Si une version consolidée est demandée, partir de l'état local actuel, intégrer les changements, inclure le projet complet et vérifier les fichiers clés ; un assemblage d'anciennes versions n'est pas une consolidation.
 
-```bash
-git push --force-with-lease origin main
-```
+## 11. Critères de fin et bilan
 
-Ne jamais réécrire l'historique sans nécessité claire.
+Avant livraison :
 
----
+1. inspecter le diff final et confirmer l'absence de modification accidentelle ou de correctif perdu ;
+2. vérifier syntaxe et contrôles pertinents pour le changement ;
+3. vérifier les fonctions adjacentes et pages consommatrices concernées ;
+4. confirmer compatibilité des données, design system et absence de requête bloquante inutile ;
+5. vérifier que les fichiers annoncés correspondent aux changements réels.
 
-## 14. Modification minimale et cause racine
-
-Pour chaque bug :
-
-1. reproduire ou inspecter ;
-2. identifier la cause ;
-3. déterminer si elle est locale ou commune ;
-4. corriger au bon niveau ;
-5. tester la zone concernée ;
-6. vérifier la non-régression.
-
-Préférer une correction structurée à un empilement d'overrides ou de hacks.
-
-Avant une modification importante, répondre à ces questions :
-
-- Quelle est la version source exacte ?
-- Le problème appartient-il à la page ou au composant commun ?
-- Peut-il casser les données existantes ?
-- Ajoute-t-il une requête bloquante ?
-- Desktop, tablette et mobile restent-ils utilisables ?
-- L'état reste-t-il compréhensible sans dépendre uniquement de la couleur ?
-- Existe-t-il une correction plus petite et plus propre ?
-- Les correctifs récents sont-ils toujours présents ?
-
----
-
-## 15. Définition de terminé
-
-Une modification n'est terminée que si :
-
-- le code est syntaxiquement valide ;
-- l'UI respecte le design system ;
-- aucune fonctionnalité existante utile n'a disparu ;
-- les anciennes données restent lisibles ;
-- le démarrage n'est pas ralenti inutilement ;
-- le test local fonctionne ;
-- les fichiers annoncés correspondent réellement aux changements ;
-- `git diff` ne contient pas de modifications accidentelles.
+Le bilan final reste court : **changements effectués, vérifications réellement réalisées, limites ou blocages restants**, et état commit/push si pertinent. Ne pas annoncer une validation visuelle, mobile, Supabase ou de non-régression qui n'a pas été effectuée. Si un contrôle manque, le travail est partiel sur ce point : le dire clairement.
