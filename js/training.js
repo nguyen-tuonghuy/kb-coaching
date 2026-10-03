@@ -491,6 +491,12 @@ function updateMatchAuditMeta(){
   meta.classList.remove('hidden');
 }
 
+// Invitation joueur commun : garde-fou d'association.
+// Aucune ligne n'est écrite dans coaching_player_accounts sans confirmation explicite.
+// Le rapprochement des prénoms est purement indicatif : il renforce l'avertissement,
+// il n'autorise ni ne refuse jamais l'association.
+let sharedInviteState=null;
+function normalizeClaimName(value){return String(value||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()}
 function playerInviteToken(){try{return new URLSearchParams(location.search||'').get('player_invite')||''}catch{return ''}}
 function playerGroupInviteToken(){try{return new URLSearchParams(location.search||'').get('player_group_invite')||''}catch{return ''}}
 function playerGroupInvitePlayerId(){try{return new URLSearchParams(location.search||'').get('player_id')||localStorage.getItem('kinball_player_invite_player')||''}catch{return ''}}
@@ -507,6 +513,7 @@ async function loadSharedPlayerInvite(){
   if(error){if(status)status.textContent=error.message||'Lien invalide ou expiré';if(sel)sel.innerHTML='<option value="">Lien indisponible</option>';cont?.classList.add('hidden');return false}
   if($('#playerJoinGroupName'))$('#playerJoinGroupName').textContent=`${data?.group_name||'Groupe'} · sélectionne ton prénom.`;
   const players=data?.players||[],available=players.filter(p=>!p.linked),saved=playerGroupInvitePlayerId();
+  sharedInviteState={token,groupName:data?.group_name||'',players};
   if(sel){
     sel.innerHTML='<option value="">— Choisir mon prénom —</option>'+players.map(p=>`<option value="${escapeHtml(p.player_id)}" ${p.linked?'disabled':''}>${escapeHtml(p.player_name)}${p.linked?' · compte déjà activé':''}</option>`).join('');
     if(saved&&available.some(p=>p.player_id===saved))sel.value=saved;
@@ -543,12 +550,84 @@ async function clearPendingPlayerInviteMetadata(){
     if(error)throw error;
   }catch(e){console.warn('Unable to clear pending player invite metadata',e)}
 }
+// Repli : après une validation d'email, le retour se fait via emailRedirectTo et
+// loadSharedPlayerInvite() n'a pas forcément tourné. On relit alors l'invitation.
+async function ensureSharedInviteState(token){
+  if(sharedInviteState?.token===token)return sharedInviteState;
+  const {data,error}=await db.rpc('get_player_group_invite',{p_token:token});
+  if(error)throw error;
+  sharedInviteState={token,groupName:data?.group_name||'',players:data?.players||[]};
+  return sharedInviteState
+}
+function closePlayerClaimConfirmation(){
+  $('#playerClaimConfirmPopup')?.classList.add('hidden');
+  const summary=$('#playerClaimSummary');if(summary)summary.innerHTML='';
+  const warning=$('#playerClaimWarning');if(warning){warning.classList.add('hidden');warning.innerHTML=''}
+  const status=$('#playerClaimStatus');if(status)status.textContent=''
+}
+// Retourne true uniquement si l'utilisateur valide explicitement l'association.
+function confirmPlayerClaimAssociation({token,playerId}){
+  const popup=$('#playerClaimConfirmPopup');
+  if(!popup)return Promise.resolve(window.confirm('Confirmer l’association de ce compte avec ce joueur ?'));
+  return ensureSharedInviteState(token).then(invite=>{
+    const chosen=(invite.players||[]).find(p=>p.player_id===playerId);
+    const playerName=chosen?.player_name||'Joueur sélectionné';
+    const groupName=invite.groupName||'Groupe';
+    const email=currentUser?.email||'non renseigné';
+    const cachedProfile=groupState.profiles?.[currentUser?.id]||'';
+    return getMyProfile()
+      .then(profile=>profile?.first_name||cachedProfile)
+      .catch(()=>cachedProfile)
+      .then(profileFirstName=>{
+        const profileName=String(profileFirstName||'').trim();
+        const summary=$('#playerClaimSummary'),warning=$('#playerClaimWarning'),status=$('#playerClaimStatus');
+        if(summary)summary.innerHTML=[['Compte',email],['Profil',profileName||'non renseigné'],['Joueur choisi',playerName],['Groupe',groupName]]
+          .map(([label,value])=>`<div class="field"><label>${escapeHtml(label)}</label><div>${escapeHtml(value)}</div></div>`).join('');
+        if(warning){
+          // Avertissement renforcé, jamais bloquant : surnoms et écarts légitimes existent.
+          if(profileName&&normalizeClaimName(profileName)!==normalizeClaimName(playerName)){
+            warning.innerHTML=`<strong>⚠ Attention : le prénom du profil « ${escapeHtml(profileName)} » ne correspond pas au joueur choisi « ${escapeHtml(playerName)} ».</strong><br>Cette différence peut être légitime (surnom, second prénom). Vérifie bien que c’est toi avant de valider.`;
+            warning.classList.remove('hidden')
+          }else{
+            warning.classList.add('hidden');warning.innerHTML=''
+          }
+        }
+        if(status)status.textContent='';
+        popup.classList.remove('hidden');
+        return new Promise(resolve=>{
+          const settle=answer=>{
+            $('#confirmPlayerClaim').onclick=null;
+            $('#cancelPlayerClaim').onclick=null;
+            $('#closePlayerClaimConfirm').onclick=null;
+            popup.onclick=null;
+            closePlayerClaimConfirmation();
+            resolve(answer)
+          };
+          $('#confirmPlayerClaim').onclick=()=>settle(true);
+          $('#cancelPlayerClaim').onclick=()=>settle(false);
+          $('#closePlayerClaimConfirm').onclick=()=>settle(false);
+          // Clic sur le fond : annulation explicite, au même titre que « Retour ».
+          popup.onclick=e=>{if(e.target===popup)settle(false)};
+          setTimeout(()=>$('#cancelPlayerClaim')?.focus(),0)
+        })
+      })
+  })
+}
 async function claimPlayerInviteIfPresent(user=currentUser){
   const pending=pendingPlayerInviteFromUser(user);
   const groupToken=playerGroupInviteToken()||pending.group;
   if(groupToken){
     const playerId=playerGroupInvitePlayerId()||pending.playerId;
     if(!playerId)throw new Error('Sélectionne ton prénom avant de te connecter.');
+    const confirmed=await confirmPlayerClaimAssociation({token:groupToken,playerId});
+    if(!confirmed){
+      // Aucune écriture : ni coaching_player_accounts, ni URL, ni métadonnées.
+      // Le marqueur accompagne l'erreur jusqu'aux appelants pour éviter
+      // qu'une annulation volontaire soit signalée comme une panne.
+      const cancelled=new Error('Association non confirmée.');
+      cancelled.playerClaimCancelled=true;
+      throw cancelled
+    }
     const {error}=await db.rpc('claim_coaching_player_group_invite',{p_token:groupToken,p_player_id:playerId});
     if(error)throw error;
     clearPlayerInviteToken();
@@ -950,10 +1029,12 @@ async function initAuthenticated(user){
   const splashGuard=setTimeout(hideStartupScreen,4000);
   try{
     try{await claimPlayerInviteIfPresent(user)}catch(e){
+      // Une annulation est un geste volontaire : message neutre, pas une erreur.
+      const cancelled=!!e?.playerClaimCancelled;
       clearTimeout(splashGuard);
       $('#authPanel').classList.remove('hidden');
       await loadSharedPlayerInvite().catch(()=>{});
-      authMessage(e.message||'Impossible d’activer cet accès joueur.',true);
+      authMessage(cancelled?'Association non confirmée. Vérifie le joueur choisi, puis réessaie.':(e.message||'Impossible d’activer cet accès joueur.'),!cancelled);
       setCloud('Accès joueur à compléter',false);
       hideStartupScreen();
       throw e
@@ -1027,7 +1108,7 @@ async function initAuth(){
       hideStartupScreen();
       runStartupBackground('invitation joueur',()=>loadSharedPlayerInvite());
     }else{
-      try{await initAuthenticated(session.user)}catch(e){console.error('initAuthenticated',e)}
+      try{await initAuthenticated(session.user)}catch(e){if(!e?.playerClaimCancelled)console.error('initAuthenticated',e)}
     }
     if(recoveryLink) openResetPasswordPopup(true);
   }else{
@@ -1043,7 +1124,7 @@ async function initAuth(){
   }
   db.auth.onAuthStateChange(async (event,session)=>{
     if(session?.user && (!currentUser || currentUser.id!==session.user.id)){
-      try{await initAuthenticated(session.user)}catch(e){handleError('auth change',e)}
+      try{await initAuthenticated(session.user)}catch(e){if(!e?.playerClaimCancelled)handleError('auth change',e)}
     }
     if(event==='PASSWORD_RECOVERY') openResetPasswordPopup(true);
   });
@@ -8109,7 +8190,7 @@ $('#playerPortalMessageInput').addEventListener('keydown',e=>{if((e.ctrlKey||e.m
 $('#playerSpaceBtn').onclick=()=>enterMyPlayerPortal().catch(err=>handleError('open player portal',err));
 $('#playerPortalBackStaff').onclick=()=>returnToStaffSpace().catch(e=>handleError('return staff space',e));
 
-$('#playerJoinContinue').onclick=async()=>{const playerId=playerGroupInvitePlayerId();if(!playerId){authMessage('Sélectionne d’abord ton prénom.',true);return}const {data:{session}}=await db.auth.getSession();if(!session?.user){authMessage('Connecte-toi ou crée ton compte pour continuer.',true);return}authMessage('Activation de ton accès…');try{await initAuthenticated(session.user);authMessage('')}catch(e){console.error('player join continue',e)}};
+$('#playerJoinContinue').onclick=async()=>{const playerId=playerGroupInvitePlayerId();if(!playerId){authMessage('Sélectionne d’abord ton prénom.',true);return}const {data:{session}}=await db.auth.getSession();if(!session?.user){authMessage('Connecte-toi ou crée ton compte pour continuer.',true);return}authMessage('Activation de ton accès…');try{await initAuthenticated(session.user);authMessage('')}catch(e){if(!e?.playerClaimCancelled)console.error('player join continue',e)}};
 $('#groupPlayerSharedLink').onclick=()=>createSharedPlayerAccessLink();
 
 

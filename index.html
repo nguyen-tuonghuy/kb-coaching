@@ -1235,6 +1235,24 @@
   </div>
  </div>
 </div>
+<div class="popupBackdrop hidden" id="playerClaimConfirmPopup">
+ <div class="sheet" style="max-width:560px" role="dialog" aria-modal="true" aria-labelledby="playerClaimTitle">
+  <div class="sheetTop">
+   <div>
+    <h2 id="playerClaimTitle">Confirmer l’association</h2>
+    <div class="meta">Vérifie que ce compte est bien associé au bon joueur avant de valider.</div>
+   </div>
+   <button class="closePopup" id="closePlayerClaimConfirm" aria-label="Fermer">×</button>
+  </div>
+  <div id="playerClaimSummary"></div>
+  <div class="warning hidden" id="playerClaimWarning"></div>
+  <div class="authStatus" id="playerClaimStatus" role="status" aria-live="polite"></div>
+  <div class="row" style="margin-top:14px">
+   <button class="ghost" style="flex:1" type="button" id="cancelPlayerClaim">Retour</button>
+   <button class="primary" style="flex:2" type="button" id="confirmPlayerClaim">Confirmer l’association</button>
+  </div>
+ </div>
+</div>
 
 
 

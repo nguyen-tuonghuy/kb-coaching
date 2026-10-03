@@ -244,8 +244,14 @@ button.primary,.primary,.on,.tab.active{
   border-color:var(--warning-border)!important;
 }
 .error{color:var(--danger)!important}
+/* Composant d'alerte partagé : la structure (bordure explicite, rayon, respiration)
+   appartient au design system commun, pas à une page. Sans ces trois propriétés,
+   border-color seul n'était visible que sur les pages qui redéfinissaient .warning,
+   et le texte touchait les bords ailleurs. */
 .warning{
-  border-color:var(--warning-border)!important;
+  border:1px solid var(--warning-border)!important;
+  border-radius:13px;
+  padding:12px;
   background:#FFF7E6!important;
   color:var(--warning-text)!important;
 }
