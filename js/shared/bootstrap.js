@@ -59,7 +59,7 @@ app.currentUser = null;
 app.$ = s=>document.querySelector(s);
 app.$$ = s=>[...document.querySelectorAll(s)];
 
-({escapeHtml: app.escapeHtml,escapeAttr: app.escapeAttr,matchYoutubeId: app.matchYoutubeId,parseMatchVideoTime: app.parseMatchVideoTime,formatMatchVideoTime: app.formatMatchVideoTime} = window.KinballCoach.utils);
+({escapeHtml: app.escapeHtml,escapeAttr: app.escapeAttr,matchYoutubeId: app.matchYoutubeId,parseMatchVideoTime: app.parseMatchVideoTime,formatMatchVideoTime: app.formatMatchVideoTime,newUuid: app.newUuid} = window.KinballCoach.utils);
 
 app.today = ()=>new Date().toISOString().slice(0,10);
 

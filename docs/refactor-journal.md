@@ -36,7 +36,7 @@ Branche : `refactor/shared-page-code`. Aucun commit, push ou publication autoris
 
 - Les parcours Chrome peuplés couvrent groupes, préparation des matchs, réglages, statistiques, portail joueur et plans d'entraînement aux trois largeurs.
 - Le parcours match a révélé un conflit de nom local `app` avec le contexte injecté : renommage précis du conteneur DOM, puis audit des portées originales pour vérifier l'absence d'autres collisions.
-- Le harnais navigateur utilise maintenant HTTPS : son origine HTTP fictive ne fournissait pas `crypto.randomUUID`, contrairement au site publié et à localhost sécurisé. Aucun polyfill ajouté au produit.
+- Le harnais navigateur utilise maintenant HTTPS : son origine HTTP fictive ne fournissait pas `crypto.randomUUID`, contrairement au site publié et à localhost sécurisé. Aucun polyfill n'est ajouté à ce stade ; la compatibilité tablette de `crypto.randomUUID()` est traitée séparément (voir l'entrée « Compatibilité tablette de newUuid »).
 - Les styles de 237 éléments d'un plan peuplé (brouillon, exercice dual et notes longues) sont identiques aux CSS d'origine à 1440, 820 et 390 px. Les six comparaisons de styles par ID restent également identiques.
 - Correctif séparé : l'historique joueur manquant est implémenté avec les lectures existantes, filtrage du joueur, échappement des notes et rejet des réponses après changement de sélection. Aucun nouveau SQL/RPC.
 - Correctifs du cycle de session : abonnement auth non bloquant pour éviter un verrou SDK, relecture de la session réelle avant association, invalidation d'un démarrage après déconnexion et purge des caches de compte.
@@ -74,4 +74,16 @@ Le travail est achevé pour cette intervention ; aucun serveur ni processus de t
 - Contrôles : `categories.test.cjs` 3/3 ; 74 réussites sur les 5 autres suites, avec un test navigateur annulé par contention puis 15/15 seul ; bundle partagé conforme ; `node --check` et `git diff --check` réussis.
 - Constats hors périmètre, documentés et non corrigés : le trigger `guard_exercise_category` interdit tout DELETE alors que `220200` et `14124624` ont ouvert ce droit, donc le bouton « Supprimer » ne peut pas aboutir ; les policies « delete unused » ne garantissent pas la condition d'inutilisation, que seul le front vérifie ; deux fichiers locaux portent un timestamp absent de l'historique réel et seraient réappliqués par `supabase db push`.
 - Règle d'historique SQL ajoutée dans `AGENTS.md`.
-- Branche `refactor/shared-page-code`. **Aucun commit, push, fusion ni publication.** Base distante jamais sollicitée.
+- Branche `refactor/shared-page-code`, HEAD `3b21ad9`. **Commit `3b21ad9` poussé sur la branche de travail ; aucune fusion ni publication.** `main` reste à `de468af`. Base distante jamais sollicitée.
+
+## 2026-10-04 — Compatibilité tablette de newUuid
+
+- Cause : `crypto.randomUUID()` n'existe que dans un contexte sécurisé. Sur une tablette en HTTP (LAN), `window.crypto` existe mais `randomUUID` vaut `undefined` : la création d'un bloc de plan ou l'ajout d'un exercice à la séance s'interrompait sur une `TypeError`.
+- `newUuid()` est ajouté à `js/shared/utils.js` et exposé via `app.newUuid`, le déstructuring de `bootstrap.js` étant le seul pont vers `app.*`. Trois paliers : `crypto.randomUUID()` ; `crypto.getRandomValues()`, disponible hors contexte sécurisé et donc celui qui débloque la tablette ; `Math.random()` seulement si Web Crypto est absent. Les bits version 4 et variante 10xx sont posés explicitement sur les deux derniers paliers, sinon `getRandomValues` produirait des identifiants non conformes.
+- Les 8 appels directs de `js/training/sessions.js` passent par `app.newUuid()`. Aucun autre comportement modifié.
+- Constat hors périmètre, laissé tel quel : `newPlanBlock()` génère déjà un `id` que les lignes 1103 et 1150 écrasent aussitôt, soit deux UUID jetés par bloc.
+- Test dédié `tests/utils-uuid.test.cjs` : un JSDOM minimal charge uniquement `js/shared/utils.js`, sans démarrer l'application. `window.crypto` étant un accesseur configurable, chaque palier est forcé explicitement. Séquençage vérifié, format v4, variante et unicité sur les trois paliers ; l'exposition `app.newUuid` est vérifiée sur la page entraînement.
+- Le harnais existant ne pouvait pas détecter ce défaut : son origine est HTTPS, donc `randomUUID` y est toujours présent.
+- Contrôles : `utils-uuid.test.cjs` 4/4, y compris un test de mutation qui confirme que les assertions détectent la suppression du forçage de variante et du chemin natif ; 5 autres suites 66/67 ; bundle partagé conforme ; `node --check` et `git diff --check` réussis.
+- Limite mesurée, préexistante : la suite navigateur est instable sur cette machine, dont le load average atteint 10 à 11. Comparée sur trois passages à HEAD sans ce changement, elle y a donné 3, 1 puis 4 annulations, contre 1 puis 0 puis 0 avec le changement. Un de ces timeouts s'est manifesté une fois par une assertion perdant la course contre le délai de 3000 ms du mock d'accès. Cause environnementale, non corrigée ici.
+- Branche `refactor/shared-page-code`. **Aucun commit, push, fusion ni publication au moment de la rédaction de cette entrée.**

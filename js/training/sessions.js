@@ -188,7 +188,7 @@ app.seedTrainingPlan27092026 = function seedTrainingPlan27092026(){
 };
 
 app.newPlanBlock = function newPlanBlock(seed={}){
-  return {id:crypto.randomUUID(),start:seed.draft?'':(seed.start||app.trainingPlanStartValue()),duration:seed.duration??10,track:seed.track||'both',title:seed.title||'',details:seed.details||'',attention:seed.attention||'',sourceType:seed.sourceType||'free',exerciseId:seed.exerciseId||null,collectStats:!!seed.collectStats,focus:seed.focus||null,draft:!!seed.draft,expanded:seed.expanded??false};
+  return {id:app.newUuid(),start:seed.draft?'':(seed.start||app.trainingPlanStartValue()),duration:seed.duration??10,track:seed.track||'both',title:seed.title||'',details:seed.details||'',attention:seed.attention||'',sourceType:seed.sourceType||'free',exerciseId:seed.exerciseId||null,collectStats:!!seed.collectStats,focus:seed.focus||null,draft:!!seed.draft,expanded:seed.expanded??false};
 };
 
 app.planExerciseById = function planExerciseById(id){return app.trainingState.exercises.find(ex=>ex.id===id)||null};
@@ -271,7 +271,7 @@ app.addTrainingPlanBlock = function addTrainingPlanBlock(seed={}){app.captureTra
 
 app.moveTrainingPlanBlock = function moveTrainingPlanBlock(id,delta){app.captureTrainingPlan();const i=app.trainingState.planBlocks.findIndex(x=>x.id===id);const j=i+delta;if(i<0||j<0||j>=app.trainingState.planBlocks.length)return;[app.trainingState.planBlocks[i],app.trainingState.planBlocks[j]]=[app.trainingState.planBlocks[j],app.trainingState.planBlocks[i]];app.recalculateTrainingPlanTimes();app.renderTrainingPlan();};
 
-app.duplicateTrainingPlanBlock = function duplicateTrainingPlanBlock(id){app.captureTrainingPlan();const i=app.trainingState.planBlocks.findIndex(x=>x.id===id);if(i<0)return;const src=app.trainingState.planBlocks[i];app.trainingState.planBlocks.splice(i+1,0,{...src,id:crypto.randomUUID(),expanded:false});app.recalculateTrainingPlanTimes();app.syncPlanStatExercises();app.renderTrainingPlan();app.renderTrainingExerciseCards();};
+app.duplicateTrainingPlanBlock = function duplicateTrainingPlanBlock(id){app.captureTrainingPlan();const i=app.trainingState.planBlocks.findIndex(x=>x.id===id);if(i<0)return;const src=app.trainingState.planBlocks[i];app.trainingState.planBlocks.splice(i+1,0,{...src,id:app.newUuid(),expanded:false});app.recalculateTrainingPlanTimes();app.syncPlanStatExercises();app.renderTrainingPlan();app.renderTrainingExerciseCards();};
 
 app.removeTrainingPlanBlock = function removeTrainingPlanBlock(id){app.captureTrainingPlan();app.trainingState.planBlocks=app.trainingState.planBlocks.filter(x=>x.id!==id);app.recalculateTrainingPlanTimes();app.syncPlanStatExercises();app.renderTrainingPlan();app.renderTrainingExerciseCards();};
 
@@ -418,7 +418,7 @@ app.renderTrainingPlan = function renderTrainingPlan(){
       const preview=(b.details||b.attention||'').trim();
       card.innerHTML=`<div class="trainingDraftCardTitle">${app.escapeHtml(b.title||ex?.name||'Bloc sans titre')}</div><div class="trainingDraftCardMeta">${app.escapeHtml(b.sourceType==='library'&&ex?'Bibliothèque · '+ex.name:'Bloc libre')} · ${app.escapeHtml(app.trainingTrackLabel(b.track))} · ${app.escapeHtml(String(b.duration||0))} min</div>${preview?`<div class="trainingDraftCardText">${app.escapeHtml(preview)}</div>`:''}<div class="trainingDraftCardActions"><button type="button" class="primary" data-draft-restore>Remettre dans le planning</button><button type="button" class="ghost" data-draft-copy>Dupliquer</button><button type="button" class="ghost" data-draft-remove>Supprimer</button></div>`;
       card.querySelector('[data-draft-restore]').onclick=()=>app.restoreTrainingPlanBlockFromDraft(b.id,b.track);
-      card.querySelector('[data-draft-copy]').onclick=()=>{const i=app.trainingState.planBlocks.findIndex(x=>x.id===b.id);if(i<0)return;app.trainingState.planBlocks.splice(i+1,0,{...b,id:crypto.randomUUID(),draft:true,start:''});app.renderTrainingPlan()};
+      card.querySelector('[data-draft-copy]').onclick=()=>{const i=app.trainingState.planBlocks.findIndex(x=>x.id===b.id);if(i<0)return;app.trainingState.planBlocks.splice(i+1,0,{...b,id:app.newUuid(),draft:true,start:''});app.renderTrainingPlan()};
       card.querySelector('[data-draft-remove]').onclick=()=>{if(confirm('Supprimer définitivement ce brouillon ?'))app.removeTrainingPlanBlock(b.id)};
       card.addEventListener('click',e=>{if(app.trainingState.planOrganizerMode&&!e.target.closest('button,input,select,textarea,a'))app.selectTrainingPlanOrganizerBlock(b.id)});
       card.addEventListener('dragstart',e=>{if(app.trainingState.planOrganizerMode||coarsePointer){e.preventDefault();return}card.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',b.id)});
@@ -519,7 +519,7 @@ app.collapseAllTrainingExercises = function collapseAllTrainingExercises(exceptK
 };
 
 app.addSessionExercise = function addSessionExercise(ex,focus=null){
-  app.trainingState.sessionExercises.push({...ex,focus:app.isDualExercise(ex)?focus:null,localKey:crypto.randomUUID(),expanded:false});
+  app.trainingState.sessionExercises.push({...ex,focus:app.isDualExercise(ex)?focus:null,localKey:app.newUuid(),expanded:false});
   app.renderTrainingExerciseCards();
 };
 
@@ -1088,7 +1088,7 @@ app.duplicateTrainingSessionById = async function duplicateTrainingSessionById(s
 
   app.trainingState.sessionExercises=(sessionExercises||[])
     .filter(x=>x.exercise)
-    .map(x=>({...x.exercise,localKey:crypto.randomUUID(),expanded:false,variant:x.variant||null,target:x.target||null,focus:x.focus||null}));
+    .map(x=>({...x.exercise,localKey:app.newUuid(),expanded:false,variant:x.variant||null,target:x.target||null,focus:x.focus||null}));
 
   app.$('#trainingDate').value=app.isoToFrInput(app.today());
   app.$('#trainingGroup').value=source.group_id||'';
@@ -1100,7 +1100,7 @@ app.duplicateTrainingSessionById = async function duplicateTrainingSessionById(s
   const sourcePlan=app.unpackTrainingNotes(source.notes||'');
   app.$('#trainingNotes').value=sourcePlan.notes||'';
   app.autoGrowPlanTextarea(app.$('#trainingNotes'));
-  app.trainingState.planBlocks=(sourcePlan.plan||[]).map(b=>({...app.newPlanBlock(b),...b,id:crypto.randomUUID(),expanded:false}));
+  app.trainingState.planBlocks=(sourcePlan.plan||[]).map(b=>({...app.newPlanBlock(b),...b,id:app.newUuid(),expanded:false}));
   if(app.$('#trainingPlanStart')&&app.trainingState.planBlocks.length){const mins=app.trainingState.planBlocks.filter(b=>!b.draft).map(b=>app.planTimeMinutes(b.start)).filter(x=>x!==99999);if(mins.length)app.$('#trainingPlanStart').value=app.minutesToPlanTime(Math.min(...mins))}
   app.bindLoadedStatsToPlanBlocks();
   app.$('#trainingSaveStatus').textContent='';
@@ -1135,7 +1135,7 @@ app.editTrainingSessionById = async function editTrainingSessionById(sessionId){
   app.trainingState.planOrganizerMode=false;app.trainingState.planOrganizerSelectedId=null;
   app.trainingState.sessionExercises=(sessionExercises||[])
     .filter(x=>x.exercise)
-    .map(x=>({...x.exercise,localKey:crypto.randomUUID(),expanded:false,variant:x.variant||null,target:x.target||null,focus:x.focus||null}));
+    .map(x=>({...x.exercise,localKey:app.newUuid(),expanded:false,variant:x.variant||null,target:x.target||null,focus:x.focus||null}));
 
   app.$('#trainingDate').value=app.isoToFrInput(source.trained_on||app.today());
   app.$('#trainingGroup').value=source.group_id||'';
@@ -1147,7 +1147,7 @@ app.editTrainingSessionById = async function editTrainingSessionById(sessionId){
   const sourcePlan=app.unpackTrainingNotes(source.notes||'');
   app.$('#trainingNotes').value=sourcePlan.notes||'';
   app.autoGrowPlanTextarea(app.$('#trainingNotes'));
-  app.trainingState.planBlocks=(sourcePlan.plan||[]).map(b=>({...app.newPlanBlock(b),...b,id:crypto.randomUUID(),expanded:false}));
+  app.trainingState.planBlocks=(sourcePlan.plan||[]).map(b=>({...app.newPlanBlock(b),...b,id:app.newUuid(),expanded:false}));
   if(app.$('#trainingPlanStart')&&app.trainingState.planBlocks.length){const mins=app.trainingState.planBlocks.filter(b=>!b.draft).map(b=>app.planTimeMinutes(b.start)).filter(x=>x!==99999);if(mins.length)app.$('#trainingPlanStart').value=app.minutesToPlanTime(Math.min(...mins))}
   app.bindLoadedStatsToPlanBlocks();
   app.$('#trainingSaveStatus').textContent='';

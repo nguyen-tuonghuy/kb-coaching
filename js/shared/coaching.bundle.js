@@ -1034,7 +1034,17 @@
     const mm=h?String(m%60).padStart(2,'0'):String(m),ss=String(s%60).padStart(2,'0');
     return h?`${h}:${mm}:${ss}`:`${mm}:${ss}`;
   }
-  kc.utils=Object.freeze({escapeHtml,escapeAttr:escapeHtml,matchYoutubeId,parseMatchVideoTime,formatMatchVideoTime});
+  function newUuid(){
+    const g=typeof crypto!=='undefined'?crypto:null;
+    if(g&&typeof g.randomUUID==='function')return g.randomUUID();
+    const b=new Uint8Array(16);
+    if(g&&typeof g.getRandomValues==='function')g.getRandomValues(b);
+    else for(let i=0;i<16;i++)b[i]=Math.floor(Math.random()*256);
+    b[6]=(b[6]&15)|64;b[8]=(b[8]&63)|128;
+    const h=[];for(let i=0;i<16;i++)h.push((b[i]+256).toString(16).slice(1));
+    return `${h.slice(0,4).join('')}-${h.slice(4,6).join('')}-${h.slice(6,8).join('')}-${h.slice(8,10).join('')}-${h.slice(10,16).join('')}`;
+  }
+  kc.utils=Object.freeze({escapeHtml,escapeAttr:escapeHtml,matchYoutubeId,parseMatchVideoTime,formatMatchVideoTime,newUuid});
 })();
 /* END js/shared/utils.js */
 
@@ -7805,7 +7815,7 @@ app.currentUser = null;
 app.$ = s=>document.querySelector(s);
 app.$$ = s=>[...document.querySelectorAll(s)];
 
-({escapeHtml: app.escapeHtml,escapeAttr: app.escapeAttr,matchYoutubeId: app.matchYoutubeId,parseMatchVideoTime: app.parseMatchVideoTime,formatMatchVideoTime: app.formatMatchVideoTime} = window.KinballCoach.utils);
+({escapeHtml: app.escapeHtml,escapeAttr: app.escapeAttr,matchYoutubeId: app.matchYoutubeId,parseMatchVideoTime: app.parseMatchVideoTime,formatMatchVideoTime: app.formatMatchVideoTime,newUuid: app.newUuid} = window.KinballCoach.utils);
 
 app.today = ()=>new Date().toISOString().slice(0,10);
 
