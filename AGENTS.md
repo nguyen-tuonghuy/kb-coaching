@@ -208,7 +208,7 @@ node --check js/training.js
 
 Vérifier également les scripts inline modifiés par une méthode adaptée. Une modification documentaire seule appelle une relecture et un contrôle du diff, pas un test fonctionnel de toute l'application.
 
-Le dépôt ne comporte actuellement pas de `package.json`. `tests/categories.test.cjs` utilise `node:test`, `jsdom`, `@electric-sql/pglite` et applique les migrations catégories dans l'ordre réel de `supabase_migrations.schema_migrations`. `supabase/migrations/` n'est pas l'historique complet de la base de production, qui a aussi été modifiée hors CLI ; ces migrations sont restaurées pour ce seul harnais, sans存在的 reste de l'historique. Vérifier leur présence et les dépendances avant de lancer :
+Le dépôt ne comporte actuellement pas de `package.json`. `tests/categories.test.cjs` utilise `node:test`, `jsdom`, `@electric-sql/pglite` et applique les migrations catégories dans l'ordre réel de `supabase_migrations.schema_migrations`. `supabase/migrations/` n'est pas l'historique complet de la base de production, qui a aussi été modifiée hors CLI ; ces migrations sont restaurées pour ce seul harnais, sans le reste de l'historique. Vérifier leur présence et les dépendances avant de lancer :
 
 ```bash
 node --test tests/categories.test.cjs
