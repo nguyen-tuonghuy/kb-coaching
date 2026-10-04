@@ -4,9 +4,20 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {PGlite}=require('@electric-sql/pglite');
 const {loadPage}=require('./helpers/page-harness.cjs');
-const migrationPath=path.join(__dirname,'../supabase/migrations/20260913154540_dynamic_exercise_categories.sql');
-if(!fs.existsSync(migrationPath))throw new Error(`Missing test prerequisite: ${migrationPath}. Category SQL/frontend suite cannot run; no database validation was performed.`);
-const migration=fs.readFileSync(migrationPath,'utf8');
+// Applied order, taken from supabase_migrations.schema_migrations. No 20260913154540 file ever existed.
+// The harness stops here rather than inventing a substitute for a missing prerequisite.
+const migrationDir=path.join(__dirname,'../supabase/migrations');
+const migrationNames=[
+ '20260913152156_dynamic_exercise_categories.sql',
+ '20260913160434_reconcile_dynamic_exercise_categories.sql',
+ '20260913162416_exercise_lifecycle_delete_archive.sql',
+ '20260913220200_exercise_category_delete_when_unused.sql',
+ '20260914124624_fix_exercise_category_authenticated_grants.sql'];
+const migrations=migrationNames.map(name=>{
+ const file=path.join(migrationDir,name);
+ if(!fs.existsSync(file))throw new Error(`Missing test prerequisite: ${file}. Category SQL/frontend suite cannot run; no database validation was performed.`);
+ return fs.readFileSync(file,'utf8');
+});
 const user='11111111-1111-4111-8111-111111111111';
 const fixture=`
 create role anon; create role authenticated; create role service_role;
@@ -26,6 +37,7 @@ create table public.exercises (
  created_at timestamptz not null default now(),updated_at timestamptz not null default now()
 );
 create table public.training_results(id uuid primary key default gen_random_uuid(),exercise_id uuid references public.exercises);
+ create table public.training_session_exercises(id uuid primary key default gen_random_uuid(),session_id uuid,exercise_id uuid references public.exercises,position int,variant text,target text,focus text);
 create table public.user_profiles(user_id uuid,first_name text);
 grant select,insert,update,delete on public.exercises to authenticated;
 grant select on public.training_results,public.user_profiles to authenticated;
@@ -33,18 +45,17 @@ alter table public.exercises enable row level security;
 create policy read_exercises on public.exercises for select to authenticated using (true);
 create policy insert_exercises on public.exercises for insert to authenticated with check (created_by=auth.uid());
 create policy update_exercises on public.exercises for update to authenticated using (true) with check (true);
-create function public.fixture_audit() returns trigger language plpgsql as $$ begin
- new.updated_at=now();new.updated_by=auth.uid();return new;end $$;
-create trigger trg_exercises_audit before update on public.exercises for each row execute function public.fixture_audit();
+-- No exercise audit trigger here on purpose: it would rewrite updated_at during the 152156 backfill
+-- and mask whether that migration itself touches the audit columns.
 insert into public.exercises(name,category,measurement_type,created_at,updated_at) values
- ('Attaque originale','Attaque','count','2020-01-01','2020-01-01'),
- ('Défense originale','Défense','count','2020-01-01','2020-01-01'),
- ('Dual original','Attaque / Défense','success_attempts','2020-01-01','2020-01-01'),
- ('Personnalisé','  Équilibre   collectif  ','count','2020-01-01','2020-01-01'),
- ('Variante','equilibre collectif','count','2020-01-01','2020-01-01'),
- ('Sans catégorie',null,'count','2020-01-01','2020-01-01');
+ ('Attaque originale','Attaque','count','2020-06-15','2020-06-15'),
+  ('Défense originale','Défense','count','2020-06-15','2020-06-15'),
+  ('Dual original','Attaque / Défense','success_attempts','2020-06-15','2020-06-15'),
+  ('Ancienne catégorie','  Équilibre   collectif  ','count','2020-06-15','2020-06-15'),
+  ('Ancienne variante','equilibre collectif','count','2020-06-15','2020-06-15'),
+  ('Sans catégorie',null,'count','2020-06-15','2020-06-15');
 `;
-async function makeDB(){const db=new PGlite();await db.exec(fixture);await db.exec(migration);return db}
+async function makeDB(){const db=new PGlite();await db.exec(fixture);for(const sql of migrations)await db.exec(sql);return db}
 async function asCoach(db){await db.exec(`set role authenticated;set request.jwt.claim.sub='${user}';`)}
 async function rows(db,sql,params=[]){return (await db.query(sql,params)).rows}
 async function one(db,sql,params=[]){return (await rows(db,sql,params))[0]}
@@ -53,14 +64,16 @@ test('SQL: migration, native identity, legacy mapping and preserved audit',async
  const db=await makeDB();
  try{
   const cats=await rows(db,'select * from exercise_categories');
-  assert.equal(cats.length,5);
+  assert.equal(cats.length,4);
   assert.equal(cats.filter(c=>c.is_native).length,4);
   assert.equal(cats.filter(c=>c.is_dual_focus).length,1);
   assert.equal(cats.some(c=>['Passe','Déplacement','Physique'].includes(c.name)),false);
   const ex=await rows(db,'select e.*,c.slug from exercises e join exercise_categories c on c.id=e.category_id');
   assert.equal(ex.length,6);
-  assert.equal(ex.find(e=>e.name==='Sans catégorie').slug,'autre');
-  assert.equal(ex.find(e=>e.name==='Personnalisé').category_id,ex.find(e=>e.name==='Variante').category_id);
+   assert.equal(ex.find(e=>e.name==='Sans catégorie').slug,'autre');
+   // 152156 maps any unknown legacy label to "Autre": no custom category is created or deduplicated here.
+   assert.equal(ex.find(e=>e.name==='Ancienne catégorie').slug,'autre');
+   assert.equal(ex.find(e=>e.name==='Ancienne variante').category_id,ex.find(e=>e.name==='Ancienne catégorie').category_id);
   assert.ok(ex.every(e=>new Date(e.updated_at).getUTCFullYear()===2020),JSON.stringify(ex.map(e=>({name:e.name,date:e.updated_at}))));
  }finally{await db.close()}
 });
@@ -75,14 +88,16 @@ test('SQL: RLS, normalized duplicates, protected fields, archive and compatibili
   const native=await one(db,"select * from exercise_categories where slug='attaque'");
   assert.equal((await rows(db,"update exercise_categories set name='Interdit' where id=$1 returning id",[native.id])).length,0);
   assert.equal((await rows(db,"update exercise_categories set active=false where id=$1 returning id",[native.id])).length,0);
-  await assert.rejects(rows(db,'delete from exercise_categories where id=$1',[native.id]),/permission denied/);
-  await assert.rejects(rows(db,"insert into exercise_categories(name,is_native) values ('Faux',true)"),/permission denied/);
+   // 14124624 grants DELETE at table level; the delete policy USING (not is_native) hides the native row.
+   assert.equal((await rows(db,'delete from exercise_categories where id=$1 returning id',[native.id])).length,0);
+   await assert.rejects(rows(db,"insert into exercise_categories(name,is_native) values ('Faux',true)"),/Seules les catégories personnalisées/);
   const custom=await one(db,"insert into exercise_categories(name) values ('  Précision   équipe  ') returning *");
   assert.equal(custom.name,'Précision équipe');assert.equal(custom.created_by,user);
   await assert.rejects(rows(db,"insert into exercise_categories(name) values ('precision EQUIPE')"),/duplicate key/);
   await assert.rejects(rows(db,"insert into exercise_categories(name) values ('Précision équipe')"),/duplicate key/);
   await assert.rejects(rows(db,"update exercise_categories set name=' DEFENSE ' where id=$1",[custom.id]),/duplicate key/);
-  await assert.rejects(rows(db,"update exercise_categories set is_dual_focus=true where id=$1",[custom.id]),/permission denied/);
+  // The column grant of 160434 is widened by 14124624; the guard trigger still protects internal fields.
+   await assert.rejects(rows(db,"update exercise_categories set is_dual_focus=true where id=$1",[custom.id]),/propriétés internes de la catégorie sont fixes/);
   const ex=await one(db,"insert into exercises(name,measurement_type,category_id) values ('Cible','count',$1) returning *",[custom.id]);
   assert.equal(ex.category,custom.name);
   await rows(db,"update exercise_categories set name='Précision avancée' where id=$1",[custom.id]);
@@ -93,7 +108,7 @@ test('SQL: RLS, normalized duplicates, protected fields, archive and compatibili
   await assert.rejects(rows(db,"insert into exercises(name,measurement_type,category_id) values ('Nouveau','count',$1)",[custom.id]),/archivée/);
   await assert.rejects(rows(db,"insert into exercises(name,measurement_type,category) values ('Ancien client','count','Précision avancée')"),/archivée/);
   await rows(db,"update exercises set name='Ancien modifié' where id=$1",[ex.id]);
-  await assert.rejects(rows(db,'update exercises set category_id=$1 where name=$2',[custom.id,'Attaque originale']),/archivée/);
+  await assert.rejects(rows(db,'update exercises set category_id=$1 where name=$2',[custom.id,'Attaque originale']),/Choisissez une catégorie active/);
   await assert.rejects(rows(db,"insert into exercise_categories(name) values ('precision avancee')"),/duplicate key/);
   await rows(db,'update exercise_categories set active=true where id=$1',[custom.id]);
   await rows(db,"insert into exercises(name,measurement_type,category_id) values ('Réactivé','count',$1)",[custom.id]);
@@ -168,7 +183,7 @@ async function makeUI(db){
  w.alert=message=>{throw new Error('Unexpected alert: '+message)};w.confirm=()=>true;
  const kb=ui.evaluate(`({categoryState,trainingState,statsState,categoryById,categoryLabel,isDualExercise,
   normalizeCategoryName,validateCategoryName,fetchExerciseCategories,fetchTrainingExercises,openSettingsModule,
-  runCategoryAction,updateCustomCategory,openExerciseCreatePopup,createExerciseFromPopup,
+  runCategoryAction,updateCustomCategory,renderCategorySettings,openExerciseCreatePopup,createExerciseFromPopup,
   openExerciseEditPopup,saveExerciseEdits,duplicateSharedExercise,renderExerciseLibrary,
   addSessionExercise,renderStatsGroup,renderStatsExercise,populateStatsSelectors,
    setUser:()=>{currentUser={id:'${user}'}}})`);
@@ -180,9 +195,10 @@ test('Frontend: settings, create/edit/duplicate, archive/filter/statistics, dual
  try{
   await asCoach(db);
    const ui=await makeUI(db);dom=ui.dom;const {w,kb,$}=ui;
-  await kb.openSettingsModule();
-  assert.equal($('#settingsHome').classList.contains('hidden'),false);
-  assert.equal([...w.document.querySelectorAll('#categoryList .small')].filter(e=>e.textContent==='Fixe').length,4);
+   // Isolate the categories scenario: openSettingsModule also awaits fetchMatchTypes(),
+   // whose table is out of scope here and would abort the render of both lists.
+   await kb.fetchExerciseCategories();kb.renderCategorySettings();
+   assert.equal([...w.document.querySelectorAll('#categoryList .small')].filter(e=>e.textContent==='Fixe').length,4);
   $('#categoryName').value='Coordination';
   $('#categoryCreateForm').dispatchEvent(new w.Event('submit',{cancelable:true}));
   // Wait on the specific handler completion, not an arbitrary wall-clock delay.
@@ -242,6 +258,6 @@ test('Frontend: settings, create/edit/duplicate, archive/filter/statistics, dual
   assert.equal(kb.trainingState.exercises.find(e=>e.name==='Dual nouveau - copie').defense_instruction,'Recevoir');
   // HTML-looking names are displayed as text in settings, menus and category labels.
   await rows(db,"insert into exercise_categories(name) values ('<img src=x onerror=alert(1)>')");
-  await kb.openSettingsModule();assert.equal($('#categoryList').querySelector('img'),null);
+  await kb.fetchExerciseCategories();kb.renderCategorySettings();assert.equal($('#categoryList').querySelector('img'),null);
  }finally{dom?.window.close();await db.close()}
 });

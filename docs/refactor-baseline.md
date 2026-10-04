@@ -106,15 +106,27 @@ Les traces et l'inventaire sont émis par les tests via des diagnostics JSON. Le
 
 Les tests d'association actuels couvrent **un seul flux à la fois avec une identité résolue**. Ils ne prouvent pas les RLS, le résultat réel de la mutation ni l'absence de soumissions concurrentes.
 
-## 6. Suite catégories : adaptation et blocage
+## 6. Suite catégories : adaptation et exécution
 
 `tests/categories.test.cjs` est adapté pour charger `training.html` et ses scripts externes complets via le harnais partagé, attendre le démarrage simulé et accéder aux fonctions actuelles. L'adaptateur SQL dispose maintenant d'un appel RPC paramétré vers la fonction réellement installée dans PGlite ; il ne simule pas un succès de RPC.
 
 Le prérequis manquant est explicitement signalé :
 
-`supabase/migrations/20260913154540_dynamic_exercise_categories.sql`
+`supabase/migrations/20260913152156_dynamic_exercise_categories.sql`
 
-Après installation des dépendances dans le répertoire temporaire, la tentative d'exécution a échoué sur cette absence. Aucune migration de remplacement ni définition SQL supposée n'a été créée. **L'adaptation frontend et l'adaptateur RPC de cette suite ne sont pas validés de bout en bout.** Après restauration autorisée des sources SQL, vérifier aussi la fixture des colonnes récentes (par exemple `copied_from_exercise_id`) et les RPC de cycle de vie d'exercice.
+Aucun fichier `20260913154540_dynamic_exercise_categories.sql` n'a jamais existé : la référence venait du seul test, qui visait une migration absente de l'historique réel. La référence a été remplacée par les migrations effectivement appliquées, restaurées depuis `supabase_migrations.schema_migrations` sous leur timestamp et leur contenu d'origine :
+
+| Fichier | Rôle dans le harnais |
+| --- | --- |
+| `20260913152156_dynamic_exercise_categories.sql` | table, 4 catégories système, rattachement des exercices |
+| `20260913160434_reconcile_dynamic_exercise_categories.sql` | normalisation, gardes, droits par colonne (déjà présent) |
+| `20260913162416_exercise_lifecycle_delete_archive.sql` | `get_exercise_usage` |
+| `20260913220200_exercise_category_delete_when_unused.sql` | `get_exercise_category_usage` |
+| `20260914124624_fix_exercise_category_authenticated_grants.sql` | droits de table qui élargissent ceux de `160434` |
+
+`supabase/migrations/` n'est pas l'historique complet de la base de production, qui compte 78 migrations appliquées et a aussi été modifiée hors CLI ; seules celles nécessaires à cette suite sont restaurées. La suite s'exécute et passe, y compris le scénario frontend de bout en bout. Elle reste limitée à PGlite : elle ne valide ni les droits réels, ni les données de production.
+
+Constat hors périmètre, non corrigé : le trigger `guard_exercise_category` interdit tout DELETE alors que `220200` et `14124624` ont ouvert ce droit. Le bouton « Supprimer » des réglages ne peut donc pas aboutir.
 
 ## 7. Checklist des parcours à compléter
 

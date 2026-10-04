@@ -61,3 +61,17 @@ Branche : `refactor/shared-page-code`. Aucun commit, push ou publication autoris
 - Branche toujours `refactor/shared-page-code`, HEAD `de468af`. **Aucun commit, push, fusion ni publication.** Les fichiers sont dans l'arbre de travail local.
 
 Le travail est achevé pour cette intervention ; aucun serveur ni processus de test n'est laissé volontairement en arrière-plan. Les dépendances, captures et outils temporaires sont conservés dans `/tmp/opencode/kb-refactor-tests/` pour permettre la reproduction des contrôles.
+
+## 2026-10-04 — Blocage de la suite catégories levé
+
+- Cause réelle du blocage : `tests/categories.test.cjs` visait `20260913154540_dynamic_exercise_categories.sql`, un fichier qui n'a jamais existé. La référence venait du test, pas de l'historique.
+- Historique réel vérifié dans `supabase_migrations.schema_migrations` : 78 migrations appliquées, 9 fichiers dans `supabase/migrations/`. La base a aussi été modifiée hors CLI, donc `schema_migrations` ne décrit que les passages par la CLI.
+- Quatre migrations restaurées sous leur timestamp et leur contenu d'origine : `152156`, `162416`, `220200`, `14124624`. `160434` était déjà présent. Le harnais les applique dans l'ordre réel.
+- Les deux RPC ne sont plus supposés : `get_exercise_usage` vient de `162416`, `get_exercise_category_usage` de `220200`. La fixture ne fournit que le schéma de base de remplacement et `training_session_exercises`, exigée par les deux fonctions.
+- Attentions dérivées du SQL réel : la suppression d'une catégorie native ne lève plus `permission denied` mais est filtrée par la policy `USING (not is_native)` ; `is_native` et `is_dual_focus` sont désormais refusés par les triggers de `160434`, plus par les droits ; le message sur copie archivée est « Choisissez une catégorie active avant de modifier cette copie. ».
+- Deux assertions antérieures étaient inatteignables et ont été corrigées : le compte de catégories seeded (4, pas 5) et le trigger d'audit de la fixture, qui réécrivait `updated_at` pendant le rattachement et masquait ce que `152156` touche réellement. Les dates de fixture passent au 15 juin pour ne plus dépendre du fuseau.
+- `openSettingsModule` mélange les catégories et les types de match ; le test appelle désormais `fetchExerciseCategories` puis `renderCategorySettings` pour isoler le scénario testé, sans ajouter de table `match_types` supposée.
+- Contrôles : `categories.test.cjs` 3/3 ; 74 réussites sur les 5 autres suites, avec un test navigateur annulé par contention puis 15/15 seul ; bundle partagé conforme ; `node --check` et `git diff --check` réussis.
+- Constats hors périmètre, documentés et non corrigés : le trigger `guard_exercise_category` interdit tout DELETE alors que `220200` et `14124624` ont ouvert ce droit, donc le bouton « Supprimer » ne peut pas aboutir ; les policies « delete unused » ne garantissent pas la condition d'inutilisation, que seul le front vérifie ; deux fichiers locaux portent un timestamp absent de l'historique réel et seraient réappliqués par `supabase db push`.
+- Règle d'historique SQL ajoutée dans `AGENTS.md`.
+- Branche `refactor/shared-page-code`. **Aucun commit, push, fusion ni publication.** Base distante jamais sollicitée.

@@ -155,7 +155,7 @@ Sur les entraînements, conserver aussi les mesures pertinentes pour séances et
 - Dans le navigateur, utiliser uniquement la clé publique / publishable ; jamais `service_role`.
 - Respecter les RLS ; ne pas les contourner depuis le front.
 - Toute modification de policy, RPC, trigger ou schéma doit être explicitement demandée ou clairement nécessaire, minimale, vérifiée et compatible avec les données existantes.
-- La présence d'un appel RPC dans le front ne prouve pas que sa définition SQL existe dans le dépôt. Vérifier les sources disponibles avant de proposer une migration.
+- La présence d'un appel RPC dans le front ne prouve pas que sa définition SQL existe dans le dépôt. Vérifier les sources disponibles avant de proposer une migration (voir « Historique SQL »).
 - Ne pas appliquer de migration à la base distante dans le cadre d'un simple test local.
 
 Préserver les contrats existants, notamment `action_type`, `result`, `fault_type`, `family`, `restart_location`, `zone` et leurs valeurs historiques. Pour un nouveau champ, gérer `null`, les anciennes lignes et une interprétation rétrocompatible ; éviter les migrations destructives.
@@ -163,6 +163,10 @@ Préserver les contrats existants, notamment `action_type`, `result`, `fault_typ
 Exemple : une séance sans champ `draft` et sans heure de début peut être interprétée comme brouillon.
 
 Avant une suppression, vérifier ce qui disparaît de l'UI, ce qui est supprimé en base et ce qui doit rester dans l'historique. Retirer un joueur d'un groupe ne doit pas supprimer son identité globale ni son historique.
+
+### Historique SQL
+
+`supabase/migrations/` peut être incomplet sans qu'aucune migration n'ait été omise : un fichier absent ne prouve pas qu'il n'a jamais été appliqué. Devant un écart, vérifier l'historique réel dans `supabase_migrations.schema_migrations`, comparer avec le dépôt, restaurer dans Git les migrations confirmées si elles sont nécessaires à la reproductibilité ou aux tests, et ne jamais réappliquer une migration déjà appliquée. Une migration restaurée garde son timestamp et son contenu d'origine ; ne pas reconstruire un SQL manquant par déduction.
 
 ### Association de compte et consentement
 
@@ -204,7 +208,7 @@ node --check js/training.js
 
 Vérifier également les scripts inline modifiés par une méthode adaptée. Une modification documentaire seule appelle une relecture et un contrôle du diff, pas un test fonctionnel de toute l'application.
 
-Le dépôt ne comporte actuellement pas de `package.json`. `tests/categories.test.cjs` utilise `node:test`, `jsdom`, `@electric-sql/pglite` et lit `supabase/migrations/20260913154540_dynamic_exercise_categories.sql`. Cette migration est absente de l'état local vérifié lors de cette mise à jour ; recontrôler sa présence et les dépendances avant de lancer :
+Le dépôt ne comporte actuellement pas de `package.json`. `tests/categories.test.cjs` utilise `node:test`, `jsdom`, `@electric-sql/pglite` et applique les migrations catégories dans l'ordre réel de `supabase_migrations.schema_migrations`. `supabase/migrations/` n'est pas l'historique complet de la base de production, qui a aussi été modifiée hors CLI ; ces migrations sont restaurées pour ce seul harnais, sans存在的 reste de l'historique. Vérifier leur présence et les dépendances avant de lancer :
 
 ```bash
 node --test tests/categories.test.cjs

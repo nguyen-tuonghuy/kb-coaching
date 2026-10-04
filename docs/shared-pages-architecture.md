@@ -137,7 +137,7 @@ Le packaging a été ajouté après mesure : la version à nombreux scripts sép
 
 Benchmark comparatif local à 820 px, même Chrome, ressources interceptées et latences simulées : médianes sur trois passages, navigation → écran utile, accueil **97 ms → 122 ms**, entraînement **141 ms → 139 ms**. Les premières mesures sont variables à froid. Ces chiffres ne garantissent pas les performances du site publié et ne prouvent pas une accélération générale de l'accueil.
 
-La suite SQL/RLS catégories reste bloquée par `supabase/migrations/20260913154540_dynamic_exercise_categories.sql`. Les tests connectés à Supabase et la PWA réelle ne sont pas validés par les mocks. Aucune migration distante appliquée. Les mutations réelles de matchs/séances doivent être vérifiées uniquement sur des données de test autorisées avant publication.
+La suite SQL/RLS catégories s'exécute : elle applique les migrations de catégories dans l'ordre réel de `supabase_migrations.schema_migrations`, restaurées dans Git sous leur timestamp d'origine. `supabase/migrations/` n'est pas l'historique complet de la base de production, qui compte 78 migrations appliquées et a aussi été modifiée hors CLI : `supabase db reset` reste donc impossible, et `supabase db push --include-all` réappliquerait des migrations déjà appliquées. Les tests connectés à Supabase et la PWA réelle ne sont pas validés par les mocks. Aucune migration distante appliquée. Les mutations réelles de matchs/séances doivent être vérifiées uniquement sur des données de test autorisées avant publication.
 
 ### Commandes de contrôle
 

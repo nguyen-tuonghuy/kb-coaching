@@ -210,7 +210,7 @@ Les améliorations de comportement éventuellement nécessaires seront des lots 
 ## 9. État des vérifications de l'étape 1
 
 - Mesures textuelles et IDs recalculés depuis les fichiers actuels ; exemples de dépendances et divergences relus dans les sources.
-- Prérequis locaux contrôlés : pas de `package.json`, `jsdom` et `@electric-sql/pglite` non résolus par Node, migration `20260913154540_dynamic_exercise_categories.sql` absente. Le harnais catégories est également incompatible avec les scripts externalisés.
+- Prérequis locaux contrôlés : pas de `package.json`, `jsdom` et `@electric-sql/pglite` non résolus par Node. À cette étape, le harnais catégories visait `20260913154540_dynamic_exercise_categories.sql`, un fichier qui n'a jamais existé ; ce blocage est levé depuis, voir [le bilan de référence](refactor-baseline.md).
 - Tests fonctionnels non exécutés : cette étape ne modifie que la documentation et ne constitue pas une validation de l'application.
 - La prochaine étape peut établir la référence de tests en commençant par les utilitaires indépendants ; les problèmes des catégories ne bloquent pas toute la cartographie ni le pilote.
 
