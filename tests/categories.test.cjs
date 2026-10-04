@@ -3,8 +3,10 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const {PGlite}=require('@electric-sql/pglite');
-const {JSDOM}=require('jsdom');
-const migration=fs.readFileSync(path.join(__dirname,'../supabase/migrations/20260913154540_dynamic_exercise_categories.sql'),'utf8');
+const {loadPage}=require('./helpers/page-harness.cjs');
+const migrationPath=path.join(__dirname,'../supabase/migrations/20260913154540_dynamic_exercise_categories.sql');
+if(!fs.existsSync(migrationPath))throw new Error(`Missing test prerequisite: ${migrationPath}. Category SQL/frontend suite cannot run; no database validation was performed.`);
+const migration=fs.readFileSync(migrationPath,'utf8');
 const user='11111111-1111-4111-8111-111111111111';
 const fixture=`
 create role anon; create role authenticated; create role service_role;
@@ -106,7 +108,7 @@ test('SQL: RLS, normalized duplicates, protected fields, archive and compatibili
 });
 
 // Minimal Supabase query adapter backed by the migrated PostgreSQL test database.
-// It exercises real constraints/RLS while the DOM runs the production inline script.
+// It exercises real constraints/RLS while the DOM runs current external scripts.
 function clientFor(db){
  class Query{
   constructor(table){this.table=table;this.filters=[];this.sort=[];this.mode='select';this.values=null;this.singleRow=false;this.countOnly=false}
@@ -143,28 +145,41 @@ function clientFor(db){
   }
   then(resolve,reject){return this.execute().then(resolve,reject)}
  }
- return {from:table=>new Query(table),auth:{getSession:async()=>({data:{session:null}}),onAuthStateChange:()=>{},signOut:async()=>({error:null})}};
+ return {
+  from:table=>new Query(table),
+  // Execute the installed SQL function: do not invent a successful RPC response.
+  rpc:async(name,args={})=>{
+   assert.match(name,/^[a-z_]+$/);
+   const entries=Object.entries(args);
+   entries.forEach(([key])=>assert.match(key,/^[a-z_]+$/));
+   const parameters=entries.map(([key],i)=>`"${key}" => $${i+1}`).join(',');
+   try{
+    const result=await one(db,`select public."${name}"(${parameters}) as value`,entries.map(([,value])=>value));
+    return {data:result?.value??null,error:null};
+   }catch(error){return {data:null,error:{message:error.message,code:error.code}}}
+  },
+  auth:{getSession:async()=>({data:{session:null}}),onAuthStateChange:()=>{},signOut:async()=>({error:null})}
+ };
 }
-function makeUI(db){
- const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
- const dom=new JSDOM(html,{url:'http://localhost',runScripts:'outside-only'});
- const w=dom.window;w.supabase={createClient:()=>clientFor(db)};
- w.alert=message=>{throw new Error('Unexpected alert: '+message)};w.confirm=()=>true;w.scrollTo=()=>{};w.setTimeout=()=>0;
- const script=html.match(/<script>([\s\S]*)<\/script>/)[1];
- w.eval(script+`;window.kb={categoryState,trainingState,statsState,categoryById,categoryLabel,isDualExercise,
+async function makeUI(db){
+ // Exercise editing belongs to training.html, not to the homepage anymore.
+ const ui=await loadPage('training',{client:clientFor(db)});
+ const {dom,w}=ui;
+ w.alert=message=>{throw new Error('Unexpected alert: '+message)};w.confirm=()=>true;
+ const kb=ui.evaluate(`({categoryState,trainingState,statsState,categoryById,categoryLabel,isDualExercise,
   normalizeCategoryName,validateCategoryName,fetchExerciseCategories,fetchTrainingExercises,openSettingsModule,
   runCategoryAction,updateCustomCategory,openExerciseCreatePopup,createExerciseFromPopup,
   openExerciseEditPopup,saveExerciseEdits,duplicateSharedExercise,renderExerciseLibrary,
   addSessionExercise,renderStatsGroup,renderStatsExercise,populateStatsSelectors,
-  setUser:()=>{currentUser={id:'${user}'}}};`);
- w.kb.setUser();return {dom,w,kb:w.kb,$:selector=>w.document.querySelector(selector)};
+   setUser:()=>{currentUser={id:'${user}'}}})`);
+ kb.setUser();return {dom,w,kb,$:ui.$};
 }
 
 test('Frontend: settings, create/edit/duplicate, archive/filter/statistics, dual focus',async()=>{
  const db=await makeDB();let dom;
  try{
   await asCoach(db);
-  const ui=makeUI(db);dom=ui.dom;const {w,kb,$}=ui;
+   const ui=await makeUI(db);dom=ui.dom;const {w,kb,$}=ui;
   await kb.openSettingsModule();
   assert.equal($('#settingsHome').classList.contains('hidden'),false);
   assert.equal([...w.document.querySelectorAll('#categoryList .small')].filter(e=>e.textContent==='Fixe').length,4);

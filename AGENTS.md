@@ -70,7 +70,9 @@ Projet web statique. Cette arborescence est un **repère non exhaustif**, à vé
 - Externaliser un JavaScript dès qu'il devient significatif ou difficile à maintenir inline.
 - Utiliser `common.css` pour les composants partagés ; un CSS de page pour sa structure et ses composants uniques.
 - Ne pas créer de nouvelles implémentations concurrentes d'un même composant sans nécessité.
-- Certains flux sont actuellement dupliqués entre `js/index.js` et `js/training.js`. Lorsqu'un de ces flux change, inspecter les deux versions, appliquer la correction aux deux pages concernées et vérifier leur parité. Ne pas imposer une identité globale à des fichiers dont les fonctions spécifiques diffèrent.
+- L'accueil et l'entraînement utilisent les implémentations partagées de `js/shared/` et un contexte explicite `window.KinballCoach.app`. `js/index.js` et `js/training.js` portent les politiques propres aux pages ; `js/training/sessions.js` porte l'édition des séances. Modifier une implémentation commune dans sa source unique et vérifier les deux pages consommatrices. Ne pas uniformiser leurs différences intentionnelles.
+- Les composants HTML communs sont dans `js/shared/page-shell.js`, montés avant l'initialisation. `css/coaching-shared.css` fournit la structure commune à ces deux pages ; `common.css`, chargé en dernier, reste l'autorité visuelle pour tout le site.
+- Pour limiter les requêtes du premier affichage, ces modules sont publiés dans `js/shared/coaching.bundle.js`. Ne pas modifier ce fichier généré à la main. Après une modification de `js/shared/`, exécuter `node tools/build-coaching-runtime.cjs`, puis `node tools/build-coaching-runtime.cjs --check`. Inclure le bundle actualisé dans tout patch/publication. Les harnais refusent un bundle périmé. Voir `docs/shared-pages-architecture.md`.
 - Une mutualisation plus large doit répondre au besoin, sans transformer une correction ciblée en refonte.
 
 ## 4. Design system, CSS et accessibilité
