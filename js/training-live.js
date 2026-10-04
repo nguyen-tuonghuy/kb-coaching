@@ -219,7 +219,7 @@ function renderPeriodList(){
   $$('[data-open-period]').forEach(b=>b.onclick=()=>resumePeriod(b.dataset.openPeriod).catch(showFatal));
 }
 function syncNewSessionFields(){
-  const isNew=state.selectedSessionId==='__new__';$$('.newSessionField').forEach(x=>x.classList.toggle('hidden',!isNew));
+  const isNew=state.selectedSessionId==='__new__';$('#setupGrid').classList.toggle('isNewSession',isNew);$$('.newSessionField').forEach(x=>x.classList.toggle('hidden',!isNew));
   if(isNew){$('#newSessionDate').value=$('#newSessionDate').value||today();$('#existingPeriodsBlock').classList.add('hidden')}
 }
 async function handleGroupChange(){
