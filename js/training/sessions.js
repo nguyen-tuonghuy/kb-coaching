@@ -615,7 +615,7 @@ app.startNewTraining = async function startNewTraining(){
   app.trainingState.planBlocks=[];
   if(app.$('#trainingPlanStart'))app.$('#trainingPlanStart').value='13:30';
   app.syncPlanStatExercises();
-  app.$('#trainingSaveStatus').textContent='';
+  app.clearTrainingStatus();
   app.$('#trainingGroup').value=app.groupState.groups[0]?.id||'';
   await app.fetchTrainingPlayers(app.$('#trainingGroup').value||null);
   if(app.$('#trainingAttendancePreset'))app.$('#trainingAttendancePreset').value='';
@@ -1255,7 +1255,7 @@ app.duplicateTrainingSessionById = async function duplicateTrainingSessionById(s
   app.trainingState.planBlocks=(sourcePlan.plan||[]).map(b=>({...app.newPlanBlock(b),...b,id:app.newUuid(),expanded:false}));
   if(app.$('#trainingPlanStart')&&app.trainingState.planBlocks.length){const mins=app.trainingState.planBlocks.filter(b=>!b.draft).map(b=>app.planTimeMinutes(b.start)).filter(x=>x!==99999);if(mins.length)app.$('#trainingPlanStart').value=app.minutesToPlanTime(Math.min(...mins))}
   app.bindLoadedStatsToPlanBlocks();
-  app.$('#trainingSaveStatus').textContent='';
+  app.clearTrainingStatus();
 
   const presentIds=new Set((attendance||[]).filter(a=>a.present).map(a=>a.player_id));
   app.$$('#trainingAttendance input').forEach(c=>c.checked=presentIds.has(c.value));
@@ -1303,7 +1303,7 @@ app.editTrainingSessionById = async function editTrainingSessionById(sessionId){
   app.trainingState.planBlocks=(sourcePlan.plan||[]).map(b=>({...app.newPlanBlock(b),...b,id:app.newUuid(),expanded:false}));
   if(app.$('#trainingPlanStart')&&app.trainingState.planBlocks.length){const mins=app.trainingState.planBlocks.filter(b=>!b.draft).map(b=>app.planTimeMinutes(b.start)).filter(x=>x!==99999);if(mins.length)app.$('#trainingPlanStart').value=app.minutesToPlanTime(Math.min(...mins))}
   app.bindLoadedStatsToPlanBlocks();
-  app.$('#trainingSaveStatus').textContent='';
+  app.clearTrainingStatus();
   app.setTrainingSaveLabels('Enregistrer les modifications');
 
   const presentIds=new Set((attendance||[]).filter(a=>a.present).map(a=>a.player_id));
@@ -1339,10 +1339,19 @@ app.addTrainingPlayers = async function addTrainingPlayers(){
 };
 
 app.trainingStatus = function trainingStatus(text,error=false){
-  const el=app.$('#trainingSaveStatus');
-  el.textContent=text||'';
-  el.className='authStatus '+(error?'cloudErr':'cloudOk');
-  if(error)el.scrollIntoView?.({block:'nearest',behavior:'smooth'});
+  // The session editor has a save button in the header and another at the
+  // bottom of a long page. Both surfaces read the same state so a confirmation
+  // is visible wherever the coach currently is, including tablet landscape.
+  // Only the bottom status announces to screen readers, to avoid duplicates.
+  app.$$('#trainingSaveStatus,#trainingSaveStatusHead').forEach(el=>{
+    el.textContent=text||'';
+    el.className='authStatus '+(error?'cloudErr':'cloudOk');
+  });
+  if(error)app.$('#trainingSaveStatus').scrollIntoView?.({block:'nearest',behavior:'smooth'});
+};
+
+app.clearTrainingStatus = function clearTrainingStatus(){
+  app.$$('#trainingSaveStatus,#trainingSaveStatusHead').forEach(el=>{el.textContent='';el.className='authStatus'});
 };
 
 app.saveTrainingSession = async function saveTrainingSession(){
