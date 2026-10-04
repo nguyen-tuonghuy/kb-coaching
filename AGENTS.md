@@ -243,6 +243,20 @@ Vérifier console et réseau : aucune nouvelle erreur JS, aucun 404, aucune requ
 
 Après réussite des contrôles pertinents, ne les répéter ou les élargir que si une nouvelle modification ou un doute concret le justifie.
 
+### Stabilité de la machine pendant les tests
+
+La stabilité du poste de travail prime sur la vitesse d'exécution des tests.
+
+- Ne jamais exécuter plusieurs opérations lourdes en parallèle : un seul `node --test`, un seul Chromium et une seule génération de bundle à la fois.
+- `node --test` exécute les fichiers dans des processus distincts. Pour une validation multi-fichiers, imposer `--test-concurrency=1` ou lancer chaque fichier successivement ; ne pas compter sur l'absence de parallélisation des cas d'un même fichier.
+- Pour les tests navigateur, utiliser un seul worker et une seule instance Chromium réutilisée lorsque le harnais le permet. Garantir la fermeture du navigateur, des contexts, des pages, des serveurs et des processus enfants, y compris après erreur ou timeout, avec des hooks ou `try/finally` adaptés.
+- Avant de relancer un test navigateur après échec ou timeout, vérifier que l'exécution précédente est terminée. Après les tests, contrôler l'absence de processus Playwright, Chromium, Node ou serveur laissés par l'exécution.
+- Suivre une validation progressive : 1) diff, syntaxe et HTML/CSS pertinent ; 2) bundle une seule fois si nécessaire et tests ciblés ; 3) scénarios navigateur concernés avec un worker ; 4) smoke tests navigateur plus larges, une seule fois sur un lot stabilisé. Une correction CSS, un renommage ou une modification locale n'appelle pas automatiquement la suite navigateur complète.
+- Régénérer `coaching.bundle.js` uniquement après une modification effective de ses modules `js/shared/`, une seule fois et jamais dans une boucle ou en parallèle. Ne jamais modifier le bundle généré à la main.
+- Un timeout navigateur n'est pas automatiquement une régression. Identifier le cas bloquant, l'isoler et distinguer harnais, navigateur et application. Une suite aux résultats variables est instable : en rechercher la cause plutôt que multiplier les relances.
+- Avant une commande à risque pour le CPU ou la mémoire, contrôler la charge et la mémoire disponible. Si elles sont dégradées, privilégier une validation partielle fiable ou reporter l'étape ; ne pas saturer la machine pour accélérer une vérification.
+- Avant toute commande lançant un serveur, watcher, navigateur ou processus persistant, vérifier qu'un équivalent n'est pas déjà actif. Éviter les watchers pour les tâches ponctuelles et arrêter proprement les processus créés.
+
 ## 9. Outils et environnement
 
 - Privilégier les outils dédiés de lecture, recherche et patch ; utiliser le shell pour commandes, Git, serveurs et tests.

@@ -199,9 +199,12 @@
  </section>
 
  <section class="panel hidden" id="trainingSession">
-   <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
-    <div><h2 style="font-size:20px">Nouvelle séance</h2><div class="small">1. Informations · 2. Présents · 3. Exercices · 4. Résultats</div></div>
-    <button class="ghost backNav" id="cancelTraining">← Retour</button>
+   <div class="trainingSessionHead">
+     <div><h2 style="font-size:20px">Nouvelle séance</h2><div class="small">1. Informations · 2. Présents · 3. Exercices · 4. Résultats</div></div>
+     <div class="trainingSessionActions">
+      <button class="primary" type="button" id="saveTrainingSessionHead">Enregistrer la séance</button>
+      <button class="ghost backNav" id="cancelTraining">← Retour</button>
+     </div>
    </div>
    <div class="row">
     <div class="field"><label>Date</label><input id="trainingDate" type="text" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AA" autocomplete="off"></div>
@@ -255,7 +258,7 @@
 
    <div id="trainingExerciseCards" class="trainingList" style="margin-top:16px"></div>
    <button class="primary" id="saveTrainingSession" style="width:100%;margin-top:16px">Enregistrer la séance</button>
-   <div class="authStatus" id="trainingSaveStatus"></div>
+   <div class="authStatus" id="trainingSaveStatus" role="status" aria-live="polite"></div>
  </section>
 
 
@@ -443,6 +446,7 @@
 
 <template data-kc-component="resetPasswordPopup"></template>
 <template data-kc-component="playerClaimConfirmPopup"></template>
+<template data-kc-component="trainingUnsavedPopup"></template>
 
 
 <div class="popupBackdrop hidden" id="exerciseEditPopup">

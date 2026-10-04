@@ -947,6 +947,21 @@
   </div>
  </div>
 </div>`,
+  "trainingUnsavedPopup": `<div class="popupBackdrop hidden" id="trainingUnsavedPopup">
+ <div class="sheet" style="max-width:520px" role="dialog" aria-modal="true" aria-labelledby="trainingUnsavedTitle" aria-describedby="trainingUnsavedHint">
+  <div class="sheetTop">
+   <div>
+    <h2 id="trainingUnsavedTitle">Modifications non enregistrées</h2>
+    <div class="meta" id="trainingUnsavedHint">Cette séance contient des changements qui ne sont pas encore enregistrés. Quitter maintenant les perdra définitivement.</div>
+   </div>
+   <button class="closePopup" id="closeTrainingUnsaved" aria-label="Fermer">×</button>
+  </div>
+  <div class="row" style="margin-top:16px">
+   <button class="primary" style="flex:1" type="button" id="trainingUnsavedStay">Rester sur la séance</button>
+   <button class="ghost dangerAction" style="flex:1" type="button" id="trainingUnsavedDiscard">Quitter sans enregistrer</button>
+  </div>
+ </div>
+</div>`,
   "statsHelpBackdrop": `<div class="statsHelpBackdrop hidden" id="statsHelpBackdrop">
   <div class="statsHelpModal" role="dialog" aria-modal="true" aria-labelledby="statsHelpTitle">
     <div class="statsHelpModalHeader">

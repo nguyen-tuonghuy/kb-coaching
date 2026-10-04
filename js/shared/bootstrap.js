@@ -882,6 +882,7 @@ app.$('#confirmExerciseCreate').onclick=()=>app.createExerciseFromPopup().catch(
   const st=app.$('#exerciseCreateStatus');st.textContent=e.message||String(e);st.className='authStatus cloudErr';
   app.handleError('createExercise',e);
 });
+app.$('#saveTrainingSessionHead').onclick=app.saveTrainingSession;
 app.$('#saveTrainingSession').onclick=app.saveTrainingSession;
 app.$('#openTrainingHistory').onclick=()=>app.openTrainingHistory().catch(e=>app.handleError('history',e));
 app.$('#historyBack').onclick=()=>app.openTrainingModule();

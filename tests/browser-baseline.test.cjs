@@ -233,3 +233,35 @@ for(const width of [1440,820,390]){
     if(process.env.KB_BASELINE_ARTIFACTS)await page.screenshot({path:path.join(process.env.KB_BASELINE_ARTIFACTS,`training-history-${width}.png`),fullPage:true});
   });
 }
+
+for(const width of [1440,820,390,320]){
+  test(`training: header save shortcut stays usable at ${width}px`,{timeout:20000},async t=>{
+    const ui=await open(t,'training',width,{populated:true}),page=ui.page;
+    await page.waitForFunction(()=>window.KinballCoach.app.trainingState.exercises.length===2);
+    await page.locator('#newTraining').click();
+    await page.locator('#trainingSession').waitFor({state:'visible'});
+    const layout=await page.evaluate(()=>{
+      const head=document.querySelector('#saveTrainingSessionHead');
+      const back=document.querySelector('#cancelTraining');
+      const footer=document.querySelector('#saveTrainingSession');
+      const rect=el=>el.getBoundingClientRect();
+      const headRect=rect(head),backRect=rect(back);
+      return {
+        headLabel:head.textContent.trim(),footerLabel:footer.textContent.trim(),
+        headLeft:headRect.left,backLeft:backRect.left,
+        sameRow:Math.abs(headRect.top-backRect.top)<2,
+        minHeight:Math.min(headRect.height,backRect.height),
+        clipped:[head,back].some(button=>button.scrollWidth>button.clientWidth+1),
+        overflow:document.documentElement.scrollWidth>innerWidth
+      };
+    });
+    assert.equal(layout.headLabel,'Enregistrer la séance');
+    assert.equal(layout.headLabel,layout.footerLabel);
+    assert.ok(layout.headLeft<layout.backLeft,'save is placed left of back');
+    assert.equal(layout.sameRow,true);
+    assert.ok(layout.minHeight>=44);
+    assert.equal(layout.clipped,false);
+    assert.equal(layout.overflow,false);
+    assert.deepEqual(ui.errors,[]);
+  });
+}

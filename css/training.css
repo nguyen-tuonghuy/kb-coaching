@@ -1,6 +1,12 @@
 @import url("coaching-shared.css");
 
 /* Page-specific layout and interaction variants. */
+.trainingSessionHead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+
+.trainingSessionActions{display:flex;gap:8px;flex-wrap:wrap;align-items:stretch}
+
+.trainingSessionActions button,.trainingSessionActions button.backNav{min-height:44px}
+
 .trainingPlanOrganizer{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 11px;padding:9px 10px;border:1px solid var(--accent);border-radius:12px;background:var(--info-bg)}
 
 .trainingPlanOrganizerMessage{display:flex;flex-direction:column;gap:2px;min-width:210px}
@@ -85,7 +91,7 @@
 
 .trainingSavedSessionActions{display:flex;gap:6px;flex-wrap:wrap;flex:0 0 auto}
 
-@media(max-width:620px){.trainingSavedSessionTop{flex-direction:column}.trainingSavedSessionActions{width:100%}.trainingSavedSessionActions button{flex:1}.trainingSavedHomeHead{align-items:flex-start;flex-direction:column}}
+@media(max-width:620px){.trainingSessionHead,.trainingSavedSessionTop{align-items:stretch;flex-direction:column}.trainingSessionActions,.trainingSavedSessionActions{width:100%}.trainingSessionActions button,.trainingSavedSessionActions button{flex:1}.trainingSavedHomeHead{align-items:flex-start;flex-direction:column}}
 
 .trainingPlan{background:#FFFFFF!important;border-color:var(--line)!important;box-shadow:0 1px 3px rgba(15,23,42,.05)}
 

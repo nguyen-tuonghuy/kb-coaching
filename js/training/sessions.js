@@ -97,6 +97,153 @@ app.trainingPresentPlayers = function trainingPresentPlayers(){
   return app.$$('#trainingAttendance input:checked').map(c=>({id:c.value,name:c.dataset.name}));
 };
 
+// Unsaved-work protection for the session editor. The snapshot projects only
+// what a save actually persists, reusing the same field selection as
+// packTrainingNotes(). Identifiers regenerated at each opening (block ids,
+// exercise localKey) and presentation-only state (expanded, organizer mode) are
+// excluded: they change without any user edit and would report false warnings.
+app.trainingSessionSnapshot = function trainingSessionSnapshot(){
+  app.captureTrainingResultDraft();
+  app.captureTrainingPlan();
+  app.syncPlanStatExercises();
+  const blocks=app.trainingState.planBlocks.map(b=>({
+    start:String(b.start||''),
+    duration:Math.max(0,Number(b.duration)||0),
+    track:b.track||'both',
+    title:b.title||'',
+    details:b.details||'',
+    attention:b.attention||'',
+    sourceType:b.sourceType||'free',
+    exerciseId:b.sourceType==='library'?(b.exerciseId||null):null,
+    collectStats:b.sourceType==='library'&&!!b.collectStats,
+    focus:b.sourceType==='library'?(b.focus||null):null,
+    draft:!!b.draft
+  }));
+  // Array order is meaningful: the save persists it as position.
+const exercises=[...app.trainingState.sessionExercises]
+    .map(ex=>({id:ex.id,focus:app.isDualExercise(ex)?(ex.focus||null):null}));
+  const present=app.trainingPresentPlayers().map(p=>String(p.id)).sort();
+  // Mirror the persisted result set: exercises x present players, drafts
+  // resolved by localKey. Iterating the same pairs as the save keeps the
+  // snapshot independent from stale draft entries left by a re-render.
+  const results=[];
+  app.trainingState.sessionExercises.forEach(ex=>{
+    present.forEach(playerId=>{
+      const draft=app.getTrainingDraft(ex.localKey,playerId);
+      results.push({
+        exerciseId:String(ex.id),
+        playerId,
+        successes:String(draft.successes??''),
+        attempts:String(draft.attempts??''),
+        value:String(draft.value??''),
+        note:String(draft.note??'')
+      });
+    });
+  });
+  results.sort((a,b)=>a.exerciseId.localeCompare(b.exerciseId)||a.playerId.localeCompare(b.playerId));
+  // A half-typed date must still produce a snapshot instead of throwing inside
+  // the leave handler; the raw field is enough to detect the edit.
+  const dateField=app.$('#trainingDate').value||'';
+  let dateSnapshot=dateField.trim();
+  try{dateSnapshot=app.frInputToIso(dateField)||app.isoToFrInput(app.today())}catch(_){}
+  return JSON.stringify({
+    date:dateSnapshot,
+    group:app.$('#trainingGroup').value||'',
+    theme:(app.$('#trainingTheme').value||'').trim(),
+    duration:app.$('#trainingDuration').value||'',
+    notes:app.$('#trainingNotes').value||'',
+    planStart:app.normalizePlanTime(app.$('#trainingPlanStart')?.value||''),
+    plan:blocks,
+    present,
+    exercises,
+    results
+  });
+};
+
+app.trainingSessionBaseline = null;
+
+// Baseline is taken after the DOM is populated, and refreshed only after a
+// successful save. A failed save must leave the session dirty.
+app.markTrainingSessionBaseline = function markTrainingSessionBaseline(){
+  app.trainingSessionBaseline=app.trainingSessionSnapshot();
+};
+
+app.trainingSessionIsDirty = function trainingSessionIsDirty(){
+  if(app.trainingSessionBaseline===null)return false;
+  return app.trainingSessionSnapshot()!==app.trainingSessionBaseline;
+};
+
+app.confirmTrainingSessionLeave = function confirmTrainingSessionLeave(){
+  const popup=app.$('#trainingUnsavedPopup');
+  if(!popup)return Promise.resolve(true);
+  popup.classList.remove('hidden');
+  return new Promise(resolve=>{
+    const previousFocus=document.activeElement;
+    let settled=false;
+    const settle=answer=>{
+      if(settled)return;
+      settled=true;
+      app.$('#trainingUnsavedDiscard').onclick=null;
+      app.$('#trainingUnsavedStay').onclick=null;
+      app.$('#closeTrainingUnsaved').onclick=null;
+      popup.onclick=null;
+      document.removeEventListener('keydown',onKeyDown,true);
+      if(app.cancelTrainingUnsavedDialog===cancel)app.cancelTrainingUnsavedDialog=null;
+      popup.classList.add('hidden');
+      // The user accepted the loss: drop the baseline so the replayed navigation
+      // is not intercepted again by this very guard.
+      if(answer)app.trainingSessionBaseline=null;
+      if(previousFocus?.isConnected&&!previousFocus.closest('.hidden'))previousFocus.focus();
+      resolve(answer);
+    };
+    const cancel=()=>settle(false);
+    app.cancelTrainingUnsavedDialog=cancel;
+    const onKeyDown=event=>{
+      if(event.key==='Escape'){event.preventDefault();event.stopPropagation();settle(false);return}
+      if(event.key!=='Tab')return;
+      const controls=[...popup.querySelectorAll('button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex="0"]')].filter(el=>!el.closest('.hidden'));
+      const first=controls[0],last=controls.at(-1);
+      if(!popup.contains(document.activeElement)){event.preventDefault();first?.focus();return}
+      if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus()}
+      else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus()}
+    };
+    app.$('#trainingUnsavedDiscard').onclick=()=>settle(true);
+    app.$('#trainingUnsavedStay').onclick=()=>settle(false);
+    app.$('#closeTrainingUnsaved').onclick=()=>settle(false);
+    popup.onclick=e=>{if(e.target===popup)settle(false)};
+    document.addEventListener('keydown',onKeyDown,true);
+    app.$('#trainingUnsavedStay')?.focus();
+  });
+};
+
+// Session editor exits are intercepted in one place rather than per handler,
+// so bootstrap.js keeps its wiring and future exits stay covered. Capture phase
+// runs before the existing onclick assignments.
+const TRAINING_SESSION_EXIT_IDS=new Set(['cancelTraining','trainingBackHome','homeBtn','logout']);
+
+document.addEventListener('click',event=>{
+  const box=app.$('#trainingSession');
+  if(!box||box.classList.contains('hidden')||!app.trainingSessionIsDirty())return;
+  const target=event.target;
+  const id=target?.closest?.('[id]')?.id||'';
+  const link=target?.closest?.('a[href]');
+  if(!TRAINING_SESSION_EXIT_IDS.has(id)&&!link)return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  app.confirmTrainingSessionLeave().then(leave=>{
+    if(!leave)return;
+    // Replay the intended navigation once the user accepted the loss.
+    if(id)app.$('#'+id)?.click();
+    else link?.click();
+  });
+},true);
+
+window.addEventListener('beforeunload',event=>{
+  if(!app.trainingSessionIsDirty())return;
+  event.preventDefault();
+  event.returnValue='';
+});
+
 app.renderHistoryPlayers = function renderHistoryPlayers(){
   const sel=app.$('#historyPlayer');if(!sel)return;
   const current=sel.value;
@@ -443,6 +590,10 @@ app.renderTrainingPlan = function renderTrainingPlan(){
   };
 };
 
+app.setTrainingSaveLabels = function setTrainingSaveLabels(text){
+  app.$$('#saveTrainingSessionHead,#saveTrainingSession').forEach(button=>{button.textContent=text});
+};
+
 app.startNewTraining = async function startNewTraining(){
   if(!app.trainingState.exercises.length)await app.fetchTrainingExercises();
   app.trainingState.sessionExercises=[];
@@ -450,7 +601,7 @@ app.startNewTraining = async function startNewTraining(){
   app.trainingState.currentSessionId=null;
   app.trainingState.resultDraft={};
   app.trainingState.planOrganizerMode=false;app.trainingState.planOrganizerSelectedId=null;
-  app.$('#saveTrainingSession').textContent='Enregistrer la séance';
+  app.setTrainingSaveLabels('Enregistrer la séance');
   if(!app.groupState.groups.length)await app.fetchMyGroups();
   if(!app.groupState.groups.length){
     alert('Crée ou rejoins d’abord un groupe dans le volet Groupes.');
@@ -473,6 +624,7 @@ app.startNewTraining = async function startNewTraining(){
   app.renderTrainingExerciseCards();
   app.renderTrainingPlan();
   app.hideMainModules();app.setMatchHeaderMode(false);app.$('#trainingSession').classList.remove('hidden');window.scrollTo({top:0,behavior:'instant'});
+  app.markTrainingSessionBaseline();
 };
 
 app.focusLabel = function focusLabel(f){return f==='attaque'?'Attaque':f==='defense'?'Défense':''};
@@ -1074,7 +1226,7 @@ app.duplicateTrainingSessionById = async function duplicateTrainingSessionById(s
   app.trainingState.currentSessionId=null;
   app.trainingState.resultDraft={};
   app.trainingState.planOrganizerMode=false;app.trainingState.planOrganizerSelectedId=null;
-  app.$('#saveTrainingSession').textContent='Enregistrer la séance';
+  app.setTrainingSaveLabels('Enregistrer la séance');
 
   const [{data:attendance,error:ae},{data:sessionExercises,error:xe}]=await Promise.all([
     app.db.from('training_attendance').select('player_id,present').eq('session_id',sessionId),
@@ -1113,6 +1265,7 @@ app.duplicateTrainingSessionById = async function duplicateTrainingSessionById(s
   app.hideMainModules();
   app.$('#trainingSession').classList.remove('hidden');
   window.scrollTo({top:0,behavior:'instant'});
+  app.markTrainingSessionBaseline();
 };
 
 app.editTrainingSessionById = async function editTrainingSessionById(sessionId){
@@ -1151,7 +1304,7 @@ app.editTrainingSessionById = async function editTrainingSessionById(sessionId){
   if(app.$('#trainingPlanStart')&&app.trainingState.planBlocks.length){const mins=app.trainingState.planBlocks.filter(b=>!b.draft).map(b=>app.planTimeMinutes(b.start)).filter(x=>x!==99999);if(mins.length)app.$('#trainingPlanStart').value=app.minutesToPlanTime(Math.min(...mins))}
   app.bindLoadedStatsToPlanBlocks();
   app.$('#trainingSaveStatus').textContent='';
-  app.$('#saveTrainingSession').textContent='Enregistrer les modifications';
+  app.setTrainingSaveLabels('Enregistrer les modifications');
 
   const presentIds=new Set((attendance||[]).filter(a=>a.present).map(a=>a.player_id));
   app.$$('#trainingAttendance input').forEach(c=>c.checked=presentIds.has(c.value));
@@ -1172,6 +1325,7 @@ app.editTrainingSessionById = async function editTrainingSessionById(sessionId){
   app.hideMainModules();app.setMatchHeaderMode(false);
   app.$('#trainingSession').classList.remove('hidden');
   window.scrollTo({top:0,behavior:'instant'});
+  app.markTrainingSessionBaseline();
 };
 
 app.addTrainingPlayers = async function addTrainingPlayers(){
@@ -1184,9 +1338,18 @@ app.addTrainingPlayers = async function addTrainingPlayers(){
   app.renderTrainingExerciseCards();
 };
 
-app.trainingStatus = function trainingStatus(text,error=false){const el=app.$('#trainingSaveStatus');el.textContent=text||'';el.className='authStatus '+(error?'cloudErr':'cloudOk')};
+app.trainingStatus = function trainingStatus(text,error=false){
+  const el=app.$('#trainingSaveStatus');
+  el.textContent=text||'';
+  el.className='authStatus '+(error?'cloudErr':'cloudOk');
+  if(error)el.scrollIntoView?.({block:'nearest',behavior:'smooth'});
+};
 
 app.saveTrainingSession = async function saveTrainingSession(){
+  if(app.trainingSaveInFlight)return;
+  app.trainingSaveInFlight=true;
+  const saveButtons=app.$$('#saveTrainingSessionHead,#saveTrainingSession');
+  saveButtons.forEach(button=>{button.disabled=true});
   try{
     app.captureTrainingResultDraft();
     app.captureTrainingPlan();
@@ -1260,9 +1423,11 @@ app.saveTrainingSession = async function saveTrainingSession(){
 
     app.trainingState.currentSessionId=sessionId;
     app.trainingStatus('Séance enregistrée ✓ — tu peux continuer à la modifier.');
-    app.$('#saveTrainingSession').textContent='Enregistrer les modifications';
+    app.setTrainingSaveLabels('Enregistrer les modifications');
     app.setCloud('Synchronisé',true);
+    app.markTrainingSessionBaseline();
   }catch(e){app.trainingStatus(e.message||String(e),true);app.handleError('saveTrainingSession',e)}
+  finally{app.trainingSaveInFlight=false;saveButtons.forEach(button=>{button.disabled=false})}
 };
 // The historical UI had a handler pointing to an absent function. Reuse the
 // existing group-scoped read contracts rather than introduce SQL or a new RPC.
