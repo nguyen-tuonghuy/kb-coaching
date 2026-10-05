@@ -117,10 +117,11 @@
 
  <section class="panel hidden" id="playerPortal">
   <div class="playerPortalTopNav">
-   <a class="ghost active" id="playerPortalNavHome" href="index.html#player-home">Accueil <span class="messageUnreadBadge hidden" id="playerUnreadBadge">0</span></a>
+   <a class="ghost active" id="playerPortalNavHome" href="index.html#player-home">Mon suivi</a>
    <a class="ghost" id="playerPortalNavStats" href="player-stats.html">Mes statistiques</a>
    <a class="ghost hidden" id="playerPortalNavGroupStats" href="index.html#team-stats">Statistiques équipe</a>
    <a class="ghost" id="playerPortalNavVideos" href="videos.html">Mes vidéos <span class="videoUnreadBadge hidden" id="playerVideoNavBadge">0</span></a>
+   <a class="ghost" id="playerPortalNavMessages" href="index.html#player-messages">Messages <span class="messageUnreadBadge hidden" id="playerUnreadBadge">0</span></a>
    <a class="ghost" id="playerPortalNavProfile" href="index.html#player-profile">Mon profil</a>
    <button type="button" class="ghost hidden backNav" id="playerPortalBackStaff">Retour espace entraîneur</button>
   </div>
@@ -162,14 +163,10 @@
     </a>
    </div>
 
-   <div class="playerPortalConversation">
-    <div class="playerPortalConversationHeader"><strong>Messages</strong><div class="row" style="gap:7px;align-items:center;justify-content:flex-end"><span class="analysisSubtle" id="playerPortalConversationLabel">Échanges avec les entraîneurs</span></div></div>
-    <div class="playerPortalConversationList" id="playerPortalConversationList"><div class="playerPortalConversationEmpty">Aucun message pour le moment.</div></div>
-    <div class="playerPortalMessageComposer">
-     <textarea id="playerPortalMessageInput" maxlength="2000" placeholder="Écrire un message…"></textarea>
-     <div class="playerPortalMessageComposerActions"><span class="small" id="playerPortalMessageStatus"></span><button type="button" class="primary" id="playerPortalMessageSend">Envoyer</button></div>
-    </div>
+   <div class="playerFollowUpHeader">
+    <div><div class="analysisSubtle">Suivi</div><h2 id="playerFollowUpTitle">Mon suivi</h2><div class="small">Objectifs de travail, consignes du staff et points à revoir.</div></div>
    </div>
+   <div class="playerFollowUpNotice hidden" id="playerFollowUpNotice"></div>
    <div class="playerObjectives">
     <div class="playerObjectivesHeader"><strong>Objectifs individuels</strong><span class="analysisSubtle" id="playerObjectivesHint">Objectifs coach et personnels</span></div>
     <div class="playerObjectivesList" id="playerObjectivesList"><div class="small">Chargement…</div></div>
@@ -179,11 +176,19 @@
     </div>
     <div class="small" id="playerObjectiveStatus" style="margin-top:7px"></div>
    </div>
+   <div class="playerFollowUpReview hidden" id="playerFollowUpReview">
+    <div class="playerFollowUpReviewHeader"><strong>À revoir</strong><span class="analysisSubtle">Ce qui attend ta lecture</span></div>
+    <div id="playerFollowUpReviewList"></div>
+   </div>
   </div>
+
+  <template data-kc-component="playerPortalMessagesView"></template>
 
   <template data-kc-component="playerPortalStatsView"></template>
 
   <template data-kc-component="playerPortalProfileView"></template>
+
+  <template data-kc-component="playerFollowUpDetailPopup"></template>
  </section>
 
 
@@ -311,10 +316,30 @@
     <button type="button" class="ghost hidden" id="groupPlayerFollowupUnlink">Délier l’accès</button>
    </div>
   </div>
+  <div class="field" style="margin-top:12px">
+   <label>Ajouter un objectif coach</label>
+   <textarea id="groupPlayerFollowupObjectiveNew" maxlength="500" rows="2" placeholder="Objectif de travail (max 500 caractères)"></textarea>
+   <div class="row" style="margin-top:8px;gap:8px;align-items:center;flex-wrap:wrap">
+    <button type="button" class="ghost" id="groupPlayerFollowupObjectiveAdd">Ajouter</button>
+    <span class="small">Objectifs actifs maximum 3 par source (coach).</span>
+   </div>
+  </div>
+  <div class="field" style="margin-top:12px">
+   <label>Objectifs coach en cours</label>
+   <div id="groupPlayerFollowupObjectivesList"><div class="small">Aucun objectif actif.</div></div>
+  </div>
+  <div class="field" style="margin-top:12px">
+   <label>Ajouter un retour (conversation joueur–entraîneurs)</label>
+   <textarea id="groupPlayerFollowupFeedbackNew" maxlength="2000" rows="2" placeholder="Écrire un feedback au joueur…"></textarea>
+   <div class="row" style="margin-top:8px;gap:8px;align-items:center;flex-wrap:wrap">
+    <button type="button" class="ghost" id="groupPlayerFollowupFeedbackSend">Envoyer</button>
+    <span class="small">Le retour apparaît directement dans la conversation du joueur.</span>
+   </div>
+  </div>
   <div class="authStatus" id="groupPlayerFollowupStatus"></div>
   <div class="row" style="margin-top:14px">
    <button class="ghost" style="flex:1" id="cancelGroupPlayerFollowup">Fermer</button>
-   <button class="primary" style="flex:2" id="saveGroupPlayerFollowup">Enregistrer</button>
+   <button class="primary" style="flex:2" id="saveGroupPlayerFollowup">Enregistrer les droits</button>
   </div>
  </div>
 </div>

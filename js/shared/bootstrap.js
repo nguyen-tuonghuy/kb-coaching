@@ -101,7 +101,7 @@ window.addEventListener('hashchange',()=>{
     if(app.playerPortalCanViewGroupStats(access))app.openGroupStatsViewer(access).catch(e=>app.handleError('team stats hash',e));
     return;
   }
-  const wanted=location.hash==='#player-profile'?'profile':location.hash==='#player-home'?'home':null;
+  const wanted=location.hash==='#player-profile'?'profile':location.hash==='#player-home'?'home':location.hash==='#player-messages'?'messages':null;
   if(wanted)app.playerPortalSetView(wanted);
 });
 
@@ -113,11 +113,11 @@ document.addEventListener('click',e=>{
     if(app.playerPortalCanViewGroupStats(access))app.openGroupStatsViewer(access).catch(err=>app.handleError('open team stats',err));
     return;
   }
-  const link=e.target.closest?.('#playerPortalNavHome,#playerPortalNavStats,#playerPortalNavProfile,#playerPortalHomeStatsCard,#playerPortalHomeProfileCard');
+  const link=e.target.closest?.('#playerPortalNavHome,#playerPortalNavStats,#playerPortalNavMessages,#playerPortalNavProfile,#playerPortalHomeStatsCard,#playerPortalHomeProfileCard');
   if(!link)return;
   const href=link.getAttribute('href')||'';
   const hash=href.includes('#')?'#'+href.split('#').pop():'';
-  const wanted=hash==='#player-stats'?'stats':hash==='#player-profile'?'profile':hash==='#player-home'?'home':null;
+  const wanted=hash==='#player-stats'?'stats':hash==='#player-profile'?'profile':hash==='#player-home'?'home':hash==='#player-messages'?'messages':null;
   if(!wanted)return;
   if(location.hash===hash){
     e.preventDefault();
@@ -594,7 +594,7 @@ if (page === 'training') {
 app.trainingState = {players:[],selections:[],exercises:[],sessionExercises:[],planBlocks:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{},planOrganizerMode:false,planOrganizerSelectedId:null};
 }
 
-app.playerPortalState = {accesses:[],groupId:null,matches:[],selected:[],scope:'all',restartLocation:'all',loading:false,view:'home',hasStaffAccess:false,staffPreview:false,staffPlayerId:null,staffReturnGroupId:null,messageNotifications:[],objectives:[],videos:[],videoConfig:null};
+app.playerPortalState = {accesses:[],groupId:null,matches:[],selected:[],scope:'all',restartLocation:'all',loading:false,view:'home',hasStaffAccess:false,staffPreview:false,staffPlayerId:null,staffReturnGroupId:null,messageNotifications:[],objectives:[],videos:[],videoConfig:null,detailId:null,detailStage:null,detailReturnFocus:null,followUp:{enabled:null,demo:null,reviewLoaded:false}};
 
 app.groupState = {groups:[],currentGroupId:null,currentPlayers:[],currentSelections:[],matchPlayers:[],matchSelections:[],profiles:{},messageNotifications:[]};
 
@@ -602,7 +602,7 @@ app.adminState = {isAdmin:false,groups:[]};
 
 app.statsState = {groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',impactRestartLocation:'all',impactView:'staff',impactSortField:'impact100',impactSortDirection:'desc',impactPlayerName:'',impactMatchManualOrder:[],statsMatchView:'summary',reference:null,referenceMeta:null,referenceSources:[],referenceVersions:[],impactReference:null,readOnlyViewer:false,viewerReturnGroupId:null};
 
-app.groupPlayerFollowupState = {playerId:null};
+app.groupPlayerFollowupState = {playerId:null,objectives:[]};
 
 app.matchLibraryState = {matches:[],currentReadId:null};
 
@@ -744,6 +744,14 @@ app.$('#closeGroupPlayerFollowupPopup').onclick=()=>app.$('#groupPlayerFollowupP
 app.$('#cancelGroupPlayerFollowup').onclick=()=>app.$('#groupPlayerFollowupPopup').classList.add('hidden');
 
 app.$('#saveGroupPlayerFollowup').onclick=()=>app.saveGroupPlayerFollowup();
+app.$('#groupPlayerFollowupObjectiveAdd')?.addEventListener('click',()=>app.addGroupPlayerFollowupObjective());
+app.$('#groupPlayerFollowupFeedbackSend')?.addEventListener('click',()=>app.sendGroupPlayerFollowupFeedback());
+app.$('#groupPlayerFollowupObjectiveNew')?.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();app.addGroupPlayerFollowupObjective()}
+});
+app.$('#groupPlayerFollowupFeedbackNew')?.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();app.sendGroupPlayerFollowupFeedback()}
+});
 
 app.$('#groupPlayerFollowupUnlink').onclick=()=>{
   const p=app.groupState.currentPlayers.find(x=>x.id===app.groupPlayerFollowupState.playerId);
@@ -940,6 +948,11 @@ document.addEventListener('click',e=>{
 });
 
 document.addEventListener('keydown',e=>{
+  const followUp=app.$('#playerFollowUpDetailPopup');
+  if(followUp&&!followUp.classList.contains('hidden')){
+    if(e.key==='Escape'){e.preventDefault();app.closePlayerFollowUpDetail();return}
+    if(e.key==='Tab'){app.trapPlayerFollowUpFocus(e);return}
+  }
   const box=app.$('#playerVideoPlayer');
   if(!box||box.classList.contains('hidden'))return;
   const tag=(document.activeElement?.tagName||'').toLowerCase();
@@ -956,6 +969,14 @@ app.$('#playerObjectiveInput').addEventListener('keydown',e=>{if(e.key==='Enter'
 app.$('#playerPortalMessageSend').onclick=()=>app.sendPlayerPortalMessage();
 
 app.$('#playerPortalMessageInput').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();app.sendPlayerPortalMessage()}});
+
+app.$('#playerFollowUpDetailClose').onclick=()=>app.closePlayerFollowUpDetail();
+
+app.$('#playerFollowUpDetailCancel').onclick=()=>app.closePlayerFollowUpDetail();
+
+app.$('#playerFollowUpDetailSave').onclick=()=>app.savePlayerFollowUpDetail();
+
+app.$('#playerFollowUpDetailPopup').addEventListener('mousedown',e=>{if(e.target===app.$('#playerFollowUpDetailPopup'))app.closePlayerFollowUpDetail()});
 
 app.$('#playerSpaceBtn').onclick=()=>app.enterMyPlayerPortal().catch(err=>app.handleError('open player portal',err));
 

@@ -2558,6 +2558,56 @@ button.playerPortalHomeCard:hover,a.playerPortalHomeCard:hover{border-color:var(
 
 .playerObjectiveComposer input{min-width:0}
 
+.playerFollowUpHeader{margin-top:16px;margin-bottom:10px}
+
+.playerFollowUpHeader h2{margin:0 0 3px}
+
+.playerFollowUpNotice{border:1px dashed var(--primary);border-radius:12px;padding:9px 11px;margin:0 0 12px;font-size:12px;color:var(--muted)}
+
+.playerObjectiveStageRow{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+
+.playerFollowUpStage{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 9px;font-size:11px;font-weight:700;border:1px solid transparent;white-space:nowrap}
+.playerFollowUpStage.toWork{background:#3a3122;border-color:#6b5326;color:#ffd9a0}
+.playerFollowUpStage.inProgress{background:#22304d;border-color:#3c5a8f;color:#d9e8ff}
+.playerFollowUpStage.stabilized{background:#244736;border-color:#37684f;color:#ccefdc}
+
+.playerObjectiveNote{display:grid;gap:2px;margin-top:7px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#151a21;font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+
+.playerFollowUpSection{margin-top:8px}
+
+.playerFollowUpStagePicker{display:flex;gap:7px;flex-wrap:wrap}
+.playerFollowUpStagePicker .playerFollowUpStage{cursor:pointer;border-width:1px;border-style:solid;font:inherit;font-size:12px;padding:7px 12px}
+.playerFollowUpStagePicker .playerFollowUpStage.active{box-shadow:0 0 0 2px var(--text)}
+
+.playerFollowUpReadOnly{border:1px solid var(--line);border-radius:12px;padding:10px 11px;background:var(--panel2);margin-bottom:12px}
+.playerFollowUpReadOnly p{margin:4px 0 0;line-height:1.45;overflow-wrap:anywhere}
+
+.playerFollowUpReview{margin-top:14px;border:1px solid var(--line);border-radius:16px;background:var(--panel2);padding:16px}
+
+.playerFollowUpReviewHeader{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+
+.playerFollowUpReviewList{display:grid;gap:8px;list-style:none;margin:0;padding:0}
+
+.playerFollowUpReviewItem{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px 11px;background:#181d25}
+
+.playerFollowUpReviewKind{font-size:11px;font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 8px;white-space:nowrap}
+
+.playerFollowUpReviewText{min-width:0;font-size:13px;line-height:1.45;overflow-wrap:anywhere}
+
+.playerFollowUpReviewLink{white-space:nowrap;justify-self:end}
+
+.playerFollowUpCoachItem{border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px;background:var(--panel2);display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;align-items:flex-start}
+
+.playerFollowUpCoachItem .playerObjectiveNote{background:#181d25}
+
+@media(max-width:620px){
+  .playerFollowUpReviewItem{grid-template-columns:1fr;gap:8px}
+  .playerFollowUpReviewLink{justify-self:start}
+  .playerFollowUpStagePicker .playerFollowUpStage{width:100%}
+}
+
+.followUpStageEdit{font-size:12px;padding:5px 9px}
+
 .playerVideosView{display:grid;gap:14px}
 
 .playerVideosToolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -2871,3 +2921,8 @@ button.primary,.primary,.on,.tab.active{background:var(--accent)!important;color
 .playerVideoPlayerHeader,.playerVideoAdvancedControls{color:var(--text)!important}
 
 .playerVideoTimeDisplay,.playerVideoHint{color:var(--muted)!important}
+@media(max-width:620px){
+  .playerFollowUpReviewItem{grid-template-columns:1fr;gap:8px}
+  .playerFollowUpReviewLink{justify-self:start}
+  .playerFollowUpStagePicker .playerFollowUpStage{width:100%}
+}

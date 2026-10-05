@@ -91,8 +91,11 @@ app.openGroupPlayerFollowup = async function openGroupPlayerFollowup(playerId){
   const linked=!!app.groupState.playerAccess?.[playerId];
   app.$('#groupPlayerFollowupAccessStatus').textContent=linked?'Compte joueur lié':'Accès joueur non encore activé';
   app.$('#groupPlayerFollowupUnlink').classList.toggle('hidden',!linked);
+  app.$('#groupPlayerFollowupObjectiveNew').value='';
+  app.$('#groupPlayerFollowupFeedbackNew').value='';
   app.$('#groupPlayerFollowupStatus').textContent='';
   app.$('#groupPlayerFollowupPopup').classList.remove('hidden');
+  await app.reloadGroupPlayerFollowupObjectives(groupId,playerId);
 };
 
 app.saveGroupPlayerFollowup = async function saveGroupPlayerFollowup(){

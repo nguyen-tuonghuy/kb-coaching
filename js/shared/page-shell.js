@@ -123,6 +123,35 @@
    <div class="field hidden" id="playerPortalRestartField" style="max-width:260px;margin:8px 0 12px"><label>Type de remise en jeu</label><select id="playerPortalRestart"><option value="all">Toutes les remises</option><option value="center">Au centre</option><option value="line">Sur ligne</option><option value="corner">Sur coin</option></select></div>
    <div id="playerPortalContent"><div class="statsEmpty">Chargement…</div></div>
   </div>`,
+  "playerPortalMessagesView": `<div class="hidden" id="playerPortalMessagesView">
+   <div class="playerPortalHeader">
+    <div><div class="analysisSubtle">Suivi</div><h2>Messages</h2><div class="small" id="playerPortalConversationLabel">Échanges avec les entraîneurs</div></div>
+   </div>
+   <div class="playerPortalConversation">
+    <div class="playerPortalConversationList" id="playerPortalConversationList"><div class="playerPortalConversationEmpty">Aucun message pour le moment.</div></div>
+    <div class="playerPortalMessageComposer">
+     <textarea id="playerPortalMessageInput" maxlength="2000" placeholder="Écrire un message…"></textarea>
+     <div class="playerPortalMessageComposerActions"><span class="small" id="playerPortalMessageStatus"></span><button type="button" class="primary" id="playerPortalMessageSend">Envoyer</button></div>
+    </div>
+   </div>
+  </div>`,
+  "playerFollowUpDetailPopup": `<div class="popupBackdrop hidden" id="playerFollowUpDetailPopup">
+ <div class="sheet" style="max-width:560px" role="dialog" aria-modal="true" aria-labelledby="playerFollowUpDetailTitle">
+  <div class="sheetTop">
+   <div>
+    <div class="meta" id="playerFollowUpDetailMeta"></div>
+    <h2 id="playerFollowUpDetailTitle">Détail de l’objectif</h2>
+   </div>
+   <button class="closePopup" id="playerFollowUpDetailClose" aria-label="Fermer">×</button>
+  </div>
+  <div id="playerFollowUpDetailBody"></div>
+  <div class="row" style="margin-top:16px;gap:8px;align-items:center">
+   <span class="small" id="playerFollowUpDetailStatus"></span>
+   <button type="button" class="ghost" id="playerFollowUpDetailCancel" style="margin-left:auto">Fermer</button>
+   <button type="button" class="primary" id="playerFollowUpDetailSave">Enregistrer</button>
+  </div>
+ </div>
+</div>`,
   "playerPortalProfileView": `<div class="hidden" id="playerPortalProfileView">
    <div class="playerPortalHeader">
     <div><div class="analysisSubtle">Espace joueur</div><h2>Mon profil</h2><div class="small" id="playerPortalProfileSubtitle"></div></div>
