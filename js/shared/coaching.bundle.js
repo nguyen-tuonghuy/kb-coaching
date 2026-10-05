@@ -2520,17 +2520,22 @@ app.playerObjectiveDate = function playerObjectiveDate(v){
   try{return new Date(v).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'})}catch{return String(v)}
 };
 
+app.playerObjectiveDisplayState = function playerObjectiveDisplayState(o){
+  if(!o)return 'to_work';
+  if(o.status==='completed')return 'completed';
+  return 'to_work';
+};
+
 app.playerObjectiveStageOf = function playerObjectiveStageOf(o){
-  const stage=o?.stage;
-  return ['to_work','in_progress','stabilized'].includes(stage)?stage:'to_work';
+  return app.playerObjectiveDisplayState(o);
 };
 
 app.playerObjectiveStageInfo = function playerObjectiveStageInfo(stage){
+  const s=stage==='completed'?'completed':'to_work';
   return {
     to_work:{label:'À travailler',icon:'○',cls:'toWork',order:1},
-    in_progress:{label:'En progrès',icon:'◐',cls:'inProgress',order:0},
-    stabilized:{label:'Stabilisé',icon:'●',cls:'stabilized',order:2}
-  }[app.playerObjectiveStageOf({stage})];
+    completed:{label:'Atteint',icon:'●',cls:'completed',order:2}
+  }[s];
 };
 
 // Démo locale : ?followup=demo. Aucune écriture Supabase, aucune donnée réelle.
@@ -2555,7 +2560,7 @@ app.playerFollowUpDemoObjectives = function playerFollowUpDemoObjectives(){
   return [
     {id:'demo-1',objective:'Orienter mes pieds avant de recevoir pour garder le ballon devant moi',status:'active',source:'coach',stage:'in_progress',coach_note:'Regarde la vidéo du match 3 : tes appuis arrivent après la frappe.',player_note:'À retravailler sur les deux premiers sets.',created_at:'2026-09-28T10:00:00Z',updated_at:'2026-10-02T18:00:00Z',created_by_name:'Karim'},
     {id:'demo-2',objective:'Servir régulièrement la zone arrière',status:'active',source:'coach',stage:'to_work',coach_note:'Cible la largeur de la table, pas seulement la profondeur.',player_note:null,created_at:'2026-09-20T10:00:00Z',updated_at:'2026-09-30T09:00:00Z',created_by_name:'Karim'},
-    {id:'demo-3',objective:'Équilibrer mes attaques gauches et droites',status:'active',source:'coach',stage:'stabilized',coach_note:null,player_note:'Objectif atteint sur trois matchs.',created_at:'2026-09-01T10:00:00Z',updated_at:'2026-10-01T09:00:00Z',created_by_name:'Karim'},
+    {id:'demo-3',objective:'Équilibrer mes attaques gauches et droites',status:'completed',source:'coach',stage:'to_work',coach_note:null,player_note:'Objectif atteint sur trois matchs.',completed_at:'2026-10-01T09:00:00Z',created_at:'2026-09-01T10:00:00Z',updated_at:'2026-10-01T09:00:00Z',created_by_name:'Karim'},
     {id:'demo-4',objective:'Garder mon concentration sur les points longs',status:'active',source:'player',stage:'to_work',coach_note:null,player_note:null,created_at:'2026-09-25T10:00:00Z',updated_at:'2026-09-25T10:00:00Z',created_by_name:'Joueur'}
   ];
 };
@@ -2564,10 +2569,12 @@ app.playerFollowUpDemoReview = function playerFollowUpDemoReview(){
   return [{kind:'Retour staff',text:'« Tes frappes dans l’axe progressent bien, continue sur les changements de direction. »',href:'',action:''}];
 };
 
-app.playerObjectiveItemHtml = function playerObjectiveItemHtml(o,isCompleted=false){
+app.playerObjectiveItemHtml = function playerObjectiveItemHtml(o){
   const source=o.source==='player'?'player':'coach';
   const sourceLabel=source==='player'?'Objectif personnel':'Objectif coach';
-  const stage=app.playerObjectiveStageOf(o),info=app.playerObjectiveStageInfo(stage);
+  const displayState=app.playerObjectiveDisplayState(o);
+  const info=app.playerObjectiveStageInfo(displayState);
+  const isCompleted=displayState==='completed';
   const canEditPersonal=!app.playerPortalState.staffPreview&&source==='player';
   const canEditCoach=app.playerPortalState.staffPreview&&source==='coach';
   const actions=[`<button type="button" class="ghost" data-objective-detail="${app.escapeHtml(o.id)}">Détail</button>`];
@@ -2577,7 +2584,7 @@ app.playerObjectiveItemHtml = function playerObjectiveItemHtml(o,isCompleted=fal
     actions.push(`<button type="button" class="ghost" data-objective-action="edit" data-objective-id="${app.escapeHtml(o.id)}" data-objective-text="${app.escapeHtml(o.objective||'')}">Modifier</button>`);
     actions.push(`<button type="button" class="ghost" data-objective-action="delete" data-objective-id="${app.escapeHtml(o.id)}">Supprimer</button>`);
   }
-  const pill=app.playerFollowUpAvailable()&&!isCompleted
+  const pill=app.playerFollowUpAvailable()
     ?`<span class="playerFollowUpStage ${info.cls}"><span aria-hidden="true">${info.icon}</span> ${info.label}</span>`
     :'';
   const date=isCompleted
@@ -2593,17 +2600,13 @@ app.playerObjectiveItemHtml = function playerObjectiveItemHtml(o,isCompleted=fal
 
 app.playerObjectivesHtml = function playerObjectivesHtml(rows){
   const all=rows||[];
-  const active=all.filter(x=>x.status==='active');
-  const rank=o=>(o.source==='player'?10:0)+app.playerObjectiveStageInfo(app.playerObjectiveStageOf(o)).order;
   const byRecent=(a,b)=>Date.parse(b.updated_at||b.created_at||0)-Date.parse(a.updated_at||a.created_at||0);
-  const priorities=active.filter(o=>app.playerObjectiveStageOf(o)!=='stabilized').sort((a,b)=>rank(a)-rank(b)||byRecent(a,b));
-  const stabilized=active.filter(o=>app.playerObjectiveStageOf(o)==='stabilized').sort(byRecent);
+  const active=all.filter(x=>x.status==='active').sort(byRecent);
   const completed=all.filter(x=>x.status==='completed').sort(byRecent).slice(0,5);
-  const blocks=[priorities.length
-    ?`<div style="display:grid;gap:7px"><div class="analysisSubtle">Priorités</div><div class="playerObjectivesList">${priorities.map(o=>app.playerObjectiveItemHtml(o,false)).join('')}</div></div>`
+  const blocks=[active.length
+    ?`<div style="display:grid;gap:7px"><div class="analysisSubtle">Objectifs en cours</div><div class="playerObjectivesList">${active.map(o=>app.playerObjectiveItemHtml(o)).join('')}</div></div>`
     :'<div class="small">Aucun objectif en cours. Le staff peut en ajouter, et tu peux aussi définir un objectif personnel.</div>'];
-  if(stabilized.length)blocks.push(`<details class="playerFollowUpSection"><summary class="small">Stabilisés (${stabilized.length})</summary><div class="playerObjectivesList" style="margin-top:8px">${stabilized.map(o=>app.playerObjectiveItemHtml(o,false)).join('')}</div></details>`);
-  if(completed.length)blocks.push(`<details class="playerFollowUpSection"><summary class="small">Objectifs atteints (${completed.length})</summary><div class="playerObjectivesList" style="margin-top:8px">${completed.map(o=>app.playerObjectiveItemHtml(o,true)).join('')}</div></details>`);
+  if(completed.length)blocks.push(`<details class="playerFollowUpSection"><summary class="small">Objectifs atteints (${completed.length})</summary><div class="playerObjectivesList" style="margin-top:8px">${completed.map(o=>app.playerObjectiveItemHtml(o)).join('')}</div></details>`);
   return blocks.join('<div style="height:10px"></div>');
 };
 
@@ -2659,7 +2662,8 @@ app.playerFollowUpObjectiveById = function playerFollowUpObjectiveById(objective
 };
 
 app.playerFollowUpStageButtonsHtml = function playerFollowUpStageButtonsHtml(current){
-  return ['to_work','in_progress','stabilized'].map(key=>{
+  const keys=['to_work','completed'];
+  return keys.map(key=>{
     const info=app.playerObjectiveStageInfo(key);
     const active=current===key;
     return `<button type="button" class="ghost playerFollowUpStage ${info.cls}${active?' active':''}" data-followup-stage="${key}" aria-pressed="${active}"><span aria-hidden="true">${info.icon}</span> ${info.label}</button>`;
@@ -2713,12 +2717,13 @@ app.renderPlayerFollowUpDetail = function renderPlayerFollowUpDetail(){
   if(!objective){body.innerHTML='<div class="small">Objectif introuvable.</div>';if(save)save.disabled=true;return}
   const available=app.playerFollowUpAvailable();
   const coachSide=app.playerPortalState.staffPreview;
-  const stage=app.playerObjectiveStageOf(objective),info=app.playerObjectiveStageInfo(stage);
-  const isCompleted=objective.status==='completed';
+  const displayState=app.playerObjectiveDisplayState(objective);
+  const info=app.playerObjectiveStageInfo(displayState);
+  const isCompleted=displayState==='completed';
   if(meta)meta.textContent=objective.source==='player'?'Objectif personnel':'Objectif coach';
   const stageBlock=available&&coachSide
-    ?`<div class="field"><label>Étape de travail</label><div class="playerFollowUpStagePicker" id="playerFollowUpStagePicker" role="group" aria-label="Étape de travail">${app.playerFollowUpStageButtonsHtml(app.playerPortalState.detailStage||stage)}</div><div class="small" style="margin-top:6px">L’étape décrit le travail en cours. L’objectif reste actif jusqu’à « Marquer atteint ».</div></div>`
-    :`<div class="field"><label>Étape de travail</label><div class="playerFollowUpStage ${info.cls}"><span aria-hidden="true">${info.icon}</span> ${info.label}</div></div>`;
+    ?`<div class="field"><label>Statut de l’objectif</label><div class="playerFollowUpStagePicker" id="playerFollowUpStagePicker" role="group" aria-label="Statut de l’objectif">${app.playerFollowUpStageButtonsHtml(displayState)}</div></div>`
+    :`<div class="field"><label>Statut de l’objectif</label><div class="playerFollowUpStage ${info.cls}"><span aria-hidden="true">${info.icon}</span> ${info.label}</div></div>`;
   const objectiveBlock=available&&coachSide
     ?`<div class="field"><label for="playerFollowUpObjectiveInput">Objectif</label><textarea id="playerFollowUpObjectiveInput" maxlength="500" rows="3">${app.escapeHtml(objective.objective||'')}</textarea></div>`
     :`<div class="playerFollowUpReadOnly"><span class="analysisSubtle">Objectif</span><p>${app.escapeHtml(objective.objective||'')}</p></div>`;
@@ -2732,13 +2737,37 @@ app.renderPlayerFollowUpDetail = function renderPlayerFollowUpDetail(){
   body.innerHTML=`${stageBlock}${objectiveBlock}${coachNoteBlock}${playerNoteBlock}<div class="small">Dernière mise à jour : ${app.escapeHtml(app.playerObjectiveDate(objective.updated_at||objective.created_at))}${isCompleted?' · objectif atteint':''}</div>`;
   const picker=app.$('#playerFollowUpStagePicker');
   picker?.querySelectorAll('[data-followup-stage]').forEach(button=>{
-    button.onclick=()=>{
-      app.playerPortalState.detailStage=button.dataset.followupStage;
-      picker.querySelectorAll('[data-followup-stage]').forEach(other=>{
-        const active=other.dataset.followupStage===app.playerPortalState.detailStage;
-        other.classList.toggle('active',active);
-        other.setAttribute('aria-pressed',String(active));
-      });
+    button.onclick=async()=>{
+      const current=app.playerFollowUpObjectiveById(app.playerPortalState.detailId);
+      if(!current)return;
+      const target=button.dataset.followupStage;
+      const currentState=app.playerObjectiveDisplayState(current);
+      if(target===currentState)return;
+      const statusEl=app.$('#playerFollowUpDetailStatus');
+      const saveBtn=app.$('#playerFollowUpDetailSave');
+      if(saveBtn)saveBtn.disabled=true;
+      if(statusEl)statusEl.textContent=target==='completed'?'Marquage atteint…':'Réouverture…';
+      try{
+        if(target==='completed'){
+          const {error}=await app.db.rpc('complete_player_objective',{p_group_id:app.playerPortalState.groupId,p_objective_id:current.id});
+          if(error)throw error;
+        }else{
+          const {error}=await app.db.rpc('reopen_player_objective',{p_group_id:app.playerPortalState.groupId,p_objective_id:current.id});
+          if(error)throw error;
+        }
+        await app.loadPlayerObjectives();
+        if(statusEl)statusEl.textContent='Objectif mis à jour.';
+        picker.querySelectorAll('[data-followup-stage]').forEach(other=>{
+          const active=other.dataset.followupStage===target;
+          other.classList.toggle('active',active);
+          other.setAttribute('aria-pressed',String(active));
+        });
+      }catch(e){
+        if(statusEl)statusEl.textContent='Action non enregistrée.';
+        app.handleError('toggle objective status',e);
+      }finally{
+        if(saveBtn)saveBtn.disabled=false;
+      }
     };
   });
   if(save)save.disabled=app.playerFollowUpDemo();
@@ -2759,7 +2788,7 @@ app.savePlayerFollowUpDetail = async function savePlayerFollowUpDetail(){
         p_objective_id:objective.id,
         p_objective:(app.$('#playerFollowUpObjectiveInput')?.value||'').trim()||null,
         p_coach_note:app.$('#playerFollowUpCoachNoteInput')?.value??null,
-        p_stage:app.playerPortalState.detailStage||app.playerObjectiveStageOf(objective)
+        p_stage:null
       });
       if(error)throw error;
     }else{
@@ -3028,35 +3057,61 @@ app.openPlayerPortal = async function openPlayerPortal(accesses){
 };
 
 app.groupFollowUpObjectivesHtml = function groupFollowUpObjectivesHtml(rows){
-  const active=(rows||[]).filter(x=>x.status==='active'&&(x.source||'coach')==='coach');
-  if(!active.length)return '<div class="small">Aucun objectif coach actif.</div>';
-  return active.map(o=>{
-    const stage=app.playerObjectiveStageOf(o),info=app.playerObjectiveStageInfo(stage);
-    const pill=app.playerFollowUpAvailable()
-      ?`<span class="playerFollowUpStage ${info.cls}"><span aria-hidden="true">${info.icon}</span> ${info.label}</span>`
-      :`<span class="analysisSubtle">${info.label}</span>`;
-    const date=app.escapeHtml(app.playerObjectiveDate(o.updated_at||o.created_at));
-    const coachNote=o.coach_note?`<div class="playerObjectiveNote"><span class="analysisSubtle">Consigne</span><span>${app.escapeHtml(o.coach_note)}</span></div>`:'';
-    const playerNote=o.player_note?`<div class="playerObjectiveNote"><span class="analysisSubtle">Note du joueur</span><span>${app.escapeHtml(o.player_note)}</span></div>`:'';
-    const stageButtons=app.playerFollowUpAvailable()
-      ?`<div class="playerFollowUpStagePicker" role="group" aria-label="Étape de travail"><span class="analysisSubtle">Étape</span>${app.playerFollowUpStageButtonsHtml(stage).replace(/<button type="button" class="ghost /g,'<button type="button" class="ghost followUpStageEdit "').replace(/data-followup-stage="([a-z_]+)"/g,'data-group-stage="$1"')}</div>`
-      :'';
-    const actions=`<div class="playerObjectiveActions"><button type="button" class="ghost" data-group-objective-action="complete" data-group-objective-id="${app.escapeHtml(o.id)}">Marquer atteint</button></div>`;
-    return `<div class="playerFollowUpCoachItem" data-group-objective="${app.escapeHtml(o.id)}">
-      <div style="min-width:0;display:grid;gap:6px">
-        <strong>${app.escapeHtml(o.objective||'')}</strong>
-        <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap"><span class="small">Mis à jour le ${date}</span>${pill}</div>
-        ${coachNote}${playerNote}${stageButtons}
-      </div>
-      ${actions}
-    </div>`;
-  }).join('');
+  const all=rows||[];
+  const coachAll=all.filter(x=>(x.source||'coach')==='coach');
+  const active=coachAll.filter(x=>x.status==='active');
+  const completed=coachAll.filter(x=>x.status==='completed').sort((a,b)=>Date.parse(b.completed_at||b.updated_at||b.created_at||0)-Date.parse(a.completed_at||a.updated_at||a.created_at||0));
+  const parts=[];
+  if(active.length){
+    parts.push(`<div class="analysisSubtle">Objectifs coach en cours</div>${active.map(o=>{
+      const displayState=app.playerObjectiveDisplayState(o);
+      const info=app.playerObjectiveStageInfo(displayState);
+      const pill=app.playerFollowUpAvailable()
+        ?`<span class="playerFollowUpStage ${info.cls}"><span aria-hidden="true">${info.icon}</span> ${info.label}</span>`
+        :`<span class="analysisSubtle">${info.label}</span>`;
+      const date=app.escapeHtml(app.playerObjectiveDate(o.updated_at||o.created_at));
+      const coachNote=o.coach_note?`<div class="playerObjectiveNote"><span class="analysisSubtle">Consigne</span><span>${app.escapeHtml(o.coach_note)}</span></div>`:'';
+      const playerNote=o.player_note?`<div class="playerObjectiveNote"><span class="analysisSubtle">Note du joueur</span><span>${app.escapeHtml(o.player_note)}</span></div>`:'';
+      const stageButtons=app.playerFollowUpAvailable()
+        ?`<div class="playerFollowUpStagePicker" role="group" aria-label="Statut de l’objectif"><span class="analysisSubtle">Statut</span>${app.playerFollowUpStageButtonsHtml(displayState).replace(/<button type="button" class="ghost /g,'<button type="button" class="ghost followUpStageEdit "').replace(/data-followup-stage="([a-z_]+)"/g,'data-group-stage="$1"')}</div>`
+        :'';
+      return `<div class="playerFollowUpCoachItem" data-group-objective="${app.escapeHtml(o.id)}">
+        <div style="min-width:0;display:grid;gap:6px">
+          <strong>${app.escapeHtml(o.objective||'')}</strong>
+          <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap"><span class="small">Mis à jour le ${date}</span>${pill}</div>
+          ${coachNote}${playerNote}${stageButtons}
+        </div>
+      </div>`;
+    }).join('')}`);
+  }else{
+    parts.push('<div class="small">Aucun objectif coach actif.</div>');
+  }
+  if(completed.length){
+    parts.push(`<details class="playerFollowUpSection"><summary class="small">Objectifs coach atteints (${completed.length})</summary><div class="playerObjectivesList" style="margin-top:8px">${completed.map(o=>{
+      const displayState=app.playerObjectiveDisplayState(o);
+      const info=app.playerObjectiveStageInfo(displayState);
+      const pill=app.playerFollowUpAvailable()
+        ?`<span class="playerFollowUpStage ${info.cls}"><span aria-hidden="true">${info.icon}</span> ${info.label}</span>`
+        :`<span class="analysisSubtle">${info.label}</span>`;
+      const date=app.escapeHtml(app.playerObjectiveDate(o.completed_at||o.updated_at||o.created_at));
+      const coachNote=o.coach_note?`<div class="playerObjectiveNote"><span class="analysisSubtle">Consigne</span><span>${app.escapeHtml(o.coach_note)}</span></div>`:'';
+      const playerNote=o.player_note?`<div class="playerObjectiveNote"><span class="analysisSubtle">Note du joueur</span><span>${app.escapeHtml(o.player_note)}</span></div>`:'';
+      const stageButtons=app.playerFollowUpAvailable()
+        ?`<div class="playerFollowUpStagePicker" role="group" aria-label="Statut de l’objectif"><span class="analysisSubtle">Statut</span>${app.playerFollowUpStageButtonsHtml(displayState).replace(/<button type="button" class="ghost /g,'<button type="button" class="ghost followUpStageEdit "').replace(/data-followup-stage="([a-z_]+)"/g,'data-group-stage="$1"')}</div>`
+        :'';
+      return `<div class="playerFollowUpCoachItem" data-group-objective="${app.escapeHtml(o.id)}">
+        <div style="min-width:0;display:grid;gap:6px">
+          <strong>${app.escapeHtml(o.objective||'')}</strong>
+          <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap"><span class="small">Atteint le ${date}</span>${pill}</div>
+          ${coachNote}${playerNote}${stageButtons}
+        </div>
+      </div>`;
+    }).join('')}</div></details>`);
+  }
+  return parts.join('<div style="height:10px"></div>');
 };
 
 app.groupFollowUpBindStagePickers = function groupFollowUpBindStagePickers(){
-  app.$$('#groupPlayerFollowupObjectivesList [data-group-objective-action]').forEach(button=>{
-    button.onclick=()=>app.completeGroupPlayerFollowupObjective(button.dataset.groupObjectiveId,false);
-  });
   app.$$('#groupPlayerFollowupObjectivesList [data-group-stage]').forEach(button=>{
     button.onclick=async()=>{
       const row=button.closest('[data-group-objective]');
@@ -3064,22 +3119,23 @@ app.groupFollowUpBindStagePickers = function groupFollowUpBindStagePickers(){
       const status=app.$('#groupPlayerFollowupStatus');
       if(!groupId||!playerId||!row)return;
       const objectiveId=row.dataset.groupObjective;
+      const target=button.dataset.groupStage;
       button.disabled=true;
-      if(status)status.textContent='Étape en cours…';
+      if(status)status.textContent=target==='completed'?'Marquage atteint…':'Réouverture…';
       try{
-        if(app.playerFollowUpAvailable()){
-          const {error}=await app.db.rpc('set_player_objective_stage',{p_group_id:groupId,p_objective_id:objectiveId,p_stage:button.dataset.groupStage});
+        if(target==='completed'){
+          const {error}=await app.db.rpc('complete_player_objective',{p_group_id:groupId,p_objective_id:objectiveId});
           if(error)throw error;
         }else{
-          const {error}=await app.db.rpc('update_player_objective_coach_fields',{p_group_id:groupId,p_objective_id:objectiveId,p_stage:button.dataset.groupStage});
+          const {error}=await app.db.rpc('reopen_player_objective',{p_group_id:groupId,p_objective_id:objectiveId});
           if(error)throw error;
         }
         await app.reloadGroupPlayerFollowupObjectives(groupId,playerId);
-        if(status)status.textContent='Étape enregistrée.';
+        if(status)status.textContent='Objectif mis à jour.';
         app.setCloud('Synchronisé',true);
       }catch(e){
-        if(status)status.textContent='Étape non enregistrée.';
-        app.handleError('set player objective stage',e);
+        if(status)status.textContent='Action non enregistrée.';
+        app.handleError('toggle group objective status',e);
       }finally{button.disabled=false}
     };
   });
