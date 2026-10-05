@@ -2588,21 +2588,22 @@ button.playerPortalHomeCard:hover,a.playerPortalHomeCard:hover{border-color:var(
 
 .playerFollowUpReviewList{display:grid;gap:8px;list-style:none;margin:0;padding:0}
 
-.playerFollowUpReviewItem{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px 11px;background:#181d25}
+.playerFollowUpReviewItem{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px 11px;background:var(--surface-muted)}
 
-.playerFollowUpReviewKind{font-size:11px;font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 8px;white-space:nowrap}
+.playerFollowUpReviewKind{font-size:11px;font-weight:700;color:var(--neutral-text);border:1px solid var(--line);border-radius:999px;padding:3px 8px;white-space:nowrap;background:var(--neutral-bg)}
 
-.playerFollowUpReviewText{min-width:0;font-size:13px;line-height:1.45;overflow-wrap:anywhere}
+.playerFollowUpReviewText{min-width:0;font-size:13px;line-height:1.45;overflow-wrap:anywhere;color:var(--text)}
 
 .playerFollowUpReviewLink{white-space:nowrap;justify-self:end}
 
 .playerFollowUpCoachItem{border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px;background:var(--panel2);display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;align-items:flex-start}
 
-.playerFollowUpCoachItem .playerObjectiveNote{background:#181d25}
+.playerFollowUpCoachItem .playerObjectiveNote{background:var(--surface-subtle);color:var(--text);border:1px solid var(--line)}
 
 @media(max-width:620px){
   .playerFollowUpReviewItem{grid-template-columns:1fr;gap:8px}
-  .playerFollowUpReviewLink{justify-self:start}
+  .playerFollowUpReviewKind{align-self:start}
+  .playerFollowUpReviewLink{justify-self:start;width:100%;text-align:center;justify-content:center}
   .playerFollowUpStagePicker .playerFollowUpStage{width:100%}
 }
 
@@ -2921,8 +2922,15 @@ button.primary,.primary,.on,.tab.active{background:var(--accent)!important;color
 .playerVideoPlayerHeader,.playerVideoAdvancedControls{color:var(--text)!important}
 
 .playerVideoTimeDisplay,.playerVideoHint{color:var(--muted)!important}
-@media(max-width:620px){
-  .playerFollowUpReviewItem{grid-template-columns:1fr;gap:8px}
-  .playerFollowUpReviewLink{justify-self:start}
-  .playerFollowUpStagePicker .playerFollowUpStage{width:100%}
+
+#playerFollowUpNoteInput{
+  display:block;
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  box-sizing:border-box;
+  min-height:132px;
+  resize:vertical;
+  padding:11px 12px;
+  line-height:1.5;
 }

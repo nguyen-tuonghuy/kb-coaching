@@ -2728,7 +2728,7 @@ app.renderPlayerFollowUpDetail = function renderPlayerFollowUpDetail(){
       :(objective.coach_note?`<div class="playerFollowUpReadOnly"><span class="analysisSubtle">Consigne du coach</span><p>${app.escapeHtml(objective.coach_note)}</p></div>`:'');
   const playerNoteBlock=coachSide
     ?(objective.player_note?`<div class="playerFollowUpReadOnly"><span class="analysisSubtle">Note du joueur</span><p>${app.escapeHtml(objective.player_note)}</p></div>`:'')
-    :`<div class="field"><label for="playerFollowUpNoteInput">Ma note personnelle</label><textarea id="playerFollowUpNoteInput" maxlength="2000" rows="3" placeholder="Ce que tu retiens, ce que tu veux retravailler.">${app.escapeHtml(objective.player_note||'')}</textarea><div class="small" style="margin-top:6px">Visible par toi et par les entraîneurs du groupe. Elle ne modifie pas les décisions du coach.</div></div>`;
+    :`<div class="field"><label for="playerFollowUpNoteInput">Ma note personnelle</label><textarea id="playerFollowUpNoteInput" maxlength="2000" rows="5" placeholder="Ce que tu retiens, ce que tu veux retravailler.">${app.escapeHtml(objective.player_note||'')}</textarea><div class="small" style="margin-top:6px">Visible par toi et par les entraîneurs du groupe. Elle ne modifie pas les décisions du coach.</div></div>`;
   body.innerHTML=`${stageBlock}${objectiveBlock}${coachNoteBlock}${playerNoteBlock}<div class="small">Dernière mise à jour : ${app.escapeHtml(app.playerObjectiveDate(objective.updated_at||objective.created_at))}${isCompleted?' · objectif atteint':''}</div>`;
   const picker=app.$('#playerFollowUpStagePicker');
   picker?.querySelectorAll('[data-followup-stage]').forEach(button=>{
@@ -2780,7 +2780,7 @@ app.savePlayerFollowUpDetail = async function savePlayerFollowUpDetail(){
 
 app.playerFollowUpReviewHtml = function playerFollowUpReviewHtml(items){
   if(!items.length)return '<div class="small">Rien à revoir pour le moment.</div>';
-  return `<ul class="playerFollowUpReviewList">${items.map(item=>`<li class="playerFollowUpReviewItem"><span class="playerFollowUpReviewKind">${app.escapeHtml(item.kind)}</span><span class="playerFollowUpReviewText">${app.escapeHtml(item.text)}</span>${item.href?`<a class="ghost playerFollowUpReviewLink" href="${app.escapeHtml(item.href)}">${app.escapeHtml(item.action||'Ouvrir')}</a>`:''}</li>`).join('')}</ul>`;
+  return `<ul class="playerFollowUpReviewList">${items.map(item=>`<li class="playerFollowUpReviewItem"><span class="playerFollowUpReviewKind">${app.escapeHtml(item.kind)}</span><span class="playerFollowUpReviewText">${app.escapeHtml(item.text)}</span>${item.href?`<a class="button ghost playerFollowUpReviewLink" href="${app.escapeHtml(item.href)}">${app.escapeHtml(item.action||'Ouvrir')}</a>`:''}</li>`).join('')}</ul>`;
 };
 
 app.loadPlayerFollowUpReview = async function loadPlayerFollowUpReview(){
