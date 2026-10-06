@@ -5,7 +5,9 @@
 - État actuel : commits réalisés
   - f16802f Mon suivi : lisibilité du bloc "À revoir" + confort textarea note
   - ccc477f Mon suivi : simplifier aux états À travailler/Atteint, corriger pastille détail et fiche coach
-- Status Git : 4 fichiers modifiés, aucun nouveau fichier suivi ; `serve-no-cache.py` non suivi
+  - 4f95cfe feat: simplify player objective follow-up
+- Status Git : travail commité sur la branche ; `serve-no-cache.py` reste non suivi (hors périmètre)
+- Migration : `20261005093000_player_objective_follow_up.sql` portée sur Supabase (version actuelle, sans `stage`)
 
 ## Problématique
 Deux problèmes liés aux statuts d'objectifs :
@@ -36,7 +38,7 @@ Simplifier le modèle visible par l'utilisateur en seulement deux états :
 - Un objectif atteint rouvert revient à `À travailler` (via `reopen_player_objective`).
 - Le bouton séparé « Marquer atteint » côté coach est supprimé.
 - Même interprétation dans la liste joueur, les « Objectifs atteints », le détail et la fiche joueur côté coach.
-- Aucune modification de migration n'a encore été appliquée ; la migration `20261005093000_player_objective_follow_up.sql` doit être révisée avant tout déploiement.
+- La migration a été portée sur Supabase dans sa version sans `stage` ; si une version expérimentale avait créé la colonne `stage`, elle appelle une migration corrective distincte (nouveau timestamp, non réécriture du fichier appliqué).
 - Ne pas redéfinir `complete_player_objective` ni `reopen_player_objective` dans la migration (leurs définitions réelles existent déjà et mettent `updated_at = now()`).
 - `update_player_objective_coach_fields()` : le coach ne doit pas pouvoir modifier le texte d'un objectif personnel (`source='player'`). Les objectifs personnels restent sous le contrôle du joueur.
 - Conserver `coach_note`, `player_note`, `SECURITY DEFINER`, `SET search_path TO 'public','pg_temp'`, et les gardes `private.is_group_coach`.
