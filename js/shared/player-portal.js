@@ -123,15 +123,11 @@ app.playerObjectiveDisplayState = function playerObjectiveDisplayState(o){
   return 'to_work';
 };
 
-app.playerObjectiveStageOf = function playerObjectiveStageOf(o){
-  return app.playerObjectiveDisplayState(o);
-};
-
-app.playerObjectiveStageInfo = function playerObjectiveStageInfo(stage){
-  const s=stage==='completed'?'completed':'to_work';
+app.playerObjectiveStatusInfo = function playerObjectiveStatusInfo(status){
+  const s=status==='completed'?'completed':'to_work';
   return {
-    to_work:{label:'À travailler',icon:'○',cls:'toWork',order:1},
-    completed:{label:'Atteint',icon:'●',cls:'completed',order:2}
+    to_work:{label:'À travailler',icon:'○',cls:'toWork'},
+    completed:{label:'Atteint',icon:'●',cls:'completed'}
   }[s];
 };
 
@@ -155,10 +151,10 @@ app.playerFollowUpRpcMissing = function playerFollowUpRpcMissing(error){
 
 app.playerFollowUpDemoObjectives = function playerFollowUpDemoObjectives(){
   return [
-    {id:'demo-1',objective:'Orienter mes pieds avant de recevoir pour garder le ballon devant moi',status:'active',source:'coach',stage:'in_progress',coach_note:'Regarde la vidéo du match 3 : tes appuis arrivent après la frappe.',player_note:'À retravailler sur les deux premiers sets.',created_at:'2026-09-28T10:00:00Z',updated_at:'2026-10-02T18:00:00Z',created_by_name:'Karim'},
-    {id:'demo-2',objective:'Servir régulièrement la zone arrière',status:'active',source:'coach',stage:'to_work',coach_note:'Cible la largeur de la table, pas seulement la profondeur.',player_note:null,created_at:'2026-09-20T10:00:00Z',updated_at:'2026-09-30T09:00:00Z',created_by_name:'Karim'},
-    {id:'demo-3',objective:'Équilibrer mes attaques gauches et droites',status:'completed',source:'coach',stage:'to_work',coach_note:null,player_note:'Objectif atteint sur trois matchs.',completed_at:'2026-10-01T09:00:00Z',created_at:'2026-09-01T10:00:00Z',updated_at:'2026-10-01T09:00:00Z',created_by_name:'Karim'},
-    {id:'demo-4',objective:'Garder mon concentration sur les points longs',status:'active',source:'player',stage:'to_work',coach_note:null,player_note:null,created_at:'2026-09-25T10:00:00Z',updated_at:'2026-09-25T10:00:00Z',created_by_name:'Joueur'}
+    {id:'demo-1',objective:'Orienter mes pieds avant de recevoir pour garder le ballon devant moi',status:'active',source:'coach',coach_note:'Regarde la vidéo du match 3 : tes appuis arrivent après la frappe.',player_note:'À retravailler sur les deux premiers sets.',created_at:'2026-09-28T10:00:00Z',updated_at:'2026-10-02T18:00:00Z',created_by_name:'Karim'},
+    {id:'demo-2',objective:'Servir régulièrement la zone arrière',status:'active',source:'coach',coach_note:'Cible la largeur de la table, pas seulement la profondeur.',player_note:null,created_at:'2026-09-20T10:00:00Z',updated_at:'2026-09-30T09:00:00Z',created_by_name:'Karim'},
+    {id:'demo-3',objective:'Équilibrer mes attaques gauches et droites',status:'completed',source:'coach',coach_note:null,player_note:'Objectif atteint sur trois matchs.',completed_at:'2026-10-01T09:00:00Z',created_at:'2026-09-01T10:00:00Z',updated_at:'2026-10-01T09:00:00Z',created_by_name:'Karim'},
+    {id:'demo-4',objective:'Garder mon concentration sur les points longs',status:'active',source:'player',coach_note:null,player_note:null,created_at:'2026-09-25T10:00:00Z',updated_at:'2026-09-25T10:00:00Z',created_by_name:'Joueur'}
   ];
 };
 
@@ -170,27 +166,23 @@ app.playerObjectiveItemHtml = function playerObjectiveItemHtml(o){
   const source=o.source==='player'?'player':'coach';
   const sourceLabel=source==='player'?'Objectif personnel':'Objectif coach';
   const displayState=app.playerObjectiveDisplayState(o);
-  const info=app.playerObjectiveStageInfo(displayState);
+  const info=app.playerObjectiveStatusInfo(displayState);
   const isCompleted=displayState==='completed';
   const canEditPersonal=!app.playerPortalState.staffPreview&&source==='player';
-  const canEditCoach=app.playerPortalState.staffPreview&&source==='coach';
   const actions=[`<button type="button" class="ghost" data-objective-detail="${app.escapeHtml(o.id)}">Détail</button>`];
-  if(canEditCoach)actions.push(`<button type="button" class="ghost" data-objective-action="${isCompleted?'reopen':'complete'}" data-objective-id="${app.escapeHtml(o.id)}">${isCompleted?'Réouvrir':'Marquer atteint'}</button>`);
   if(canEditPersonal){
     actions.push(`<button type="button" class="ghost" data-objective-action="${isCompleted?'reopen':'complete'}" data-objective-id="${app.escapeHtml(o.id)}">${isCompleted?'Réouvrir':'Marquer atteint'}</button>`);
     actions.push(`<button type="button" class="ghost" data-objective-action="edit" data-objective-id="${app.escapeHtml(o.id)}" data-objective-text="${app.escapeHtml(o.objective||'')}">Modifier</button>`);
     actions.push(`<button type="button" class="ghost" data-objective-action="delete" data-objective-id="${app.escapeHtml(o.id)}">Supprimer</button>`);
   }
-  const pill=app.playerFollowUpAvailable()
-    ?`<span class="playerFollowUpStage ${info.cls}"><span aria-hidden="true">${info.icon}</span> ${info.label}</span>`
-    :'';
+  const pill=`<span class="playerFollowUpStatus ${info.cls}"><span aria-hidden="true">${info.icon}</span> ${info.label}</span>`;
   const date=isCompleted
     ?`Atteint le ${app.escapeHtml(app.playerObjectiveDate(o.completed_at))}`
     :`Mis à jour le ${app.escapeHtml(app.playerObjectiveDate(o.updated_at||o.created_at))}${o.created_by_name?' · '+app.escapeHtml(o.created_by_name):''}`;
   const coachNote=o.coach_note?`<div class="playerObjectiveNote"><span class="analysisSubtle">Consigne du coach</span><span>${app.escapeHtml(o.coach_note)}</span></div>`:'';
   const playerNote=o.player_note?`<div class="playerObjectiveNote"><span class="analysisSubtle">Ma note</span><span>${app.escapeHtml(o.player_note)}</span></div>`:'';
   return `<div class="playerObjectiveItem ${isCompleted?'completed':''}">
-    <div class="playerObjectiveText"><strong>${app.escapeHtml(o.objective||'')}</strong><div class="playerObjectiveMeta">${app.escapeHtml(sourceLabel)} · ${date}</div>${pill?`<div class="playerObjectiveStageRow">${pill}</div>`:''}${coachNote}${playerNote}</div>
+    <div class="playerObjectiveText"><strong>${app.escapeHtml(o.objective||'')}</strong><div class="playerObjectiveMeta">${app.escapeHtml(sourceLabel)} · ${date}</div><div class="playerObjectiveStatusRow">${pill}</div>${coachNote}${playerNote}</div>
     <div class="playerObjectiveActions">${actions.join('')}</div>
   </div>`;
 };
@@ -258,23 +250,24 @@ app.playerFollowUpObjectiveById = function playerFollowUpObjectiveById(objective
   return (app.playerPortalState.objectives||[]).find(o=>o.id===objectiveId)||null;
 };
 
-app.playerFollowUpStageButtonsHtml = function playerFollowUpStageButtonsHtml(current){
-  const keys=['to_work','completed'];
-  return keys.map(key=>{
-    const info=app.playerObjectiveStageInfo(key);
+app.playerFollowUpStatusButtonsHtml = function playerFollowUpStatusButtonsHtml(current,options={}){
+  const attr=options.attr||'data-followup-status';
+  const extraCls=options.cls?' '+options.cls:'';
+  return ['to_work','completed'].map(key=>{
+    const info=app.playerObjectiveStatusInfo(key);
     const active=current===key;
-    return `<button type="button" class="ghost playerFollowUpStage ${info.cls}${active?' active':''}" data-followup-stage="${key}" aria-pressed="${active}"><span aria-hidden="true">${info.icon}</span> ${info.label}</button>`;
+    return `<button type="button" class="ghost playerFollowUpStatus ${info.cls}${active?' active':''}${extraCls}" ${attr}="${key}" aria-pressed="${active}"><span aria-hidden="true">${info.icon}</span> ${info.label}</button>`;
   }).join('');
 };
 
-app.playerFollowUpStageFocusable = function playerFollowUpStageFocusable(){
+app.playerFollowUpStatusFocusable = function playerFollowUpStatusFocusable(){
   const popup=app.$('#playerFollowUpDetailPopup');
   if(!popup)return [];
   return [...popup.querySelectorAll('button,input,select,textarea,a[href],[tabindex]:not([tabindex="-1"])')].filter(el=>!el.disabled&&el.offsetParent!==null);
 };
 
 app.trapPlayerFollowUpFocus = function trapPlayerFollowUpFocus(event){
-  const focusable=app.playerFollowUpStageFocusable();
+  const focusable=app.playerFollowUpStatusFocusable();
   if(!focusable.length)return;
   const first=focusable[0],last=focusable[focusable.length-1];
   if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus()}
@@ -287,7 +280,6 @@ app.openPlayerFollowUpDetail = function openPlayerFollowUpDetail(objectiveId){
   const objective=app.playerFollowUpObjectiveById(objectiveId);
   if(!objective)return;
   app.playerPortalState.detailId=objectiveId;
-  app.playerPortalState.detailStage=app.playerObjectiveStageOf(objective);
   app.playerPortalState.detailReturnFocus=document.activeElement;
   app.renderPlayerFollowUpDetail();
   popup.classList.remove('hidden');
@@ -307,23 +299,43 @@ app.closePlayerFollowUpDetail = function closePlayerFollowUpDetail(){
   if(back&&typeof back.focus==='function')back.focus();
 };
 
-app.renderPlayerFollowUpDetail = function renderPlayerFollowUpDetail(){
+app.playerFollowUpDraft = function playerFollowUpDraft(){
+  return {
+    objective:app.$('#playerFollowUpObjectiveInput')?.value??null,
+    coachNote:app.$('#playerFollowUpCoachNoteInput')?.value??null,
+    playerNote:app.$('#playerFollowUpNoteInput')?.value??null
+  };
+};
+
+app.playerFollowUpRestoreDraft = function playerFollowUpRestoreDraft(draft){
+  if(!draft)return;
+  const objective=app.$('#playerFollowUpObjectiveInput');
+  if(objective&&draft.objective!==null)objective.value=draft.objective;
+  const coachNote=app.$('#playerFollowUpCoachNoteInput');
+  if(coachNote&&draft.coachNote!==null)coachNote.value=draft.coachNote;
+  const playerNote=app.$('#playerFollowUpNoteInput');
+  if(playerNote&&draft.playerNote!==null)playerNote.value=draft.playerNote;
+};
+
+app.renderPlayerFollowUpDetail = function renderPlayerFollowUpDetail(options={}){
   const body=app.$('#playerFollowUpDetailBody'),meta=app.$('#playerFollowUpDetailMeta'),save=app.$('#playerFollowUpDetailSave');
   if(!body)return;
   const objective=app.playerFollowUpObjectiveById(app.playerPortalState.detailId);
   if(!objective){body.innerHTML='<div class="small">Objectif introuvable.</div>';if(save)save.disabled=true;return}
   const available=app.playerFollowUpAvailable();
   const coachSide=app.playerPortalState.staffPreview;
+  const isPersonal=objective.source==='player';
   const displayState=app.playerObjectiveDisplayState(objective);
-  const info=app.playerObjectiveStageInfo(displayState);
+  const info=app.playerObjectiveStatusInfo(displayState);
   const isCompleted=displayState==='completed';
-  if(meta)meta.textContent=objective.source==='player'?'Objectif personnel':'Objectif coach';
-  const stageBlock=available&&coachSide
-    ?`<div class="field"><label>Statut de l’objectif</label><div class="playerFollowUpStagePicker" id="playerFollowUpStagePicker" role="group" aria-label="Statut de l’objectif">${app.playerFollowUpStageButtonsHtml(displayState)}</div></div>`
-    :`<div class="field"><label>Statut de l’objectif</label><div class="playerFollowUpStage ${info.cls}"><span aria-hidden="true">${info.icon}</span> ${info.label}</div></div>`;
-  const objectiveBlock=available&&coachSide
+  if(meta)meta.textContent=isPersonal?'Objectif personnel':'Objectif coach';
+  const statusBlock=available&&coachSide
+    ?`<div class="field"><label>Statut de l’objectif</label><div class="playerFollowUpStatusPicker" id="playerFollowUpStatusPicker" role="group" aria-label="Statut de l’objectif">${app.playerFollowUpStatusButtonsHtml(displayState)}</div></div>`
+    :`<div class="field"><label>Statut de l’objectif</label><div class="playerFollowUpStatus ${info.cls}"><span aria-hidden="true">${info.icon}</span> ${info.label}</div></div>`;
+  const coachCanEditText=available&&coachSide&&!isPersonal;
+  const objectiveBlock=coachCanEditText
     ?`<div class="field"><label for="playerFollowUpObjectiveInput">Objectif</label><textarea id="playerFollowUpObjectiveInput" maxlength="500" rows="3">${app.escapeHtml(objective.objective||'')}</textarea></div>`
-    :`<div class="playerFollowUpReadOnly"><span class="analysisSubtle">Objectif</span><p>${app.escapeHtml(objective.objective||'')}</p></div>`;
+    :`<div class="playerFollowUpReadOnly"><span class="analysisSubtle">Objectif</span><p>${app.escapeHtml(objective.objective||'')}</p>${coachSide&&isPersonal?'<div class="small" style="margin-top:6px">Objectif personnel : seul le joueur peut le modifier.</div>':''}</div>`;
   const coachNoteBlock=!available?''
     :coachSide
       ?`<div class="field"><label for="playerFollowUpCoachNoteInput">Consigne du coach</label><textarea id="playerFollowUpCoachNoteInput" maxlength="1000" rows="3" placeholder="Ce que le joueur doit travailler sur cet objectif.">${app.escapeHtml(objective.coach_note||'')}</textarea></div>`
@@ -331,42 +343,39 @@ app.renderPlayerFollowUpDetail = function renderPlayerFollowUpDetail(){
   const playerNoteBlock=coachSide
     ?(objective.player_note?`<div class="playerFollowUpReadOnly"><span class="analysisSubtle">Note du joueur</span><p>${app.escapeHtml(objective.player_note)}</p></div>`:'')
     :`<div class="field"><label for="playerFollowUpNoteInput">Ma note personnelle</label><textarea id="playerFollowUpNoteInput" maxlength="2000" rows="5" placeholder="Ce que tu retiens, ce que tu veux retravailler.">${app.escapeHtml(objective.player_note||'')}</textarea><div class="small" style="margin-top:6px">Visible par toi et par les entraîneurs du groupe. Elle ne modifie pas les décisions du coach.</div></div>`;
-  body.innerHTML=`${stageBlock}${objectiveBlock}${coachNoteBlock}${playerNoteBlock}<div class="small">Dernière mise à jour : ${app.escapeHtml(app.playerObjectiveDate(objective.updated_at||objective.created_at))}${isCompleted?' · objectif atteint':''}</div>`;
-  const picker=app.$('#playerFollowUpStagePicker');
-  picker?.querySelectorAll('[data-followup-stage]').forEach(button=>{
+  body.innerHTML=`${statusBlock}${objectiveBlock}${coachNoteBlock}${playerNoteBlock}<div class="small">Dernière mise à jour : ${app.escapeHtml(app.playerObjectiveDate(objective.updated_at||objective.created_at))}${isCompleted?' · objectif atteint':''}</div>`;
+  app.playerFollowUpRestoreDraft(options.drafts);
+  const picker=app.$('#playerFollowUpStatusPicker');
+  picker?.querySelectorAll('[data-followup-status]').forEach(button=>{
     button.onclick=async()=>{
       const current=app.playerFollowUpObjectiveById(app.playerPortalState.detailId);
       if(!current)return;
-      const target=button.dataset.followupStage;
-      const currentState=app.playerObjectiveDisplayState(current);
-      if(target===currentState)return;
+      const target=button.dataset.followupStatus;
+      if(target===app.playerObjectiveDisplayState(current))return;
       const statusEl=app.$('#playerFollowUpDetailStatus');
       const saveBtn=app.$('#playerFollowUpDetailSave');
+      const controls=[...picker.querySelectorAll('[data-followup-status]')];
+      const drafts=app.playerFollowUpDraft();
+      controls.forEach(el=>{el.disabled=true});
       if(saveBtn)saveBtn.disabled=true;
       if(statusEl)statusEl.textContent=target==='completed'?'Marquage atteint…':'Réouverture…';
       try{
-        if(target==='completed'){
-          const {error}=await app.db.rpc('complete_player_objective',{p_group_id:app.playerPortalState.groupId,p_objective_id:current.id});
-          if(error)throw error;
-        }else{
-          const {error}=await app.db.rpc('reopen_player_objective',{p_group_id:app.playerPortalState.groupId,p_objective_id:current.id});
-          if(error)throw error;
-        }
+        const rpc=target==='completed'?'complete_player_objective':'reopen_player_objective';
+        const {error}=await app.db.rpc(rpc,{p_group_id:app.playerPortalState.groupId,p_objective_id:current.id});
+        if(error)throw error;
         await app.loadPlayerObjectives();
-        if(statusEl)statusEl.textContent='Objectif mis à jour.';
-        picker.querySelectorAll('[data-followup-stage]').forEach(other=>{
-          const active=other.dataset.followupStage===target;
-          other.classList.toggle('active',active);
-          other.setAttribute('aria-pressed',String(active));
-        });
+        app.renderPlayerFollowUpDetail({drafts,focusStatus:target});
+        const freshStatus=app.$('#playerFollowUpDetailStatus');
+        if(freshStatus)freshStatus.textContent='Objectif mis à jour.';
       }catch(e){
+        controls.forEach(el=>{el.disabled=false});
+        if(saveBtn)saveBtn.disabled=false;
         if(statusEl)statusEl.textContent='Action non enregistrée.';
         app.handleError('toggle objective status',e);
-      }finally{
-        if(saveBtn)saveBtn.disabled=false;
       }
     };
   });
+  if(options.focusStatus)picker?.querySelector(`[data-followup-status="${options.focusStatus}"]`)?.focus();
   if(save)save.disabled=app.playerFollowUpDemo();
 };
 
@@ -383,9 +392,8 @@ app.savePlayerFollowUpDetail = async function savePlayerFollowUpDetail(){
       const {error}=await app.db.rpc('update_player_objective_coach_fields',{
         p_group_id:app.playerPortalState.groupId,
         p_objective_id:objective.id,
-        p_objective:(app.$('#playerFollowUpObjectiveInput')?.value||'').trim()||null,
-        p_coach_note:app.$('#playerFollowUpCoachNoteInput')?.value??null,
-        p_stage:null
+        p_objective:objective.source==='player'?null:((app.$('#playerFollowUpObjectiveInput')?.value||'').trim()||null),
+        p_coach_note:app.$('#playerFollowUpCoachNoteInput')?.value??null
       });
       if(error)throw error;
     }else{
@@ -398,6 +406,8 @@ app.savePlayerFollowUpDetail = async function savePlayerFollowUpDetail(){
     }
     if(status)status.textContent='Enregistré.';
     await app.loadPlayerObjectives();
+    app.renderPlayerFollowUpDetail();
+    button?.focus();
   }catch(e){
     if(status)status.textContent='Enregistrement impossible.';
     app.handleError('save player follow-up',e);
@@ -466,29 +476,22 @@ app.addPlayerObjective = async function addPlayerObjective(){
 };
 
 app.updatePlayerObjectiveStatus = async function updatePlayerObjectiveStatus(objectiveId,action,currentText=''){
-  if(!objectiveId)return;
+  if(!objectiveId||app.playerPortalState.staffPreview)return;
   const status=app.$('#playerObjectiveStatus');
   try{
-    if(app.playerPortalState.staffPreview){
-      if(!['complete','reopen'].includes(action))return;
-      const rpc=action==='complete'?'complete_player_objective':'reopen_player_objective';
-      const {error}=await app.db.rpc(rpc,{p_group_id:app.playerPortalState.groupId,p_objective_id:objectiveId});
+    if(action==='edit'){
+      const next=prompt('Modifier ton objectif personnel :',currentText||'');
+      if(next===null)return;
+      const {error}=await app.db.rpc('update_my_player_objective',{p_group_id:app.playerPortalState.groupId,p_objective_id:objectiveId,p_objective:next});
+      if(error)throw error;
+    }else if(action==='delete'){
+      if(!confirm('Supprimer cet objectif personnel ?'))return;
+      const {error}=await app.db.rpc('delete_my_player_objective',{p_group_id:app.playerPortalState.groupId,p_objective_id:objectiveId});
       if(error)throw error;
     }else{
-      if(action==='edit'){
-        const next=prompt('Modifier ton objectif personnel :',currentText||'');
-        if(next===null)return;
-        const {error}=await app.db.rpc('update_my_player_objective',{p_group_id:app.playerPortalState.groupId,p_objective_id:objectiveId,p_objective:next});
-        if(error)throw error;
-      }else if(action==='delete'){
-        if(!confirm('Supprimer cet objectif personnel ?'))return;
-        const {error}=await app.db.rpc('delete_my_player_objective',{p_group_id:app.playerPortalState.groupId,p_objective_id:objectiveId});
-        if(error)throw error;
-      }else{
-        const rpc=action==='complete'?'complete_my_player_objective':'reopen_my_player_objective';
-        const {error}=await app.db.rpc(rpc,{p_group_id:app.playerPortalState.groupId,p_objective_id:objectiveId});
-        if(error)throw error;
-      }
+      const rpc=action==='complete'?'complete_my_player_objective':'reopen_my_player_objective';
+      const {error}=await app.db.rpc(rpc,{p_group_id:app.playerPortalState.groupId,p_objective_id:objectiveId});
+      if(error)throw error;
     }
     if(status)status.textContent='Objectif mis à jour.';
     await app.loadPlayerObjectives();
@@ -658,82 +661,65 @@ app.groupFollowUpObjectivesHtml = function groupFollowUpObjectivesHtml(rows){
   const coachAll=all.filter(x=>(x.source||'coach')==='coach');
   const active=coachAll.filter(x=>x.status==='active');
   const completed=coachAll.filter(x=>x.status==='completed').sort((a,b)=>Date.parse(b.completed_at||b.updated_at||b.created_at||0)-Date.parse(a.completed_at||a.updated_at||a.created_at||0));
+  const htmlFor=o=>{
+    const displayState=app.playerObjectiveDisplayState(o);
+    const info=app.playerObjectiveStatusInfo(displayState);
+    const pill=`<span class="playerFollowUpStatus ${info.cls}"><span aria-hidden="true">${info.icon}</span> ${info.label}</span>`;
+    const coachNote=o.coach_note?`<div class="playerObjectiveNote"><span class="analysisSubtle">Consigne</span><span>${app.escapeHtml(o.coach_note)}</span></div>`:'';
+    const playerNote=o.player_note?`<div class="playerObjectiveNote"><span class="analysisSubtle">Note du joueur</span><span>${app.escapeHtml(o.player_note)}</span></div>`:'';
+    const statusButtons=app.playerFollowUpAvailable()
+      ?`<div class="playerFollowUpStatusPicker" role="group" aria-label="Statut de l’objectif"><span class="analysisSubtle">Statut</span>${app.playerFollowUpStatusButtonsHtml(displayState,{attr:'data-group-status'})}</div>`
+      :'';
+    const date=displayState==='completed'
+      ?`Atteint le ${app.escapeHtml(app.playerObjectiveDate(o.completed_at||o.updated_at||o.created_at))}`
+      :`Mis à jour le ${app.escapeHtml(app.playerObjectiveDate(o.updated_at||o.created_at))}`;
+    return `<div class="playerFollowUpCoachItem" data-group-objective="${app.escapeHtml(o.id)}">
+        <div style="min-width:0;display:grid;gap:6px">
+          <strong>${app.escapeHtml(o.objective||'')}</strong>
+          <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap"><span class="small">${date}</span>${pill}</div>
+          ${coachNote}${playerNote}${statusButtons}
+        </div>
+      </div>`;
+  };
   const parts=[];
-  if(active.length){
-    parts.push(`<div class="analysisSubtle">Objectifs coach en cours</div>${active.map(o=>{
-      const displayState=app.playerObjectiveDisplayState(o);
-      const info=app.playerObjectiveStageInfo(displayState);
-      const pill=app.playerFollowUpAvailable()
-        ?`<span class="playerFollowUpStage ${info.cls}"><span aria-hidden="true">${info.icon}</span> ${info.label}</span>`
-        :`<span class="analysisSubtle">${info.label}</span>`;
-      const date=app.escapeHtml(app.playerObjectiveDate(o.updated_at||o.created_at));
-      const coachNote=o.coach_note?`<div class="playerObjectiveNote"><span class="analysisSubtle">Consigne</span><span>${app.escapeHtml(o.coach_note)}</span></div>`:'';
-      const playerNote=o.player_note?`<div class="playerObjectiveNote"><span class="analysisSubtle">Note du joueur</span><span>${app.escapeHtml(o.player_note)}</span></div>`:'';
-      const stageButtons=app.playerFollowUpAvailable()
-        ?`<div class="playerFollowUpStagePicker" role="group" aria-label="Statut de l’objectif"><span class="analysisSubtle">Statut</span>${app.playerFollowUpStageButtonsHtml(displayState).replace(/<button type="button" class="ghost /g,'<button type="button" class="ghost followUpStageEdit "').replace(/data-followup-stage="([a-z_]+)"/g,'data-group-stage="$1"')}</div>`
-        :'';
-      return `<div class="playerFollowUpCoachItem" data-group-objective="${app.escapeHtml(o.id)}">
-        <div style="min-width:0;display:grid;gap:6px">
-          <strong>${app.escapeHtml(o.objective||'')}</strong>
-          <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap"><span class="small">Mis à jour le ${date}</span>${pill}</div>
-          ${coachNote}${playerNote}${stageButtons}
-        </div>
-      </div>`;
-    }).join('')}`);
-  }else{
-    parts.push('<div class="small">Aucun objectif coach actif.</div>');
-  }
+  parts.push(active.length
+    ?`<div class="analysisSubtle">Objectifs coach</div>${active.map(htmlFor).join('')}`
+    :'<div class="small">Aucun objectif coach actif.</div>');
   if(completed.length){
-    parts.push(`<details class="playerFollowUpSection"><summary class="small">Objectifs coach atteints (${completed.length})</summary><div class="playerObjectivesList" style="margin-top:8px">${completed.map(o=>{
-      const displayState=app.playerObjectiveDisplayState(o);
-      const info=app.playerObjectiveStageInfo(displayState);
-      const pill=app.playerFollowUpAvailable()
-        ?`<span class="playerFollowUpStage ${info.cls}"><span aria-hidden="true">${info.icon}</span> ${info.label}</span>`
-        :`<span class="analysisSubtle">${info.label}</span>`;
-      const date=app.escapeHtml(app.playerObjectiveDate(o.completed_at||o.updated_at||o.created_at));
-      const coachNote=o.coach_note?`<div class="playerObjectiveNote"><span class="analysisSubtle">Consigne</span><span>${app.escapeHtml(o.coach_note)}</span></div>`:'';
-      const playerNote=o.player_note?`<div class="playerObjectiveNote"><span class="analysisSubtle">Note du joueur</span><span>${app.escapeHtml(o.player_note)}</span></div>`:'';
-      const stageButtons=app.playerFollowUpAvailable()
-        ?`<div class="playerFollowUpStagePicker" role="group" aria-label="Statut de l’objectif"><span class="analysisSubtle">Statut</span>${app.playerFollowUpStageButtonsHtml(displayState).replace(/<button type="button" class="ghost /g,'<button type="button" class="ghost followUpStageEdit "').replace(/data-followup-stage="([a-z_]+)"/g,'data-group-stage="$1"')}</div>`
-        :'';
-      return `<div class="playerFollowUpCoachItem" data-group-objective="${app.escapeHtml(o.id)}">
-        <div style="min-width:0;display:grid;gap:6px">
-          <strong>${app.escapeHtml(o.objective||'')}</strong>
-          <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap"><span class="small">Atteint le ${date}</span>${pill}</div>
-          ${coachNote}${playerNote}${stageButtons}
-        </div>
-      </div>`;
-    }).join('')}</div></details>`);
+    parts.push(`<details class="playerFollowUpSection"><summary class="small">Objectifs coach atteints (${completed.length})</summary><div class="playerObjectivesList" style="margin-top:8px">${completed.map(htmlFor).join('')}</div></details>`);
   }
   return parts.join('<div style="height:10px"></div>');
 };
 
-app.groupFollowUpBindStagePickers = function groupFollowUpBindStagePickers(){
-  app.$$('#groupPlayerFollowupObjectivesList [data-group-stage]').forEach(button=>{
+app.groupFollowUpBindStatusPickers = function groupFollowUpBindStatusPickers(){
+  const box=app.$('#groupPlayerFollowupObjectivesList');
+  if(!box)return;
+  const controls=[...box.querySelectorAll('[data-group-status]')];
+  controls.forEach(button=>{
     button.onclick=async()=>{
       const row=button.closest('[data-group-objective]');
       const groupId=app.groupState.currentGroupId,playerId=app.groupPlayerFollowupState.playerId;
       const status=app.$('#groupPlayerFollowupStatus');
       if(!groupId||!playerId||!row)return;
       const objectiveId=row.dataset.groupObjective;
-      const target=button.dataset.groupStage;
-      button.disabled=true;
+      const target=button.dataset.groupStatus;
+      const current=(app.groupPlayerFollowupState.objectives||[]).find(o=>o.id===objectiveId);
+      if(current&&app.playerObjectiveDisplayState(current)===target)return;
+      controls.forEach(el=>{el.disabled=true});
       if(status)status.textContent=target==='completed'?'Marquage atteint…':'Réouverture…';
       try{
-        if(target==='completed'){
-          const {error}=await app.db.rpc('complete_player_objective',{p_group_id:groupId,p_objective_id:objectiveId});
-          if(error)throw error;
-        }else{
-          const {error}=await app.db.rpc('reopen_player_objective',{p_group_id:groupId,p_objective_id:objectiveId});
-          if(error)throw error;
-        }
+        const rpc=target==='completed'?'complete_player_objective':'reopen_player_objective';
+        const {error}=await app.db.rpc(rpc,{p_group_id:groupId,p_objective_id:objectiveId});
+        if(error)throw error;
         await app.reloadGroupPlayerFollowupObjectives(groupId,playerId);
-        if(status)status.textContent='Objectif mis à jour.';
+        const fresh=app.$('#groupPlayerFollowupStatus');
+        if(fresh)fresh.textContent='Objectif mis à jour.';
         app.setCloud('Synchronisé',true);
       }catch(e){
+        controls.forEach(el=>{el.disabled=false});
         if(status)status.textContent='Action non enregistrée.';
         app.handleError('toggle group objective status',e);
-      }finally{button.disabled=false}
+      }
     };
   });
 };
@@ -754,7 +740,7 @@ app.reloadGroupPlayerFollowupObjectives = async function reloadGroupPlayerFollow
     if(result.error)throw result.error;
     app.groupPlayerFollowupState.objectives=result.data||[];
     box.innerHTML=app.groupFollowUpObjectivesHtml(result.data||[]);
-    app.groupFollowUpBindStagePickers();
+    app.groupFollowUpBindStatusPickers();
   }catch(e){
     box.innerHTML='<div class="small">Objectifs indisponibles pour le moment.</div>';
     app.handleError('reload group player followup objectives',e);
@@ -783,23 +769,6 @@ app.addGroupPlayerFollowupObjective = async function addGroupPlayerFollowupObjec
     if(status)status.textContent=e?.message?.includes('Maximum de 3')?'Maximum de 3 objectifs coach actifs.':'Impossible d’ajouter l’objectif.';
     app.handleError('add group player followup objective',e);
   }finally{if(button)button.disabled=false}
-};
-
-app.completeGroupPlayerFollowupObjective = async function completeGroupPlayerFollowupObjective(objectiveId,reopen){
-  const groupId=app.groupState.currentGroupId,playerId=app.groupPlayerFollowupState.playerId;
-  const status=app.$('#groupPlayerFollowupStatus');
-  if(!groupId||!playerId||!objectiveId)return;
-  if(status)status.textContent=reopen?'Réouverture…':'Marquage atteint…';
-  try{
-    const {error}=await app.db.rpc(reopen?'reopen_player_objective':'complete_player_objective',{p_group_id:groupId,p_objective_id:objectiveId});
-    if(error)throw error;
-    await app.reloadGroupPlayerFollowupObjectives(groupId,playerId);
-    if(status)status.textContent=reopen?'Objectif rouvert.':'Objectif marqué atteint.';
-    app.setCloud('Synchronisé',true);
-  }catch(e){
-    if(status)status.textContent='Action non enregistrée.';
-    app.handleError('complete group player followup objective',e);
-  }
 };
 
 app.sendGroupPlayerFollowupFeedback = async function sendGroupPlayerFollowupFeedback(){
