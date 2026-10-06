@@ -2498,9 +2498,30 @@ button.playerPortalHomeCard:hover,a.playerPortalHomeCard:hover{border-color:var(
 
 .playerPortalHomeMessageBody{white-space:pre-wrap;line-height:1.5}
 
-.coachMessageTextarea{width:100%;box-sizing:border-box;min-height:135px;resize:vertical}
-
 .coachMessageHistory{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+
+/* Espace de coaching « Suivi joueur » : onglets Suivi / Accès & profil */
+.followupTabs{display:flex;gap:6px;margin:12px 0 4px;border-bottom:1px solid var(--line)}
+
+.followupTab{flex:1;border:0!important;border-bottom:2px solid transparent!important;border-radius:0!important;background:transparent!important;color:var(--muted)!important;padding:9px 8px!important;font-weight:700;cursor:pointer;min-height:42px}
+
+.followupTab:hover{color:var(--text)!important}
+
+.followupTab.active{color:var(--text)!important;border-bottom-color:var(--primary)!important;font-weight:850}
+
+.followupTab:focus-visible{outline:2px solid var(--primary);outline-offset:-2px}
+
+.followupSection{margin-top:16px;border:1px solid var(--line);border-radius:14px;background:var(--panel2);padding:12px 13px}
+
+.followupSectionHead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:9px}
+
+.followupSectionHead h3{font-size:14px;margin:0}
+
+.followupSectionHead .small{text-align:right}
+
+.followupActions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
+
+.followupActions .small{margin-right:auto}
 
 .coachMessageHistoryList{display:grid;gap:8px;margin-top:8px;max-height:260px;overflow:auto}
 
@@ -2532,8 +2553,6 @@ button.playerPortalHomeCard:hover,a.playerPortalHomeCard:hover{border-color:var(
 
 .playerPortalMessageComposer{display:grid;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
 
-.playerPortalMessageComposer textarea{width:100%;box-sizing:border-box;min-height:76px;resize:vertical}
-
 .playerPortalMessageComposerActions{display:flex;justify-content:flex-end;align-items:center;gap:10px;flex-wrap:wrap}
 
 .playerPortalMessageReadState{margin-left:6px;color:var(--muted);font-size:10px}
@@ -2554,9 +2573,9 @@ button.playerPortalHomeCard:hover,a.playerPortalHomeCard:hover{border-color:var(
 
 .playerObjectiveActions{display:flex;gap:6px;flex-wrap:wrap}
 
-.playerObjectiveComposer{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:10px}
+.playerObjectiveComposer{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:10px;align-items:end}
 
-.playerObjectiveComposer input{min-width:0}
+.playerObjectiveComposer input,.playerObjectiveComposer textarea{min-width:0}
 
 .playerFollowUpHeader{margin-top:16px;margin-bottom:10px}
 
@@ -2920,15 +2939,3 @@ button.primary,.primary,.on,.tab.active{background:var(--accent)!important;color
 .playerVideoPlayerHeader,.playerVideoAdvancedControls{color:var(--text)!important}
 
 .playerVideoTimeDisplay,.playerVideoHint{color:var(--muted)!important}
-
-#playerFollowUpNoteInput{
-  display:block;
-  width:100%;
-  min-width:0;
-  max-width:100%;
-  box-sizing:border-box;
-  min-height:132px;
-  resize:vertical;
-  padding:11px 12px;
-  line-height:1.5;
-}

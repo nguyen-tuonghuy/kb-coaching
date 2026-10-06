@@ -334,15 +334,15 @@ app.renderPlayerFollowUpDetail = function renderPlayerFollowUpDetail(options={})
     :`<div class="field"><label>Statut de l’objectif</label><div class="playerFollowUpStatus ${info.cls}"><span aria-hidden="true">${info.icon}</span> ${info.label}</div></div>`;
   const coachCanEditText=available&&coachSide&&!isPersonal;
   const objectiveBlock=coachCanEditText
-    ?`<div class="field"><label for="playerFollowUpObjectiveInput">Objectif</label><textarea id="playerFollowUpObjectiveInput" maxlength="500" rows="3">${app.escapeHtml(objective.objective||'')}</textarea></div>`
+    ?`<div class="field"><label for="playerFollowUpObjectiveInput">Objectif</label><textarea id="playerFollowUpObjectiveInput" class="textareaCompact" maxlength="500">${app.escapeHtml(objective.objective||'')}</textarea></div>`
     :`<div class="playerFollowUpReadOnly"><span class="analysisSubtle">Objectif</span><p>${app.escapeHtml(objective.objective||'')}</p>${coachSide&&isPersonal?'<div class="small" style="margin-top:6px">Objectif personnel : seul le joueur peut le modifier.</div>':''}</div>`;
   const coachNoteBlock=!available?''
     :coachSide
-      ?`<div class="field"><label for="playerFollowUpCoachNoteInput">Consigne du coach</label><textarea id="playerFollowUpCoachNoteInput" maxlength="1000" rows="3" placeholder="Ce que le joueur doit travailler sur cet objectif.">${app.escapeHtml(objective.coach_note||'')}</textarea></div>`
+      ?`<div class="field"><label for="playerFollowUpCoachNoteInput">Consigne du coach</label><textarea id="playerFollowUpCoachNoteInput" class="textareaCompact" maxlength="1000" placeholder="Ce que le joueur doit travailler sur cet objectif.">${app.escapeHtml(objective.coach_note||'')}</textarea></div>`
       :(objective.coach_note?`<div class="playerFollowUpReadOnly"><span class="analysisSubtle">Consigne du coach</span><p>${app.escapeHtml(objective.coach_note)}</p></div>`:'');
   const playerNoteBlock=coachSide
     ?(objective.player_note?`<div class="playerFollowUpReadOnly"><span class="analysisSubtle">Note du joueur</span><p>${app.escapeHtml(objective.player_note)}</p></div>`:'')
-    :`<div class="field"><label for="playerFollowUpNoteInput">Ma note personnelle</label><textarea id="playerFollowUpNoteInput" maxlength="2000" rows="5" placeholder="Ce que tu retiens, ce que tu veux retravailler.">${app.escapeHtml(objective.player_note||'')}</textarea><div class="small" style="margin-top:6px">Visible par toi et par les entraîneurs du groupe. Elle ne modifie pas les décisions du coach.</div></div>`;
+    :`<div class="field"><label for="playerFollowUpNoteInput">Ma note personnelle</label><textarea id="playerFollowUpNoteInput" class="textareaLong" maxlength="2000" placeholder="Ce que tu retiens, ce que tu veux retravailler.">${app.escapeHtml(objective.player_note||'')}</textarea><div class="small" style="margin-top:6px">Visible par toi et par les entraîneurs du groupe. Elle ne modifie pas les décisions du coach.</div></div>`;
   body.innerHTML=`${statusBlock}${objectiveBlock}${coachNoteBlock}${playerNoteBlock}<div class="small">Dernière mise à jour : ${app.escapeHtml(app.playerObjectiveDate(objective.updated_at||objective.created_at))}${isCompleted?' · objectif atteint':''}</div>`;
   app.playerFollowUpRestoreDraft(options.drafts);
   const picker=app.$('#playerFollowUpStatusPicker');
@@ -724,7 +724,7 @@ app.groupFollowUpBindStatusPickers = function groupFollowUpBindStatusPickers(){
   });
 };
 
-app.reloadGroupPlayerFollowupObjectives = async function reloadGroupPlayerFollowupObjectives(groupId,playerId){
+app.reloadGroupPlayerFollowupObjectives = async function reloadGroupPlayerFollowupObjectives(groupId,playerId,expectedToken){
   const box=app.$('#groupPlayerFollowupObjectivesList');
   if(!groupId||!playerId||!box)return;
   box.innerHTML='<div class="small">Chargement…</div>';
@@ -738,10 +738,12 @@ app.reloadGroupPlayerFollowupObjectives = async function reloadGroupPlayerFollow
       result=await app.db.rpc('get_player_objectives',args);
     }
     if(result.error)throw result.error;
+    if(expectedToken!==undefined&&expectedToken!==app.groupPlayerFollowupState.openToken)return;
     app.groupPlayerFollowupState.objectives=result.data||[];
     box.innerHTML=app.groupFollowUpObjectivesHtml(result.data||[]);
     app.groupFollowUpBindStatusPickers();
   }catch(e){
+    if(expectedToken!==undefined&&expectedToken!==app.groupPlayerFollowupState.openToken)return;
     box.innerHTML='<div class="small">Objectifs indisponibles pour le moment.</div>';
     app.handleError('reload group player followup objectives',e);
   }

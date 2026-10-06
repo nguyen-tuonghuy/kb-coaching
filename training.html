@@ -140,7 +140,7 @@
     <div class="playerObjectivesHeader"><strong>Objectifs individuels</strong><span class="analysisSubtle" id="playerObjectivesHint">Objectifs coach et personnels</span></div>
     <div class="playerObjectivesList" id="playerObjectivesList"><div class="small">Chargement…</div></div>
     <div class="playerObjectiveComposer hidden" id="playerObjectiveComposer">
-     <input id="playerObjectiveInput" maxlength="500" placeholder="Ajouter un objectif…">
+     <textarea id="playerObjectiveInput" class="textareaCompact" maxlength="500" placeholder="Ajouter un objectif…"></textarea>
      <button type="button" class="primary" id="playerObjectiveAdd">Ajouter</button>
     </div>
     <div class="small" id="playerObjectiveStatus" style="margin-top:7px"></div>
@@ -393,77 +393,7 @@
 <template data-kc-component="profilePopup"></template>
 
 
-<div class="popupBackdrop hidden" id="groupPlayerFollowupPopup">
- <div class="sheet" style="max-width:680px">
-  <div class="sheetTop">
-   <div>
-    <h2 id="groupPlayerFollowupTitle">Suivi joueur</h2>
-    <div class="meta">Informations générales visibles ou utilisées dans l’espace joueur.</div>
-   </div>
-   <button class="closePopup" id="closeGroupPlayerFollowupPopup" aria-label="Fermer">×</button>
-  </div>
-  <div class="field" style="margin-top:12px">
-   <label>Poste préféré</label>
-   <select id="groupPlayerFollowupRole">
-    <option value="R">Rapproché (R)</option>
-    <option value="A">Ailier (A)</option>
-    <option value="P">Pointe (P)</option>
-    <option value="AP">A ou P</option>
-   </select>
-  </div>
-  <div class="field" style="margin-top:12px">
-   <label>Accès aux statistiques</label>
-   <select id="groupPlayerFollowupStatsAccess">
-    <option value="personal">Statistiques personnelles uniquement</option>
-    <option value="group">Statistiques complètes du groupe · lecture seule</option>
-   </select>
-   <div class="small" style="margin-top:5px">À réserver aux joueurs auxquels le staff souhaite donner une vision complète du groupe (par exemple un capitaine).</div>
-  </div>
-  <div class="field" style="margin-top:12px">
-   <label>Message des entraîneurs</label>
-   <textarea id="groupPlayerFollowupMessage" class="coachMessageTextarea" maxlength="2000" placeholder="Retour général, point fort, axe de travail ou consigne…"></textarea>
-   <div class="small" style="margin-top:5px">Ce message apparaît sur la page d’accueil du joueur. Une nouvelle version est ajoutée à l’historique lorsqu’il est modifié.</div>
-  </div>
-  <details class="coachMessageHistory" open>
-   <summary>Historique des messages</summary>
-   <div class="coachMessageHistoryList" id="groupPlayerFollowupHistory"><div class="small">Aucun message antérieur.</div></div>
-  </details>
-  <div class="historyItem" style="margin-top:12px">
-   <div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-    <div>
-     <strong>Accès joueur</strong>
-     <div class="small" id="groupPlayerFollowupAccessStatus">—</div>
-    </div>
-    <button type="button" class="ghost hidden" id="groupPlayerFollowupUnlink">Délier l’accès</button>
-   </div>
-  </div>
-  <div class="field" style="margin-top:12px">
-   <label>Ajouter un objectif coach</label>
-   <textarea id="groupPlayerFollowupObjectiveNew" maxlength="500" rows="2" placeholder="Objectif de travail (max 500 caractères)"></textarea>
-   <div class="row" style="margin-top:8px;gap:8px;align-items:center;flex-wrap:wrap">
-    <button type="button" class="ghost" id="groupPlayerFollowupObjectiveAdd">Ajouter</button>
-    <span class="small">Objectifs actifs maximum 3 par source (coach).</span>
-   </div>
-  </div>
-  <div class="field" style="margin-top:12px">
-    <label>Objectifs coach</label>
-    <div id="groupPlayerFollowupObjectivesList"><div class="small">Aucun objectif actif.</div></div>
-  </div>
-  <div class="field" style="margin-top:12px">
-   <label>Ajouter un retour (conversation joueur–entraîneurs)</label>
-   <textarea id="groupPlayerFollowupFeedbackNew" maxlength="2000" rows="2" placeholder="Écrire un feedback au joueur…"></textarea>
-   <div class="row" style="margin-top:8px;gap:8px;align-items:center;flex-wrap:wrap">
-    <button type="button" class="ghost" id="groupPlayerFollowupFeedbackSend">Envoyer</button>
-    <span class="small">Le retour apparaît directement dans la conversation du joueur.</span>
-   </div>
-  </div>
-  <div class="authStatus" id="groupPlayerFollowupStatus"></div>
-  <div class="row" style="margin-top:14px">
-   <button class="ghost" style="flex:1" id="cancelGroupPlayerFollowup">Fermer</button>
-   <button class="primary" style="flex:2" id="saveGroupPlayerFollowup">Enregistrer les droits</button>
-  </div>
- </div>
-</div>
+<template data-kc-component="groupPlayerFollowupPopup"></template>
 
 <template data-kc-component="signupPopup"></template>
 
@@ -498,11 +428,11 @@
      <div class="small hidden" id="exerciseEditMeasureLock" style="margin-top:5px">Type de mesure verrouillé car cet exercice possède déjà des résultats.</div>
     </div>
    </div>
-   <div class="field" style="margin-top:9px"><label>Description générale</label><input id="exerciseEditDescription"></div>
-   <div class="field" style="margin-top:9px"><label>Objectif</label><input id="exerciseEditObjective"></div>
+   <div class="field" style="margin-top:9px"><label>Description générale</label><textarea id="exerciseEditDescription" class="textareaCompact"></textarea></div>
+   <div class="field" style="margin-top:9px"><label>Objectif</label><textarea id="exerciseEditObjective" class="textareaCompact"></textarea></div>
    <div id="exerciseEditDualFields" class="hidden" style="margin-top:9px">
-    <div class="field"><label>Consigne focus Attaque</label><input id="exerciseEditAttackInstruction"></div>
-    <div class="field" style="margin-top:9px"><label>Consigne focus Défense</label><input id="exerciseEditDefenseInstruction"></div>
+    <div class="field"><label>Consigne focus Attaque</label><textarea id="exerciseEditAttackInstruction" class="textareaCompact"></textarea></div>
+    <div class="field" style="margin-top:9px"><label>Consigne focus Défense</label><textarea id="exerciseEditDefenseInstruction" class="textareaCompact"></textarea></div>
    </div>
 
    <div class="authStatus" id="exerciseEditStatus"></div>
@@ -541,11 +471,11 @@
      </select>
     </div>
    </div>
-   <div class="field" style="margin-top:9px"><label>Description générale</label><input id="exerciseCreateDescription" placeholder="Organisation générale de l’exercice"></div>
-   <div class="field" style="margin-top:9px"><label>Objectif</label><input id="exerciseCreateObjective" placeholder="Ce qu’on cherche à travailler"></div>
+   <div class="field" style="margin-top:9px"><label>Description générale</label><textarea id="exerciseCreateDescription" class="textareaCompact" placeholder="Organisation générale de l’exercice"></textarea></div>
+   <div class="field" style="margin-top:9px"><label>Objectif</label><textarea id="exerciseCreateObjective" class="textareaCompact" placeholder="Ce qu’on cherche à travailler"></textarea></div>
    <div id="exerciseCreateDualFields" class="hidden" style="margin-top:9px">
-    <div class="field"><label>Consigne focus Attaque</label><input id="exerciseCreateAttackInstruction" placeholder="ex. 10 frappes consécutives, les défenseurs tournent"></div>
-    <div class="field" style="margin-top:9px"><label>Consigne focus Défense</label><input id="exerciseCreateDefenseInstruction" placeholder="ex. 10 défenses consécutives, les attaquants tournent"></div>
+    <div class="field"><label>Consigne focus Attaque</label><textarea id="exerciseCreateAttackInstruction" class="textareaCompact" placeholder="ex. 10 frappes consécutives, les défenseurs tournent"></textarea></div>
+    <div class="field" style="margin-top:9px"><label>Consigne focus Défense</label><textarea id="exerciseCreateDefenseInstruction" class="textareaCompact" placeholder="ex. 10 défenses consécutives, les attaquants tournent"></textarea></div>
    </div>
    <div id="exerciseCreateSessionFocusWrap" class="field hidden" style="margin-top:9px">
     <label>Focus pour cette séance</label>

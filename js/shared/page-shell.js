@@ -130,7 +130,7 @@
    <div class="playerPortalConversation">
     <div class="playerPortalConversationList" id="playerPortalConversationList"><div class="playerPortalConversationEmpty">Aucun message pour le moment.</div></div>
     <div class="playerPortalMessageComposer">
-     <textarea id="playerPortalMessageInput" maxlength="2000" placeholder="Écrire un message…"></textarea>
+     <textarea id="playerPortalMessageInput" class="textareaCompact" maxlength="2000" placeholder="Écrire un message…"></textarea>
      <div class="playerPortalMessageComposerActions"><span class="small" id="playerPortalMessageStatus"></span><button type="button" class="primary" id="playerPortalMessageSend">Envoyer</button></div>
     </div>
    </div>
@@ -149,6 +149,91 @@
    <span class="small" id="playerFollowUpDetailStatus"></span>
    <button type="button" class="ghost" id="playerFollowUpDetailCancel" style="margin-left:auto">Fermer</button>
    <button type="button" class="primary" id="playerFollowUpDetailSave">Enregistrer</button>
+  </div>
+ </div>
+</div>`,
+  "groupPlayerFollowupPopup": `<div class="popupBackdrop hidden" id="groupPlayerFollowupPopup">
+ <div class="sheet" style="max-width:680px" role="dialog" aria-modal="true" aria-labelledby="groupPlayerFollowupTitle">
+  <div class="sheetTop">
+   <div>
+    <h2 id="groupPlayerFollowupTitle">Suivi joueur</h2>
+    <div class="meta">Espace de coaching : message et objectifs, échanges avec le joueur, puis accès et profil.</div>
+   </div>
+   <button type="button" class="closePopup" id="closeGroupPlayerFollowupPopup" aria-label="Fermer">×</button>
+  </div>
+
+  <div class="followupTabs" role="tablist" aria-label="Sections du suivi">
+   <button type="button" class="followupTab active" id="groupPlayerFollowupTabFollowup" role="tab" aria-selected="true" aria-controls="groupPlayerFollowupPanelFollowup" data-followup-tab="followup">Suivi</button>
+   <button type="button" class="followupTab" id="groupPlayerFollowupTabAccess" role="tab" aria-selected="false" aria-controls="groupPlayerFollowupPanelAccess" data-followup-tab="access" tabindex="-1">Accès &amp; profil</button>
+  </div>
+
+  <div class="followupPanel" id="groupPlayerFollowupPanelFollowup" role="tabpanel" aria-labelledby="groupPlayerFollowupTabFollowup">
+
+   <section class="followupSection">
+    <div class="followupSectionHead"><h3>Message des entraîneurs</h3><span class="small">Visible sur la page d’accueil du joueur.</span></div>
+    <textarea id="groupPlayerFollowupMessage" class="textareaLong" maxlength="2000" placeholder="Retour général, point fort, axe de travail ou consigne…"></textarea>
+    <div class="followupActions"><span class="small" id="groupPlayerFollowupMessageStatus" role="status" aria-live="polite"></span><button type="button" class="ghost" id="saveGroupPlayerFollowupMessage">Enregistrer le message</button></div>
+    <details class="coachMessageHistory">
+     <summary>Historique des messages</summary>
+     <div class="coachMessageHistoryList" id="groupPlayerFollowupHistory"><div class="small">Aucun message antérieur.</div></div>
+    </details>
+   </section>
+
+   <section class="followupSection">
+    <div class="followupSectionHead"><h3>Objectifs coach</h3><span class="small">Objectifs actifs maximum 3 par source (coach).</span></div>
+    <div id="groupPlayerFollowupObjectivesList"><div class="small">Aucun objectif actif.</div></div>
+    <div class="field" style="margin-top:10px">
+     <label for="groupPlayerFollowupObjectiveNew">Ajouter un objectif</label>
+     <textarea id="groupPlayerFollowupObjectiveNew" class="textareaCompact" maxlength="500" placeholder="Objectif de travail (max 500 caractères)"></textarea>
+    </div>
+    <div class="followupActions"><span class="small"></span><button type="button" class="ghost" id="groupPlayerFollowupObjectiveAdd">Ajouter l’objectif</button></div>
+   </section>
+
+   <section class="followupSection">
+    <div class="followupSectionHead"><h3>Retour au joueur</h3><span class="small">Ajouté à la conversation joueur–entraîneurs.</span></div>
+    <textarea id="groupPlayerFollowupFeedbackNew" maxlength="2000" placeholder="Écrire un feedback au joueur…"></textarea>
+    <div class="followupActions"><span class="small"></span><button type="button" class="ghost" id="groupPlayerFollowupFeedbackSend">Envoyer</button></div>
+   </section>
+
+   <div class="authStatus" id="groupPlayerFollowupStatus" role="status" aria-live="polite"></div>
+  </div>
+
+  <div class="followupPanel hidden" id="groupPlayerFollowupPanelAccess" role="tabpanel" aria-labelledby="groupPlayerFollowupTabAccess">
+
+   <div class="field" style="margin-top:12px">
+    <label for="groupPlayerFollowupRole">Poste préféré</label>
+    <select id="groupPlayerFollowupRole">
+     <option value="R">Rapproché (R)</option>
+     <option value="A">Ailier (A)</option>
+     <option value="P">Pointe (P)</option>
+     <option value="AP">A ou P</option>
+    </select>
+   </div>
+   <div class="field" style="margin-top:12px">
+    <label for="groupPlayerFollowupStatsAccess">Accès aux statistiques</label>
+    <select id="groupPlayerFollowupStatsAccess">
+     <option value="personal">Statistiques personnelles uniquement</option>
+     <option value="group">Statistiques complètes du groupe · lecture seule</option>
+    </select>
+    <div class="small" style="margin-top:5px">À réserver aux joueurs auxquels le staff souhaite donner une vision complète du groupe (par exemple un capitaine).</div>
+   </div>
+   <div class="historyItem" style="margin-top:12px">
+    <div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+     <div>
+      <strong>Accès joueur</strong>
+      <div class="small" id="groupPlayerFollowupAccessStatus">—</div>
+     </div>
+     <button type="button" class="ghost hidden" id="groupPlayerFollowupUnlink">Délier l’accès</button>
+    </div>
+   </div>
+   <div class="authStatus" id="groupPlayerFollowupAccessSaveStatus" role="status" aria-live="polite"></div>
+   <div class="row" style="margin-top:14px">
+    <button class="primary" style="flex:1" id="saveGroupPlayerFollowup">Enregistrer les droits</button>
+   </div>
+  </div>
+
+  <div class="row" style="margin-top:14px">
+   <button class="ghost" style="flex:1" id="cancelGroupPlayerFollowup">Fermer</button>
   </div>
  </div>
 </div>`,

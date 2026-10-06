@@ -602,7 +602,7 @@ app.adminState = {isAdmin:false,groups:[]};
 
 app.statsState = {groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',impactRestartLocation:'all',impactView:'staff',impactSortField:'impact100',impactSortDirection:'desc',impactPlayerName:'',impactMatchManualOrder:[],statsMatchView:'summary',reference:null,referenceMeta:null,referenceSources:[],referenceVersions:[],impactReference:null,readOnlyViewer:false,viewerReturnGroupId:null};
 
-app.groupPlayerFollowupState = {playerId:null,objectives:[]};
+app.groupPlayerFollowupState = {playerId:null,objectives:[],activeTab:'followup',openToken:0,returnFocus:null};
 
 app.matchLibraryState = {matches:[],currentReadId:null};
 
@@ -739,11 +739,28 @@ if (page === 'training') {
 app.$('#groupDetailBack').onclick=app.showAppHome;
 }
 
-app.$('#closeGroupPlayerFollowupPopup').onclick=()=>app.$('#groupPlayerFollowupPopup').classList.add('hidden');
+app.$('#closeGroupPlayerFollowupPopup').onclick=()=>app.closeGroupPlayerFollowup();
 
-app.$('#cancelGroupPlayerFollowup').onclick=()=>app.$('#groupPlayerFollowupPopup').classList.add('hidden');
+app.$('#cancelGroupPlayerFollowup').onclick=()=>app.closeGroupPlayerFollowup();
 
+const followupPopup=app.$('#groupPlayerFollowupPopup');
+if(followupPopup){
+  followupPopup.addEventListener('click',e=>{if(e.target===followupPopup)app.closeGroupPlayerFollowup()});
+}
+app.$$('#groupPlayerFollowupPopup [data-followup-tab]').forEach(btn=>{
+  btn.addEventListener('click',()=>app.setGroupPlayerFollowupTab(btn.dataset.followupTab));
+  btn.addEventListener('keydown',e=>{
+    if(e.key!=='ArrowRight'&&e.key!=='ArrowLeft')return;
+    e.preventDefault();
+    const order=['followup','access'];
+    const i=Math.max(0,order.indexOf(app.groupPlayerFollowupState.activeTab||'followup'));
+    const next=order[(i+(e.key==='ArrowRight'?1:order.length-1))%order.length];
+    app.setGroupPlayerFollowupTab(next);
+    app.$(`#groupPlayerFollowupTab${next==='access'?'Access':'Followup'}`)?.focus();
+  });
+});
 app.$('#saveGroupPlayerFollowup').onclick=()=>app.saveGroupPlayerFollowup();
+app.$('#saveGroupPlayerFollowupMessage').onclick=()=>app.saveGroupPlayerFollowupMessage();
 app.$('#groupPlayerFollowupObjectiveAdd')?.addEventListener('click',()=>app.addGroupPlayerFollowupObjective());
 app.$('#groupPlayerFollowupFeedbackSend')?.addEventListener('click',()=>app.sendGroupPlayerFollowupFeedback());
 app.$('#groupPlayerFollowupObjectiveNew')?.addEventListener('keydown',e=>{
@@ -948,6 +965,11 @@ document.addEventListener('click',e=>{
 });
 
 document.addEventListener('keydown',e=>{
+  const groupFollowUp=app.$('#groupPlayerFollowupPopup');
+  if(groupFollowUp&&!groupFollowUp.classList.contains('hidden')){
+    if(e.key==='Escape'){e.preventDefault();app.closeGroupPlayerFollowup();return}
+    if(e.key==='Tab'){app.trapGroupPlayerFollowupFocus(e);return}
+  }
   const followUp=app.$('#playerFollowUpDetailPopup');
   if(followUp&&!followUp.classList.contains('hidden')){
     if(e.key==='Escape'){e.preventDefault();app.closePlayerFollowUpDetail();return}
@@ -964,7 +986,7 @@ document.addEventListener('keydown',e=>{
 
 app.$('#playerObjectiveAdd').onclick=()=>app.addPlayerObjective();
 
-app.$('#playerObjectiveInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();app.addPlayerObjective()}});
+app.$('#playerObjectiveInput').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();app.addPlayerObjective()}});
 
 app.$('#playerPortalMessageSend').onclick=()=>app.sendPlayerPortalMessage();
 

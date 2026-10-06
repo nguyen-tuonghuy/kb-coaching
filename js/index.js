@@ -80,44 +80,5 @@ app.updateStartButton = function updateStartButton(){
   btn.title=ready?'':`À compléter : ${missing.join(', ')}.`;
 };
 
-app.openGroupPlayerFollowup = async function openGroupPlayerFollowup(playerId){
-  const groupId=app.groupState.currentGroupId;
-  const p=app.groupState.currentPlayers.find(x=>x.id===playerId);
-  if(!groupId||!p)return;
-  app.groupPlayerFollowupState.playerId=playerId;
-  app.$('#groupPlayerFollowupTitle').textContent=`Suivi joueur · ${p.display_name}`;
-  app.$('#groupPlayerFollowupRole').value=p.preferred_role||'AP';
-  app.$('#groupPlayerFollowupStatsAccess').value=p.stats_access||'personal';
-  const linked=!!app.groupState.playerAccess?.[playerId];
-  app.$('#groupPlayerFollowupAccessStatus').textContent=linked?'Compte joueur lié':'Accès joueur non encore activé';
-  app.$('#groupPlayerFollowupUnlink').classList.toggle('hidden',!linked);
-  app.$('#groupPlayerFollowupObjectiveNew').value='';
-  app.$('#groupPlayerFollowupFeedbackNew').value='';
-  app.$('#groupPlayerFollowupStatus').textContent='';
-  app.$('#groupPlayerFollowupPopup').classList.remove('hidden');
-  await app.reloadGroupPlayerFollowupObjectives(groupId,playerId);
-};
-
-app.saveGroupPlayerFollowup = async function saveGroupPlayerFollowup(){
-  const groupId=app.groupState.currentGroupId,playerId=app.groupPlayerFollowupState.playerId;
-  if(!groupId||!playerId)return;
-  const role=app.$('#groupPlayerFollowupRole').value||'AP';
-  const statsAccess=app.$('#groupPlayerFollowupStatsAccess').value==='group'?'group':'personal';
-  const status=app.$('#groupPlayerFollowupStatus');
-  const save=app.$('#saveGroupPlayerFollowup');
-  save.disabled=true;status.textContent='Enregistrement…';
-  try{
-    const {error}=await app.db.from('coaching_group_players').update({preferred_role:role,stats_access:statsAccess}).eq('group_id',groupId).eq('player_id',playerId);
-    if(error)throw error;
-    const p=app.groupState.currentPlayers.find(x=>x.id===playerId);if(p){p.preferred_role=role;p.stats_access=statsAccess}
-    status.textContent='Droits joueur enregistrés ✓';
-    app.renderGroupPlayers();
-    app.setCloud('Synchronisé',true);
-  }catch(e){
-    status.textContent='Erreur lors de l’enregistrement.';
-    app.handleError('save group player followup',e);
-  }finally{save.disabled=false}
-};
-
 };
 window.KinballCoach.boot('index');

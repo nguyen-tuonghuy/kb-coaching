@@ -133,7 +133,7 @@
    <div class="playerPortalConversation">
     <div class="playerPortalConversationList" id="playerPortalConversationList"><div class="playerPortalConversationEmpty">Aucun message pour le moment.</div></div>
     <div class="playerPortalMessageComposer">
-     <textarea id="playerPortalMessageInput" maxlength="2000" placeholder="Écrire un message…"></textarea>
+     <textarea id="playerPortalMessageInput" class="textareaCompact" maxlength="2000" placeholder="Écrire un message…"></textarea>
      <div class="playerPortalMessageComposerActions"><span class="small" id="playerPortalMessageStatus"></span><button type="button" class="primary" id="playerPortalMessageSend">Envoyer</button></div>
     </div>
    </div>
@@ -152,6 +152,91 @@
    <span class="small" id="playerFollowUpDetailStatus"></span>
    <button type="button" class="ghost" id="playerFollowUpDetailCancel" style="margin-left:auto">Fermer</button>
    <button type="button" class="primary" id="playerFollowUpDetailSave">Enregistrer</button>
+  </div>
+ </div>
+</div>`,
+  "groupPlayerFollowupPopup": `<div class="popupBackdrop hidden" id="groupPlayerFollowupPopup">
+ <div class="sheet" style="max-width:680px" role="dialog" aria-modal="true" aria-labelledby="groupPlayerFollowupTitle">
+  <div class="sheetTop">
+   <div>
+    <h2 id="groupPlayerFollowupTitle">Suivi joueur</h2>
+    <div class="meta">Espace de coaching : message et objectifs, échanges avec le joueur, puis accès et profil.</div>
+   </div>
+   <button type="button" class="closePopup" id="closeGroupPlayerFollowupPopup" aria-label="Fermer">×</button>
+  </div>
+
+  <div class="followupTabs" role="tablist" aria-label="Sections du suivi">
+   <button type="button" class="followupTab active" id="groupPlayerFollowupTabFollowup" role="tab" aria-selected="true" aria-controls="groupPlayerFollowupPanelFollowup" data-followup-tab="followup">Suivi</button>
+   <button type="button" class="followupTab" id="groupPlayerFollowupTabAccess" role="tab" aria-selected="false" aria-controls="groupPlayerFollowupPanelAccess" data-followup-tab="access" tabindex="-1">Accès &amp; profil</button>
+  </div>
+
+  <div class="followupPanel" id="groupPlayerFollowupPanelFollowup" role="tabpanel" aria-labelledby="groupPlayerFollowupTabFollowup">
+
+   <section class="followupSection">
+    <div class="followupSectionHead"><h3>Message des entraîneurs</h3><span class="small">Visible sur la page d’accueil du joueur.</span></div>
+    <textarea id="groupPlayerFollowupMessage" class="textareaLong" maxlength="2000" placeholder="Retour général, point fort, axe de travail ou consigne…"></textarea>
+    <div class="followupActions"><span class="small" id="groupPlayerFollowupMessageStatus" role="status" aria-live="polite"></span><button type="button" class="ghost" id="saveGroupPlayerFollowupMessage">Enregistrer le message</button></div>
+    <details class="coachMessageHistory">
+     <summary>Historique des messages</summary>
+     <div class="coachMessageHistoryList" id="groupPlayerFollowupHistory"><div class="small">Aucun message antérieur.</div></div>
+    </details>
+   </section>
+
+   <section class="followupSection">
+    <div class="followupSectionHead"><h3>Objectifs coach</h3><span class="small">Objectifs actifs maximum 3 par source (coach).</span></div>
+    <div id="groupPlayerFollowupObjectivesList"><div class="small">Aucun objectif actif.</div></div>
+    <div class="field" style="margin-top:10px">
+     <label for="groupPlayerFollowupObjectiveNew">Ajouter un objectif</label>
+     <textarea id="groupPlayerFollowupObjectiveNew" class="textareaCompact" maxlength="500" placeholder="Objectif de travail (max 500 caractères)"></textarea>
+    </div>
+    <div class="followupActions"><span class="small"></span><button type="button" class="ghost" id="groupPlayerFollowupObjectiveAdd">Ajouter l’objectif</button></div>
+   </section>
+
+   <section class="followupSection">
+    <div class="followupSectionHead"><h3>Retour au joueur</h3><span class="small">Ajouté à la conversation joueur–entraîneurs.</span></div>
+    <textarea id="groupPlayerFollowupFeedbackNew" maxlength="2000" placeholder="Écrire un feedback au joueur…"></textarea>
+    <div class="followupActions"><span class="small"></span><button type="button" class="ghost" id="groupPlayerFollowupFeedbackSend">Envoyer</button></div>
+   </section>
+
+   <div class="authStatus" id="groupPlayerFollowupStatus" role="status" aria-live="polite"></div>
+  </div>
+
+  <div class="followupPanel hidden" id="groupPlayerFollowupPanelAccess" role="tabpanel" aria-labelledby="groupPlayerFollowupTabAccess">
+
+   <div class="field" style="margin-top:12px">
+    <label for="groupPlayerFollowupRole">Poste préféré</label>
+    <select id="groupPlayerFollowupRole">
+     <option value="R">Rapproché (R)</option>
+     <option value="A">Ailier (A)</option>
+     <option value="P">Pointe (P)</option>
+     <option value="AP">A ou P</option>
+    </select>
+   </div>
+   <div class="field" style="margin-top:12px">
+    <label for="groupPlayerFollowupStatsAccess">Accès aux statistiques</label>
+    <select id="groupPlayerFollowupStatsAccess">
+     <option value="personal">Statistiques personnelles uniquement</option>
+     <option value="group">Statistiques complètes du groupe · lecture seule</option>
+    </select>
+    <div class="small" style="margin-top:5px">À réserver aux joueurs auxquels le staff souhaite donner une vision complète du groupe (par exemple un capitaine).</div>
+   </div>
+   <div class="historyItem" style="margin-top:12px">
+    <div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+     <div>
+      <strong>Accès joueur</strong>
+      <div class="small" id="groupPlayerFollowupAccessStatus">—</div>
+     </div>
+     <button type="button" class="ghost hidden" id="groupPlayerFollowupUnlink">Délier l’accès</button>
+    </div>
+   </div>
+   <div class="authStatus" id="groupPlayerFollowupAccessSaveStatus" role="status" aria-live="polite"></div>
+   <div class="row" style="margin-top:14px">
+    <button class="primary" style="flex:1" id="saveGroupPlayerFollowup">Enregistrer les droits</button>
+   </div>
+  </div>
+
+  <div class="row" style="margin-top:14px">
+   <button class="ghost" style="flex:1" id="cancelGroupPlayerFollowup">Fermer</button>
   </div>
  </div>
 </div>`,
@@ -2737,15 +2822,15 @@ app.renderPlayerFollowUpDetail = function renderPlayerFollowUpDetail(options={})
     :`<div class="field"><label>Statut de l’objectif</label><div class="playerFollowUpStatus ${info.cls}"><span aria-hidden="true">${info.icon}</span> ${info.label}</div></div>`;
   const coachCanEditText=available&&coachSide&&!isPersonal;
   const objectiveBlock=coachCanEditText
-    ?`<div class="field"><label for="playerFollowUpObjectiveInput">Objectif</label><textarea id="playerFollowUpObjectiveInput" maxlength="500" rows="3">${app.escapeHtml(objective.objective||'')}</textarea></div>`
+    ?`<div class="field"><label for="playerFollowUpObjectiveInput">Objectif</label><textarea id="playerFollowUpObjectiveInput" class="textareaCompact" maxlength="500">${app.escapeHtml(objective.objective||'')}</textarea></div>`
     :`<div class="playerFollowUpReadOnly"><span class="analysisSubtle">Objectif</span><p>${app.escapeHtml(objective.objective||'')}</p>${coachSide&&isPersonal?'<div class="small" style="margin-top:6px">Objectif personnel : seul le joueur peut le modifier.</div>':''}</div>`;
   const coachNoteBlock=!available?''
     :coachSide
-      ?`<div class="field"><label for="playerFollowUpCoachNoteInput">Consigne du coach</label><textarea id="playerFollowUpCoachNoteInput" maxlength="1000" rows="3" placeholder="Ce que le joueur doit travailler sur cet objectif.">${app.escapeHtml(objective.coach_note||'')}</textarea></div>`
+      ?`<div class="field"><label for="playerFollowUpCoachNoteInput">Consigne du coach</label><textarea id="playerFollowUpCoachNoteInput" class="textareaCompact" maxlength="1000" placeholder="Ce que le joueur doit travailler sur cet objectif.">${app.escapeHtml(objective.coach_note||'')}</textarea></div>`
       :(objective.coach_note?`<div class="playerFollowUpReadOnly"><span class="analysisSubtle">Consigne du coach</span><p>${app.escapeHtml(objective.coach_note)}</p></div>`:'');
   const playerNoteBlock=coachSide
     ?(objective.player_note?`<div class="playerFollowUpReadOnly"><span class="analysisSubtle">Note du joueur</span><p>${app.escapeHtml(objective.player_note)}</p></div>`:'')
-    :`<div class="field"><label for="playerFollowUpNoteInput">Ma note personnelle</label><textarea id="playerFollowUpNoteInput" maxlength="2000" rows="5" placeholder="Ce que tu retiens, ce que tu veux retravailler.">${app.escapeHtml(objective.player_note||'')}</textarea><div class="small" style="margin-top:6px">Visible par toi et par les entraîneurs du groupe. Elle ne modifie pas les décisions du coach.</div></div>`;
+    :`<div class="field"><label for="playerFollowUpNoteInput">Ma note personnelle</label><textarea id="playerFollowUpNoteInput" class="textareaLong" maxlength="2000" placeholder="Ce que tu retiens, ce que tu veux retravailler.">${app.escapeHtml(objective.player_note||'')}</textarea><div class="small" style="margin-top:6px">Visible par toi et par les entraîneurs du groupe. Elle ne modifie pas les décisions du coach.</div></div>`;
   body.innerHTML=`${statusBlock}${objectiveBlock}${coachNoteBlock}${playerNoteBlock}<div class="small">Dernière mise à jour : ${app.escapeHtml(app.playerObjectiveDate(objective.updated_at||objective.created_at))}${isCompleted?' · objectif atteint':''}</div>`;
   app.playerFollowUpRestoreDraft(options.drafts);
   const picker=app.$('#playerFollowUpStatusPicker');
@@ -3127,7 +3212,7 @@ app.groupFollowUpBindStatusPickers = function groupFollowUpBindStatusPickers(){
   });
 };
 
-app.reloadGroupPlayerFollowupObjectives = async function reloadGroupPlayerFollowupObjectives(groupId,playerId){
+app.reloadGroupPlayerFollowupObjectives = async function reloadGroupPlayerFollowupObjectives(groupId,playerId,expectedToken){
   const box=app.$('#groupPlayerFollowupObjectivesList');
   if(!groupId||!playerId||!box)return;
   box.innerHTML='<div class="small">Chargement…</div>';
@@ -3141,10 +3226,12 @@ app.reloadGroupPlayerFollowupObjectives = async function reloadGroupPlayerFollow
       result=await app.db.rpc('get_player_objectives',args);
     }
     if(result.error)throw result.error;
+    if(expectedToken!==undefined&&expectedToken!==app.groupPlayerFollowupState.openToken)return;
     app.groupPlayerFollowupState.objectives=result.data||[];
     box.innerHTML=app.groupFollowUpObjectivesHtml(result.data||[]);
     app.groupFollowUpBindStatusPickers();
   }catch(e){
+    if(expectedToken!==undefined&&expectedToken!==app.groupPlayerFollowupState.openToken)return;
     box.innerHTML='<div class="small">Objectifs indisponibles pour le moment.</div>';
     app.handleError('reload group player followup objectives',e);
   }
@@ -5485,13 +5572,14 @@ app.coachMessageHistoryHtml = function coachMessageHistoryHtml(rows,showAuthor=t
   return rows.map(r=>`<div class="coachMessageHistoryItem"><div class="coachMessageHistoryMeta">${app.escapeHtml(app.coachMessageDate(r.created_at))}${showAuthor&&r.author_name?` · ${app.escapeHtml(r.author_name)}`:''}</div><div class="coachMessageHistoryText">${app.escapeHtml(r.message||'')}</div></div>`).join('');
 };
 
-app.loadGroupPlayerMessageHistory = async function loadGroupPlayerMessageHistory(groupId,playerId){
+app.loadGroupPlayerMessageHistory = async function loadGroupPlayerMessageHistory(groupId,playerId,expectedToken){
   const box=app.$('#groupPlayerFollowupHistory');
   if(!box)return;
   box.innerHTML='<div class="small">Chargement…</div>';
   const {data,error}=await app.db.from('coaching_player_message_history').select('message,created_at,created_by').eq('group_id',groupId).eq('player_id',playerId).order('created_at',{ascending:false});
   if(error)throw error;
   await app.fetchProfiles((data||[]).map(x=>x.created_by));
+  if(expectedToken!==undefined&&expectedToken!==app.groupPlayerFollowupState.openToken)return;
   const rows=(data||[]).map(x=>({...x,author_name:x.created_by?(app.groupState.profiles[x.created_by]||'Entraîneur'):'Entraîneur'}));
   box.innerHTML=app.coachMessageHistoryHtml(rows,true);
 };
@@ -5522,6 +5610,134 @@ app.openStaffPlayerPortal = async function openStaffPlayerPortal(playerId){
   app.playerPortalState.staffReturnGroupId=groupId;
   const previewAccess=[{group_id:groupId,group_name:g.name,player_id:p.id,player_name:p.display_name,preferred_role:p.preferred_role||'AP',stats_access:p.stats_access||'personal'}];
   await app.openPlayerPortal(previewAccess);
+};
+
+app.setGroupPlayerFollowupTab = function setGroupPlayerFollowupTab(tab){
+  const popup=app.$('#groupPlayerFollowupPopup');
+  if(!popup)return;
+  const target=tab==='access'?'access':'followup';
+  popup.querySelectorAll('[data-followup-tab]').forEach(btn=>{
+    const active=btn.dataset.followupTab===target;
+    btn.classList.toggle('active',active);
+    btn.setAttribute('aria-selected',String(active));
+    btn.tabIndex=active?0:-1;
+  });
+  const followup=app.$('#groupPlayerFollowupPanelFollowup');
+  const access=app.$('#groupPlayerFollowupPanelAccess');
+  if(followup)followup.classList.toggle('hidden',target!=='followup');
+  if(access)access.classList.toggle('hidden',target!=='access');
+  app.groupPlayerFollowupState.activeTab=target;
+};
+
+app.closeGroupPlayerFollowup = function closeGroupPlayerFollowup(){
+  const popup=app.$('#groupPlayerFollowupPopup');
+  if(popup)popup.classList.add('hidden');
+  app.groupPlayerFollowupState.playerId=null;
+  app.groupPlayerFollowupState.openToken=(app.groupPlayerFollowupState.openToken||0)+1;
+  const back=app.groupPlayerFollowupState.returnFocus;
+  app.groupPlayerFollowupState.returnFocus=null;
+  if(back&&typeof back.focus==='function')back.focus();
+};
+
+app.groupPlayerFollowupFocusable = function groupPlayerFollowupFocusable(){
+  const popup=app.$('#groupPlayerFollowupPopup');
+  if(!popup)return [];
+  return [...popup.querySelectorAll('button,input,select,textarea,a[href],[tabindex]:not([tabindex="-1"])')].filter(el=>!el.disabled&&el.offsetParent!==null);
+};
+
+app.trapGroupPlayerFollowupFocus = function trapGroupPlayerFollowupFocus(event){
+  const focusable=app.groupPlayerFollowupFocusable();
+  if(!focusable.length)return;
+  const first=focusable[0],last=focusable[focusable.length-1];
+  if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus()}
+  else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus()}
+};
+
+app.openGroupPlayerFollowup = async function openGroupPlayerFollowup(playerId){
+  const groupId=app.groupState.currentGroupId;
+  const p=app.groupState.currentPlayers.find(x=>x.id===playerId);
+  if(!groupId||!p)return;
+  const token=(app.groupPlayerFollowupState.openToken||0)+1;
+  app.groupPlayerFollowupState.openToken=token;
+  app.groupPlayerFollowupState.playerId=playerId;
+  app.$('#groupPlayerFollowupTitle').textContent=`Suivi joueur · ${p.display_name}`;
+  app.$('#groupPlayerFollowupRole').value=p.preferred_role||'AP';
+  app.$('#groupPlayerFollowupStatsAccess').value=p.stats_access||'personal';
+  const linked=!!app.groupState.playerAccess?.[playerId];
+  app.$('#groupPlayerFollowupAccessStatus').textContent=linked?'Compte joueur lié':'Accès joueur non encore activé';
+  app.$('#groupPlayerFollowupUnlink').classList.toggle('hidden',!linked);
+  app.$('#groupPlayerFollowupObjectiveNew').value='';
+  app.$('#groupPlayerFollowupFeedbackNew').value='';
+  app.$('#groupPlayerFollowupStatus').textContent='Chargement…';
+  app.$('#groupPlayerFollowupAccessSaveStatus').textContent='';
+  app.$('#groupPlayerFollowupMessageStatus').textContent='';
+  const messageInput=app.$('#groupPlayerFollowupMessage');
+  if(messageInput){messageInput.value='';messageInput.dataset.currentMessage=''}
+  const historyBox=app.$('#groupPlayerFollowupHistory');
+  if(historyBox)historyBox.innerHTML='<div class="small">Chargement…</div>';
+  app.setGroupPlayerFollowupTab('followup');
+  app.groupPlayerFollowupState.returnFocus=document.activeElement;
+  app.$('#groupPlayerFollowupPopup').classList.remove('hidden');
+  app.$('#closeGroupPlayerFollowupPopup')?.focus();
+  const isCurrent=()=>token===app.groupPlayerFollowupState.openToken;
+  const messageTask=app.db.from('coaching_player_messages').select('message,updated_at').eq('group_id',groupId).eq('player_id',playerId).maybeSingle()
+    .then(({data,error})=>{if(error)throw error;if(!isCurrent())return;const mi=app.$('#groupPlayerFollowupMessage');if(mi){mi.value=data?.message||'';mi.dataset.currentMessage=data?.message||''}});
+  const results=await Promise.allSettled([
+    app.reloadGroupPlayerFollowupObjectives(groupId,playerId,token),
+    app.loadGroupPlayerMessageHistory(groupId,playerId,token),
+    messageTask
+  ]);
+  if(!isCurrent())return;
+  app.$('#groupPlayerFollowupStatus').textContent=results.some(r=>r.status==='rejected')?'Certaines informations n’ont pas pu être chargées.':'';
+  results.forEach(r=>{if(r.status==='rejected')app.handleError('load group player followup',r.reason)});
+};
+
+app.saveGroupPlayerFollowup = async function saveGroupPlayerFollowup(){
+  const groupId=app.groupState.currentGroupId,playerId=app.groupPlayerFollowupState.playerId;
+  if(!groupId||!playerId)return;
+  const role=app.$('#groupPlayerFollowupRole').value||'AP';
+  const statsAccess=app.$('#groupPlayerFollowupStatsAccess').value==='group'?'group':'personal';
+  const status=app.$('#groupPlayerFollowupAccessSaveStatus');
+  const save=app.$('#saveGroupPlayerFollowup');
+  if(save)save.disabled=true;if(status)status.textContent='Enregistrement…';
+  try{
+    const {error}=await app.db.from('coaching_group_players').update({preferred_role:role,stats_access:statsAccess}).eq('group_id',groupId).eq('player_id',playerId);
+    if(error)throw error;
+    const p=app.groupState.currentPlayers.find(x=>x.id===playerId);if(p){p.preferred_role=role;p.stats_access=statsAccess}
+    if(status)status.textContent='Droits joueur enregistrés ✓';
+    app.renderGroupPlayers();
+    app.setCloud('Synchronisé',true);
+  }catch(e){
+    if(status)status.textContent='Erreur lors de l’enregistrement.';
+    app.handleError('save group player followup',e);
+  }finally{if(save)save.disabled=false}
+};
+
+app.saveGroupPlayerFollowupMessage = async function saveGroupPlayerFollowupMessage(){
+  const groupId=app.groupState.currentGroupId,playerId=app.groupPlayerFollowupState.playerId;
+  const messageInput=app.$('#groupPlayerFollowupMessage');
+  const status=app.$('#groupPlayerFollowupMessageStatus');
+  const save=app.$('#saveGroupPlayerFollowupMessage');
+  if(!groupId||!playerId||!messageInput)return;
+  const message=messageInput.value.trim();
+  const previous=(messageInput.dataset.currentMessage||'').trim();
+  if(save)save.disabled=true;if(status)status.textContent='Enregistrement…';
+  try{
+    const now=new Date().toISOString();
+    const {error}=await app.db.from('coaching_player_messages').upsert({group_id:groupId,player_id:playerId,message,updated_by:app.currentUser?.id||null,updated_at:now},{onConflict:'group_id,player_id'});
+    if(error)throw error;
+    if(message&&message!==previous){
+      const {error:historyError}=await app.db.from('coaching_player_message_history').insert({group_id:groupId,player_id:playerId,message,created_by:app.currentUser?.id||null,created_at:now});
+      if(historyError)throw historyError;
+    }
+    messageInput.dataset.currentMessage=message;
+    await app.loadGroupPlayerMessageHistory(groupId,playerId);
+    if(status)status.textContent='Message enregistré ✓';
+    app.setCloud('Synchronisé',true);
+  }catch(e){
+    if(status)status.textContent='Erreur lors de l’enregistrement.';
+    app.handleError('save group player message',e);
+  }finally{if(save)save.disabled=false}
 };
 
 app.createSharedPlayerAccessLink = async function createSharedPlayerAccessLink(){if(!app.groupState.currentGroupId)return;const button=app.$('#groupPlayerSharedLink'),status=app.$('#groupPlayerSharedLinkStatus');const old=button?.textContent;if(button){button.disabled=true;button.textContent='Création…'}if(status)status.textContent='';try{const {data,error}=await app.db.rpc('create_coaching_player_group_invite',{p_group_id:app.groupState.currentGroupId});if(error)throw error;const token=data?.[0]?.token;if(!token)throw new Error('Lien non généré');const u=new URL(location.href);u.search='';u.hash='';u.searchParams.set('player_group_invite',token);const link=u.toString();let copied=false;try{await navigator.clipboard.writeText(link);copied=true}catch{}if(status)status.textContent=copied?'Lien commun copié.':'Lien commun créé.';prompt(`${copied?'Lien copié dans le presse-papiers. ':''}Transmets ce même lien à tous les joueurs du groupe. Chacun sélectionnera son prénom avant de créer ou connecter son compte.`,link)}catch(e){app.handleError('create shared player access link',e);if(status)status.textContent='Erreur lors de la création du lien.'}finally{if(button){button.disabled=false;button.textContent=old}}};
@@ -8833,7 +9049,7 @@ app.adminState = {isAdmin:false,groups:[]};
 
 app.statsState = {groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',impactRestartLocation:'all',impactView:'staff',impactSortField:'impact100',impactSortDirection:'desc',impactPlayerName:'',impactMatchManualOrder:[],statsMatchView:'summary',reference:null,referenceMeta:null,referenceSources:[],referenceVersions:[],impactReference:null,readOnlyViewer:false,viewerReturnGroupId:null};
 
-app.groupPlayerFollowupState = {playerId:null,objectives:[]};
+app.groupPlayerFollowupState = {playerId:null,objectives:[],activeTab:'followup',openToken:0,returnFocus:null};
 
 app.matchLibraryState = {matches:[],currentReadId:null};
 
@@ -8970,11 +9186,28 @@ if (page === 'training') {
 app.$('#groupDetailBack').onclick=app.showAppHome;
 }
 
-app.$('#closeGroupPlayerFollowupPopup').onclick=()=>app.$('#groupPlayerFollowupPopup').classList.add('hidden');
+app.$('#closeGroupPlayerFollowupPopup').onclick=()=>app.closeGroupPlayerFollowup();
 
-app.$('#cancelGroupPlayerFollowup').onclick=()=>app.$('#groupPlayerFollowupPopup').classList.add('hidden');
+app.$('#cancelGroupPlayerFollowup').onclick=()=>app.closeGroupPlayerFollowup();
 
+const followupPopup=app.$('#groupPlayerFollowupPopup');
+if(followupPopup){
+  followupPopup.addEventListener('click',e=>{if(e.target===followupPopup)app.closeGroupPlayerFollowup()});
+}
+app.$$('#groupPlayerFollowupPopup [data-followup-tab]').forEach(btn=>{
+  btn.addEventListener('click',()=>app.setGroupPlayerFollowupTab(btn.dataset.followupTab));
+  btn.addEventListener('keydown',e=>{
+    if(e.key!=='ArrowRight'&&e.key!=='ArrowLeft')return;
+    e.preventDefault();
+    const order=['followup','access'];
+    const i=Math.max(0,order.indexOf(app.groupPlayerFollowupState.activeTab||'followup'));
+    const next=order[(i+(e.key==='ArrowRight'?1:order.length-1))%order.length];
+    app.setGroupPlayerFollowupTab(next);
+    app.$(`#groupPlayerFollowupTab${next==='access'?'Access':'Followup'}`)?.focus();
+  });
+});
 app.$('#saveGroupPlayerFollowup').onclick=()=>app.saveGroupPlayerFollowup();
+app.$('#saveGroupPlayerFollowupMessage').onclick=()=>app.saveGroupPlayerFollowupMessage();
 app.$('#groupPlayerFollowupObjectiveAdd')?.addEventListener('click',()=>app.addGroupPlayerFollowupObjective());
 app.$('#groupPlayerFollowupFeedbackSend')?.addEventListener('click',()=>app.sendGroupPlayerFollowupFeedback());
 app.$('#groupPlayerFollowupObjectiveNew')?.addEventListener('keydown',e=>{
@@ -9179,6 +9412,11 @@ document.addEventListener('click',e=>{
 });
 
 document.addEventListener('keydown',e=>{
+  const groupFollowUp=app.$('#groupPlayerFollowupPopup');
+  if(groupFollowUp&&!groupFollowUp.classList.contains('hidden')){
+    if(e.key==='Escape'){e.preventDefault();app.closeGroupPlayerFollowup();return}
+    if(e.key==='Tab'){app.trapGroupPlayerFollowupFocus(e);return}
+  }
   const followUp=app.$('#playerFollowUpDetailPopup');
   if(followUp&&!followUp.classList.contains('hidden')){
     if(e.key==='Escape'){e.preventDefault();app.closePlayerFollowUpDetail();return}
@@ -9195,7 +9433,7 @@ document.addEventListener('keydown',e=>{
 
 app.$('#playerObjectiveAdd').onclick=()=>app.addPlayerObjective();
 
-app.$('#playerObjectiveInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();app.addPlayerObjective()}});
+app.$('#playerObjectiveInput').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();app.addPlayerObjective()}});
 
 app.$('#playerPortalMessageSend').onclick=()=>app.sendPlayerPortalMessage();
 

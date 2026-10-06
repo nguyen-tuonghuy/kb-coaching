@@ -210,6 +210,20 @@ input,select,textarea{
   border-color:var(--line)!important;
   border-radius:var(--radius-control)!important;
 }
+textarea{
+  display:block;
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  min-height:108px;
+  padding:11px 12px;
+  font:inherit;
+  line-height:1.5;
+  resize:vertical;
+  box-sizing:border-box;
+}
+.textareaCompact{min-height:76px}
+.textareaLong{min-height:144px}
 
 /* États d'action */
 button.primary,.primary,.on,.tab.active{

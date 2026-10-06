@@ -196,9 +196,13 @@ test('le bundle et les pages ne conservent aucun reliquat du modèle stage',()=>
   }
   for(const page of ['index','training']){
     const html=fs.readFileSync(path.join(root,`${page}.html`),'utf8');
-    assert.match(html,/<label>Objectifs coach<\/label>/);
+    assert.match(html,/<template data-kc-component="groupPlayerFollowupPopup"><\/template>/);
     assert.doesNotMatch(html,/Objectifs coach en cours/);
   }
+  const shell=fs.readFileSync(path.join(root,'js/shared/page-shell.js'),'utf8');
+  assert.match(shell,/"groupPlayerFollowupPopup"/);
+  assert.match(shell,/Objectifs coach/);
+  assert.doesNotMatch(shell,/Objectifs coach en cours/);
 });
 
 test('la migration du suivi reste sans stage et refuse l écriture du texte personnel',()=>{
@@ -218,4 +222,67 @@ test('la migration du suivi reste sans stage et refuse l écriture du texte pers
   assert.match(sql,/security definer/);
   assert.match(sql,/set search_path to 'public','pg_temp'/);
   assert.match(sql,/private\.is_group_coach/);
+});
+
+function makeDb(dbCalls){
+  return {
+    from(table){
+      const query={
+        select(){dbCalls.push({table,method:'select'});return query},
+        eq(){return query},
+        maybeSingle(){return Promise.resolve({data:{message:'Salut',updated_at:'2026-10-01T00:00:00Z'},error:null})},
+        update(args){dbCalls.push({table,method:'update',args});return query},
+        insert(){dbCalls.push({table,method:'insert'});return query},
+        upsert(){dbCalls.push({table,method:'upsert'});return query},
+        then(resolve){return Promise.resolve({data:null,error:null}).then(resolve)}
+      };
+      return query;
+    }
+  };
+}
+
+test('le suivi joueur sépare le suivi et les droits dans deux onglets accessibles',async t=>{
+  const ui=await setup(t,'index');
+  const app=ui.app;
+  const dbCalls=[];
+  app.groupState.currentGroupId='g1';
+  app.groupState.currentPlayers=[{id:'p1',display_name:'Alex',preferred_role:'A',stats_access:'personal'}];
+  app.groupState.playerAccess={p1:true};
+  app.reloadGroupPlayerFollowupObjectives=async()=>{};
+  app.loadGroupPlayerMessageHistory=async()=>{};
+  app.renderGroupPlayers=()=>{};
+  app.setCloud=()=>{};
+  app.handleError=()=>{};
+  app.db=makeDb(dbCalls);
+
+  await app.openGroupPlayerFollowup('p1');
+  await settle();
+
+  const popup=ui.$('#groupPlayerFollowupPopup');
+  assert.equal(popup.classList.contains('hidden'),false);
+  assert.equal(ui.$('#groupPlayerFollowupPanelFollowup').classList.contains('hidden'),false);
+  assert.equal(ui.$('#groupPlayerFollowupPanelAccess').classList.contains('hidden'),true);
+  assert.equal(ui.$('#groupPlayerFollowupTabFollowup').getAttribute('aria-selected'),'true');
+  assert.equal(ui.$('#groupPlayerFollowupTabAccess').getAttribute('aria-selected'),'false');
+  assert.equal(ui.$('#groupPlayerFollowupMessage').value,'Salut');
+  assert.equal(ui.$('#groupPlayerFollowupRole').value,'A');
+  assert.equal(ui.$('#groupPlayerFollowupStatsAccess').value,'personal');
+
+  app.setGroupPlayerFollowupTab('access');
+  assert.equal(ui.$('#groupPlayerFollowupPanelFollowup').classList.contains('hidden'),true);
+  assert.equal(ui.$('#groupPlayerFollowupPanelAccess').classList.contains('hidden'),false);
+  assert.equal(ui.$('#groupPlayerFollowupTabAccess').getAttribute('aria-selected'),'true');
+  assert.equal(ui.$('#groupPlayerFollowupTabFollowup').getAttribute('aria-selected'),'false');
+
+  dbCalls.length=0;
+  await app.saveGroupPlayerFollowup();
+  await settle();
+  const mutations=dbCalls.filter(c=>['update','insert','upsert','delete'].includes(c.method));
+  assert.deepEqual(mutations.map(c=>c.method),['update']);
+  assert.equal(mutations[0].table,'coaching_group_players');
+  assert.equal(mutations[0].args.preferred_role,'A');
+  assert.equal(mutations[0].args.stats_access,'personal');
+
+  ui.w.document.dispatchEvent(new ui.w.KeyboardEvent('keydown',{key:'Escape'}));
+  assert.equal(popup.classList.contains('hidden'),true);
 });
