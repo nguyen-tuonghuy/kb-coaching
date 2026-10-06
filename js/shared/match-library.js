@@ -1,7 +1,7 @@
 /* match-library. Shared explicit application context; no startup side effects. */
 ((app) => {
 app.hideMainModules = function hideMainModules(){
-  ['settingsHome','adminHome','appHome','setup','live','matchLibrary','matchAnalysisSelect','matchReadOnly','matchAnalysis','groupsHome','groupDetail','trainingHome','trainingSession','trainingDuplicate','exerciseLibrary','trainingHistory','statsHome','playerPortal'].forEach(id=>app.$('#'+id)?.classList.add('hidden'));
+  ['settingsHome','adminHome','appHome','setup','live','matchLibrary','matchAnalysisSelect','matchReadOnly','matchAnalysis','groupsHome','groupDetail','groupPlayerFollowup','trainingHome','trainingSession','trainingDuplicate','exerciseLibrary','trainingHistory','statsHome','playerPortal'].forEach(id=>app.$('#'+id)?.classList.add('hidden'));
   app.$('#footer')?.classList.add('hidden');
   app.$('#newMatchTop').classList.add('hidden');
 };

@@ -5,33 +5,8 @@ app.loadPlayerPortalConversation = async function loadPlayerPortalConversation({
   const groupId=app.playerPortalState.groupId,playerId=app.playerPortalTargetPlayerId();
   const box=app.$('#playerPortalConversationList');
   if(!groupId||!playerId||!box)return;
-  const targetKey=`${groupId}:${playerId}:${app.playerPortalState.staffPreview?'coach':'player'}`;
-  const targetChanged=box.dataset.conversationKey!==targetKey;
-  const firstLoad=initial||targetChanged||box.dataset.loaded!=='1';
-  const oldHeight=box.scrollHeight;
-  const oldTop=box.scrollTop;
-  const wasNearBottom=oldHeight-oldTop-box.clientHeight<48;
-  if(firstLoad){
-    box.dataset.conversationKey=targetKey;
-    box.dataset.loaded='0';
-    box.innerHTML='<div class="playerPortalConversationEmpty">Chargement…</div>';
-  }
   const viewerRole=app.playerPortalState.staffPreview?'coach':'player';
-  const {data,error}=await app.db.rpc('get_player_conversation',{p_group_id:groupId,p_player_id:playerId,p_viewer_role:viewerRole});
-  if(error)throw error;
-  // Un rafraîchissement périodique ne vide jamais la liste : le bloc conserve sa hauteur
-  // jusqu'au moment où le nouveau contenu est prêt, ce qui évite tout déplacement de page.
-  const html=app.playerPortalConversationHtml(data||[]);
-  if(box.innerHTML!==html)box.innerHTML=html;
-  box.dataset.loaded='1';
-  if(forceBottom||firstLoad||wasNearBottom)box.scrollTop=box.scrollHeight;
-  else box.scrollTop=Math.max(0,oldTop+(box.scrollHeight-oldHeight));
-  const hadUnread=(data||[]).some(x=>x.is_read===false);
-  if(hadUnread){
-    const {error:readError}=await app.db.rpc('mark_player_conversation_read',{p_group_id:groupId,p_player_id:playerId,p_viewer_role:viewerRole});
-    if(readError)throw readError;
-    await app.refreshMessageNotifications(viewerRole);
-  }
+  await app.loadConversation({box,groupId,playerId,viewerRole,initial,forceBottom});
 };
 
 app.syncPlayerPortalMessagePolling = function syncPlayerPortalMessagePolling(){
@@ -49,6 +24,10 @@ app.afterStaffLanding = async (initialStaff) => {
   if(location.hash==='#stats'){await app.openStatsModule();return}
   const params=new URLSearchParams(location.search||'');
   const group=params.get('staff_group'),player=params.get('staff_player');
+  if(group&&player&&app.followupRouteViewFromHash(location.hash||'')){
+    await app.restoreGroupPlayerFollowupRoute({replace:true});
+    return;
+  }
   if(group&&player&&app.groupState.groups.some(g=>g.id===group)){
     await app.openGroupDetail(group);
     if(app.groupState.currentPlayers.some(p=>p.id===player)){

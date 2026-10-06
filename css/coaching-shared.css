@@ -2500,10 +2500,18 @@ button.playerPortalHomeCard:hover,a.playerPortalHomeCard:hover{border-color:var(
 
 .coachMessageHistory{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
 
-/* Espace de coaching « Suivi joueur » : onglets Suivi / Accès & profil */
-.followupTabs{display:flex;gap:6px;margin:12px 0 4px;border-bottom:1px solid var(--line)}
+/* Espace de coaching « Suivi joueur » : page pleine avec navigation par sections */
+.followupPageHead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}
 
-.followupTab{flex:1;border:0!important;border-bottom:2px solid transparent!important;border-radius:0!important;background:transparent!important;color:var(--muted)!important;padding:9px 8px!important;font-weight:700;cursor:pointer;min-height:42px}
+.followupPageHeadInfo{min-width:0}
+
+.followupPageHeadInfo h2{margin:0;font-size:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.followupTabs,.followupNav{display:flex;gap:6px;margin:12px 0 4px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+
+.followupView{display:block}
+
+.followupTab{flex:1;min-width:120px;text-align:center;text-decoration:none;border:0!important;border-bottom:2px solid transparent!important;border-radius:0!important;background:transparent!important;color:var(--muted)!important;padding:9px 8px!important;font-weight:700;cursor:pointer;min-height:42px}
 
 .followupTab:hover{color:var(--text)!important}
 

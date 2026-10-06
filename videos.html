@@ -185,7 +185,7 @@ const state={
   user:null,session:null,groupId:null,playerId:null,playerName:'',groupName:'',
   isCoach:false,config:null,videos:[],currentVideoId:null,notes:[],
   shapes:[],activeShape:null,annotationMode:false,editingNoteId:null,
-  streamMode:'',proxyStreamUrl:''
+  streamMode:'',proxyStreamUrl:'',from:'',source:'index'
 };
 
 function setStatus(text,cls=''){const el=$('#status');el.textContent=text||'';el.className='small '+cls}
@@ -212,6 +212,8 @@ async function init(){
 
   const requestedGroup=params.get('group');
   const requestedPlayer=params.get('player');
+  state.from=params.get('from')||'';
+  state.source=params.get('source')==='training'?'training':'index';
 
   if(requestedGroup && requestedPlayer){
     const {data,error}=await db.rpc('get_player_video_config',{p_group_id:requestedGroup,p_player_id:requestedPlayer});
@@ -258,7 +260,10 @@ function configureUI(){
   // En mode entraîneur, conserver explicitement le contexte du joueur consulté.
   if(state.isCoach){
     const coachBack=`coach-videos.html?group=${encodeURIComponent(state.groupId)}`;
-    const playerBack=`index.html?staff_group=${encodeURIComponent(state.groupId)}&staff_player=${encodeURIComponent(state.playerId)}#player-home`;
+    const followupSource=state.source==='training'?'training.html':'index.html';
+    const playerBack=state.from==='player-follow-up'
+      ? `${followupSource}?staff_group=${encodeURIComponent(state.groupId)}&staff_player=${encodeURIComponent(state.playerId)}#player-follow-up`
+      : `index.html?staff_group=${encodeURIComponent(state.groupId)}&staff_player=${encodeURIComponent(state.playerId)}#player-home`;
     $('#globalHomeLink').href='./';
     $('#videosBackLink').href=playerBack;
     $('#videosBackLink').textContent=`← ${state.playerName}`;

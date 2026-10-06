@@ -105,6 +105,21 @@ window.addEventListener('hashchange',()=>{
   if(wanted)app.playerPortalSetView(wanted);
 });
 
+// Retour navigateur depuis la page de suivi joueur : on restaure la fiche du groupe.
+window.addEventListener('popstate',()=>{
+  const params=new URLSearchParams(location.search||'');
+  const group=params.get('staff_group'),player=params.get('staff_player');
+  const hash=location.hash||'';
+  const isFollowup=hash.startsWith('#player-follow-up');
+  if(isFollowup&&group&&player){
+    app.restoreGroupPlayerFollowupRoute({replace:true}).catch(e=>app.handleError('restore followup route',e));
+    return;
+  }
+  if(app.$('#groupPlayerFollowup')&&!app.$('#groupPlayerFollowup').classList.contains('hidden')){
+    app.leaveGroupPlayerFollowupPage().catch(e=>app.handleError('leave followup page',e));
+  }
+});
+
 document.addEventListener('click',e=>{
   const teamStatsLink=e.target.closest?.('#playerPortalNavGroupStats,#playerPortalHomeGroupStatsCard');
   if(teamStatsLink){
@@ -602,7 +617,7 @@ app.adminState = {isAdmin:false,groups:[]};
 
 app.statsState = {groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',impactRestartLocation:'all',impactView:'staff',impactSortField:'impact100',impactSortDirection:'desc',impactPlayerName:'',impactMatchManualOrder:[],statsMatchView:'summary',reference:null,referenceMeta:null,referenceSources:[],referenceVersions:[],impactReference:null,readOnlyViewer:false,viewerReturnGroupId:null};
 
-app.groupPlayerFollowupState = {playerId:null,objectives:[],activeTab:'followup',openToken:0,returnFocus:null};
+app.groupPlayerFollowupState = {groupId:null,playerId:null,objectives:[],activeView:'followup',loadToken:0,returnContext:null};
 
 app.matchLibraryState = {matches:[],currentReadId:null};
 
@@ -739,41 +754,45 @@ if (page === 'training') {
 app.$('#groupDetailBack').onclick=app.showAppHome;
 }
 
-app.$('#closeGroupPlayerFollowupPopup').onclick=()=>app.closeGroupPlayerFollowup();
-
-app.$('#cancelGroupPlayerFollowup').onclick=()=>app.closeGroupPlayerFollowup();
-
-const followupPopup=app.$('#groupPlayerFollowupPopup');
-if(followupPopup){
-  followupPopup.addEventListener('click',e=>{if(e.target===followupPopup)app.closeGroupPlayerFollowup()});
-}
-app.$$('#groupPlayerFollowupPopup [data-followup-tab]').forEach(btn=>{
-  btn.addEventListener('click',()=>app.setGroupPlayerFollowupTab(btn.dataset.followupTab));
+// Suivi joueur : vue pleine page partagée (Suivi / Messages / Vidéos / Accès & profil).
+app.$('#groupPlayerFollowupBack').onclick=()=>app.returnFromGroupPlayerFollowup();
+app.$$('#groupPlayerFollowup [data-followup-tab]').forEach(btn=>{
+  btn.addEventListener('click',()=>app.setGroupPlayerFollowupView(btn.dataset.followupTab));
   btn.addEventListener('keydown',e=>{
     if(e.key!=='ArrowRight'&&e.key!=='ArrowLeft')return;
     e.preventDefault();
-    const order=['followup','access'];
-    const i=Math.max(0,order.indexOf(app.groupPlayerFollowupState.activeTab||'followup'));
+    const order=['followup','messages','access'];
+    const i=Math.max(0,order.indexOf(app.groupPlayerFollowupState.activeView||'followup'));
     const next=order[(i+(e.key==='ArrowRight'?1:order.length-1))%order.length];
-    app.setGroupPlayerFollowupTab(next);
-    app.$(`#groupPlayerFollowupTab${next==='access'?'Access':'Followup'}`)?.focus();
+    app.setGroupPlayerFollowupView(next);
+    app.$(`#groupPlayerFollowupTab${next.charAt(0).toUpperCase()+next.slice(1)}`)?.focus();
   });
 });
 app.$('#saveGroupPlayerFollowup').onclick=()=>app.saveGroupPlayerFollowup();
 app.$('#saveGroupPlayerFollowupMessage').onclick=()=>app.saveGroupPlayerFollowupMessage();
 app.$('#groupPlayerFollowupObjectiveAdd')?.addEventListener('click',()=>app.addGroupPlayerFollowupObjective());
-app.$('#groupPlayerFollowupFeedbackSend')?.addEventListener('click',()=>app.sendGroupPlayerFollowupFeedback());
 app.$('#groupPlayerFollowupObjectiveNew')?.addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();app.addGroupPlayerFollowupObjective()}
 });
-app.$('#groupPlayerFollowupFeedbackNew')?.addEventListener('keydown',e=>{
-  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();app.sendGroupPlayerFollowupFeedback()}
+app.$('#groupPlayerFollowupWriteFeedback')?.addEventListener('click',()=>{
+  app.setGroupPlayerFollowupView('messages');
+  app.$('#groupPlayerFollowupConversationInput')?.focus();
+});
+app.$('#groupPlayerFollowupConversationSend')?.addEventListener('click',()=>app.sendGroupPlayerFollowupMessage());
+app.$('#groupPlayerFollowupConversationInput')?.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();app.sendGroupPlayerFollowupMessage()}
 });
 
 app.$('#groupPlayerFollowupUnlink').onclick=()=>{
   const p=app.groupState.currentPlayers.find(x=>x.id===app.groupPlayerFollowupState.playerId);
   if(p)app.unlinkPlayerAccount(p.id,p.display_name);
 };
+
+app.$('#playerPortalCoachFollowup')?.addEventListener('click',()=>{
+  const groupId=app.playerPortalState.staffReturnGroupId;
+  const playerId=app.playerPortalState.staffPlayerId;
+  if(groupId&&playerId)app.openGroupPlayerFollowup(playerId,{groupId}).catch(e=>app.handleError('open coach followup',e));
+});
 
 if (page === 'index') {
 app.$('#editGroupNameBtn').onclick=()=>{
@@ -965,11 +984,6 @@ document.addEventListener('click',e=>{
 });
 
 document.addEventListener('keydown',e=>{
-  const groupFollowUp=app.$('#groupPlayerFollowupPopup');
-  if(groupFollowUp&&!groupFollowUp.classList.contains('hidden')){
-    if(e.key==='Escape'){e.preventDefault();app.closeGroupPlayerFollowup();return}
-    if(e.key==='Tab'){app.trapGroupPlayerFollowupFocus(e);return}
-  }
   const followUp=app.$('#playerFollowUpDetailPopup');
   if(followUp&&!followUp.classList.contains('hidden')){
     if(e.key==='Escape'){e.preventDefault();app.closePlayerFollowUpDetail();return}

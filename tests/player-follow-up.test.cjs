@@ -168,7 +168,7 @@ test('la fiche joueur coach n utilise que les deux statuts et les RPC de cycle d
     reopen_player_objective:()=>({data:null,error:null})
   }});
   const ui=await setup(t,'index',{client});
-  ui.app.groupState.currentGroupId='g1';
+  ui.app.groupPlayerFollowupState.groupId='g1';
   ui.app.groupPlayerFollowupState.playerId='p1';
   const box=ui.$('#groupPlayerFollowupObjectivesList');
   box.innerHTML=ui.app.groupFollowUpObjectivesHtml(rows);
@@ -196,11 +196,11 @@ test('le bundle et les pages ne conservent aucun reliquat du modèle stage',()=>
   }
   for(const page of ['index','training']){
     const html=fs.readFileSync(path.join(root,`${page}.html`),'utf8');
-    assert.match(html,/<template data-kc-component="groupPlayerFollowupPopup"><\/template>/);
+    assert.match(html,/<template data-kc-component="groupPlayerFollowupPage"><\/template>/);
     assert.doesNotMatch(html,/Objectifs coach en cours/);
   }
   const shell=fs.readFileSync(path.join(root,'js/shared/page-shell.js'),'utf8');
-  assert.match(shell,/"groupPlayerFollowupPopup"/);
+  assert.match(shell,/"groupPlayerFollowupPage"/);
   assert.match(shell,/Objectifs coach/);
   assert.doesNotMatch(shell,/Objectifs coach en cours/);
 });
@@ -241,15 +241,17 @@ function makeDb(dbCalls){
   };
 }
 
-test('le suivi joueur sépare le suivi et les droits dans deux onglets accessibles',async t=>{
+test('la page de suivi joueur route ses vues et enregistre les droits',async t=>{
   const ui=await setup(t,'index');
   const app=ui.app;
   const dbCalls=[];
+  app.groupState.groups=[{id:'g1',name:'Les Bleus',role:'owner'}];
   app.groupState.currentGroupId='g1';
   app.groupState.currentPlayers=[{id:'p1',display_name:'Alex',preferred_role:'A',stats_access:'personal'}];
   app.groupState.playerAccess={p1:true};
   app.reloadGroupPlayerFollowupObjectives=async()=>{};
   app.loadGroupPlayerMessageHistory=async()=>{};
+  app.loadGroupPlayerFollowupConversation=async()=>{};
   app.renderGroupPlayers=()=>{};
   app.setCloud=()=>{};
   app.handleError=()=>{};
@@ -258,21 +260,30 @@ test('le suivi joueur sépare le suivi et les droits dans deux onglets accessibl
   await app.openGroupPlayerFollowup('p1');
   await settle();
 
-  const popup=ui.$('#groupPlayerFollowupPopup');
-  assert.equal(popup.classList.contains('hidden'),false);
+  const page=ui.$('#groupPlayerFollowup');
+  assert.equal(page.classList.contains('hidden'),false);
   assert.equal(ui.$('#groupPlayerFollowupPanelFollowup').classList.contains('hidden'),false);
+  assert.equal(ui.$('#groupPlayerFollowupPanelMessages').classList.contains('hidden'),true);
   assert.equal(ui.$('#groupPlayerFollowupPanelAccess').classList.contains('hidden'),true);
-  assert.equal(ui.$('#groupPlayerFollowupTabFollowup').getAttribute('aria-selected'),'true');
-  assert.equal(ui.$('#groupPlayerFollowupTabAccess').getAttribute('aria-selected'),'false');
+  assert.equal(page.querySelector('nav[aria-label]')!==null,true);
+  assert.equal(ui.$('#groupPlayerFollowupTabFollowup').getAttribute('aria-current'),'page');
+  assert.equal(ui.$('#groupPlayerFollowupTabAccess').getAttribute('aria-current'),null);
   assert.equal(ui.$('#groupPlayerFollowupMessage').value,'Salut');
   assert.equal(ui.$('#groupPlayerFollowupRole').value,'A');
   assert.equal(ui.$('#groupPlayerFollowupStatsAccess').value,'personal');
+  assert.match(ui.$('#groupPlayerFollowupVideosLink').getAttribute('href'),/^videos\.html\?group=g1&player=p1&from=player-follow-up&source=index$/);
+  assert.equal(ui.w.location.hash,'#player-follow-up');
+  assert.match(ui.w.location.search,/staff_group=g1/);
 
-  app.setGroupPlayerFollowupTab('access');
+  app.setGroupPlayerFollowupView('messages');
   assert.equal(ui.$('#groupPlayerFollowupPanelFollowup').classList.contains('hidden'),true);
+  assert.equal(ui.$('#groupPlayerFollowupPanelMessages').classList.contains('hidden'),false);
+  assert.equal(ui.$('#groupPlayerFollowupTabMessages').getAttribute('aria-current'),'page');
+  assert.equal(ui.w.location.hash,'#player-follow-up-messages');
+
+  app.setGroupPlayerFollowupView('access');
   assert.equal(ui.$('#groupPlayerFollowupPanelAccess').classList.contains('hidden'),false);
-  assert.equal(ui.$('#groupPlayerFollowupTabAccess').getAttribute('aria-selected'),'true');
-  assert.equal(ui.$('#groupPlayerFollowupTabFollowup').getAttribute('aria-selected'),'false');
+  assert.equal(ui.w.location.hash,'#player-follow-up-access');
 
   dbCalls.length=0;
   await app.saveGroupPlayerFollowup();
@@ -282,7 +293,42 @@ test('le suivi joueur sépare le suivi et les droits dans deux onglets accessibl
   assert.equal(mutations[0].table,'coaching_group_players');
   assert.equal(mutations[0].args.preferred_role,'A');
   assert.equal(mutations[0].args.stats_access,'personal');
+});
 
-  ui.w.document.dispatchEvent(new ui.w.KeyboardEvent('keydown',{key:'Escape'}));
-  assert.equal(popup.classList.contains('hidden'),true);
+test('la route de suivi restaure la page depuis l url',async t=>{
+  const ui=await setup(t,'index',{url:'https://local.test/index.html?staff_group=g1&staff_player=p1#player-follow-up-access'});
+  const app=ui.app;
+  app.groupState.groups=[{id:'g1',name:'Les Bleus',role:'owner'}];
+  app.groupState.currentGroupId='g1';
+  app.groupState.currentPlayers=[{id:'p1',display_name:'Alex',preferred_role:'A',stats_access:'personal'}];
+  app.groupState.playerAccess={p1:true};
+  app.reloadGroupPlayerFollowupObjectives=async()=>{};
+  app.loadGroupPlayerMessageHistory=async()=>{};
+  app.loadGroupPlayerFollowupConversation=async()=>{};
+  app.renderGroupPlayers=()=>{};
+  app.setCloud=()=>{};
+  app.handleError=()=>{};
+
+  const restored=await app.restoreGroupPlayerFollowupRoute({replace:true});
+  assert.equal(restored,true);
+  assert.equal(ui.$('#groupPlayerFollowup').classList.contains('hidden'),false);
+  assert.equal(ui.$('#groupPlayerFollowupPanelAccess').classList.contains('hidden'),false);
+  assert.equal(ui.$('#groupPlayerFollowupTabAccess').getAttribute('aria-current'),'page');
+});
+
+test('un joueur inaccessible affiche un repli explicite',async t=>{
+  const ui=await setup(t,'index');
+  const app=ui.app;
+  app.groupState.groups=[{id:'g1',name:'Les Bleus',role:'owner'}];
+  app.groupState.currentGroupId='g1';
+  app.groupState.currentPlayers=[];
+  app.fetchGroupPlayers=async()=>[];
+  app.handleError=()=>{};
+
+  const opened=await app.openGroupPlayerFollowup('p1');
+  assert.equal(opened,false);
+  const missing=ui.$('#groupPlayerFollowupPanelUnavailable');
+  assert.ok(missing);
+  assert.equal(missing.classList.contains('hidden'),false);
+  assert.match(ui.$('#groupPlayerFollowupUnavailableMessage').textContent,/pas accessible/);
 });

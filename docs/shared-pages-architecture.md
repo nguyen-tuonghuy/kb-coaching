@@ -86,7 +86,7 @@ Les consommateurs d'un nouveau service asynchrone doivent vérifier le compte/co
 - Retours `#stats`, `#team-stats`, `#player-home`, `#player-profile`, `staff_group` et `staff_player` conservés.
 - Messagerie : maintien du scroll et polling sur l'accueil ; comportement historique de rafraîchissement sur l'entraînement.
 - Validation du départ d'un match : complète sur l'accueil, plus permissive sur l'entraînement, comme dans la référence.
-- Suivi joueur : rôle/droits sur l'accueil ; message et historique supplémentaires sur l'entraînement.
+- Suivi joueur : composant `groupPlayerFollowupPage` unique (page pleine avec sections Suivi / Messages / Vidéos / Accès & profil), monté depuis `page-shell.js` et piloté par le routeur partagé de `groups.js`. L'accès se fait par la route `?staff_group=…&staff_player=…#player-follow-up[-messages|-access]`, avec historique navigateur et bouton Retour. Les deux pages partagent le même markup et le même état explicite `groupPlayerFollowupState`.
 - Présentation intégrée du groupe, organisation tactile des plans et notes longues préservées.
 
 Les sélecteurs statistiques partagés tolèrent désormais un contrôle absent, conformément à la variante accueil. Cela n'altère pas le comportement des deux écrans complets et permet une séparation explicite des contrôles disponibles.

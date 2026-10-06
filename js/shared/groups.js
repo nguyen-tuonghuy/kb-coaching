@@ -618,7 +618,7 @@ app.loadGroupPlayerMessageHistory = async function loadGroupPlayerMessageHistory
   const {data,error}=await app.db.from('coaching_player_message_history').select('message,created_at,created_by').eq('group_id',groupId).eq('player_id',playerId).order('created_at',{ascending:false});
   if(error)throw error;
   await app.fetchProfiles((data||[]).map(x=>x.created_by));
-  if(expectedToken!==undefined&&expectedToken!==app.groupPlayerFollowupState.openToken)return;
+  if(expectedToken!==undefined&&expectedToken!==app.groupPlayerFollowupState.loadToken)return;
   const rows=(data||[]).map(x=>({...x,author_name:x.created_by?(app.groupState.profiles[x.created_by]||'Entraîneur'):'Entraîneur'}));
   box.innerHTML=app.coachMessageHistoryHtml(rows,true);
 };
@@ -651,62 +651,214 @@ app.openStaffPlayerPortal = async function openStaffPlayerPortal(playerId){
   await app.openPlayerPortal(previewAccess);
 };
 
-app.setGroupPlayerFollowupTab = function setGroupPlayerFollowupTab(tab){
-  const popup=app.$('#groupPlayerFollowupPopup');
-  if(!popup)return;
-  const target=tab==='access'?'access':'followup';
-  popup.querySelectorAll('[data-followup-tab]').forEach(btn=>{
+app.followupRouteHash = function followupRouteHash(view){
+  return view==='messages'?'#player-follow-up-messages':view==='access'?'#player-follow-up-access':'#player-follow-up';
+};
+
+app.followupRouteViewFromHash = function followupRouteViewFromHash(hash){
+  if(hash==='#player-follow-up-messages')return'messages';
+  if(hash==='#player-follow-up-access')return'access';
+  if(hash==='#player-follow-up')return'followup';
+  return null;
+};
+
+app.buildGroupPlayerFollowupUrl = function buildGroupPlayerFollowupUrl(groupId,playerId,view){
+  const u=new URL(location.href);
+  u.search='';
+  u.searchParams.set('staff_group',groupId);
+  u.searchParams.set('staff_player',playerId);
+  u.hash=app.followupRouteHash(view);
+  return u.pathname+u.search+u.hash;
+};
+
+app.pushGroupPlayerFollowupHistory = function pushGroupPlayerFollowupHistory(groupId,playerId,view,{replace=false}={}){
+  const state={kc:'group-followup',groupId,playerId,view};
+  const url=app.buildGroupPlayerFollowupUrl(groupId,playerId,view);
+  if(replace)history.replaceState(state,'',url);
+  else history.pushState(state,'',url);
+};
+
+app.setGroupPlayerFollowupView = function setGroupPlayerFollowupView(view,{history:updateHistory=true}={}){
+  const target=['followup','messages','access'].includes(view)?view:'followup';
+  const root=app.$('#groupPlayerFollowup');
+  if(!root)return;
+  root.querySelectorAll('[data-followup-tab]').forEach(btn=>{
     const active=btn.dataset.followupTab===target;
     btn.classList.toggle('active',active);
-    btn.setAttribute('aria-selected',String(active));
-    btn.tabIndex=active?0:-1;
+    if(active)btn.setAttribute('aria-current','page');
+    else btn.removeAttribute('aria-current');
   });
-  const followup=app.$('#groupPlayerFollowupPanelFollowup');
-  const access=app.$('#groupPlayerFollowupPanelAccess');
-  if(followup)followup.classList.toggle('hidden',target!=='followup');
-  if(access)access.classList.toggle('hidden',target!=='access');
-  app.groupPlayerFollowupState.activeTab=target;
+  app.$('#groupPlayerFollowupPanelFollowup')?.classList.toggle('hidden',target!=='followup');
+  app.$('#groupPlayerFollowupPanelMessages')?.classList.toggle('hidden',target!=='messages');
+  app.$('#groupPlayerFollowupPanelAccess')?.classList.toggle('hidden',target!=='access');
+  app.$('#groupPlayerFollowupPanelUnavailable')?.classList.add('hidden');
+  app.groupPlayerFollowupState.activeView=target;
+  const {groupId,playerId}=app.groupPlayerFollowupState;
+  if(target==='messages'&&groupId&&playerId){
+    const box=app.$('#groupPlayerFollowupConversationList');
+    const loaded=box&&box.dataset.loaded==='1'&&box.dataset.conversationKey===`${groupId}:${playerId}:coach`;
+    if(loaded)box.scrollTop=box.scrollHeight;
+    else app.loadGroupPlayerFollowupConversation({initial:true,forceBottom:true})
+      .catch(e=>app.handleError('load followup conversation',e));
+  }
+  if(updateHistory&&groupId&&playerId){
+    app.pushGroupPlayerFollowupHistory(groupId,playerId,target);
+  }
 };
 
-app.closeGroupPlayerFollowup = function closeGroupPlayerFollowup(){
-  const popup=app.$('#groupPlayerFollowupPopup');
-  if(popup)popup.classList.add('hidden');
-  app.groupPlayerFollowupState.playerId=null;
-  app.groupPlayerFollowupState.openToken=(app.groupPlayerFollowupState.openToken||0)+1;
-  const back=app.groupPlayerFollowupState.returnFocus;
-  app.groupPlayerFollowupState.returnFocus=null;
-  if(back&&typeof back.focus==='function')back.focus();
+app.renderGroupPlayerFollowupLastExchange = function renderGroupPlayerFollowupLastExchange(rows){
+  const box=app.$('#groupPlayerFollowupLastExchange');
+  if(!box)return;
+  const list=rows||[];
+  const last=list[list.length-1];
+  if(!last){box.innerHTML='<div class="small">Aucun échange pour le moment.</div>';return}
+  const who=(last.sender_role||'coach')==='player'?(last.author_name||'Le joueur'):(last.author_name||'Entraîneur');
+  box.innerHTML=`<div class="coachMessageHistoryItem"><div class="coachMessageHistoryMeta">${app.escapeHtml(app.coachMessageDate(last.created_at))} · ${app.escapeHtml(who)}</div><div class="coachMessageHistoryText">${app.escapeHtml(last.message||'')}</div></div>`;
 };
 
-app.groupPlayerFollowupFocusable = function groupPlayerFollowupFocusable(){
-  const popup=app.$('#groupPlayerFollowupPopup');
-  if(!popup)return [];
-  return [...popup.querySelectorAll('button,input,select,textarea,a[href],[tabindex]:not([tabindex="-1"])')].filter(el=>!el.disabled&&el.offsetParent!==null);
+app.loadGroupPlayerFollowupConversation = async function loadGroupPlayerFollowupConversation({initial=false,forceBottom=false,token}={}){
+  const {groupId,playerId}=app.groupPlayerFollowupState;
+  const box=app.$('#groupPlayerFollowupConversationList');
+  if(!groupId||!playerId||!box)return;
+  try{
+    const rows=await app.loadConversation({box,groupId,playerId,viewerRole:'coach',initial,forceBottom});
+    if(token!==undefined&&token!==app.groupPlayerFollowupState.loadToken)return;
+    app.renderGroupPlayerFollowupLastExchange(rows||[]);
+  }catch(e){
+    if(token!==undefined&&token!==app.groupPlayerFollowupState.loadToken)return;
+    box.innerHTML='<div class="playerPortalConversationEmpty">Conversation indisponible pour le moment.</div>';
+    app.renderGroupPlayerFollowupLastExchange(null);
+    throw e;
+  }
 };
 
-app.trapGroupPlayerFollowupFocus = function trapGroupPlayerFollowupFocus(event){
-  const focusable=app.groupPlayerFollowupFocusable();
-  if(!focusable.length)return;
-  const first=focusable[0],last=focusable[focusable.length-1];
-  if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus()}
-  else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus()}
+app.sendGroupPlayerFollowupMessage = async function sendGroupPlayerFollowupMessage(){
+  const {groupId,playerId}=app.groupPlayerFollowupState;
+  const input=app.$('#groupPlayerFollowupConversationInput'),status=app.$('#groupPlayerFollowupConversationStatus'),button=app.$('#groupPlayerFollowupConversationSend');
+  const message=(input?.value||'').trim();
+  if(!groupId||!playerId||!message)return;
+  if(button)button.disabled=true;if(status)status.textContent='Envoi…';
+  try{
+    const {error}=await app.db.rpc('send_player_conversation_message',{p_group_id:groupId,p_player_id:playerId,p_message:message,p_sender_role:'coach'});
+    if(error)throw error;
+    input.value='';
+    if(status)status.textContent='Envoyé';
+    await app.loadGroupPlayerFollowupConversation({forceBottom:true});
+    await app.refreshMessageNotifications('coach');
+    app.setCloud('Synchronisé',true);
+    setTimeout(()=>{if(status)status.textContent=''},1200);
+  }catch(e){
+    if(status)status.textContent='Erreur';
+    app.handleError('send group followup message',e);
+  }finally{if(button)button.disabled=false}
 };
 
-app.openGroupPlayerFollowup = async function openGroupPlayerFollowup(playerId){
-  const groupId=app.groupState.currentGroupId;
-  const p=app.groupState.currentPlayers.find(x=>x.id===playerId);
-  if(!groupId||!p)return;
-  const token=(app.groupPlayerFollowupState.openToken||0)+1;
-  app.groupPlayerFollowupState.openToken=token;
+app.showGroupPlayerFollowupUnavailable = function showGroupPlayerFollowupUnavailable(message){
+  const root=app.$('#groupPlayerFollowup');
+  if(!root)return;
+  app.hideMainModules();
+  app.setMatchHeaderMode(false);
+  root.classList.remove('hidden');
+  app.$('#groupPlayerFollowupTitle').textContent='Suivi joueur';
+  app.$('#groupPlayerFollowupSubtitle').textContent='';
+  app.$('#groupPlayerFollowupPanelFollowup')?.classList.add('hidden');
+  app.$('#groupPlayerFollowupPanelMessages')?.classList.add('hidden');
+  app.$('#groupPlayerFollowupPanelAccess')?.classList.add('hidden');
+  let missing=app.$('#groupPlayerFollowupPanelUnavailable');
+  if(!missing){
+    missing=document.createElement('div');
+    missing.className='followupView';
+    missing.id='groupPlayerFollowupPanelUnavailable';
+    missing.innerHTML='<div class="followupSection"><div class="small" id="groupPlayerFollowupUnavailableMessage"></div><div class="followupActions"><span class="small"></span><button type="button" class="ghost" id="groupPlayerFollowupUnavailableBack">← Retour aux groupes</button></div></div>';
+    root.append(missing);
+  }
+  missing.classList.remove('hidden');
+  const box=app.$('#groupPlayerFollowupUnavailableMessage');
+  if(box)box.textContent=message||'Suivi joueur indisponible.';
+  app.$('#groupPlayerFollowupUnavailableBack').onclick=()=>app.openGroupsModule().catch(e=>app.handleError('followup unavailable back',e));
+};
+
+app.leaveGroupPlayerFollowupPage = async function leaveGroupPlayerFollowupPage(){
+  const st=app.groupPlayerFollowupState;
+  const groupId=st.groupId;
+  app.$('#groupPlayerFollowup')?.classList.add('hidden');
+  st.loadToken=(st.loadToken||0)+1;
+  if(groupId&&app.groupState.groups.some(g=>g.id===groupId)){
+    await app.openGroupDetail(groupId);
+    history.replaceState(null,'',app.page==='training'?'training.html':'index.html');
+  }else{
+    await app.openGroupsModule();
+  }
+};
+
+app.returnFromGroupPlayerFollowup = function returnFromGroupPlayerFollowup(){
+  const st=app.groupPlayerFollowupState;
+  if(st.returnContext?.viaHistory){history.back();return}
+  app.leaveGroupPlayerFollowupPage().catch(e=>app.handleError('return followup page',e));
+};
+
+app.followupRouteParams = function followupRouteParams(){
+  const params=new URLSearchParams(location.search||'');
+  return {groupId:params.get('staff_group'),playerId:params.get('staff_player'),view:app.followupRouteViewFromHash(location.hash||'')};
+};
+
+app.restoreGroupPlayerFollowupRoute = async function restoreGroupPlayerFollowupRoute({replace=false}={}){
+  const {groupId,playerId,view}=app.followupRouteParams();
+  if(!groupId||!playerId||!view)return false;
+  return await app.openGroupPlayerFollowup(playerId,{groupId,view,replace,fromRoute:true});
+};
+
+app.resolveFollowupGroup = async function resolveFollowupGroup(groupId){
+  let g=app.groupState.groups.find(x=>x.id===groupId);
+  if(!g){
+    try{await app.fetchMyGroups()}catch(e){app.handleError('fetch groups for followup',e)}
+    g=app.groupState.groups.find(x=>x.id===groupId);
+  }
+  return g||null;
+};
+
+app.resolveFollowupPlayer = async function resolveFollowupPlayer(groupId,playerId){
+  if(app.groupState.currentGroupId!==groupId){
+    app.groupState.currentGroupId=groupId;
+    app.groupState.currentPlayers=[];
+  }
+  let p=app.groupState.currentPlayers.find(x=>x.id===playerId);
+  if(p)return p;
+  try{
+    const players=await app.fetchGroupPlayers(groupId);
+    app.groupState.currentPlayers=players;
+    if(!app.groupState.playerAccess){
+      const access=await app.db.rpc('get_coaching_group_player_access',{p_group_id:groupId});
+      if(!access.error)app.groupState.playerAccess=Object.fromEntries((access.data||[]).map(x=>[x.player_id,!!x.linked]));
+    }
+  }catch(e){app.handleError('fetch group players for followup',e)}
+  return app.groupState.currentPlayers.find(x=>x.id===playerId)||null;
+};
+
+app.openGroupPlayerFollowup = async function openGroupPlayerFollowup(playerId,options={}){
+  const groupId=options.groupId||app.groupState.currentGroupId;
+  if(!groupId||!playerId)return false;
+  const g=await app.resolveFollowupGroup(groupId);
+  if(!g){app.showGroupPlayerFollowupUnavailable('Ce groupe n’est pas accessible avec ton compte.');return false}
+  const p=await app.resolveFollowupPlayer(groupId,playerId);
+  if(!p){app.showGroupPlayerFollowupUnavailable('Ce joueur n’est pas accessible dans ce groupe.');return false}
+
+  const token=(app.groupPlayerFollowupState.loadToken||0)+1;
+  app.groupPlayerFollowupState.loadToken=token;
+  app.groupPlayerFollowupState.groupId=groupId;
   app.groupPlayerFollowupState.playerId=playerId;
-  app.$('#groupPlayerFollowupTitle').textContent=`Suivi joueur · ${p.display_name}`;
+  app.groupPlayerFollowupState.returnContext=options.returnContext||{viaHistory:options.fromRoute!==true};
+
+  const title=app.$('#groupPlayerFollowupTitle');
+  if(title)title.textContent=`Suivi joueur · ${p.display_name}`;
+  const groupLabel=app.$('#groupPlayerFollowupSubtitle');
+  if(groupLabel)groupLabel.textContent=g.name||'';
   app.$('#groupPlayerFollowupRole').value=p.preferred_role||'AP';
   app.$('#groupPlayerFollowupStatsAccess').value=p.stats_access||'personal';
   const linked=!!app.groupState.playerAccess?.[playerId];
   app.$('#groupPlayerFollowupAccessStatus').textContent=linked?'Compte joueur lié':'Accès joueur non encore activé';
   app.$('#groupPlayerFollowupUnlink').classList.toggle('hidden',!linked);
   app.$('#groupPlayerFollowupObjectiveNew').value='';
-  app.$('#groupPlayerFollowupFeedbackNew').value='';
   app.$('#groupPlayerFollowupStatus').textContent='Chargement…';
   app.$('#groupPlayerFollowupAccessSaveStatus').textContent='';
   app.$('#groupPlayerFollowupMessageStatus').textContent='';
@@ -714,25 +866,39 @@ app.openGroupPlayerFollowup = async function openGroupPlayerFollowup(playerId){
   if(messageInput){messageInput.value='';messageInput.dataset.currentMessage=''}
   const historyBox=app.$('#groupPlayerFollowupHistory');
   if(historyBox)historyBox.innerHTML='<div class="small">Chargement…</div>';
-  app.setGroupPlayerFollowupTab('followup');
-  app.groupPlayerFollowupState.returnFocus=document.activeElement;
-  app.$('#groupPlayerFollowupPopup').classList.remove('hidden');
-  app.$('#closeGroupPlayerFollowupPopup')?.focus();
-  const isCurrent=()=>token===app.groupPlayerFollowupState.openToken;
+  const lastExchange=app.$('#groupPlayerFollowupLastExchange');
+  if(lastExchange)lastExchange.innerHTML='<div class="small">Chargement…</div>';
+  const videoLink=app.$('#groupPlayerFollowupVideosLink');
+  if(videoLink){
+    const source=app.page==='training'?'training':'index';
+    videoLink.setAttribute('href',`videos.html?group=${encodeURIComponent(groupId)}&player=${encodeURIComponent(playerId)}&from=player-follow-up&source=${source}`);
+  }
+  app.hideMainModules();
+  app.setMatchHeaderMode(false);
+  const section=app.$('#groupPlayerFollowup');
+  if(section)section.classList.remove('hidden');
+  const view=options.view||app.followupRouteViewFromHash(location.hash);
+  app.setGroupPlayerFollowupView(view,{history:false});
+  if(!options.fromRoute)app.pushGroupPlayerFollowupHistory(groupId,playerId,view);
+  window.scrollTo({top:0,behavior:'instant'});
+
+  const isCurrent=()=>token===app.groupPlayerFollowupState.loadToken;
   const messageTask=app.db.from('coaching_player_messages').select('message,updated_at').eq('group_id',groupId).eq('player_id',playerId).maybeSingle()
     .then(({data,error})=>{if(error)throw error;if(!isCurrent())return;const mi=app.$('#groupPlayerFollowupMessage');if(mi){mi.value=data?.message||'';mi.dataset.currentMessage=data?.message||''}});
   const results=await Promise.allSettled([
     app.reloadGroupPlayerFollowupObjectives(groupId,playerId,token),
     app.loadGroupPlayerMessageHistory(groupId,playerId,token),
+    app.loadGroupPlayerFollowupConversation({initial:true,forceBottom:true,token}),
     messageTask
   ]);
-  if(!isCurrent())return;
+  if(!isCurrent())return false;
   app.$('#groupPlayerFollowupStatus').textContent=results.some(r=>r.status==='rejected')?'Certaines informations n’ont pas pu être chargées.':'';
   results.forEach(r=>{if(r.status==='rejected')app.handleError('load group player followup',r.reason)});
+  return true;
 };
 
 app.saveGroupPlayerFollowup = async function saveGroupPlayerFollowup(){
-  const groupId=app.groupState.currentGroupId,playerId=app.groupPlayerFollowupState.playerId;
+  const groupId=app.groupPlayerFollowupState.groupId,playerId=app.groupPlayerFollowupState.playerId;
   if(!groupId||!playerId)return;
   const role=app.$('#groupPlayerFollowupRole').value||'AP';
   const statsAccess=app.$('#groupPlayerFollowupStatsAccess').value==='group'?'group':'personal';
@@ -753,7 +919,7 @@ app.saveGroupPlayerFollowup = async function saveGroupPlayerFollowup(){
 };
 
 app.saveGroupPlayerFollowupMessage = async function saveGroupPlayerFollowupMessage(){
-  const groupId=app.groupState.currentGroupId,playerId=app.groupPlayerFollowupState.playerId;
+  const groupId=app.groupPlayerFollowupState.groupId,playerId=app.groupPlayerFollowupState.playerId;
   const messageInput=app.$('#groupPlayerFollowupMessage');
   const status=app.$('#groupPlayerFollowupMessageStatus');
   const save=app.$('#saveGroupPlayerFollowupMessage');

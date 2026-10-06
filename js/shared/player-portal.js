@@ -100,9 +100,9 @@ app.playerPortalConversationDate = function playerPortalConversationDate(v){
   try{return new Date(v).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch{return String(v)}
 };
 
-app.playerPortalConversationHtml = function playerPortalConversationHtml(rows){
+app.playerPortalConversationHtml = function playerPortalConversationHtml(rows,viewerRole){
   if(!rows?.length)return '<div class="playerPortalConversationEmpty">Aucun message pour le moment.</div>';
-  const ownRole=app.playerPortalState.staffPreview?'coach':'player';
+  const ownRole=viewerRole||(app.playerPortalState.staffPreview?'coach':'player');
   return rows.map(r=>{
     const mine=(r.sender_role||'coach')===ownRole;
     const who=mine?'Moi':(r.author_name||((r.sender_role||'coach')==='player'?'Joueur':'Entraîneur'));
@@ -110,6 +110,40 @@ app.playerPortalConversationHtml = function playerPortalConversationHtml(rows){
     const readState=mine?`<span class="playerPortalMessageReadState">${r.recipient_read?'Lu':'Envoyé'}</span>`:'';
     return `<div class="playerPortalMessageRow ${mine?'mine':''} ${unread?'unread':''}"><div class="playerPortalMessageBubble"><div class="playerPortalMessageMeta">${app.escapeHtml(who)} · ${app.escapeHtml(app.playerPortalConversationDate(r.created_at))}${unread?' · Nouveau':''}${readState}</div><div class="playerPortalMessageText">${app.escapeHtml(r.message||'')}</div></div></div>`;
   }).join('');
+};
+
+// Chargement de conversation partagé (portail joueur et page de suivi coach).
+// `box` est ciblé explicitement pour éviter toute dépendance au contexte de page.
+app.loadConversation = async function loadConversation({box,groupId,playerId,viewerRole,initial=false,forceBottom=false}={}){
+  if(!box||!groupId||!playerId)return;
+  viewerRole=viewerRole==='coach'?'coach':'player';
+  const targetKey=`${groupId}:${playerId}:${viewerRole}`;
+  const targetChanged=box.dataset.conversationKey!==targetKey;
+  const firstLoad=initial||targetChanged||box.dataset.loaded!=='1';
+  const oldHeight=box.scrollHeight;
+  const oldTop=box.scrollTop;
+  const wasNearBottom=oldHeight-oldTop-box.clientHeight<48;
+  if(firstLoad){
+    box.dataset.conversationKey=targetKey;
+    box.dataset.loaded='0';
+    box.innerHTML='<div class="playerPortalConversationEmpty">Chargement…</div>';
+  }
+  const {data,error}=await app.db.rpc('get_player_conversation',{p_group_id:groupId,p_player_id:playerId,p_viewer_role:viewerRole});
+  if(error)throw error;
+  // Un rafraîchissement périodique ne vide jamais la liste : le bloc conserve sa hauteur
+  // jusqu'au moment où le nouveau contenu est prêt, ce qui évite tout déplacement de page.
+  const html=app.playerPortalConversationHtml(data||[],viewerRole);
+  if(box.innerHTML!==html)box.innerHTML=html;
+  box.dataset.loaded='1';
+  if(forceBottom||firstLoad||wasNearBottom)box.scrollTop=box.scrollHeight;
+  else box.scrollTop=Math.max(0,oldTop+(box.scrollHeight-oldHeight));
+  const hadUnread=(data||[]).some(x=>x.is_read===false);
+  if(hadUnread){
+    const {error:readError}=await app.db.rpc('mark_player_conversation_read',{p_group_id:groupId,p_player_id:playerId,p_viewer_role:viewerRole});
+    if(readError)throw readError;
+    await app.refreshMessageNotifications(viewerRole);
+  }
+  return data||[];
 };
 
 app.playerObjectiveDate = function playerObjectiveDate(v){
@@ -639,6 +673,7 @@ app.openPlayerPortal = async function openPlayerPortal(accesses){
   app.$('#playerPortal').classList.remove('hidden');app.$('#homeBtn').classList.add('hidden');app.$('#profileBtn').classList.add('hidden');app.$('#playerSpaceBtn').classList.add('hidden');app.$('#logout').classList.remove('hidden');
   const back=app.$('#playerPortalBackStaff');back?.classList.toggle('hidden',!app.playerPortalState.staffPreview);if(back)back.textContent='← Retour au groupe';
   app.$('#playerPortalStaffPreviewBanner')?.classList.toggle('hidden',!app.playerPortalState.staffPreview);
+  app.$('#playerPortalCoachFollowup')?.classList.toggle('hidden',!app.playerPortalState.staffPreview);
   if(app.$('#playerPortalConversationLabel'))app.$('#playerPortalConversationLabel').textContent=app.playerPortalState.staffPreview?'Échanges avec ce joueur':'Échanges avec les entraîneurs';
   const accountCard=app.$('#playerPortalAccountCard');if(accountCard)accountCard.classList.toggle('hidden',app.playerPortalState.staffPreview);
   if(app.$('#playerPortalAccountEmail'))app.$('#playerPortalAccountEmail').textContent=app.playerPortalState.staffPreview?'':(app.currentUser?.email||'');
@@ -698,7 +733,7 @@ app.groupFollowUpBindStatusPickers = function groupFollowUpBindStatusPickers(){
   controls.forEach(button=>{
     button.onclick=async()=>{
       const row=button.closest('[data-group-objective]');
-      const groupId=app.groupState.currentGroupId,playerId=app.groupPlayerFollowupState.playerId;
+      const groupId=app.groupPlayerFollowupState.groupId,playerId=app.groupPlayerFollowupState.playerId;
       const status=app.$('#groupPlayerFollowupStatus');
       if(!groupId||!playerId||!row)return;
       const objectiveId=row.dataset.groupObjective;
@@ -738,19 +773,19 @@ app.reloadGroupPlayerFollowupObjectives = async function reloadGroupPlayerFollow
       result=await app.db.rpc('get_player_objectives',args);
     }
     if(result.error)throw result.error;
-    if(expectedToken!==undefined&&expectedToken!==app.groupPlayerFollowupState.openToken)return;
+    if(expectedToken!==undefined&&expectedToken!==app.groupPlayerFollowupState.loadToken)return;
     app.groupPlayerFollowupState.objectives=result.data||[];
     box.innerHTML=app.groupFollowUpObjectivesHtml(result.data||[]);
     app.groupFollowUpBindStatusPickers();
   }catch(e){
-    if(expectedToken!==undefined&&expectedToken!==app.groupPlayerFollowupState.openToken)return;
+    if(expectedToken!==undefined&&expectedToken!==app.groupPlayerFollowupState.loadToken)return;
     box.innerHTML='<div class="small">Objectifs indisponibles pour le moment.</div>';
     app.handleError('reload group player followup objectives',e);
   }
 };
 
 app.addGroupPlayerFollowupObjective = async function addGroupPlayerFollowupObjective(){
-  const groupId=app.groupState.currentGroupId,playerId=app.groupPlayerFollowupState.playerId;
+  const groupId=app.groupPlayerFollowupState.groupId,playerId=app.groupPlayerFollowupState.playerId;
   const input=app.$('#groupPlayerFollowupObjectiveNew');
   const status=app.$('#groupPlayerFollowupStatus');
   const button=app.$('#groupPlayerFollowupObjectiveAdd');
@@ -773,26 +808,4 @@ app.addGroupPlayerFollowupObjective = async function addGroupPlayerFollowupObjec
   }finally{if(button)button.disabled=false}
 };
 
-app.sendGroupPlayerFollowupFeedback = async function sendGroupPlayerFollowupFeedback(){
-  const groupId=app.groupState.currentGroupId,playerId=app.groupPlayerFollowupState.playerId;
-  const input=app.$('#groupPlayerFollowupFeedbackNew');
-  const status=app.$('#groupPlayerFollowupStatus');
-  const button=app.$('#groupPlayerFollowupFeedbackSend');
-  if(!groupId||!playerId||!input)return;
-  const text=input.value.trim();
-  if(!text){if(status)status.textContent='Message vide.';return}
-  if(text.length>2000){if(status)status.textContent='Message trop long (2000 caractères maximum).';return}
-  if(button)button.disabled=true;
-  if(status)status.textContent='Envoi du retour…';
-  try{
-    const {error}=await app.db.rpc('send_player_conversation_message',{p_group_id:groupId,p_player_id:playerId,p_message:text,p_sender_role:'coach'});
-    if(error)throw error;
-    input.value='';
-    if(status)status.textContent='Retour envoyé au joueur.';
-    app.setCloud('Synchronisé',true);
-  }catch(e){
-    if(status)status.textContent='Impossible d’envoyer le retour.';
-    app.handleError('send group player followup feedback',e);
-  }finally{if(button)button.disabled=false}
-};
 })(window.KinballCoach.app);
