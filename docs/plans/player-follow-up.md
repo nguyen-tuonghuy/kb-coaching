@@ -23,7 +23,7 @@ Simplifier le modèle visible par l'utilisateur en seulement deux états :
 - Suppression complète des états `En progrès` et `Stabilisé`. Le `stage` et ses anciennes valeurs (`to_work`, `in_progress`, `stabilized`) ne font plus partie du nouveau modèle.
 - Un objectif `status='completed'` doit toujours afficher « Atteint », même si son ancien `stage` vaut `to_work`, `in_progress` ou `stabilized`.
 - Le statut réel en base (`status`) est prioritaire sur tout ancien `stage`.
-- Une seule fonction de dérivation centralisée, conceptuellement : 
+- Une seule fonction de dérivation centralisée, conceptuellement :
   ```js
   function getObjectiveDisplayState(objective) {
     if (objective.status === 'completed') {
@@ -34,7 +34,7 @@ Simplifier le modèle visible par l'utilisateur en seulement deux états :
   ```
   Table unique des labels : `to_work` → `À travailler`, `completed` → `Atteint`.
 - Côté coach, le sélecteur d'état doit être visible dans la fiche joueur : `À travailler | Atteint`, sans dépendre uniquement de la couleur.
-- Cliquer sur `Atteint` appelle la logique de complétion existante (`complete_player_objective`). 
+- Cliquer sur `Atteint` appelle la logique de complétion existante (`complete_player_objective`).
 - Un objectif atteint rouvert revient à `À travailler` (via `reopen_player_objective`).
 - Le bouton séparé « Marquer atteint » côté coach est supprimé.
 - Même interprétation dans la liste joueur, les « Objectifs atteints », le détail et la fiche joueur côté coach.
