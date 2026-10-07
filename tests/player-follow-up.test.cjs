@@ -336,6 +336,48 @@ test('la route de suivi restaure la page depuis l url',async t=>{
   assert.equal(ui.$('#groupPlayerFollowupTabAccess').getAttribute('aria-current'),'page');
 });
 
+test('la ligne du joueur ouvre le suivi et ne garde que les actions du groupe',async t=>{
+  const ui=await setup(t,'index');
+  const app=ui.app;
+  app.groupState.groups=[{id:'g1',name:'Les Bleus',role:'owner'}];
+  app.groupState.currentGroupId='g1';
+  app.groupState.currentPlayers=[
+    {id:'p1',display_name:'Alex',preferred_role:'A',stats_access:'personal'},
+    {id:'p2',display_name:'Sam',preferred_role:'R',stats_access:'group'}
+  ];
+  app.groupState.playerAccess={p1:true};
+  app.groupState.messageNotifications=[];
+  app.messageNotificationFor=()=>null;
+  app.videoNotificationCountFor=()=>0;
+  const opened=[];
+  app.openGroupPlayerFollowup=async id=>{opened.push(id);return true};
+  app.handleError=(label,error)=>{throw error};
+
+  app.renderGroupPlayers();
+  const box=ui.$('#groupPlayersList');
+  assert.equal(box.querySelectorAll('.groupPlayerOpen').length,2);
+  const labels=[...box.querySelectorAll('button')].map(b=>b.textContent.trim());
+  assert.equal(labels.some(text=>text==='Fiche joueur'),false);
+  assert.equal(labels.some(text=>text==='Suivi / droits'),false);
+  assert.deepEqual(labels.filter(text=>['Renommer','Retirer du groupe'].includes(text)),['Renommer','Retirer du groupe','Renommer','Retirer du groupe']);
+
+  const first=box.querySelector('.groupPlayerOpen');
+  assert.equal(first.getAttribute('aria-label'),'Ouvrir le suivi de Alex');
+  assert.match(first.textContent,/Compte joueur lié/);
+  assert.match(box.querySelectorAll('.groupPlayerOpen')[1].textContent,/Accès joueur non encore activé/);
+  first.click();
+  await settle();
+  assert.deepEqual(opened,['p1']);
+
+  app.groupState.groups=[{id:'g1',name:'Les Bleus',role:'member'}];
+  app.renderGroupPlayers();
+  const memberButtons=[...ui.$('#groupPlayersList').querySelectorAll('button')];
+  assert.equal(memberButtons.length,2);
+  assert.equal(memberButtons.every(b=>b.classList.contains('groupPlayerOpen')),true);
+  assert.match(memberButtons[0].textContent,/Alex/);
+  assert.match(memberButtons[1].textContent,/Sam/);
+});
+
 test('un joueur inaccessible affiche un repli explicite',async t=>{
   const ui=await setup(t,'index');
   const app=ui.app;

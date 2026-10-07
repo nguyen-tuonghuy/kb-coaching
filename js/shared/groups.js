@@ -420,16 +420,15 @@ app.renderGroupPlayers = function renderGroupPlayers(){
   app.groupState.currentPlayers.forEach(p=>{
     const d=document.createElement('div');d.className='historyItem';
     const row=document.createElement('div');row.className='row';row.style.alignItems='center';row.style.gap='8px';
-    const info=document.createElement('div');info.style.flex='1';info.style.minWidth='140px';
     const notif=app.messageNotificationFor(app.groupState.currentGroupId,p.id);const unread=Number(notif?.unread_count||0);
     const videoUnread=app.videoNotificationCountFor(app.groupState.currentGroupId,p.id);
     const statsAccessLabel=p.stats_access==='group'?' · Stats groupe en lecture seule':'';
-    info.innerHTML=`<strong>${app.escapeHtml(p.display_name)}${unread?`<span class="groupPlayerUnread">💬 ${unread} nouveau${unread>1?'x':''}</span>`:''}${videoUnread?`<span class="videoUnreadBadge">📹 ${videoUnread}</span>`:''}</strong><div class="small">${app.escapeHtml(roleLabel[p.preferred_role||'AP'])} · ${app.groupState.playerAccess?.[p.id]?'Compte joueur lié':'Accès joueur non encore activé'}${statsAccessLabel}</div>`;
-    const manage=document.createElement('button');manage.type='button';manage.className='ghost';manage.textContent='Suivi / droits';
-    manage.onclick=()=>app.openGroupPlayerFollowup(p.id).catch(e=>app.handleError('open player followup',e));
-    const open=document.createElement('button');open.type='button';open.className='ghost';open.textContent='Fiche joueur';
-    open.onclick=()=>app.openStaffPlayerPortal(p.id).catch(e=>app.handleError('open staff player portal',e));
-    row.append(info,manage,open);
+    const open=document.createElement('button');open.type='button';open.className='ghost groupPlayerOpen';
+    open.style.cssText='flex:1;min-width:140px;text-align:left;white-space:normal;padding:7px 10px';
+    open.innerHTML=`<strong>${app.escapeHtml(p.display_name)}${unread?`<span class="groupPlayerUnread">💬 ${unread} nouveau${unread>1?'x':''}</span>`:''}${videoUnread?`<span class="videoUnreadBadge">📹 ${videoUnread}</span>`:''}</strong><div class="small">${app.escapeHtml(roleLabel[p.preferred_role||'AP'])} · ${app.groupState.playerAccess?.[p.id]?'Compte joueur lié':'Accès joueur non encore activé'}${statsAccessLabel}</div>`;
+    open.setAttribute('aria-label',`Ouvrir le suivi de ${p.display_name}`);
+    open.onclick=()=>app.openGroupPlayerFollowup(p.id).catch(e=>app.handleError('open player followup',e));
+    row.append(open);
     if(canRemove){
       const rename=document.createElement('button');rename.type='button';rename.className='ghost';rename.textContent='Renommer';
       rename.title='Modifier le nom affiché du joueur sans changer son historique';
