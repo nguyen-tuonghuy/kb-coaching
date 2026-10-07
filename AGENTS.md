@@ -197,6 +197,51 @@ Pour les annotations vidéo : `touch-action:none` seulement en mode dessin, scro
 
 ## 8. Vérification proportionnée et preuves
 
+### Validation proportionnée au risque
+
+Le temps consacré à la validation doit rester proportionné au risque du changement. Ne pas passer plus de temps à déboguer l'environnement ou le harnais de test qu'à implémenter le changement lui-même, sauf si le changement est critique.
+
+#### Niveau 1 — changement local simple
+
+Exemples : texte, bouton, CSS, largeur ou espacement, déplacement de markup, petit ajustement UI sans logique métier.
+
+Validation attendue :
+
+- `git diff --check` ;
+- `node --check` uniquement si du JavaScript a été modifié ;
+- test Node existant directement concerné, s'il existe ;
+- inspection structurelle du diff ;
+- validation visuelle manuelle laissée à l'utilisateur si nécessaire.
+
+Ne pas lancer de harnais Chrome, Playwright, JSDOM ou test navigateur personnalisé par défaut.
+
+#### Niveau 2 — changement fonctionnel moyen
+
+Exemples : navigation, changement d'état UI, formulaire, comportement d'un onglet, appel RPC déjà existant.
+
+Validation attendue :
+
+- tests légers ;
+- tests Node ciblés ;
+- éventuellement un test navigateur ciblé s'il apporte une vraie valeur.
+
+Ne pas construire de nouveau framework ou harnais de test si aucun n'existe déjà.
+
+#### Niveau 3 — changement critique ou transversal
+
+Exemples : authentification, droits d'accès, écritures Supabase, migration, workflow complet, logique statistique importante, changement partagé entre plusieurs pages.
+
+Une validation navigateur ou end-to-end plus complète peut être utilisée.
+
+Si un harnais de test échoue pour une modification de niveau 1 ou 2 :
+
+- ne pas déboguer longuement le harnais ;
+- terminer avec les contrôles légers ;
+- signaler ce qui n'a pas pu être validé automatiquement ;
+- laisser la validation visuelle finale à l'utilisateur.
+
+Ne pas rechercher JSDOM, Playwright ou `playwright-core` à chaque tâche. Ne pas installer ces dépendances dans le projet pour une validation ponctuelle.
+
 ### Syntaxe et tests existants
 
 Pour chaque JS externe modifié, exécuter `node --check` sur ce fichier. Exemple :
