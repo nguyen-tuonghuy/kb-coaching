@@ -194,16 +194,36 @@ test('le bundle et les pages ne conservent aucun reliquat du modèle stage',()=>
   for(const stale of ['data-followup-stage','data-group-stage','playerObjectiveStageInfo','playerObjectiveStageOf','playerFollowUpStage','detailStage','followUpStageEdit','p_stage','Objectifs coach en cours']){
     assert.equal(bundle.includes(stale),false,`bundle: ${stale}`);
   }
+  const css=fs.readFileSync(path.join(root,'css/coaching-shared.css'),'utf8');
+  assert.doesNotMatch(css,/\.followupPage\s*\{[^}]*max-width/,'no local max-width for followupPage');
   for(const page of ['index','training']){
     const html=fs.readFileSync(path.join(root,`${page}.html`),'utf8');
     assert.match(html,/<template data-kc-component="groupPlayerFollowupPage"><\/template>/);
     assert.doesNotMatch(html,/Objectifs coach en cours/);
+    const appOpen=html.indexOf('<div class="app">');
+    const followup=html.indexOf('<template data-kc-component="groupPlayerFollowupPage">');
+    const appLastChild=html.indexOf('<template data-kc-component="live">');
+    assert.ok(appOpen>-1&&followup>appOpen&&followup<appLastChild,`${page}.html: followup template must live inside .app`);
   }
   const shell=fs.readFileSync(path.join(root,'js/shared/page-shell.js'),'utf8');
   assert.match(shell,/"groupPlayerFollowupPage"/);
   assert.match(shell,/Objectifs coach/);
   assert.doesNotMatch(shell,/Objectifs coach en cours/);
 });
+
+for(const page of ['index','training']){
+  test(`${page}: #groupPlayerFollowup est monté comme enfant direct du conteneur .app`,async t=>{
+    const ui=await setup(t,page);
+    const section=ui.$('#groupPlayerFollowup');
+    const app=ui.$('.app');
+    assert.ok(section);
+    assert.ok(app);
+    assert.equal(section.parentElement,app);
+    assert.equal(section.closest('.app'),app);
+    assert.equal(ui.w.document.querySelectorAll('#groupPlayerFollowup').length,1);
+    assert.equal(ui.w.document.querySelector('#profilePopup').closest('.app'),null,'popups must stay outside .app');
+  });
+}
 
 test('la migration du suivi reste sans stage et refuse l écriture du texte personnel',()=>{
   const sql=fs.readFileSync(path.join(root,'supabase/migrations/20261005093000_player_objective_follow_up.sql'),'utf8');
