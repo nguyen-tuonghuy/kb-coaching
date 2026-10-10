@@ -606,7 +606,8 @@ app.$('#matchTypeCreateForm').onsubmit=event=>{
 };
 
 if (page === 'training') {
-app.trainingState = {players:[],selections:[],exercises:[],sessionExercises:[],planBlocks:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{},planOrganizerMode:false,planOrganizerSelectedId:null};
+app.trainingState = {players:[],selections:[],exercises:[],sessionExercises:[],planBlocks:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{},planOrganizerMode:false,planOrganizerSelectedId:null,playerLoadToken:0,editorLoadToken:0,groupTransitionToken:0};
+app.initTrainingLocalDrafts();
 }
 
 app.playerPortalState = {accesses:[],groupId:null,matches:[],selected:[],scope:'all',restartLocation:'all',loading:false,view:'home',hasStaffAccess:false,staffPreview:false,staffPlayerId:null,staffReturnGroupId:null,messageNotifications:[],objectives:[],videos:[],videoConfig:null,detailId:null,detailReturnFocus:null,followUp:{enabled:null,demo:null,reviewLoaded:false}};
@@ -873,15 +874,15 @@ if (page === 'training') {
   const input=app.$(sel);
   if(input)input.addEventListener('blur',()=>app.normalizeFrDateField(input));
 });
-app.$('#trainingGroup').onchange=()=>app.fetchTrainingPlayers(app.$('#trainingGroup').value).then(()=>app.renderTrainingExerciseCards()).catch(e=>app.handleError('training group',e));
+app.$('#trainingGroup').onchange=()=>{const select=app.$('#trainingGroup'),next=select.value,previous=app.trainingPreviousGroupId,transition=++app.trainingState.groupTransitionToken;app.captureTrainingResultDraft();if(previous!=null&&previous!==next){select.value=previous;app.checkpointTrainingLocalDraft('Avant changement de groupe');select.value=next}app.trainingLocalState.groupTransition=true;app.trainingPreviousGroupId=next;app.fetchTrainingPlayers(next).then(applied=>{if(transition!==app.trainingState.groupTransitionToken||!applied)return;app.trainingLocalState.groupTransition=false;app.renderTrainingExerciseCards();app.persistTrainingLocalDraft({checkpointReason:'Changement de groupe'})}).catch(e=>{if(transition!==app.trainingState.groupTransitionToken)return;app.trainingLocalState.groupTransition=false;if(previous!=null)select.value=previous;app.handleError('training group',e)})};
 if(app.$('#applyTrainingAttendancePreset'))app.$('#applyTrainingAttendancePreset').onclick=app.applyTrainingAttendancePreset;
 app.$('#historyGroup').onchange=()=>app.fetchTrainingPlayers(app.$('#historyGroup').value).catch(e=>app.handleError('history group',e));
 app.$('#newTraining').onclick=()=>app.startNewTraining().catch(e=>app.handleError('new training',e));
 app.$('#addTrainingPlanBlock').onclick=()=>app.addTrainingPlanBlock();
 app.$('#organizeTrainingPlan').onclick=()=>app.setTrainingPlanOrganizerMode(!app.trainingState.planOrganizerMode);
 app.trainingPlanStartEl = app.$('#trainingPlanStart');
-if(app.trainingPlanStartEl){app.trainingPlanStartEl.addEventListener('change',()=>{app.trainingPlanStartEl.value=app.normalizePlanTime(app.trainingPlanStartEl.value)||'13:30';app.recalculateTrainingPlanTimes();app.renderTrainingPlan()})}
-app.$('#clearTrainingPlan').onclick=()=>{if(!app.trainingState.planBlocks.length||confirm('Vider tout le plan de séance ?')){app.trainingState.planBlocks=[];app.trainingState.planOrganizerSelectedId=null;app.renderTrainingPlan()}};
+if(app.trainingPlanStartEl){app.trainingPlanStartEl.addEventListener('change',()=>{app.captureTrainingPlan();app.trainingPlanStartEl.value=app.normalizePlanTime(app.trainingPlanStartEl.value)||'13:30';app.recalculateTrainingPlanTimes();app.renderTrainingPlan();app.persistTrainingLocalDraft({checkpointReason:'Changement de l’heure de début'})})}
+app.$('#clearTrainingPlan').onclick=()=>{if(!app.trainingState.planBlocks.length||confirm('Vider tout le plan de séance ?')){app.captureTrainingPlan();const document=app.trainingEditorDocument();app.checkpointTrainingLocalDraft('Avant vidage du plan');app.trainingState.planBlocks=[];app.trainingState.planOrganizerSelectedId=null;app.syncPlanStatExercises();app.renderTrainingPlan();app.renderTrainingExerciseCards();app.showTrainingUndo('Plan de séance vidé.',{type:'document',document});app.persistTrainingLocalDraft()}};
 app.trainingNotesEl = app.$('#trainingNotes');
 if(app.trainingNotesEl){app.trainingNotesEl.addEventListener('input',()=>app.autoGrowPlanTextarea(app.trainingNotesEl));app.autoGrowPlanTextarea(app.trainingNotesEl)}
 window.addEventListener('resize',()=>document.querySelectorAll('.trainingPlanNotes textarea,.trainingGeneralNotes,.trainingResultNoteField .tr-note').forEach(app.autoGrowPlanTextarea));

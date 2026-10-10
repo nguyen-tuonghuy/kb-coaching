@@ -1073,14 +1073,15 @@
   <div class="sheetTop">
    <div>
     <h2 id="trainingUnsavedTitle">Modifications non enregistrées</h2>
-    <div class="meta" id="trainingUnsavedHint">Cette séance contient des changements qui ne sont pas encore enregistrés. Quitter maintenant les perdra définitivement.</div>
+     <div class="meta" id="trainingUnsavedHint">Cette séance contient des changements qui ne sont pas encore enregistrés sur le cloud. Tu peux quitter en conservant le brouillon sur cet appareil.</div>
    </div>
    <button class="closePopup" id="closeTrainingUnsaved" aria-label="Fermer">×</button>
   </div>
-  <div class="row" style="margin-top:16px">
-   <button class="primary" style="flex:1" type="button" id="trainingUnsavedStay">Rester sur la séance</button>
-   <button class="ghost dangerAction" style="flex:1" type="button" id="trainingUnsavedDiscard">Quitter sans enregistrer</button>
-  </div>
+   <div class="row trainingUnsavedActions" style="margin-top:16px">
+    <button class="primary" style="flex:1" type="button" id="trainingUnsavedStay">Rester sur la séance</button>
+    <button class="ghost" style="flex:1" type="button" id="trainingUnsavedKeep">Quitter, garder le brouillon</button>
+    <button class="ghost dangerAction" style="flex:1" type="button" id="trainingUnsavedDiscard">Abandonner le brouillon</button>
+   </div>
  </div>
 </div>`,
   "statsHelpBackdrop": `<div class="statsHelpBackdrop hidden" id="statsHelpBackdrop">

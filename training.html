@@ -208,12 +208,14 @@
 
  <section class="panel hidden" id="trainingSession">
    <div class="trainingSessionHead">
-     <div><h2 style="font-size:20px">Nouvelle séance</h2><div class="small">1. Informations · 2. Présents · 3. Exercices · 4. Résultats</div><div class="authStatus" id="trainingSaveStatusHead" aria-hidden="true"></div></div>
-     <div class="trainingSessionActions">
-      <button class="primary" type="button" id="saveTrainingSessionHead">Enregistrer la séance</button>
-      <button class="ghost backNav" id="cancelTraining">← Retour</button>
-     </div>
-   </div>
+     <div><h2 style="font-size:20px">Nouvelle séance</h2><div class="small">1. Informations · 2. Présents · 3. Exercices · 4. Résultats</div><div class="trainingPersistenceStatus" id="trainingLocalStatus" role="status" aria-live="polite">Séance enregistrée sur le cloud</div><div class="authStatus" id="trainingSaveStatusHead" aria-hidden="true"></div></div>
+      <div class="trainingSessionActions">
+       <button class="ghost hidden" type="button" id="openTrainingLocalHistory">Versions locales</button>
+       <button class="primary" type="button" id="saveTrainingSessionHead">Enregistrer la séance</button>
+       <button class="ghost backNav" id="cancelTraining">← Retour</button>
+      </div>
+    </div>
+    <div class="trainingUndoNotice hidden" id="trainingUndoNotice" role="status" aria-live="polite"><span id="trainingUndoMessage"></span><button class="ghost" type="button" id="undoTrainingAction">Annuler</button></div>
    <div class="row">
     <div class="field"><label>Date</label><input id="trainingDate" type="text" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AA" autocomplete="off"></div>
     <div class="field"><label>Groupe</label><select id="trainingGroup"><option value="">— Choisir un groupe —</option></select></div>
@@ -404,6 +406,18 @@
 <template data-kc-component="playerClaimConfirmPopup"></template>
 <template data-kc-component="trainingUnsavedPopup"></template>
 
+<div class="popupBackdrop hidden" id="trainingRecoveryPopup">
+ <div class="sheet" style="max-width:620px" role="dialog" aria-modal="true" aria-labelledby="trainingRecoveryTitle" aria-describedby="trainingRecoveryHint">
+  <div class="sheetTop">
+   <div><h2 id="trainingRecoveryTitle">Brouillons locaux</h2><div class="meta" id="trainingRecoveryHint"></div></div>
+   <button class="closePopup" id="closeTrainingRecovery" type="button" aria-label="Fermer">×</button>
+  </div>
+  <div id="trainingRecoveryBody"></div>
+  <div class="authStatus" id="trainingRecoveryStatus" role="status" aria-live="polite"></div>
+  <div class="row" id="trainingRecoveryActions" style="margin-top:14px"></div>
+ </div>
+</div>
+
 
 <div class="popupBackdrop hidden" id="exerciseEditPopup">
  <div class="sheet">
@@ -497,6 +511,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
 </script>
 <script defer src="js/shared/coaching.bundle.js"></script>
+<script defer src="js/training/local-drafts.js"></script>
 <script defer src="js/training/sessions.js"></script>
 <script defer src="js/training.js"></script>
 

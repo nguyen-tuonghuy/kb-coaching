@@ -150,6 +150,19 @@ async function open(ui,{existing=false,duplicated=false}={}){
   return openNewSession(ui);
 }
 
+async function runAutosave(ui){
+  const timers=[...ui.page.timers.entries()].filter(([,timer])=>timer.kind==='timeout'&&timer.delay===750);
+  for(const [id,timer] of timers){ui.page.timers.delete(id);timer.callback()}
+  await settle();
+}
+
+function serializedDraft(app){
+  const identity=app.trainingDraftIdentity();
+  const raw=app.trainingLocalState.store.read(identity);
+  assert.equal(raw.ok,true);
+  return JSON.parse(JSON.stringify(raw.record));
+}
+
 test('snapshot is deterministic and ignores presentation-only state',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui,{existing:true});
@@ -292,6 +305,18 @@ test('choosing to quit discards the edits and leaves the editor',async t=>{
   assert.equal(ui.page.$('#trainingSession').classList.contains('hidden'),true,
     'the replayed navigation must not reopen the dialog');
   assert.equal(app.trainingSessionIsDirty(),false);
+  assert.equal(app.trainingLocalState.draftId,null,'discard cancels pending local recreation');
+});
+
+test('leaving can preserve the local draft without marking it as cloud-saved',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
+  ui.page.$('#trainingTheme').value='À reprendre';
+  ui.page.$('#trainingTheme').dispatchEvent(new ui.page.w.Event('input',{bubbles:true}));
+  ui.page.$('#cancelTraining').click();await settle();
+  ui.page.$('#trainingUnsavedKeep').click();await settle();await settle();
+  const records=app.trainingLocalState.store.list({userId:'u1',workspaceId:'w1'}).records;
+  assert.equal(records.length,1);assert.equal(records[0].document.fields.theme,'À reprendre');
+  assert.equal(ui.page.$('#trainingSession').classList.contains('hidden'),true);
 });
 
 test('leaving an untouched session never opens the dialog',async t=>{
@@ -391,4 +416,199 @@ test('beforeunload is guarded only while dirty',async t=>{
   const dirty=new ui.page.w.Event('beforeunload',{cancelable:true});
   ui.page.w.dispatchEvent(dirty);
   assert.equal(dirty.defaultPrevented,true);
+});
+
+test('local draft restores three complete blocks, a long note and a drafted block after reload',async t=>{
+  const first={};const second={};t.after(()=>first.page?.close());t.after(()=>second.page?.close());
+  const app=await open(first);
+  app.addTrainingPlanBlock({title:'Bloc 1',details:'Consigne 1',attention:'Attention 1',duration:12,track:'court1'});
+  app.addTrainingPlanBlock({title:'Bloc 2',details:'Consigne 2',attention:'Attention 2',duration:18,track:'court2'});
+  app.addTrainingPlanBlock({title:'Bloc 3',details:'Consigne 3',attention:'Attention 3',duration:20,track:'both'});
+  const longNote=Array.from({length:80},(_,index)=>`Ligne ${index} avec accents et ponctuation.`).join('\n');
+  first.page.$('#trainingNotes').value=longNote;
+  first.page.$('#trainingNotes').dispatchEvent(new first.page.w.Event('input',{bubbles:true}));
+  app.sendTrainingPlanBlockToDraft(app.trainingState.planBlocks[1].id);
+  await runAutosave(first);
+  const record=serializedDraft(app);
+
+  const restored=await open(second);
+  await restored.restoreTrainingDraftRecord(record);
+  assert.equal(restored.trainingState.planBlocks.length,3);
+  assert.equal(restored.trainingState.planBlocks.map(block=>block.title).join(','),'Bloc 1,Bloc 2,Bloc 3');
+  assert.equal(restored.trainingState.planBlocks[1].draft,true);
+  assert.equal(second.page.$('#trainingPlanDraft').textContent.includes('Bloc 2'),true);
+  assert.equal(second.page.$('#trainingNotes').value,longNote);
+});
+
+test('local restoration preserves attendance and exact result values',async t=>{
+  const first={};const second={};t.after(()=>first.page?.close());t.after(()=>second.page?.close());
+  const app=await open(first,{existing:true});
+  first.page.$('.tr-success').value='9';first.page.$('.tr-attempts').value='11';first.page.$('.tr-note').value='Note résultat exacte\nDeuxième ligne';
+  first.page.$('.tr-note').dispatchEvent(new first.page.w.Event('input',{bubbles:true}));
+  first.page.$('#trainingAttendance input[value="p2"]').checked=true;
+  app.persistTrainingLocalDraft();const record=serializedDraft(app);
+
+  const restored=await open(second,{existing:true});
+  restored.beginTrainingLocalDraft({draftId:record.draftId,revision:record.revision,baseUpdatedAt:record.baseUpdatedAt});
+  await restored.applyTrainingEditorDocument(record.document);
+  assert.equal(second.page.$('#trainingAttendance input[value="p2"]').checked,true);
+  assert.equal(second.page.$('.tr-success').value,'9');
+  assert.equal(second.page.$('.tr-attempts').value,'11');
+  assert.equal(second.page.$('.tr-note').value,'Note résultat exacte\nDeuxième ligne');
+});
+
+test('a deleted block can be undone with all of its content',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
+  app.addTrainingPlanBlock({title:'À récupérer',details:'Texte exact',attention:'Point exact',duration:17,track:'court2'});
+  const id=app.trainingState.planBlocks[0].id;
+  app.removeTrainingPlanBlock(id);
+  assert.equal(app.trainingState.planBlocks.length,0);
+  assert.match(ui.page.$('#trainingUndoMessage').textContent,/À récupérer/);
+  ui.page.$('#undoTrainingAction').click();
+  assert.equal(app.trainingState.planBlocks.length,1);
+  assert.equal(app.trainingState.planBlocks[0].details,'Texte exact');
+  assert.equal(app.trainingState.planBlocks[0].attention,'Point exact');
+  assert.equal(app.trainingState.planBlocks[0].track,'court2');
+});
+
+test('a deletion keeps a persistent pre-destructive history revision',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
+  app.addTrainingPlanBlock({title:'Version récupérable',details:'Avant suppression'});
+  app.removeTrainingPlanBlock(app.trainingState.planBlocks[0].id);
+  const record=serializedDraft(app);
+  assert.equal(record.document.planBlocks.length,0);
+  assert.ok(record.history.some(entry=>entry.document.planBlocks.some(block=>block.title==='Version récupérable')));
+  const previous=[...record.history].reverse().find(entry=>entry.document.planBlocks.length);
+  await app.applyTrainingEditorDocument(previous.document,{loadPlayers:false});
+  assert.equal(app.trainingState.planBlocks[0].title,'Version récupérable');
+});
+
+test('successful cloud save closes only the matching local draft',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
+  ui.page.$('#trainingTheme').value='À synchroniser';app.persistTrainingLocalDraft();
+  const identity=app.trainingDraftIdentity();
+  assert.ok(app.trainingLocalState.store.read(identity).record);
+  await app.saveTrainingSession();await settle();
+  assert.equal(app.trainingLocalState.store.read(identity).record,null);
+  assert.equal(ui.page.$('#trainingLocalStatus').textContent,'Séance enregistrée sur le cloud');
+});
+
+test('cloud save preserves historical exercise variant and target fields',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui,{existing:true});
+  app.trainingState.sessionExercises[0].variant='Variante conservée';
+  app.trainingState.sessionExercises[0].target='Cible conservée';
+  await app.saveTrainingSession();await settle();
+  assert.equal(ui.tablesRef.training_session_exercises.length,1);
+  assert.equal(ui.tablesRef.training_session_exercises[0].variant,'Variante conservée');
+  assert.equal(ui.tablesRef.training_session_exercises[0].target,'Cible conservée');
+});
+
+test('failed cloud save preserves the complete local draft',async t=>{
+  const {client}=store({writable:false});const page=await loadPage('training',{client});t.after(()=>page.close());
+  const app=await boot({page});await app.startNewTraining();
+  page.$('#trainingTheme').value='Conserver localement';app.addTrainingPlanBlock({title:'Bloc local'});
+  await app.saveTrainingSession();await settle();
+  const record=serializedDraft(app);
+  assert.equal(record.document.fields.theme,'Conserver localement');
+  assert.equal(record.document.planBlocks[0].title,'Bloc local');
+});
+
+test('edits made during a cloud save remain dirty and locally recoverable',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
+  const gate={};gate.promise=new Promise(resolve=>{gate.resolve=resolve});
+  app.ensureTeam=()=>gate.promise;
+  ui.page.$('#trainingTheme').value='Version envoyée';
+  const saving=app.saveTrainingSession();await settle();
+  ui.page.$('#trainingTheme').value='Modification pendant enregistrement';
+  ui.page.$('#trainingTheme').dispatchEvent(new ui.page.w.Event('input',{bubbles:true}));
+  gate.resolve('t1');await saving;await settle();
+  assert.equal(app.trainingSessionIsDirty(),true);
+  const record=serializedDraft(app);
+  assert.equal(record.document.fields.theme,'Modification pendant enregistrement');
+  assert.ok(record.sessionId,'the new local draft is linked to the inserted session');
+});
+
+test('a newer cloud version stops an existing-session save before child deletion',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui,{existing:true});
+  app.trainingLocalState.baseUpdatedAt='2026-10-01T10:00:00Z';
+  ui.tablesRef.training_sessions=[{id:'s1',updated_at:'2026-10-02T10:00:00Z'}];
+  ui.page.$('#trainingTheme').value='Version locale';
+  await app.saveTrainingSession();await settle();
+  assert.equal(ui.page.$('#trainingRecoveryPopup').classList.contains('hidden'),false);
+  assert.match(ui.page.$('#trainingRecoveryTitle').textContent,/modifiée ailleurs/);
+  assert.equal(ui.tablesRef.training_attendance.length,1,'attendance was not deleted');
+  assert.equal(ui.tablesRef.training_results.length,1,'results were not deleted');
+  assert.equal(app.trainingSessionIsDirty(),true);
+});
+
+test('a local revision written by another tab stops cloud save and cannot be deleted',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
+  ui.page.$('#trainingTheme').value='Premier onglet';app.persistTrainingLocalDraft();
+  const identity=app.trainingDraftIdentity(),current=app.trainingLocalState.store.read(identity).record;
+  const foreignDocument=JSON.parse(JSON.stringify(current.document));foreignDocument.fields.theme='Second onglet';
+  const foreign=app.trainingLocalState.store.write({...current,ownerTabId:'other-tab',expectedRevision:current.revision,document:foreignDocument});
+  assert.equal(foreign.ok,true);
+  await app.saveTrainingSession();await settle();
+  assert.equal(ui.tablesRef.training_sessions.length,0,'cloud write is stopped before insertion');
+  assert.equal(ui.page.$('#trainingRecoveryPopup').classList.contains('hidden'),false);
+  const removal=app.removeCurrentTrainingLocalDraft();
+  assert.equal(removal.ok,false);assert.equal(removal.kind,'conflict');
+  assert.equal(app.trainingLocalState.store.read(identity).record.document.fields.theme,'Second onglet');
+});
+
+test('draft storage isolates users and sessions and detects concurrent revisions',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
+  const repository=app.createTrainingDraftStore(ui.page.w.localStorage);
+  const document=app.trainingEditorDocument();
+  const base={workspaceId:'w1',ownerTabId:'tab-a',expectedRevision:0,meta:{},document};
+  assert.equal(repository.write({...base,userId:'u1',draftId:'draft-a',sessionId:'session-a'}).ok,true);
+  assert.equal(repository.write({...base,userId:'u1',draftId:'draft-b',sessionId:'session-b'}).ok,true);
+  assert.equal(repository.list({userId:'u1',workspaceId:'w1'}).records.length,2);
+  assert.equal(repository.list({userId:'u2',workspaceId:'w1'}).records.length,0);
+  const conflict=repository.write({...base,userId:'u1',draftId:'draft-a',sessionId:'session-a',ownerTabId:'tab-b',expectedRevision:0});
+  assert.equal(conflict.ok,false);assert.equal(conflict.kind,'conflict');
+  assert.equal(repository.read({userId:'u1',workspaceId:'w1',draftId:'draft-b'}).record.sessionId,'session-b');
+});
+
+test('local storage failure is visible and never blocks editing',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
+  const original=app.trainingLocalState.store;
+  app.trainingLocalState.store={...original,write:()=>({ok:false,kind:'storage',error:new Error('quota')})};
+  ui.page.$('#trainingTheme').value='Toujours éditable';
+  assert.doesNotThrow(()=>app.persistTrainingLocalDraft());
+  assert.equal(ui.page.$('#trainingTheme').value,'Toujours éditable');
+  assert.equal(ui.page.$('#trainingLocalStatus').textContent,'Sauvegarde locale impossible');
+});
+
+test('versioned storage bounds history and keeps incompatible data untouched',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
+  const repository=app.createTrainingDraftStore(ui.page.w.localStorage);
+  const document=app.trainingEditorDocument();
+  let revision=0;
+  for(let index=0;index<14;index+=1){
+    document.fields.theme=`Révision ${index}`;
+    const result=repository.write({userId:'u1',workspaceId:'w1',draftId:'history',sessionId:null,ownerTabId:'tab',expectedRevision:revision,meta:{},document},{checkpointReason:`Étape ${index}`,preserveCurrent:true});
+    assert.equal(result.ok,true);revision=result.record.revision;
+  }
+  const saved=repository.read({userId:'u1',workspaceId:'w1',draftId:'history'}).record;
+  assert.equal(saved.history.length,10);
+
+  const incompatibleKey=repository.keyFor({userId:'u1',workspaceId:'w1',draftId:'legacy'});
+  const incompatible=JSON.stringify({schemaVersion:99,userId:'u1',workspaceId:'w1',draftId:'legacy'});
+  ui.page.w.localStorage.setItem(incompatibleKey,incompatible);
+  assert.equal(repository.list({userId:'u1',workspaceId:'w1'}).unreadable.length,1);
+  assert.equal(ui.page.w.localStorage.getItem(incompatibleKey),incompatible);
+});
+
+test('a throwing storage adapter returns an error without deleting recoverable data',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
+  const backing=new Map();
+  const storage={
+    get length(){return backing.size},key:index=>[...backing.keys()][index]??null,
+    getItem:key=>backing.get(key)??null,removeItem:key=>backing.delete(key),
+    setItem(){throw new Error('QuotaExceededError')}
+  };
+  const repository=app.createTrainingDraftStore(storage);
+  const result=repository.write({userId:'u1',workspaceId:'w1',draftId:'quota',sessionId:null,ownerTabId:'tab',expectedRevision:0,meta:{},document:app.trainingEditorDocument()});
+  assert.equal(result.ok,false);assert.equal(result.kind,'storage');assert.equal(backing.size,0);
 });
