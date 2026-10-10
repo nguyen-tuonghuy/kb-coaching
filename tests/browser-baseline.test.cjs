@@ -235,31 +235,29 @@ for(const width of [1440,820,390]){
 }
 
 for(const width of [1440,820,390,320]){
-  test(`training: header save shortcut stays usable at ${width}px`,{timeout:20000},async t=>{
+  test(`training: single finish button stays usable in the sticky header at ${width}px`,{timeout:20000},async t=>{
     const ui=await open(t,'training',width,{populated:true}),page=ui.page;
     await page.waitForFunction(()=>window.KinballCoach.app.trainingState.exercises.length===2);
     await page.locator('#newTraining').click();
     await page.locator('#trainingSession').waitFor({state:'visible'});
     const layout=await page.evaluate(()=>{
-      const head=document.querySelector('#saveTrainingSessionHead');
-      const back=document.querySelector('#cancelTraining');
-      const footer=document.querySelector('#saveTrainingSession');
+      const finish=document.querySelector('#cancelTraining');
+      const head=document.querySelector('.trainingSessionHead');
       const rect=el=>el.getBoundingClientRect();
-      const headRect=rect(head),backRect=rect(back);
+      const finishRect=rect(finish),headRect=rect(head),style=getComputedStyle(head);
       return {
-        headLabel:head.textContent.trim(),footerLabel:footer.textContent.trim(),
-        headLeft:headRect.left,backLeft:backRect.left,
-        sameRow:Math.abs(headRect.top-backRect.top)<2,
-        minHeight:Math.min(headRect.height,backRect.height),
-        clipped:[head,back].some(button=>button.scrollWidth>button.clientWidth+1),
+        label:finish.textContent.trim(),
+        position:style.position,
+        minHeight:finishRect.height,
+        withinHead:finishRect.top>=headRect.top-1&&finishRect.bottom<=headRect.bottom+1,
+        clipped:finish.scrollWidth>finish.clientWidth+1,
         overflow:document.documentElement.scrollWidth>innerWidth
       };
     });
-    assert.equal(layout.headLabel,'Enregistrer la séance');
-    assert.equal(layout.headLabel,layout.footerLabel);
-    assert.ok(layout.headLeft<layout.backLeft,'save is placed left of back');
-    assert.equal(layout.sameRow,true);
+    assert.equal(layout.label,'Terminer l’édition');
+    assert.equal(layout.position,'sticky','the editor header stays reachable while scrolling');
     assert.ok(layout.minHeight>=44);
+    assert.equal(layout.withinHead,true);
     assert.equal(layout.clipped,false);
     assert.equal(layout.overflow,false);
     assert.deepEqual(ui.errors,[]);

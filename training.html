@@ -212,11 +212,10 @@
 
  <section class="panel hidden" id="trainingSession">
    <div class="trainingSessionHead">
-     <div><h2 style="font-size:20px">Nouvelle séance</h2><div class="small">1. Informations · 2. Présents · 3. Exercices · 4. Résultats</div><div class="trainingPersistenceStatus" id="trainingLocalStatus" role="status" aria-live="polite">Séance enregistrée sur le cloud</div><div class="trainingCloudStatus hidden" id="trainingCloudStatus" role="status" aria-live="polite"></div><div class="authStatus" id="trainingSaveStatusHead" aria-hidden="true"></div></div>
+     <div><h2 style="font-size:20px">Nouvelle séance</h2><div class="small">1. Informations · 2. Présents · 3. Exercices · 4. Résultats</div><div class="trainingCloudStatus hidden" id="trainingCloudStatus" role="status" aria-live="polite"></div></div>
       <div class="trainingSessionActions">
        <button class="ghost hidden" type="button" id="openTrainingLocalHistory">Versions locales</button>
-       <button class="primary" type="button" id="saveTrainingSessionHead">Enregistrer la séance</button>
-       <button class="ghost backNav" id="cancelTraining">← Retour</button>
+       <button class="primary" type="button" id="cancelTraining">Terminer l’édition</button>
       </div>
     </div>
     <div class="trainingUndoNotice hidden" id="trainingUndoNotice" role="status" aria-live="polite"><span id="trainingUndoMessage"></span><button class="ghost" type="button" id="undoTrainingAction">Annuler</button></div>
@@ -274,9 +273,7 @@
    </div>
 
    <div id="trainingExerciseCards" class="trainingList" style="margin-top:16px"></div>
-   <button class="primary" id="saveTrainingSession" style="width:100%;margin-top:16px">Enregistrer la séance</button>
-   <div class="authStatus" id="trainingSaveStatus" role="status" aria-live="polite"></div>
- </section>
+  </section>
 
 
 

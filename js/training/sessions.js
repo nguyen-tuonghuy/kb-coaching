@@ -240,6 +240,7 @@ app.applyTrainingLeaseControls=function applyTrainingLeaseControls(){
       control.disabled=false;delete control.dataset.leaseDisabled;
     }
   });
+  app.syncTrainingFinishButton?.();
 };
 
 app.setTrainingLeaseStatus=function setTrainingLeaseStatus(status,{holderUserId=null,holderName='',expiresAt=null}={}){
@@ -392,9 +393,14 @@ app.trainingDraftMeta = function trainingDraftMeta(document){
   return {date:document.fields.date||'',groupId:document.fields.groupId||'',groupName:group?.name||'',theme:document.fields.theme||'',blockCount:document.planBlocks.length};
 };
 
+// Confirmation passive d'un état local (brouillon appareil). Redirigée vers
+// l'indicateur unique sans jamais écraser une erreur, un conflit, un état hors
+// ligne, une sauvegarde en cours ou une séance incomplète.
 app.setTrainingLocalStatus = function setTrainingLocalStatus(text,state='pending'){
-  const status=app.$('#trainingLocalStatus');if(!status)return;
-  status.textContent=text;status.dataset.state=state;
+  if(state==='error'){app.setTrainingCloudStatus('error',{text});return}
+  if(app.TRAINING_SYNC_BLOCKING_STATES.includes(app.trainingCloudState.display))return;
+  if(state==='cloud'){app.setTrainingCloudStatus('saved',{text});return}
+  app.setTrainingCloudStatus(state==='local'?'local':'pending',{text});
 };
 
 app.trainingLocalTime = function trainingLocalTime(value){
@@ -415,7 +421,10 @@ app.beginTrainingLocalDraft = function beginTrainingLocalDraft({draftId=null,rev
   app.$('#trainingUndoNotice')?.classList.add('hidden');
   app.$('#openTrainingLocalHistory')?.classList.add('hidden');
   if(local.storageWarning)app.setTrainingLocalStatus(local.storageWarning,'error');
-  else app.setTrainingLocalStatus(app.trainingState.currentSessionId?'Séance enregistrée sur le cloud':'Modifications en cours…',app.trainingState.currentSessionId?'cloud':'pending');
+  // Une séance existante est synchronisée dès l'ouverture ; une nouvelle séance
+  // reste « idle » tant qu'aucune modification réelle n'a eu lieu (pas de faux
+  // « Modifications en cours… » sur un éditeur ouvert et vierge).
+  else if(app.trainingState.currentSessionId)app.setTrainingCloudStatus('saved',{text:'Séance enregistrée sur le cloud'});
 };
 
 app.trainingDraftCandidate = function trainingDraftCandidate(document){
@@ -533,24 +542,33 @@ app.TRAINING_CLOUD_AUTOSAVE_DELAY=2500;
 app.TRAINING_CLOUD_RETRY_BASE=8000;
 app.TRAINING_CLOUD_RETRY_MAX=60000;
 
-app.trainingCloudState={timer:null,retryTimer:null,backoffMs:0,conflict:null,bound:false};
+app.trainingCloudState={timer:null,retryTimer:null,backoffMs:0,conflict:null,bound:false,display:'idle'};
 
-app.setTrainingCloudStatus=function setTrainingCloudStatus(state){
+// Indicateur de synchronisation unique. Toutes les surfaces lisent cet état :
+// les transitions explicites de sauvegarde (pending/saving/saved/error/conflict/
+// offline/incomplete) font autorité, tandis que les confirmations locales
+// passives (setTrainingLocalStatus/trainingStatus) ne doivent jamais masquer un
+// problème réel — un échec réseau, un conflit ou un enregistrement en cours.
+app.TRAINING_SYNC_BLOCKING_STATES=['error','conflict','offline','saving','incomplete'];
+app.setTrainingCloudStatus=function setTrainingCloudStatus(state,{text=null}={}){
   const status=app.$('#trainingCloudStatus');if(!status)return;
   const labels={
     idle:'',
     pending:'Modifications en cours…',
     saving:'Enregistrement…',
-    saved:'Enregistré sur le cloud',
-    retry:'Nouvel essai dans un instant…',
-    offline:'Hors ligne — modifications conservées',
+    saved:'Séance enregistrée sur le cloud',
+    local:'Brouillon conservé sur cet appareil',
+    retry:'Nouvelle tentative en cours…',
+    offline:'Hors ligne — modifications conservées sur cet appareil',
     error:'Erreur de synchronisation',
-    incomplete:'À compléter',
+    incomplete:'Séance incomplète — non synchronisée',
     conflict:'Séance modifiée ailleurs'
   };
-  status.textContent=labels[state]??'';
+  const message=text==null?(labels[state]??''):text;
+  status.textContent=message;
   status.dataset.state=state;
-  status.classList.toggle('hidden',!labels[state]);
+  app.trainingCloudState.display=state;
+  status.classList.toggle('hidden',!message);
 };
 
 app.stopTrainingCloudTimers=function stopTrainingCloudTimers(){
@@ -613,11 +631,15 @@ app.scheduleTrainingCloudRetry=function scheduleTrainingCloudRetry(){
   cloud.retryTimer=setTimeout(()=>{cloud.retryTimer=null;return app.runTrainingCloudAutosave()},delay);
 };
 
-app.registerTrainingCloudError=function registerTrainingCloudError(){
+// contextMessage : message précis de la sauvegarde manuelle (ex. « réseau
+// indisponible ») à conserver dans l'indicateur unique plutôt que le libellé
+// générique. L'autosauvegarde passe null pour rester sobre.
+app.registerTrainingCloudError=function registerTrainingCloudError(contextMessage=null){
   const cloud=app.trainingCloudState;
   if(cloud.conflict)return;
   const offline=typeof navigator!=='undefined'&&navigator.onLine===false;
-  app.setTrainingCloudStatus(offline?'offline':'error');
+  const text=contextMessage&&String(contextMessage).trim()?String(contextMessage):null;
+  app.setTrainingCloudStatus(offline?'offline':'error',{text});
   app.setCloud(offline?'Hors ligne':'Erreur de synchronisation',false);
   app.scheduleTrainingCloudRetry();
 };
@@ -1045,7 +1067,7 @@ app.confirmTrainingSessionLeave = function confirmTrainingSessionLeave(){
 // Session editor exits are intercepted in one place rather than per handler,
 // so bootstrap.js keeps its wiring and future exits stay covered. Capture phase
 // runs before the existing onclick assignments.
-const TRAINING_SESSION_EXIT_IDS=new Set(['cancelTraining','trainingBackHome','homeBtn','logout']);
+const TRAINING_SESSION_EXIT_IDS=new Set(['trainingBackHome','homeBtn','logout']);
 
 document.addEventListener('click',event=>{
   const box=app.$('#trainingSession');
@@ -1427,8 +1449,19 @@ app.renderTrainingPlan = function renderTrainingPlan(){
   };
 };
 
-app.setTrainingSaveLabels = function setTrainingSaveLabels(text){
-  app.$$('#saveTrainingSessionHead,#saveTrainingSession').forEach(button=>{button.textContent=text});
+// Libellé du bouton unique de sortie : « Terminer l'édition » pour le détenteur
+// du bail, « ← Retour » pour un observateur en lecture seule (aucun envoi).
+app.syncTrainingFinishButton = function syncTrainingFinishButton(){
+  const button=app.$('#cancelTraining');if(!button)return;
+  const readOnly=!!app.trainingState.currentSessionId&&app.trainingLeaseState.status==='readonly';
+  // Le libellé n'est réécrit que s'il change : applyTrainingLeaseControls est
+  // rappelée par un MutationObserver, une écriture systématique du texte
+  // relancerait l'observateur en boucle.
+  const label=readOnly?'← Retour':'Terminer l’édition';
+  if(button.textContent!==label)button.textContent=label;
+  button.classList.toggle('primary',!readOnly);
+  button.classList.toggle('ghost',readOnly);
+  button.classList.toggle('backNav',readOnly);
 };
 
 app.startNewTraining = async function startNewTraining({skipRecovery=false,draftId=null}={}){
@@ -1443,7 +1476,7 @@ app.startNewTraining = async function startNewTraining({skipRecovery=false,draft
   app.resetTrainingSessionContext();
   app.trainingState.resultDraft={};
   app.trainingState.planOrganizerMode=false;app.trainingState.planOrganizerSelectedId=null;
-  app.setTrainingSaveLabels('Enregistrer la séance');
+  app.syncTrainingFinishButton();
   if(!app.groupState.groups.length)await app.fetchMyGroups();
   if(!app.groupState.groups.length){
     alert('Crée ou rejoins d’abord un groupe dans le volet Groupes.');
@@ -2088,7 +2121,7 @@ app.duplicateTrainingSessionById = async function duplicateTrainingSessionById(s
   app.resetTrainingSessionContext();
   app.trainingState.resultDraft={};
   app.trainingState.planOrganizerMode=false;app.trainingState.planOrganizerSelectedId=null;
-  app.setTrainingSaveLabels('Enregistrer la séance');
+  app.syncTrainingFinishButton();
 
   const [{data:attendance,error:ae},{data:sessionExercises,error:xe}]=await Promise.all([
     app.db.from('training_attendance').select('player_id,present').eq('session_id',sessionId),
@@ -2177,7 +2210,7 @@ app.editTrainingSessionById = async function editTrainingSessionById(sessionId,{
   if(app.$('#trainingPlanStart')&&app.trainingState.planBlocks.length){const mins=app.trainingState.planBlocks.filter(b=>!b.draft).map(b=>app.planTimeMinutes(b.start)).filter(x=>x!==99999);if(mins.length)app.$('#trainingPlanStart').value=app.minutesToPlanTime(Math.min(...mins))}
   app.bindLoadedStatsToPlanBlocks();
   app.clearTrainingStatus();
-  app.setTrainingSaveLabels('Enregistrer les modifications');
+  app.syncTrainingFinishButton();
 
   const presentIds=new Set((attendance||[]).filter(a=>a.present).map(a=>a.player_id));
   app.$$('#trainingAttendance input').forEach(c=>c.checked=presentIds.has(c.value));
@@ -2215,19 +2248,16 @@ app.addTrainingPlayers = async function addTrainingPlayers(){
 };
 
 app.trainingStatus = function trainingStatus(text,error=false){
-  // The session editor has a save button in the header and another at the
-  // bottom of a long page. Both surfaces read the same state so a confirmation
-  // is visible wherever the coach currently is, including tablet landscape.
-  // Only the bottom status announces to screen readers, to avoid duplicates.
-  app.$$('#trainingSaveStatus,#trainingSaveStatusHead').forEach(el=>{
-    el.textContent=text||'';
-    el.className='authStatus '+(error?'cloudErr':'cloudOk');
-  });
-  if(error)app.$('#trainingSaveStatus').scrollIntoView?.({block:'nearest',behavior:'smooth'});
+  // Message de sauvegarde manuelle (récupération de brouillon) redirigé vers
+  // l'indicateur unique : une erreur reste prioritaire, une réussite réutilise
+  // l'état synchronisé.
+  app.setTrainingCloudStatus(error?'error':'saved',{text:text||''});
+  if(error)app.$('#trainingCloudStatus')?.scrollIntoView?.({block:'nearest',behavior:'smooth'});
 };
 
 app.clearTrainingStatus = function clearTrainingStatus(){
-  app.$$('#trainingSaveStatus,#trainingSaveStatusHead').forEach(el=>{el.textContent='';el.className='authStatus'});
+  if(app.TRAINING_SYNC_BLOCKING_STATES.includes(app.trainingCloudState.display))return;
+  app.setTrainingCloudStatus('idle');
 };
 
 app.showTrainingSaveConflict = function showTrainingSaveConflict(remoteUpdatedAt){
@@ -2242,8 +2272,15 @@ app.showTrainingSaveConflict = function showTrainingSaveConflict(remoteUpdatedAt
   actions.append(stay,cloud,copy,overwrite);
 };
 
-app.saveTrainingSession = async function saveTrainingSession({forceOverwrite=false,autosave=false}={}){
-  if(app.trainingSaveInFlight)return;
+app.trainingSavePromise=null;
+// Point d'entrée unique : les appels concurrents partagent la même promesse afin
+// de pouvoir attendre la fin d'une sauvegarde déjà en cours (« Terminer l'édition »).
+app.saveTrainingSession = function saveTrainingSession(options={}){
+  if(app.trainingSavePromise)return app.trainingSavePromise;
+  app.trainingSavePromise=app.runTrainingSessionSave(options).finally(()=>{app.trainingSavePromise=null});
+  return app.trainingSavePromise;
+};
+app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwrite=false,autosave=false}={}){
   const existingSessionId=app.trainingState.currentSessionId||null;
   if(existingSessionId&&!app.trainingLeaseCanMutate()){
     if(!autosave)app.trainingStatus('Cette séance est en lecture seule. Passe en édition avant d’enregistrer.',true);
@@ -2254,8 +2291,6 @@ app.saveTrainingSession = async function saveTrainingSession({forceOverwrite=fal
   const operationEpoch=lease.epoch;
   app.trainingSaveInFlight=true;
   app.stopTrainingCloudTimers();
-  const saveButtons=app.$$('#saveTrainingSessionHead,#saveTrainingSession');
-  saveButtons.forEach(button=>{button.disabled=true});
   try{
     app.captureTrainingResultDraft();
     app.captureTrainingPlan();
@@ -2386,7 +2421,7 @@ app.saveTrainingSession = async function saveTrainingSession({forceOverwrite=fal
     app.trainingLocalState.baseUpdatedAt=result.updated_at||null;
     app.trainingLocalState.baseVersion=result.version??null;
     if(!autosave)app.trainingStatus('Séance enregistrée sur le cloud');
-    app.setTrainingSaveLabels('Enregistrer les modifications');
+    app.syncTrainingFinishButton();
     app.setCloud('Synchronisé',true);
     app.clearTrainingCloudConflict();
     app.trainingCloudState.backoffMs=0;
@@ -2406,13 +2441,48 @@ app.saveTrainingSession = async function saveTrainingSession({forceOverwrite=fal
   }catch(e){
     app.persistTrainingLocalDraft({scheduleCloud:false});
     const leaseLost=e?.code==='55000'||/Bail d.edition|verrou/i.test(e?.message||'');
+    const message=e?.message||String(e);
     if(leaseLost&&existingSessionId)await app.loseTrainingSessionLease();
     else if(!existingSessionId&&app.trainingLeaseState.status==='pending')app.setTrainingLeaseStatus('idle');
-    if(!autosave)app.trainingStatus(e.message||String(e),true);
-    if(!leaseLost)app.registerTrainingCloudError(e);
+    if(!autosave)app.trainingStatus(message,true);
+    if(!leaseLost)app.registerTrainingCloudError(autosave?null:message);
     app.handleError('saveTrainingSession',e);
   }
-  finally{app.trainingSaveInFlight=false;saveButtons.forEach(button=>{if(button.dataset.leaseDisabled!=='true')button.disabled=false});app.applyTrainingLeaseControls()}
+  finally{app.trainingSaveInFlight=false;app.applyTrainingLeaseControls()}
+};
+
+// « Terminer l'édition » : tente d'abord de synchroniser, puis ferme l'éditeur en
+// libérant le bail uniquement après la fin de la sauvegarde. Si la synchronisation
+// est impossible, aucune réussite n'est annoncée : le brouillon local est conservé
+// et le coach choisit explicitement de rester ou de partir.
+app.finishTrainingEditing = async function finishTrainingEditing(){
+  const box=app.$('#trainingSession');
+  if(!box||box.classList.contains('hidden'))return app.openTrainingModule();
+  // Observateur en lecture seule : simple retour, aucun envoi ni attente de bail.
+  if(app.trainingState.currentSessionId&&app.trainingLeaseState.status==='readonly')return app.openTrainingModule();
+  app.captureTrainingResultDraft();
+  app.captureTrainingPlan();
+  app.syncPlanStatExercises();
+  // Annule la minuterie de debounce : toute sauvegarde attendue part sans délai.
+  app.stopTrainingCloudTimers();
+  try{
+    if(app.trainingSaveInFlight){
+      // Une sauvegarde est déjà en cours : on attend sa fin sans en lancer une autre.
+      await app.trainingSavePromise;
+    }else if(app.trainingSessionIsDirty()&&app.trainingSessionIsSavable()&&app.trainingLeaseCanMutate()){
+      await app.saveTrainingSession({autosave:true});
+    }
+    // Des modifications ont pu arriver pendant la requête : on réévalue ensuite.
+    if(!app.trainingSessionIsDirty())return app.openTrainingModule();
+  }catch(error){
+    app.handleError('finishTrainingEditing',error);
+  }
+  const recovery=app.$('#trainingRecoveryPopup');
+  if(app.trainingLocalState.conflict||(recovery&&!recovery.classList.contains('hidden')))return;
+  const leave=await app.confirmTrainingSessionLeave();
+  if(!leave)return;
+  await app.releaseTrainingSessionLease();
+  return app.openTrainingModule();
 };
 // The historical UI had a handler pointing to an absent function. Reuse the
 // existing group-scoped read contracts rather than introduce SQL or a new RPC.

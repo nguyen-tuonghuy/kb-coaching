@@ -889,7 +889,7 @@ window.addEventListener('resize',()=>document.querySelectorAll('.trainingPlanNot
 app.duplicateTrainingSessionBtn = app.$('#duplicateTrainingSession');
 if(app.duplicateTrainingSessionBtn)app.duplicateTrainingSessionBtn.onclick=()=>app.openTrainingDuplicate();
 app.$('#trainingDuplicateBack').onclick=()=>app.openTrainingModule();
-app.$('#cancelTraining').onclick=()=>app.openTrainingModule();
+ app.$('#cancelTraining').onclick=()=>app.finishTrainingEditing();
 app.$('#trainingExerciseSelect').onchange=app.updateExistingExerciseFocusUI;
 app.$('#addExistingExercise').onclick=()=>{
   const id=app.$('#trainingExerciseSelect').value;if(!id)return;
@@ -927,9 +927,7 @@ app.$('#confirmExerciseCreate').onclick=()=>app.createExerciseFromPopup().catch(
   const st=app.$('#exerciseCreateStatus');st.textContent=e.message||String(e);st.className='authStatus cloudErr';
   app.handleError('createExercise',e);
 });
-app.$('#saveTrainingSessionHead').onclick=app.saveTrainingSession;
-app.$('#saveTrainingSession').onclick=app.saveTrainingSession;
-app.$('#openTrainingHistory').onclick=()=>app.openTrainingHistory().catch(e=>app.handleError('history',e));
+ app.$('#openTrainingHistory').onclick=()=>app.openTrainingHistory().catch(e=>app.handleError('history',e));
 app.$('#historyBack').onclick=()=>app.openTrainingModule();
 app.$('#historyPlayer').onchange=()=>app.loadPlayerHistory(app.$('#historyPlayer').value).catch(e=>app.handleError('history player',e));
 }

@@ -362,6 +362,8 @@ test('restoring the initial value clears the dirty flag',async t=>{
 test('choosing stay keeps the session and its edits',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui);
+  // Unsyncable session: leaving asks the coach, so « Rester » can be exercised.
+  ui.page.w.document.querySelectorAll('#trainingAttendance input').forEach(input=>{input.checked=false});
   ui.page.$('#trainingTheme').value='Mon theme';
   ui.page.$('#cancelTraining').click();
   await settle();
@@ -377,6 +379,9 @@ test('choosing stay keeps the session and its edits',async t=>{
 test('choosing to quit discards the edits and leaves the editor',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui);
+  // An incomplete session cannot be synchronised: leaving must ask explicitly
+  // instead of silently saving.
+  ui.page.w.document.querySelectorAll('#trainingAttendance input').forEach(input=>{input.checked=false});
   ui.page.$('#trainingTheme').value='Mon theme';
   ui.page.$('#cancelTraining').click();
   await settle();
@@ -391,8 +396,9 @@ test('choosing to quit discards the edits and leaves the editor',async t=>{
   assert.equal(app.trainingLocalState.draftId,null,'discard cancels pending local recreation');
 });
 
-test('leaving can preserve the local draft without marking it as cloud-saved',async t=>{
+test('leaving an unsyncable session can preserve the local draft without marking it as cloud-saved',async t=>{
   const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
+  ui.page.w.document.querySelectorAll('#trainingAttendance input').forEach(input=>{input.checked=false});
   ui.page.$('#trainingTheme').value='À reprendre';
   ui.page.$('#trainingTheme').dispatchEvent(new ui.page.w.Event('input',{bubbles:true}));
   ui.page.$('#cancelTraining').click();await settle();
@@ -435,42 +441,37 @@ test('a successful save clears the dirty flag, a later edit sets it again',async
   assert.equal(app.trainingSessionIsDirty(),true);
   await app.saveTrainingSession();
   await settle();
-  assert.match(ui.page.$('#trainingSaveStatus').textContent,/enregistrée/);
+  assert.match(ui.page.$('#trainingCloudStatus').textContent,/enregistrée/);
   assert.equal(app.trainingSessionIsDirty(),false,'a successful save refreshes the baseline');
   ui.page.$('#trainingTheme').value='Autre theme';
   assert.equal(app.trainingSessionIsDirty(),true);
 });
 
-test('header save mirrors the footer label and saves without opening the leave dialog',async t=>{
+test('the single finish button saves and leaves without opening the leave dialog',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui);
-  const head=ui.page.$('#saveTrainingSessionHead');
-  const footer=ui.page.$('#saveTrainingSession');
-  assert.equal(head.textContent,footer.textContent);
-  assert.equal(head.textContent,'Enregistrer la séance');
+  const finish=ui.page.$('#cancelTraining');
+  assert.equal(finish.textContent,'Terminer l’édition');
   ui.page.$('#trainingTheme').value='Mon theme';
-  head.click();
+  finish.click();
   await settle();
   await settle();
-  assert.match(ui.page.$('#trainingSaveStatus').textContent,/enregistrée/);
-  assert.equal(ui.page.$('#trainingUnsavedPopup').classList.contains('hidden'),true);
+  assert.match(ui.page.$('#trainingCloudStatus').textContent,/enregistrée/);
+  assert.equal(ui.page.$('#trainingUnsavedPopup').classList.contains('hidden'),true,'a saveable session never shows the leave dialog');
   assert.equal(app.trainingSessionIsDirty(),false);
-  assert.equal(head.disabled,false);
-  assert.equal(footer.disabled,false);
-  assert.equal(head.textContent,footer.textContent);
-  assert.equal(head.textContent,'Enregistrer les modifications');
+  assert.equal(ui.page.$('#trainingSession').classList.contains('hidden'),true,'the editor closes after saving');
+  assert.equal(rpcCalls(ui).length,1,'the finish saves exactly once');
 });
 
-test('save controls reject a concurrent submission',async t=>{
+test('concurrent save requests share a single submission',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui);
   ui.page.$('#trainingTheme').value='Mon theme';
-  ui.page.$('#saveTrainingSessionHead').click();
-  ui.page.$('#saveTrainingSession').click();
-  await settle();
+  await Promise.all([app.saveTrainingSession(),app.saveTrainingSession(),app.saveTrainingSession()]);
   await settle();
   const saves=ui.tablesRef.training_sessions.filter(session=>session.theme==='Mon theme');
   assert.equal(saves.length,1);
+  assert.equal(rpcCalls(ui).length,1,'the in-flight promise is reused');
   assert.equal(app.trainingSaveInFlight,false);
 });
 
@@ -484,8 +485,8 @@ test('a refused save keeps the session dirty',async t=>{
   await app.saveTrainingSession();
   await settle();
   assert.ok(mutations.some(m=>m.table==='rpc'&&m.mode==='save_training_session'),'the write was attempted');
-  assert.equal(tables.training_sessions.length,0,'nothing was stored');
-  assert.match(page.$('#trainingSaveStatus').textContent,/refuses rpc/);
+  assert.equal(tables.training_sessions.length,0);
+  assert.match(page.$('#trainingCloudStatus').textContent,/refuses rpc/);
   assert.equal(app.trainingSessionIsDirty(),true,'a refused save must not clear the baseline');
 });
 
@@ -573,7 +574,7 @@ test('successful cloud save closes only the matching local draft',async t=>{
   assert.ok(app.trainingLocalState.store.read(identity).record);
   await app.saveTrainingSession();await settle();
   assert.equal(app.trainingLocalState.store.read(identity).record,null);
-  assert.equal(ui.page.$('#trainingLocalStatus').textContent,'Séance enregistrée sur le cloud');
+  assert.equal(ui.page.$('#trainingCloudStatus').textContent,'Séance enregistrée sur le cloud');
 });
 
 test('cloud save preserves historical exercise variant and target fields',async t=>{
@@ -660,7 +661,7 @@ test('local storage failure is visible and never blocks editing',async t=>{
   ui.page.$('#trainingTheme').value='Toujours éditable';
   assert.doesNotThrow(()=>app.persistTrainingLocalDraft());
   assert.equal(ui.page.$('#trainingTheme').value,'Toujours éditable');
-  assert.equal(ui.page.$('#trainingLocalStatus').textContent,'Sauvegarde locale impossible');
+  assert.equal(ui.page.$('#trainingCloudStatus').textContent,'Sauvegarde locale impossible');
 });
 
 test('versioned storage bounds history and keeps incompatible data untouched',async t=>{
@@ -818,7 +819,7 @@ test('returning to the other tab stops local writes in this tab',async t=>{
   ui.page.$('#trainingTheme').value='Écrit après abandon';
   app.persistTrainingLocalDraft();
   assert.equal(app.trainingLocalState.store.read(identity).record.revision,revision,'no write happens after conceding');
-  assert.match(ui.page.$('#trainingLocalStatus').textContent,/n’enregistre plus/);
+  assert.match(ui.page.$('#trainingCloudStatus').textContent,/n’enregistre plus/);
 });
 
 test('two distinct drafts for the same session are distinguished from the same-draft conflict',async t=>{
@@ -878,8 +879,9 @@ test('local drafts stay visible even when a Supabase query errors',async t=>{
     'the failed query never deletes the local draft');
 });
 
-test('leaving a dirty session lists its draft on the home without manual refresh',async t=>{
+test('leaving an unsyncable dirty session lists its draft on the home without manual refresh',async t=>{
   const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
+  ui.page.w.document.querySelectorAll('#trainingAttendance input').forEach(input=>{input.checked=false});
   ui.page.$('#trainingTheme').value='Séance en cours';
   ui.page.$('#trainingTheme').dispatchEvent(new ui.page.w.Event('input',{bubbles:true}));
   await runAutosave(ui);
@@ -968,7 +970,7 @@ test('creating a session sends one RPC and writes no table directly',async t=>{
   const app=await open(ui);
   ui.page.$('#trainingTheme').value='Via RPC';
   await app.saveTrainingSession();await settle();
-  assert.equal(ui.page.$('#trainingSaveStatus').textContent,'Séance enregistrée sur le cloud');
+  assert.equal(ui.page.$('#trainingCloudStatus').textContent,'Séance enregistrée sur le cloud');
   assert.equal(ui.tablesRef.training_sessions.length,1);
   assert.equal(ui.tablesRef.training_sessions[0].version,1);
   const calls=rpcCalls(ui);
@@ -1059,7 +1061,7 @@ test('an RPC failure keeps the session dirty and the local draft intact',async t
     ?{data:null,error:{message:'réseau indisponible'}}:real(name,params));
   ui.page.$('#trainingTheme').value='À conserver localement';
   await app.saveTrainingSession();await settle();
-  assert.match(ui.page.$('#trainingSaveStatus').textContent,/réseau indisponible/);
+  assert.match(ui.page.$('#trainingCloudStatus').textContent,/réseau indisponible/);
   assert.equal(ui.tablesRef.training_sessions.length,0);
   assert.equal(app.trainingSessionIsDirty(),true);
   assert.equal(serializedDraft(app).document.fields.theme,'À conserver localement');
@@ -1301,6 +1303,8 @@ test('a manual save on conflict still opens the resolution dialog directly',asyn
 test('leaving the editor with unsynced changes preserves the draft',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui,{existing:true});
+  // Force the unsyncable path so leaving asks the coach instead of auto-saving.
+  ui.page.$('#trainingAttendance input[value="p1"]').checked=false;
   editTheme(ui,'Non synchronisé');
   ui.page.$('#cancelTraining').click();
   await settle();
@@ -1347,7 +1351,7 @@ test('an existing session whose team cannot be resolved keeps the draft and repo
   editTheme(ui,'Équipe absente');
   await app.saveTrainingSession();await settle();
   assert.equal(rpcCalls(ui).length,0,'nothing is written without a resolvable team');
-  assert.match(ui.page.$('#trainingSaveStatus').textContent,/Équipe de la séance introuvable/);
+  assert.match(ui.page.$('#trainingCloudStatus').textContent,/Équipe de la séance introuvable/);
   const draft=serializedDraft(app);
   assert.equal(draft.document.fields.theme,'Équipe absente','the local draft is preserved');
   assert.equal(draft.sessionId,'s1');
@@ -1458,7 +1462,7 @@ test('creating a session returns its lease atomically before another cloud save'
   assert.equal(rpcCalls(ui).at(-1).values.p_lease_token,token,'subsequent writes present the issued token');
 });
 
-test('leaving is blocked while initial creation is waiting for its atomic lease',async t=>{
+test('finishing while the initial creation is in flight waits for the lease before leaving',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui);editTheme(ui,'Création en cours');
   const realRpc=app.db.rpc;let release;
@@ -1468,10 +1472,77 @@ test('leaving is blocked while initial creation is waiting for its atomic lease'
   const saving=app.saveTrainingSession();await settle();
   assert.equal(app.trainingLeaseState.status,'pending');
   ui.page.$('#cancelTraining').click();await settle();
-  assert.equal(ui.page.$('#trainingSession').classList.contains('hidden'),false,'navigation stays in the editor');
-  assert.match(ui.page.$('#trainingSaveStatus').textContent,/confirmation de création/);
-  release();await saving;await settle();
-  assert.equal(app.trainingLeaseState.status,'owned');
+  assert.equal(ui.page.$('#trainingSession').classList.contains('hidden'),false,'navigation waits for the in-flight creation');
+  assert.equal(app.trainingSaveInFlight,true,'the creation is still the only save in flight');
+  release();await saving;await settle();await settle();
+  assert.equal(rpcCalls(ui).length,1,'the in-flight creation is not duplicated');
+  assert.equal(ui.page.$('#trainingSession').classList.contains('hidden'),true,'the editor closes once the creation completes');
+  assert.equal(app.trainingLeaseState.status,'idle','closing releases the lease');
+});
+
+// --- Bouton unique « Terminer l'édition » ------------------------------------
+
+test('finishing a synced session leaves without any new save',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  assert.equal(rpcCalls(ui).length,0);
+  ui.page.$('#cancelTraining').click();await settle();await settle();
+  assert.equal(ui.page.$('#trainingSession').classList.contains('hidden'),true);
+  assert.equal(rpcCalls(ui).length,0,'a clean session is never re-sent');
+  assert.equal(app.trainingLeaseState.status,'idle','the lease is released on leaving');
+});
+
+test('finishing during the autosave debounce flushes the pending edit once',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui);
+  editTheme(ui,'Envoi immédiat');
+  assert.equal(cloudStatus(ui),'pending','the debounce is armed but not fired');
+  ui.page.$('#cancelTraining').click();await settle();await settle();
+  assert.equal(rpcCalls(ui).length,1,'the pending edit is flushed exactly once');
+  assert.equal(ui.page.$('#trainingSession').classList.contains('hidden'),true);
+  assert.equal(ui.page.$('#trainingUnsavedPopup').classList.contains('hidden'),true);
+});
+
+test('finishing re-checks an edit made while the save was in flight',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui);
+  const real=app.db.rpc;let release;const gate=new Promise(resolve=>{release=resolve});
+  app.db.rpc=async(name,params)=>{if(name==='save_training_session')await gate;return real(name,params)};
+  editTheme(ui,'Première');
+  const saving=app.saveTrainingSession();await settle();
+  ui.page.$('#cancelTraining').click();await settle();
+  editTheme(ui,'Pendant l’attente');
+  release();await saving;await settle();await settle();
+  assert.equal(ui.page.$('#trainingSession').classList.contains('hidden'),false,'an edit during the wait keeps the editor open');
+  assert.equal(ui.page.$('#trainingUnsavedPopup').classList.contains('hidden'),false,'the coach is asked about the new edit');
+  assert.equal(app.trainingSessionIsDirty(),true);
+});
+
+test('finishing with a failing save keeps the draft and never reports synchronised',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui);
+  const real=app.db.rpc;
+  app.db.rpc=async(name,params)=>(name==='save_training_session'?{data:null,error:{message:'réseau indisponible'}}:real(name,params));
+  editTheme(ui,'À conserver');
+  ui.page.$('#cancelTraining').click();await settle();await settle();
+  assert.equal(ui.page.$('#trainingSession').classList.contains('hidden'),false,'the editor stays open when the save failed');
+  assert.ok(['error','offline'].includes(cloudStatus(ui)),'no false synchronised state');
+  assert.equal(app.trainingSessionIsDirty(),true);
+  assert.equal(serializedDraft(app).document.fields.theme,'À conserver','the draft is preserved');
+});
+
+test('a read-only observer sees Retour and leaves without saving',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  await app.releaseTrainingSessionLease();
+  ui.tablesRef.training_session_leases.push({session_id:'s1',user_id:'u1',instance_id:'other-tab',lease_token:'other-token',expires_at:'2026-03-04T10:01:30.000Z'});
+  await app.acquireTrainingSessionLease('s1');await settle();
+  assert.equal(app.trainingLeaseState.status,'readonly');
+  assert.equal(ui.page.$('#cancelTraining').textContent,'← Retour');
+  const before=rpcCalls(ui).length;
+  ui.page.$('#cancelTraining').click();await settle();await settle();
+  assert.equal(ui.page.$('#trainingSession').classList.contains('hidden'),true);
+  assert.equal(rpcCalls(ui).length,before,'a read-only observer never saves');
 });
 
 test('training-live sends instance and token headers and PostgreSQL guards all live writes',()=>{

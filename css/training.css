@@ -1,27 +1,18 @@
 @import url("coaching-shared.css");
 
 /* Page-specific layout and interaction variants. */
-.trainingSessionHead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+/* En-tête collant : le bouton unique « Terminer l'édition » reste atteignable en
+   haut d'une longue page, sur mobile et tablette. */
+.trainingSessionHead{position:sticky;top:0;z-index:20;background:var(--panel);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
 
 .trainingSessionActions{display:flex;gap:8px;flex-wrap:wrap;align-items:stretch}
 
-/* Mirror of the bottom save status, inside the header. Keeps the header compact
-   until a save actually reports something. */
-#trainingSaveStatusHead:empty{margin-top:0;min-height:0}
-
-.trainingPersistenceStatus{margin-top:5px;font-size:12px;font-weight:700;color:var(--muted)}
-
-.trainingPersistenceStatus[data-state="pending"]::before{content:'● ';color:var(--warning)}
-
-.trainingPersistenceStatus[data-state="local"]::before{content:'✓ ';color:var(--success)}
-
-.trainingPersistenceStatus[data-state="error"]::before{content:'! ';color:var(--danger)}
-
-.trainingPersistenceStatus[data-state="cloud"]::before{content:'☁ ';color:var(--info)}
-
-/* Dedicated cloud autosave indicator. Kept separate from the local-draft status so
-   the coach always distinguishes "saved on this device" from "synced to the cloud". */
+/* Indicateur de synchronisation unique (cloud, brouillon local, erreur). */
 .trainingCloudStatus{margin-top:3px;font-size:12px;font-weight:700;color:var(--muted)}
+
+.trainingCloudStatus[data-state="local"]{color:var(--success)}
+
+.trainingCloudStatus[data-state="local"]::before{content:'✓ ';color:var(--success)}
 
 .trainingCloudStatus::before{content:'☁ ';color:var(--info)}
 
