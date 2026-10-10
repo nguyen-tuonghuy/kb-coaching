@@ -19,6 +19,62 @@
 
 .trainingPersistenceStatus[data-state="cloud"]::before{content:'☁ ';color:var(--info)}
 
+/* Dedicated cloud autosave indicator. Kept separate from the local-draft status so
+   the coach always distinguishes "saved on this device" from "synced to the cloud". */
+.trainingCloudStatus{margin-top:3px;font-size:12px;font-weight:700;color:var(--muted)}
+
+.trainingCloudStatus::before{content:'☁ ';color:var(--info)}
+
+.trainingCloudStatus[data-state="pending"]{color:var(--warning)}
+
+.trainingCloudStatus[data-state="pending"]::before{content:'● ';color:var(--warning)}
+
+.trainingCloudStatus[data-state="saving"]{color:var(--info)}
+
+.trainingCloudStatus[data-state="saving"]::before{content:'⟳ ';color:var(--info)}
+
+.trainingCloudStatus[data-state="saved"]{color:var(--success)}
+
+.trainingCloudStatus[data-state="saved"]::before{content:'✓ ';color:var(--success)}
+
+.trainingCloudStatus[data-state="retry"]{color:var(--warning)}
+
+.trainingCloudStatus[data-state="retry"]::before{content:'● ';color:var(--warning)}
+
+.trainingCloudStatus[data-state="offline"]{color:var(--warning)}
+
+.trainingCloudStatus[data-state="offline"]::before{content:'⚠ ';color:var(--warning)}
+
+.trainingCloudStatus[data-state="error"]{color:var(--danger)}
+
+.trainingCloudStatus[data-state="error"]::before{content:'! ';color:var(--danger)}
+
+.trainingCloudStatus[data-state="incomplete"]{color:var(--muted)}
+
+.trainingCloudStatus[data-state="incomplete"]::before{content:'○ ';color:var(--muted)}
+
+.trainingCloudStatus[data-state="conflict"]{color:var(--danger)}
+
+.trainingCloudStatus[data-state="conflict"]::before{content:'! ';color:var(--danger)}
+
+.trainingCloudConflictNotice{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;padding:9px 11px;border:1px solid var(--danger);border-radius:11px;background:var(--panel2);font-size:13px;font-weight:700}
+
+.trainingCloudConflictNotice::before{content:'! ';color:var(--danger)}
+
+.trainingCloudConflictNotice button{flex:none;min-height:38px}
+
+.trainingLockNotice{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;padding:9px 11px;border:1px solid var(--line);border-radius:11px;background:var(--panel2);font-size:13px;font-weight:700}
+
+.trainingLockNotice[data-state="owned"]{border-color:var(--success);color:var(--success)}
+
+.trainingLockNotice[data-state="pending"],.trainingLockNotice[data-state="available"]{border-color:var(--warning)}
+
+.trainingLockNotice[data-state="readonly"],.trainingLockNotice[data-state="lost"],.trainingLockNotice[data-state="error"]{border-color:var(--danger)}
+
+.trainingLockNotice button{flex:none;min-height:38px}
+
+#trainingSession.trainingReadOnly input:disabled,#trainingSession.trainingReadOnly select:disabled,#trainingSession.trainingReadOnly textarea:disabled{opacity:.78;cursor:not-allowed}
+
 .trainingUndoNotice{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;padding:9px 11px;border:1px solid var(--line);border-radius:11px;background:var(--panel2);font-size:13px;font-weight:700}
 
 .trainingUndoNotice button{flex:none;min-height:38px}

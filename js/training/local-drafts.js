@@ -24,6 +24,7 @@
       &&typeof record.draftId==='string'&&!!record.draftId
       &&Number.isInteger(record.revision)&&record.revision>=1
       &&typeof record.savedAt==='string'&&validDocument(record.document)
+      &&Boolean(record.baseVersion==null||Number.isInteger(record.baseVersion))
       &&Array.isArray(record.history);
   }
 
@@ -96,6 +97,7 @@
         sessionId:candidate.sessionId||null,
         sourceSessionId:candidate.sourceSessionId||null,
         baseUpdatedAt:candidate.baseUpdatedAt||null,
+        baseVersion:candidate.baseVersion==null?null:candidate.baseVersion,
         ownerTabId:candidate.ownerTabId||null,
         revision:(existing?.revision||0)+1,
         savedAt:new Date().toISOString(),

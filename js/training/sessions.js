@@ -35,6 +35,7 @@ app.populateTrainingAttendancePreset = function populateTrainingAttendancePreset
 };
 
 app.applyTrainingAttendancePreset = function applyTrainingAttendancePreset(){
+  if(!app.trainingLeaseCanMutate())return;
   const select=app.$('#trainingAttendancePreset'),status=app.$('#trainingAttendancePresetStatus');if(!select)return;
   const selectionId=select.value||'';
   const selection=selectionId?(app.trainingState.selections||[]).find(s=>s.id===selectionId):null;
@@ -62,6 +63,7 @@ app.fetchTrainingExercises = async function fetchTrainingExercises({withProfiles
 };
 
 app.openTrainingModule = async function openTrainingModule(){
+  await app.releaseTrainingSessionLease();
   // Afficher immédiatement la page : les données arrivent ensuite sans bloquer le clic.
   app.hideMainModules();
   app.setMatchHeaderMode(false);app.$('#trainingHome').classList.remove('hidden');
@@ -96,13 +98,14 @@ app.openTrainingModule = async function openTrainingModule(){
 
 app.renderTrainingAttendance = function renderTrainingAttendance(){
   const box=app.$('#trainingAttendance'); if(!box)return; box.innerHTML='';
-  if(!app.trainingState.players.length){box.innerHTML='<div class="small">Aucun joueur enregistré pour le moment.</div>';return}
+  if(!app.trainingState.players.length){box.innerHTML='<div class="small">Aucun joueur enregistré pour le moment.</div>';app.applyTrainingLeaseControls?.();return}
   app.trainingState.players.forEach(p=>{
     const l=document.createElement('label');l.className='check';
     const c=document.createElement('input');c.type='checkbox';c.value=p.id;c.dataset.name=p.display_name;c.checked=true;
     c.onchange=app.renderTrainingExerciseCards;
     l.append(c,document.createTextNode(p.display_name));box.append(l);
   });
+  app.applyTrainingLeaseControls?.();
 };
 
 app.trainingPresentPlayers = function trainingPresentPlayers(){
@@ -186,9 +189,181 @@ app.trainingSessionIsDirty = function trainingSessionIsDirty(){
 };
 
 app.trainingLocalState={
-  store:null,draftId:null,revision:0,baseUpdatedAt:null,sourceSessionId:null,
+  store:null,draftId:null,revision:0,baseUpdatedAt:null,baseVersion:null,sourceSessionId:null,
   timer:null,suppressed:false,tabId:null,ignored:new Set(),undo:null,
   channel:null,initialized:false,conflict:false,lastCheckpointAt:0,storageWarning:'',groupTransition:false
+};
+
+// Contexte de la séance éditée. Une séance historique peut appartenir à un workspace
+// différent du workspace actif : sa team doit rester celle de son workspace d'origine.
+// Réinitialisé à chaque nouvelle séance, duplication ou changement de séance pour ne
+// jamais réutiliser un contexte périmé.
+app.resetTrainingSessionContext=function resetTrainingSessionContext(){
+  app.trainingState.sessionWorkspaceId=null;
+  app.trainingState.sessionTeamId=null;
+};
+
+// --- Bail d'edition exclusif (Lot C2) --------------------------------------
+app.TRAINING_LEASE_HEARTBEAT_DELAY=30000;
+app.TRAINING_LEASE_POLL_DELAY=15000;
+app.trainingLeaseState={
+  status:'idle',sessionId:null,instanceId:null,token:null,holderUserId:null,holderName:'',
+  expiresAt:null,epoch:0,heartbeatTimer:null,pollTimer:null,lost:false,bound:false
+};
+
+app.trainingLeaseCanMutate=function trainingLeaseCanMutate(){
+  const lease=app.trainingLeaseState;
+  if(!app.trainingState.currentSessionId)return lease.status==='idle';
+  return lease.status==='owned'&&lease.sessionId===app.trainingState.currentSessionId&&!!lease.token&&!lease.lost;
+};
+
+app.stopTrainingLeaseTimers=function stopTrainingLeaseTimers(){
+  const lease=app.trainingLeaseState;
+  if(lease.heartbeatTimer){clearTimeout(lease.heartbeatTimer);lease.heartbeatTimer=null}
+  if(lease.pollTimer){clearTimeout(lease.pollTimer);lease.pollTimer=null}
+};
+
+app.applyTrainingLeaseControls=function applyTrainingLeaseControls(){
+  const box=app.$('#trainingSession');if(!box)return;
+  const readOnly=!app.trainingLeaseCanMutate();
+  box.classList.toggle('trainingReadOnly',readOnly);
+  box.dataset.leaseState=app.trainingLeaseState.status;
+  const inspectButton=button=>button.id==='cancelTraining'||button.id==='openTrainingLocalHistory'
+    ||button.id==='trainingLockAction'||button.id==='resolveTrainingConflict'
+    ||button.id==='resolveTrainingCloudConflict'||button.classList.contains('trainingPlanToggle')
+    ||button.hasAttribute('data-close');
+  box.querySelectorAll('input,select,textarea,button').forEach(control=>{
+    if(control.tagName==='BUTTON'&&inspectButton(control))return;
+    if(readOnly){
+      if(!control.disabled){control.disabled=true;control.dataset.leaseDisabled='true'}
+    }else if(control.dataset.leaseDisabled==='true'){
+      control.disabled=false;delete control.dataset.leaseDisabled;
+    }
+  });
+};
+
+app.setTrainingLeaseStatus=function setTrainingLeaseStatus(status,{holderUserId=null,holderName='',expiresAt=null}={}){
+  const lease=app.trainingLeaseState,notice=app.$('#trainingLockNotice');
+  lease.status=status;lease.holderUserId=holderUserId;lease.holderName=holderName||'';lease.expiresAt=expiresAt||null;
+  const labels={
+    idle:'',pending:'Vérification du droit d’édition…',owned:'Modification exclusive active',
+    readonly:`En cours de modification par ${holderName||'un autre entraîneur'}.`,
+    available:'La séance est disponible pour modification.',
+    lost:'Verrou d’édition perdu. Tes modifications sont conservées sur cet appareil.',
+    error:'Impossible de vérifier le verrou. Tes modifications sont conservées sur cet appareil.'
+  };
+  if(notice){
+    notice.dataset.state=status;notice.classList.toggle('hidden',status==='idle');
+    const message=app.$('#trainingLockMessage');if(message)message.textContent=labels[status]||'';
+    const action=app.$('#trainingLockAction');
+    if(action){
+      const actionable=['readonly','available','lost','error'].includes(status);
+      action.classList.toggle('hidden',!actionable);
+      action.textContent=status==='available'?'Passer en edition':'Actualiser';
+    }
+  }
+  app.applyTrainingLeaseControls();
+};
+
+app.renewTrainingSessionLease=async function renewTrainingSessionLease(){
+  const lease=app.trainingLeaseState;
+  if(lease.status!=='owned'||!lease.token)return false;
+  const epoch=lease.epoch,sessionId=lease.sessionId,token=lease.token,instanceId=lease.instanceId;
+  try{
+    const {data,error}=await app.db.rpc('renew_training_session_lease',{
+      p_session_id:sessionId,p_instance_id:instanceId,p_lease_token:token
+    });
+    if(epoch!==lease.epoch||sessionId!==lease.sessionId||token!==lease.token)return false;
+    if(error)throw error;
+    const result=Array.isArray(data)?data[0]:data;
+    if(result?.status!=='renewed'){await app.loseTrainingSessionLease();return false}
+    lease.expiresAt=result.expires_at||null;app.scheduleTrainingLeaseHeartbeat();return true;
+  }catch(_){
+    if(epoch===lease.epoch&&sessionId===lease.sessionId&&token===lease.token)await app.loseTrainingSessionLease();
+    return false;
+  }
+};
+
+app.scheduleTrainingLeaseHeartbeat=function scheduleTrainingLeaseHeartbeat(){
+  const lease=app.trainingLeaseState;
+  if(lease.status!=='owned'||!lease.token)return;
+  if(lease.heartbeatTimer)clearTimeout(lease.heartbeatTimer);
+  lease.heartbeatTimer=setTimeout(()=>{lease.heartbeatTimer=null;return app.renewTrainingSessionLease()},app.TRAINING_LEASE_HEARTBEAT_DELAY);
+};
+
+app.scheduleTrainingLeasePoll=function scheduleTrainingLeasePoll(){
+  const lease=app.trainingLeaseState;
+  if(!lease.sessionId||lease.status==='owned'||lease.status==='pending'||lease.status==='available')return;
+  if(lease.pollTimer)clearTimeout(lease.pollTimer);
+  const epoch=lease.epoch,sessionId=lease.sessionId;
+  lease.pollTimer=setTimeout(async()=>{
+    lease.pollTimer=null;
+    try{
+      const {data,error}=await app.db.rpc('get_training_session_lease',{p_session_id:sessionId});
+      if(epoch!==lease.epoch||sessionId!==lease.sessionId)return;
+      if(error)throw error;
+      const result=Array.isArray(data)?data[0]:data;
+      if(result?.status==='free')app.setTrainingLeaseStatus('available');
+      else app.setTrainingLeaseStatus('readonly',{holderUserId:result?.holder_user_id,holderName:result?.holder_name,expiresAt:result?.expires_at});
+    }catch(_){if(epoch===lease.epoch)app.setTrainingLeaseStatus('error')}
+    app.scheduleTrainingLeasePoll();
+  },app.TRAINING_LEASE_POLL_DELAY);
+};
+
+app.acquireTrainingSessionLease=async function acquireTrainingSessionLease(sessionId){
+  const lease=app.trainingLeaseState;
+  if(!sessionId)return false;
+  app.stopTrainingLeaseTimers();
+  const epoch=++lease.epoch;
+  lease.sessionId=sessionId;lease.token=null;lease.lost=false;
+  app.setTrainingLeaseStatus('pending');
+  try{
+    const {data,error}=await app.db.rpc('acquire_training_session_lease',{
+      p_session_id:sessionId,p_instance_id:lease.instanceId
+    });
+    if(epoch!==lease.epoch||sessionId!==lease.sessionId)return false;
+    if(error)throw error;
+    const result=Array.isArray(data)?data[0]:data;
+    if(result?.status==='acquired'&&result.lease_token){
+      lease.token=result.lease_token;lease.expiresAt=result.expires_at||null;
+      app.setTrainingLeaseStatus('owned',{expiresAt:lease.expiresAt});
+      app.scheduleTrainingLeaseHeartbeat();
+      return true;
+    }
+    app.setTrainingLeaseStatus('readonly',{holderUserId:result?.holder_user_id,holderName:result?.holder_name,expiresAt:result?.expires_at});
+    app.scheduleTrainingLeasePoll();
+    return false;
+  }catch(_){
+    if(epoch!==lease.epoch)return false;
+    app.setTrainingLeaseStatus('error');app.scheduleTrainingLeasePoll();return false;
+  }
+};
+
+app.loseTrainingSessionLease=async function loseTrainingSessionLease(){
+  const lease=app.trainingLeaseState;
+  if(lease.status==='lost'&&lease.lost)return;
+  // Capturer les champs DOM avant tout disable/rendu : les saisies en cours ne doivent
+  // jamais etre perdues si un heartbeat ou une sauvegarde constate la perte du bail.
+  app.captureTrainingResultDraft();app.captureTrainingPlan();app.syncPlanStatExercises();
+  app.persistTrainingLocalDraft({checkpointReason:'Perte du verrou',scheduleCloud:false});
+  app.stopTrainingCloudTimers();app.stopTrainingLeaseTimers();
+  ++lease.epoch;lease.token=null;lease.lost=true;
+  app.setTrainingLeaseStatus('lost');app.scheduleTrainingLeasePoll();
+};
+
+app.releaseTrainingSessionLease=async function releaseTrainingSessionLease(){
+  const lease=app.trainingLeaseState;
+  const sessionId=lease.sessionId,instanceId=lease.instanceId,token=lease.token;
+  app.stopTrainingLeaseTimers();++lease.epoch;
+  lease.sessionId=null;lease.token=null;lease.expiresAt=null;lease.lost=false;
+  app.setTrainingLeaseStatus('idle');
+  if(!sessionId||!instanceId||!token)return false;
+  try{
+    const {data,error}=await app.db.rpc('release_training_session_lease',{
+      p_session_id:sessionId,p_instance_id:instanceId,p_lease_token:token
+    });
+    return !error&&data===true;
+  }catch(_){return false}
 };
 
 app.trainingEditorDocument = function trainingEditorDocument({capture=true}={}){
@@ -227,13 +402,16 @@ app.trainingLocalTime = function trainingLocalTime(value){
   return Number.isNaN(date.getTime())?'':date.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
 };
 
-app.beginTrainingLocalDraft = function beginTrainingLocalDraft({draftId=null,revision=0,baseUpdatedAt=null,sourceSessionId=null}={}){
+app.beginTrainingLocalDraft = function beginTrainingLocalDraft({draftId=null,revision=0,baseUpdatedAt=null,baseVersion=null,sourceSessionId=null}={}){
   const local=app.trainingLocalState;
   if(local.timer){clearTimeout(local.timer);local.timer=null}
   local.draftId=draftId||app.newUuid();local.revision=revision;local.baseUpdatedAt=baseUpdatedAt||null;
-  local.sourceSessionId=sourceSessionId||null;local.suppressed=false;local.conflict=null;local.undo=null;
+  local.baseVersion=baseVersion==null?null:baseVersion;local.sourceSessionId=sourceSessionId||null;local.suppressed=false;local.conflict=null;local.undo=null;
   local.lastCheckpointAt=Date.now();
   app.hideTrainingConflictBanner();
+  app.stopTrainingCloudTimers();
+  app.clearTrainingCloudConflict();
+  app.setTrainingCloudStatus(app.trainingState.currentSessionId?'saved':'idle');
   app.$('#trainingUndoNotice')?.classList.add('hidden');
   app.$('#openTrainingLocalHistory')?.classList.add('hidden');
   if(local.storageWarning)app.setTrainingLocalStatus(local.storageWarning,'error');
@@ -243,21 +421,35 @@ app.beginTrainingLocalDraft = function beginTrainingLocalDraft({draftId=null,rev
 app.trainingDraftCandidate = function trainingDraftCandidate(document){
   const identity=app.trainingDraftIdentity();if(!identity)return null;
   return {...identity,sessionId:app.trainingState.currentSessionId||null,sourceSessionId:app.trainingLocalState.sourceSessionId||null,
+    baseVersion:app.trainingLocalState.baseVersion==null?null:app.trainingLocalState.baseVersion,
     baseUpdatedAt:app.trainingLocalState.baseUpdatedAt||null,ownerTabId:app.trainingLocalState.tabId,
     expectedRevision:app.trainingLocalState.revision,meta:app.trainingDraftMeta(document),document};
 };
 
-app.trainingDocumentHasLocalOnlyResults = function trainingDocumentHasLocalOnlyResults(document){
-  const present=new Set(document.attendance.filter(item=>item.present).map(item=>String(item.playerId)));
-  const active=new Set();
-  document.sessionExercises.forEach(ex=>present.forEach(playerId=>active.add(app.trainingDraftKey(ex.localKey,playerId))));
-  return Object.entries(document.resultDraft).some(([key,draft])=>!active.has(key)&&Object.values(draft||{}).some(value=>String(value??'')!==''));
+// Détecte si des résultats ont réellement changé pendant la requête RPC : on compare
+// le brouillon de résultats capturé avant l'envoi à l'état courant (toutes les clés).
+// Un résultat préexistant simplement absent du paquet (joueur devenu absent, exercice
+// retiré, résidu de brouillon restauré) n'est PAS une modification : le comparer à sa
+// simple présence dans le document produisait un faux brouillon après un save réussi.
+app.trainingResultsChangedDuringSave = function trainingResultsChangedDuringSave(capturedDocument){
+  app.captureTrainingResultDraft();
+  const before=(capturedDocument&&capturedDocument.resultDraft)||{};
+  const after=app.trainingState.resultDraft||{};
+  const keys=new Set([...Object.keys(before),...Object.keys(after)]);
+  for(const key of keys){
+    if(JSON.stringify(before[key]??null)!==JSON.stringify(after[key]??null))return true;
+  }
+  return false;
 };
 
-app.persistTrainingLocalDraft = function persistTrainingLocalDraft({checkpointReason='',preserveCurrent=false}={}){
+app.persistTrainingLocalDraft = function persistTrainingLocalDraft({checkpointReason='',preserveCurrent=false,scheduleCloud=true}={}){
   const local=app.trainingLocalState;
   if(local.timer){clearTimeout(local.timer);local.timer=null}
   if(local.suppressed||local.groupTransition||app.$('#trainingSession')?.classList.contains('hidden'))return {ok:true,skipped:true};
+  // Programme l'autosauvegarde cloud sauf si l'on est déjà dans une sauvegarde : le
+  // flux de save gère lui-même la réussite, le conflit ou le réessai, pour éviter
+  // deux minuteries concurrentes et une double requête.
+  if(scheduleCloud&&!app.trainingSaveInFlight)app.scheduleTrainingCloudSave();
   const document=app.trainingEditorDocument(),candidate=app.trainingDraftCandidate(document);
   if(!candidate)return {ok:false,kind:'context'};
   const result=local.store.write(candidate,{checkpointReason,preserveCurrent});
@@ -285,7 +477,7 @@ app.scheduleTrainingLocalDraft = function scheduleTrainingLocalDraft(){
   if(local.timer)clearTimeout(local.timer);
   local.timer=setTimeout(()=>{
     const checkpoint=local.revision>0&&Date.now()-local.lastCheckpointAt>=30000?'Révision de saisie':'';
-    app.persistTrainingLocalDraft({checkpointReason:checkpoint});
+    app.persistTrainingLocalDraft({checkpointReason:checkpoint,scheduleCloud:false});
   },750);
 };
 
@@ -319,6 +511,7 @@ app.showTrainingUndo = function showTrainingUndo(message,undo){
 };
 
 app.undoTrainingAction = function undoTrainingAction(){
+  if(!app.trainingLeaseCanMutate())return;
   const undo=app.trainingLocalState.undo;if(!undo)return;
   app.trainingLocalState.undo=null;app.$('#trainingUndoNotice').classList.add('hidden');
   if(undo.type==='block'){
@@ -330,6 +523,147 @@ app.undoTrainingAction = function undoTrainingAction(){
     app.renderTrainingExerciseCards();
   }
   app.persistTrainingLocalDraft({checkpointReason:'Annulation'});
+};
+
+// --- Autosauvegarde cloud (Lot C1) -----------------------------------------
+// Chaque modification est enregistrée automatiquement ~2,5 s après la dernière
+// frappe. La sauvegarde manuelle reste disponible. Rien n'est enregistré sans
+// changement réel, jamais deux RPC simultanées, jamais de p_force automatique.
+app.TRAINING_CLOUD_AUTOSAVE_DELAY=2500;
+app.TRAINING_CLOUD_RETRY_BASE=8000;
+app.TRAINING_CLOUD_RETRY_MAX=60000;
+
+app.trainingCloudState={timer:null,retryTimer:null,backoffMs:0,conflict:null,bound:false};
+
+app.setTrainingCloudStatus=function setTrainingCloudStatus(state){
+  const status=app.$('#trainingCloudStatus');if(!status)return;
+  const labels={
+    idle:'',
+    pending:'Modifications en cours…',
+    saving:'Enregistrement…',
+    saved:'Enregistré sur le cloud',
+    retry:'Nouvel essai dans un instant…',
+    offline:'Hors ligne — modifications conservées',
+    error:'Erreur de synchronisation',
+    incomplete:'À compléter',
+    conflict:'Séance modifiée ailleurs'
+  };
+  status.textContent=labels[state]??'';
+  status.dataset.state=state;
+  status.classList.toggle('hidden',!labels[state]);
+};
+
+app.stopTrainingCloudTimers=function stopTrainingCloudTimers(){
+  const cloud=app.trainingCloudState;
+  if(cloud.timer){clearTimeout(cloud.timer);cloud.timer=null}
+  if(cloud.retryTimer){clearTimeout(cloud.retryTimer);cloud.retryTimer=null}
+};
+
+app.scheduleTrainingCloudSave=function scheduleTrainingCloudSave({delay=null}={}){
+  const cloud=app.trainingCloudState;
+  const box=app.$('#trainingSession');
+  if(!box||box.classList.contains('hidden'))return;
+  if(!app.trainingLeaseCanMutate())return;
+  if(cloud.conflict)return;
+  if(app.trainingLocalState.suppressed||app.trainingLocalState.groupTransition)return;
+  if(!app.currentUser?.id)return;
+  app.stopTrainingCloudTimers();
+  const wait=delay==null?app.TRAINING_CLOUD_AUTOSAVE_DELAY:delay;
+  cloud.timer=setTimeout(()=>{cloud.timer=null;return app.runTrainingCloudAutosave()},wait);
+  if(!app.trainingSaveInFlight)app.setTrainingCloudStatus('pending');
+};
+
+// Mêmes contrôles métier que la sauvegarde manuelle, évalués sans message d'erreur :
+// une séance incomplète reste « À compléter » et n'ouvre jamais de dialogue.
+app.trainingSessionIsSavable=function trainingSessionIsSavable(){
+  const document=app.trainingEditorDocument();
+  if(!document.fields.groupId)return false;
+  if(!app.groupState.groups.some(group=>group.id===document.fields.groupId))return false;
+  if(!document.attendance.some(item=>item.present))return false;
+  if(document.sessionExercises.some(ex=>app.isDualExercise(ex)&&!ex.focus))return false;
+  return true;
+};
+
+app.runTrainingCloudAutosave=async function runTrainingCloudAutosave(){
+  const cloud=app.trainingCloudState;
+  cloud.timer=null;
+  const box=app.$('#trainingSession');
+  if(!box||box.classList.contains('hidden'))return;
+  if(!app.trainingLeaseCanMutate())return;
+  if(cloud.conflict)return;
+  if(app.trainingLocalState.suppressed||app.trainingLocalState.groupTransition)return;
+  if(app.trainingSaveInFlight)return;
+  if(!app.currentUser?.id)return;
+  if(!app.trainingSessionIsDirty()){
+    app.setTrainingCloudStatus(app.trainingState.currentSessionId?'saved':'idle');
+    return;
+  }
+  if(!app.trainingSessionIsSavable()){app.setTrainingCloudStatus('incomplete');return}
+  await app.saveTrainingSession({autosave:true});
+};
+
+app.scheduleTrainingCloudRetry=function scheduleTrainingCloudRetry(){
+  const cloud=app.trainingCloudState;
+  if(!app.trainingLeaseCanMutate())return;
+  if(cloud.conflict)return;
+  if(!app.trainingSessionIsDirty())return;
+  if(cloud.retryTimer){clearTimeout(cloud.retryTimer);cloud.retryTimer=null}
+  const delay=cloud.backoffMs?Math.min(cloud.backoffMs*2,app.TRAINING_CLOUD_RETRY_MAX):app.TRAINING_CLOUD_RETRY_BASE;
+  cloud.backoffMs=delay;
+  cloud.retryTimer=setTimeout(()=>{cloud.retryTimer=null;return app.runTrainingCloudAutosave()},delay);
+};
+
+app.registerTrainingCloudError=function registerTrainingCloudError(){
+  const cloud=app.trainingCloudState;
+  if(cloud.conflict)return;
+  const offline=typeof navigator!=='undefined'&&navigator.onLine===false;
+  app.setTrainingCloudStatus(offline?'offline':'error');
+  app.setCloud(offline?'Hors ligne':'Erreur de synchronisation',false);
+  app.scheduleTrainingCloudRetry();
+};
+
+app.showTrainingCloudConflictBanner=function showTrainingCloudConflictBanner(){
+  app.$('#trainingCloudConflictNotice')?.classList.remove('hidden');
+};
+app.hideTrainingCloudConflictBanner=function hideTrainingCloudConflictBanner(){
+  app.$('#trainingCloudConflictNotice')?.classList.add('hidden');
+};
+app.registerTrainingCloudConflict=function registerTrainingCloudConflict(remoteUpdatedAt){
+  const cloud=app.trainingCloudState;
+  cloud.conflict={remoteUpdatedAt:remoteUpdatedAt||null};
+  app.stopTrainingCloudTimers();
+  app.setTrainingCloudStatus('conflict');
+  app.showTrainingCloudConflictBanner();
+};
+app.clearTrainingCloudConflict=function clearTrainingCloudConflict(){
+  const cloud=app.trainingCloudState;
+  if(!cloud.conflict)return;
+  cloud.conflict=null;
+  cloud.backoffMs=0;
+  app.hideTrainingCloudConflictBanner();
+};
+
+app.markTrainingEdited=function markTrainingEdited(){
+  if(!app.trainingLeaseCanMutate())return;
+  app.scheduleTrainingLocalDraft();
+  app.scheduleTrainingCloudSave();
+};
+
+app.initTrainingCloudAutosave=function initTrainingCloudAutosave(){
+  const cloud=app.trainingCloudState;if(cloud.bound)return;cloud.bound=true;
+  window.addEventListener('online',()=>{
+    if(!app.trainingLeaseCanMutate())return;
+    if(cloud.conflict)return;
+    if(!app.trainingSessionIsDirty())return;
+    cloud.backoffMs=0;
+    app.stopTrainingCloudTimers();
+    app.scheduleTrainingCloudSave({delay:0});
+  });
+  window.addEventListener('offline',()=>{
+    if(cloud.conflict)return;
+    if(!app.trainingSessionIsDirty())return;
+    app.setTrainingCloudStatus('offline');
+  });
 };
 
 app.applyTrainingEditorDocument = async function applyTrainingEditorDocument(document,{loadPlayers=true}={}){
@@ -373,7 +707,7 @@ app.openTrainingRecoveryDialog = function openTrainingRecoveryDialog(title,hint)
 };
 
 app.fetchTrainingSessionParent = async function fetchTrainingSessionParent(sessionId){
-  const {data,error}=await app.db.from('training_sessions').select('id,trained_on,label,theme,duration_minutes,notes,created_at,updated_at,created_by,updated_by,group_id').eq('id',sessionId).maybeSingle();
+  const {data,error}=await app.db.from('training_sessions').select('id,trained_on,label,theme,duration_minutes,notes,created_at,updated_at,created_by,updated_by,group_id,version,workspace_id,team_id').eq('id',sessionId).maybeSingle();
   if(error)throw error;if(!data)return null;
   const previous=app.trainingState.recentSessions.find(session=>session.id===sessionId)||{};
   const source={...previous,...data};
@@ -407,7 +741,13 @@ app.restoreTrainingDraftRecord = async function restoreTrainingDraftRecord(recor
     if(!source)throw new Error('La séance enregistrée liée à ce brouillon est introuvable.');
     await app.editTrainingSessionById(record.sessionId,{skipRecovery:true});
   }else await app.startNewTraining({skipRecovery:true});
-  app.beginTrainingLocalDraft({draftId:record.draftId,revision:record.revision,baseUpdatedAt:asCopy?null:record.baseUpdatedAt,sourceSessionId:asCopy?(record.sessionId||record.sourceSessionId):record.sourceSessionId});
+  // La séance restaurée conserve le workspace/team historiques de la séance liée.
+  // Une restauration « comme copie » est une nouvelle séance : contexte laissé vide.
+  if(record.sessionId&&!asCopy&&source){
+    app.trainingState.sessionWorkspaceId=source.workspace_id??null;
+    app.trainingState.sessionTeamId=source.team_id??null;
+  }
+  app.beginTrainingLocalDraft({draftId:record.draftId,revision:record.revision,baseUpdatedAt:asCopy?null:record.baseUpdatedAt,baseVersion:asCopy?null:(source?.version??record.baseVersion),sourceSessionId:asCopy?(record.sessionId||record.sourceSessionId):record.sourceSessionId});
   await app.applyTrainingEditorDocument(record.document);
   app.scheduleTrainingLocalDraft();
   app.refreshTrainingLocalHome();
@@ -566,7 +906,7 @@ app.resumeTrainingFromLatest = async function resumeTrainingFromLatest(){
   }
   if(!record)throw new Error('Aucune autre version locale n’est disponible.');
   app.closeTrainingRecoveryDialog();
-  app.beginTrainingLocalDraft({draftId:record.draftId,revision:record.revision,baseUpdatedAt:record.baseUpdatedAt||null,sourceSessionId:record.sourceSessionId||null});
+  app.beginTrainingLocalDraft({draftId:record.draftId,revision:record.revision,baseUpdatedAt:record.baseUpdatedAt||null,baseVersion:record.baseVersion??app.trainingLocalState.baseVersion,sourceSessionId:record.sourceSessionId||null});
   await app.applyTrainingEditorDocument(record.document);
   app.persistTrainingLocalDraft({checkpointReason:'Reprise après conflit'});
   app.hideTrainingConflictBanner();
@@ -575,9 +915,9 @@ app.resumeTrainingFromLatest = async function resumeTrainingFromLatest(){
 
 app.forkCurrentTrainingDraft = function forkCurrentTrainingDraft(){
   const local=app.trainingLocalState;
-  const baseUpdatedAt=local.baseUpdatedAt||null,sourceSessionId=local.sourceSessionId||null;
+  const baseUpdatedAt=local.baseUpdatedAt||null,baseVersion=local.baseVersion,sourceSessionId=local.sourceSessionId||null;
   app.closeTrainingRecoveryDialog();
-  app.beginTrainingLocalDraft({draftId:app.newUuid(),revision:0,baseUpdatedAt,sourceSessionId});
+  app.beginTrainingLocalDraft({draftId:app.newUuid(),revision:0,baseUpdatedAt,baseVersion,sourceSessionId});
   app.persistTrainingLocalDraft({checkpointReason:'Brouillon distinct'});
   app.hideTrainingConflictBanner();
   app.refreshTrainingLocalHome();
@@ -585,21 +925,50 @@ app.forkCurrentTrainingDraft = function forkCurrentTrainingDraft(){
 
 app.initTrainingLocalDrafts = function initTrainingLocalDrafts(){
   const local=app.trainingLocalState;if(local.initialized)return;local.initialized=true;
+  app.resetTrainingSessionContext();
+  // Identite par document : sessionStorage est clone lors d'une duplication d'onglet
+  // dans plusieurs navigateurs et ne garantit donc pas l'exclusivite inter-instance.
   local.tabId=app.newUuid();
+  app.trainingLeaseState.instanceId=local.tabId;
   local.store=app.createTrainingDraftStore();
   const originalShowSignedOut=app.showSignedOut;
-  app.showSignedOut=function showSignedOutWithTrainingDraft(){app.persistTrainingLocalDraft();local.suppressed=true;return originalShowSignedOut.apply(this,arguments)};
-  app.$('#trainingSession')?.addEventListener('input',app.scheduleTrainingLocalDraft);
-  app.$('#trainingSession')?.addEventListener('change',app.scheduleTrainingLocalDraft);
+  app.showSignedOut=function showSignedOutWithTrainingDraft(){app.persistTrainingLocalDraft({scheduleCloud:false});local.suppressed=true;return originalShowSignedOut.apply(this,arguments)};
+  app.$('#trainingSession')?.addEventListener('input',app.markTrainingEdited);
+  app.$('#trainingSession')?.addEventListener('change',app.markTrainingEdited);
   const groupSelect=app.$('#trainingGroup');
   groupSelect?.addEventListener('focus',()=>{app.trainingPreviousGroupId=groupSelect.value});
   groupSelect?.addEventListener('pointerdown',()=>{app.trainingPreviousGroupId=groupSelect.value});
   app.$('#undoTrainingAction').onclick=app.undoTrainingAction;app.$('#openTrainingLocalHistory').onclick=app.openTrainingLocalHistory;
   app.$('#resolveTrainingConflict').onclick=app.openTrainingConflictResolution;
+  app.$('#resolveTrainingCloudConflict').onclick=()=>app.showTrainingSaveConflict(app.trainingCloudState.conflict?.remoteUpdatedAt||null);
+  app.$('#trainingLockAction').onclick=()=>{
+    const sessionId=app.trainingLeaseState.sessionId||app.trainingState.currentSessionId;
+    if(sessionId)app.acquireTrainingSessionLease(sessionId).catch(error=>app.handleError('training lease acquire',error));
+  };
+  app.initTrainingCloudAutosave();
   app.$('#closeTrainingRecovery').onclick=app.closeTrainingRecoveryDialog;
   app.$('#trainingRecoveryPopup').onclick=event=>{if(event.target===app.$('#trainingRecoveryPopup'))app.closeTrainingRecoveryDialog()};
-  document.addEventListener('visibilitychange',()=>{if(document.hidden)app.persistTrainingLocalDraft()});
-  window.addEventListener('pagehide',()=>app.persistTrainingLocalDraft());
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden){app.persistTrainingLocalDraft({scheduleCloud:false});return}
+    const lease=app.trainingLeaseState;
+    if(lease.status==='owned'&&lease.sessionId&&lease.token){
+      app.stopTrainingLeaseTimers();void app.renewTrainingSessionLease();
+    }
+  });
+  window.addEventListener('pagehide',()=>{app.persistTrainingLocalDraft({scheduleCloud:false});void app.releaseTrainingSessionLease()});
+  app.$('#trainingSession')?.addEventListener('click',event=>{
+    if(app.trainingLeaseCanMutate())return;
+    const button=event.target.closest('button');
+    if(button&&(button.id==='cancelTraining'||button.id==='openTrainingLocalHistory'||button.id==='trainingLockAction'
+      ||button.id==='resolveTrainingConflict'||button.id==='resolveTrainingCloudConflict'
+      ||button.classList.contains('trainingPlanToggle')||button.hasAttribute('data-close')))return;
+    if(event.target.closest('input,select,textarea,button')){event.preventDefault();event.stopImmediatePropagation()}
+  },true);
+  if(typeof MutationObserver==='function'){
+    const observer=new MutationObserver(()=>app.applyTrainingLeaseControls());
+    observer.observe(app.$('#trainingSession'),{childList:true,subtree:true});
+    app.trainingLeaseObserver=observer;
+  }
   if(typeof BroadcastChannel==='function'){
     local.channel=new BroadcastChannel('kinball-training-drafts');
     local.channel.onmessage=event=>{
@@ -680,15 +1049,23 @@ const TRAINING_SESSION_EXIT_IDS=new Set(['cancelTraining','trainingBackHome','ho
 
 document.addEventListener('click',event=>{
   const box=app.$('#trainingSession');
-  if(!box||box.classList.contains('hidden')||!app.trainingSessionIsDirty())return;
+  if(!box||box.classList.contains('hidden'))return;
   const target=event.target;
   const id=target?.closest?.('[id]')?.id||'';
   const link=target?.closest?.('a[href]');
   if(!TRAINING_SESSION_EXIT_IDS.has(id)&&!link)return;
+  if(app.trainingSaveInFlight&&app.trainingLeaseState.status==='pending'){
+    event.preventDefault();event.stopImmediatePropagation();
+    app.trainingStatus('Attends la confirmation de création de la séance avant de quitter.',true);
+    return;
+  }
+  const dirty=app.trainingSessionIsDirty();
+  if(!dirty&&app.trainingLeaseState.status!=='owned')return;
   event.preventDefault();
   event.stopImmediatePropagation();
-  app.confirmTrainingSessionLeave().then(leave=>{
+  (dirty?app.confirmTrainingSessionLeave():Promise.resolve(true)).then(async leave=>{
     if(!leave)return;
+    await app.releaseTrainingSessionLease();
     // Replay the intended navigation once the user accepted the loss.
     if(id)app.$('#'+id)?.click();
     else link?.click();
@@ -696,7 +1073,7 @@ document.addEventListener('click',event=>{
 },true);
 
 window.addEventListener('beforeunload',event=>{
-  if(!app.trainingSessionIsDirty())return;
+  if(!app.trainingSessionIsDirty()&&!(app.trainingSaveInFlight&&app.trainingLeaseState.status==='pending'))return;
   event.preventDefault();
   event.returnValue='';
 });
@@ -873,19 +1250,20 @@ app.captureTrainingPlan = function captureTrainingPlan(){
   app.syncPlanStatExercises();
 };
 
-app.addTrainingPlanBlock = function addTrainingPlanBlock(seed={}){app.captureTrainingPlan();app.trainingState.planBlocks.push(app.newPlanBlock(seed));app.recalculateTrainingPlanTimes();app.renderTrainingPlan();app.persistTrainingLocalDraft({checkpointReason:'Ajout d’un bloc'});};
+app.addTrainingPlanBlock = function addTrainingPlanBlock(seed={}){if(!app.trainingLeaseCanMutate())return;app.captureTrainingPlan();app.trainingState.planBlocks.push(app.newPlanBlock(seed));app.recalculateTrainingPlanTimes();app.renderTrainingPlan();app.persistTrainingLocalDraft({checkpointReason:'Ajout d’un bloc'});};
 
-app.moveTrainingPlanBlock = function moveTrainingPlanBlock(id,delta){app.captureTrainingPlan();const i=app.trainingState.planBlocks.findIndex(x=>x.id===id);const j=i+delta;if(i<0||j<0||j>=app.trainingState.planBlocks.length)return;[app.trainingState.planBlocks[i],app.trainingState.planBlocks[j]]=[app.trainingState.planBlocks[j],app.trainingState.planBlocks[i]];app.recalculateTrainingPlanTimes();app.renderTrainingPlan();app.persistTrainingLocalDraft({checkpointReason:'Réorganisation du plan'});};
+app.moveTrainingPlanBlock = function moveTrainingPlanBlock(id,delta){if(!app.trainingLeaseCanMutate())return;app.captureTrainingPlan();const i=app.trainingState.planBlocks.findIndex(x=>x.id===id);const j=i+delta;if(i<0||j<0||j>=app.trainingState.planBlocks.length)return;[app.trainingState.planBlocks[i],app.trainingState.planBlocks[j]]=[app.trainingState.planBlocks[j],app.trainingState.planBlocks[i]];app.recalculateTrainingPlanTimes();app.renderTrainingPlan();app.persistTrainingLocalDraft({checkpointReason:'Réorganisation du plan'});};
 
-app.duplicateTrainingPlanBlock = function duplicateTrainingPlanBlock(id){app.captureTrainingPlan();const i=app.trainingState.planBlocks.findIndex(x=>x.id===id);if(i<0)return;const src=app.trainingState.planBlocks[i];app.trainingState.planBlocks.splice(i+1,0,{...src,id:app.newUuid(),expanded:false});app.recalculateTrainingPlanTimes();app.syncPlanStatExercises();app.renderTrainingPlan();app.renderTrainingExerciseCards();app.persistTrainingLocalDraft({checkpointReason:'Duplication d’un bloc'});};
+app.duplicateTrainingPlanBlock = function duplicateTrainingPlanBlock(id){if(!app.trainingLeaseCanMutate())return;app.captureTrainingPlan();const i=app.trainingState.planBlocks.findIndex(x=>x.id===id);if(i<0)return;const src=app.trainingState.planBlocks[i];app.trainingState.planBlocks.splice(i+1,0,{...src,id:app.newUuid(),expanded:false});app.recalculateTrainingPlanTimes();app.syncPlanStatExercises();app.renderTrainingPlan();app.renderTrainingExerciseCards();app.persistTrainingLocalDraft({checkpointReason:'Duplication d’un bloc'});};
 
-app.removeTrainingPlanBlock = function removeTrainingPlanBlock(id){app.captureTrainingPlan();const index=app.trainingState.planBlocks.findIndex(x=>x.id===id);if(index<0)return;app.checkpointTrainingLocalDraft('Avant suppression d’un bloc');const [block]=app.trainingState.planBlocks.splice(index,1);app.recalculateTrainingPlanTimes();app.syncPlanStatExercises();app.renderTrainingPlan();app.renderTrainingExerciseCards();app.showTrainingUndo(`Bloc « ${block.title||'sans titre'} » supprimé.`,{type:'block',block,index});app.persistTrainingLocalDraft();};
+app.removeTrainingPlanBlock = function removeTrainingPlanBlock(id){if(!app.trainingLeaseCanMutate())return;app.captureTrainingPlan();const index=app.trainingState.planBlocks.findIndex(x=>x.id===id);if(index<0)return;app.checkpointTrainingLocalDraft('Avant suppression d’un bloc');const [block]=app.trainingState.planBlocks.splice(index,1);app.recalculateTrainingPlanTimes();app.syncPlanStatExercises();app.renderTrainingPlan();app.renderTrainingExerciseCards();app.showTrainingUndo(`Bloc « ${block.title||'sans titre'} » supprimé.`,{type:'block',block,index});app.persistTrainingLocalDraft();};
 
-app.sendTrainingPlanBlockToDraft = function sendTrainingPlanBlockToDraft(id){app.captureTrainingPlan();const b=app.trainingState.planBlocks.find(x=>x.id===id);if(!b)return;b.draft=true;b.start='';app.recalculateTrainingPlanTimes();app.syncPlanStatExercises();app.renderTrainingPlan();app.renderTrainingExerciseCards();app.trainingLocalState.undo=null;app.$('#trainingUndoMessage').textContent='Bloc déplacé vers « Brouillon / à placer ».';app.$('#trainingUndoNotice').classList.remove('hidden');app.$('#undoTrainingAction').classList.add('hidden');app.persistTrainingLocalDraft({checkpointReason:'Déplacement vers le brouillon'});};
+app.sendTrainingPlanBlockToDraft = function sendTrainingPlanBlockToDraft(id){if(!app.trainingLeaseCanMutate())return;app.captureTrainingPlan();const b=app.trainingState.planBlocks.find(x=>x.id===id);if(!b)return;b.draft=true;b.start='';app.recalculateTrainingPlanTimes();app.syncPlanStatExercises();app.renderTrainingPlan();app.renderTrainingExerciseCards();app.trainingLocalState.undo=null;app.$('#trainingUndoMessage').textContent='Bloc déplacé vers « Brouillon / à placer ».';app.$('#trainingUndoNotice').classList.remove('hidden');app.$('#undoTrainingAction').classList.add('hidden');app.persistTrainingLocalDraft({checkpointReason:'Déplacement vers le brouillon'});};
 
-app.restoreTrainingPlanBlockFromDraft = function restoreTrainingPlanBlockFromDraft(id,track){app.captureTrainingPlan();const b=app.trainingState.planBlocks.find(x=>x.id===id);if(!b)return;b.draft=false;if(track)b.track=track;app.recalculateTrainingPlanTimes();app.syncPlanStatExercises();app.renderTrainingPlan();app.renderTrainingExerciseCards();app.persistTrainingLocalDraft({checkpointReason:'Restauration d’un brouillon'});};
+app.restoreTrainingPlanBlockFromDraft = function restoreTrainingPlanBlockFromDraft(id,track){if(!app.trainingLeaseCanMutate())return;app.captureTrainingPlan();const b=app.trainingState.planBlocks.find(x=>x.id===id);if(!b)return;b.draft=false;if(track)b.track=track;app.recalculateTrainingPlanTimes();app.syncPlanStatExercises();app.renderTrainingPlan();app.renderTrainingExerciseCards();app.persistTrainingLocalDraft({checkpointReason:'Restauration d’un brouillon'});};
 
 app.reorderTrainingPlanBlock = function reorderTrainingPlanBlock(dragId,targetId,newTrack){
+  if(!app.trainingLeaseCanMutate())return;
   app.captureTrainingPlan();
   const from=app.trainingState.planBlocks.findIndex(b=>b.id===dragId);if(from<0)return;
   const [item]=app.trainingState.planBlocks.splice(from,1);
@@ -1055,11 +1433,14 @@ app.setTrainingSaveLabels = function setTrainingSaveLabels(text){
 
 app.startNewTraining = async function startNewTraining({skipRecovery=false,draftId=null}={}){
   const loadToken=++app.trainingState.editorLoadToken;
+  await app.releaseTrainingSessionLease();
+  if(loadToken!==app.trainingState.editorLoadToken)return;
   if(!app.trainingState.exercises.length)await app.fetchTrainingExercises();
   if(loadToken!==app.trainingState.editorLoadToken)return;
   app.trainingState.sessionExercises=[];
   app.trainingState.planBlocks=[];
   app.trainingState.currentSessionId=null;
+  app.resetTrainingSessionContext();
   app.trainingState.resultDraft={};
   app.trainingState.planOrganizerMode=false;app.trainingState.planOrganizerSelectedId=null;
   app.setTrainingSaveLabels('Enregistrer la séance');
@@ -1086,6 +1467,7 @@ app.startNewTraining = async function startNewTraining({skipRecovery=false,draft
   app.renderTrainingExerciseCards({capture:false});
   app.renderTrainingPlan();
   app.hideMainModules();app.setMatchHeaderMode(false);app.$('#trainingSession').classList.remove('hidden');window.scrollTo({top:0,behavior:'instant'});
+  app.setTrainingLeaseStatus('idle');
   app.markTrainingSessionBaseline();
   app.beginTrainingLocalDraft({draftId});
 };
@@ -1134,12 +1516,13 @@ app.collapseAllTrainingExercises = function collapseAllTrainingExercises(exceptK
 };
 
 app.addSessionExercise = function addSessionExercise(ex,focus=null){
+  if(!app.trainingLeaseCanMutate())return;
   app.trainingState.sessionExercises.push({...ex,focus:app.isDualExercise(ex)?focus:null,localKey:app.newUuid(),expanded:false});
   app.renderTrainingExerciseCards();
   app.persistTrainingLocalDraft({checkpointReason:'Ajout d’un exercice'});
 };
 
-app.removeSessionExercise = function removeSessionExercise(key){app.captureTrainingResultDraft();const index=app.trainingState.sessionExercises.findIndex(x=>x.localKey===key);if(index<0)return;app.checkpointTrainingLocalDraft('Avant retrait d’un exercice');const [exercise]=app.trainingState.sessionExercises.splice(index,1);app.renderTrainingExerciseCards();app.showTrainingUndo(`Exercice « ${exercise.name||'sans titre'} » retiré.`,{type:'exercise',exercise,index});app.persistTrainingLocalDraft()};
+app.removeSessionExercise = function removeSessionExercise(key){if(!app.trainingLeaseCanMutate())return;app.captureTrainingResultDraft();const index=app.trainingState.sessionExercises.findIndex(x=>x.localKey===key);if(index<0)return;app.checkpointTrainingLocalDraft('Avant retrait d’un exercice');const [exercise]=app.trainingState.sessionExercises.splice(index,1);app.renderTrainingExerciseCards();app.showTrainingUndo(`Exercice « ${exercise.name||'sans titre'} » retiré.`,{type:'exercise',exercise,index});app.persistTrainingLocalDraft()};
 
 app.trainingDraftKey = function trainingDraftKey(exKey,playerId){return `${exKey}__${playerId}`};
 
@@ -1557,7 +1940,7 @@ app.fetchRecentTrainingSessions = async function fetchRecentTrainingSessions({wi
   const ids=app.groupState.groups.map(g=>g.id);
   if(!ids.length){app.trainingState.recentSessions=[];return}
   const {data,error}=await app.db.from('training_sessions')
-    .select('id,trained_on,label,theme,duration_minutes,notes,created_at,updated_at,created_by,updated_by,group_id,group:coaching_groups!training_sessions_group_id_fkey(name),team:teams!training_sessions_team_id_fkey(name)')
+    .select('id,trained_on,label,theme,duration_minutes,notes,created_at,updated_at,created_by,updated_by,group_id,version,workspace_id,team_id,group:coaching_groups!training_sessions_group_id_fkey(name),team:teams!training_sessions_team_id_fkey(name)')
     .in('group_id',ids)
     .order('trained_on',{ascending:false})
     .limit(200);
@@ -1583,18 +1966,29 @@ app.deleteTrainingSessionById = async function deleteTrainingSessionById(session
   if(!confirm(`Supprimer définitivement ${label} ?
 
 Les présences, exercices et résultats enregistrés pour cette séance seront également supprimés. Cette action est irréversible.`))return false;
+  let acquiredForDelete=false;
   try{
     app.setCloud('Suppression…',true);
-    const {data,error}=await app.db.from('training_sessions').delete().eq('id',sessionId).select('id');
+    if(app.trainingLeaseState.sessionId&&app.trainingLeaseState.sessionId!==sessionId)await app.releaseTrainingSessionLease();
+    const acquired=app.trainingLeaseState.sessionId===sessionId&&app.trainingLeaseState.status==='owned'
+      ?true:await app.acquireTrainingSessionLease(sessionId);
+    if(!acquired)throw new Error('Cette séance est en cours de modification. Réessaie lorsqu’elle sera disponible.');
+    acquiredForDelete=true;
+    const {data,error}=await app.db.rpc('delete_training_session_with_lease',{
+      p_session_id:sessionId,p_instance_id:app.trainingLeaseState.instanceId,
+      p_lease_token:app.trainingLeaseState.token
+    });
     if(error)throw error;
-    if(!Array.isArray(data)||!data.some(x=>x.id===sessionId))throw new Error('La séance n’a pas pu être supprimée. Vérifie tes droits sur ce groupe.');
+    if(data!==true)throw new Error('La séance n’a pas pu être supprimée. Vérifie tes droits sur ce groupe.');
+    await app.releaseTrainingSessionLease();
     app.trainingState.recentSessions=(app.trainingState.recentSessions||[]).filter(x=>x.id!==sessionId);
-    if(app.trainingState.currentSessionId===sessionId){app.trainingState.currentSessionId=null;app.trainingState.resultDraft={}}
+    if(app.trainingState.currentSessionId===sessionId){app.trainingState.currentSessionId=null;app.resetTrainingSessionContext();app.trainingState.resultDraft={}}
     app.renderTrainingSavedHome();
     if(app.$('#trainingDuplicate')&&!app.$('#trainingDuplicate').classList.contains('hidden'))app.renderDuplicateTrainingSessions();
     app.setCloud('Synchronisé',true);
     return true;
   }catch(e){
+    if(acquiredForDelete)await app.releaseTrainingSessionLease();
     app.setCloud('Erreur',false);
     app.handleError('delete training session',e);
     return false;
@@ -1688,7 +2082,10 @@ app.duplicateTrainingSessionById = async function duplicateTrainingSessionById(s
   const source=app.trainingState.recentSessions.find(s=>s.id===sessionId);
   if(!source) return;
   const loadToken=++app.trainingState.editorLoadToken;
+  await app.releaseTrainingSessionLease();
+  if(loadToken!==app.trainingState.editorLoadToken)return;
   app.trainingState.currentSessionId=null;
+  app.resetTrainingSessionContext();
   app.trainingState.resultDraft={};
   app.trainingState.planOrganizerMode=false;app.trainingState.planOrganizerSelectedId=null;
   app.setTrainingSaveLabels('Enregistrer la séance');
@@ -1731,15 +2128,18 @@ app.duplicateTrainingSessionById = async function duplicateTrainingSessionById(s
 
   app.hideMainModules();
   app.$('#trainingSession').classList.remove('hidden');
+  app.setTrainingLeaseStatus('idle');
   window.scrollTo({top:0,behavior:'instant'});
   app.markTrainingSessionBaseline();
-  app.beginTrainingLocalDraft({sourceSessionId:sessionId,baseUpdatedAt:source.updated_at||null});
+  app.beginTrainingLocalDraft({sourceSessionId:sessionId,baseUpdatedAt:source.updated_at||null,baseVersion:null});
 };
 
 app.editTrainingSessionById = async function editTrainingSessionById(sessionId,{skipRecovery=false}={}){
   const source=app.trainingState.recentSessions.find(s=>s.id===sessionId);
   if(!source)return;
   const loadToken=++app.trainingState.editorLoadToken;
+  if(app.trainingLeaseState.sessionId!==sessionId)await app.releaseTrainingSessionLease();
+  if(loadToken!==app.trainingState.editorLoadToken)return;
 
   const [{data:attendance,error:ae},{data:sessionExercises,error:xe},{data:results,error:re}]=await Promise.all([
     app.db.from('training_attendance').select('player_id,present').eq('session_id',sessionId),
@@ -1754,6 +2154,8 @@ app.editTrainingSessionById = async function editTrainingSessionById(sessionId,{
   if(ae)throw ae;if(xe)throw xe;if(re)throw re;
 
   app.trainingState.currentSessionId=sessionId;
+  app.trainingState.sessionWorkspaceId=source.workspace_id??null;
+  app.trainingState.sessionTeamId=source.team_id??null;
   app.trainingState.resultDraft={};
   app.trainingState.planOrganizerMode=false;app.trainingState.planOrganizerSelectedId=null;
   app.trainingState.sessionExercises=(sessionExercises||[])
@@ -1797,7 +2199,8 @@ app.editTrainingSessionById = async function editTrainingSessionById(sessionId,{
   app.$('#trainingSession').classList.remove('hidden');
   window.scrollTo({top:0,behavior:'instant'});
   app.markTrainingSessionBaseline();
-  app.beginTrainingLocalDraft({baseUpdatedAt:source.updated_at||null});
+  app.beginTrainingLocalDraft({baseVersion:source.version??null,baseUpdatedAt:source.updated_at||null});
+  if(!app.trainingLeaseCanMutate())await app.acquireTrainingSessionLease(sessionId);
   if(!skipRecovery)app.offerTrainingDraftRecovery({sessionId});
 };
 
@@ -1833,15 +2236,24 @@ app.showTrainingSaveConflict = function showTrainingSaveConflict(remoteUpdatedAt
   const actions=app.$('#trainingRecoveryActions');
   const stay=document.createElement('button');stay.type='button';stay.className='ghost';stay.textContent='Continuer sans enregistrer';stay.onclick=app.closeTrainingRecoveryDialog;
   const cloud=document.createElement('button');cloud.type='button';cloud.className='ghost';cloud.textContent='Charger la version cloud';cloud.onclick=async()=>{const id=app.trainingState.currentSessionId;app.checkpointTrainingLocalDraft('Avant chargement de la version cloud');app.closeTrainingRecoveryDialog();if(!id)return;try{const source=await app.fetchTrainingSessionParent(id);if(!source)throw new Error('La séance cloud est introuvable.');await app.editTrainingSessionById(id,{skipRecovery:true})}catch(error){app.handleError('reload cloud training',error)}};
-  const copy=document.createElement('button');copy.type='button';copy.className='ghost';copy.textContent='Enregistrer comme copie';copy.onclick=()=>{app.closeTrainingRecoveryDialog();app.trainingState.currentSessionId=null;app.trainingLocalState.baseUpdatedAt=null;app.saveTrainingSession({forceOverwrite:true}).catch(error=>app.handleError('save training copy',error))};
+  // Copie : nouvelle séance sans lien de version vers une séance existante.
+  const copy=document.createElement('button');copy.type='button';copy.className='ghost';copy.textContent='Enregistrer comme copie';copy.onclick=async()=>{app.closeTrainingRecoveryDialog();await app.releaseTrainingSessionLease();app.trainingState.currentSessionId=null;app.resetTrainingSessionContext();app.trainingLocalState.baseUpdatedAt=null;app.trainingLocalState.baseVersion=null;app.setTrainingLeaseStatus('idle');app.saveTrainingSession({forceOverwrite:true}).catch(error=>app.handleError('save training copy',error))};
   const overwrite=document.createElement('button');overwrite.type='button';overwrite.className='primary';overwrite.textContent='Écraser avec ma version';overwrite.onclick=()=>{app.closeTrainingRecoveryDialog();app.trainingLocalState.conflict=false;app.saveTrainingSession({forceOverwrite:true}).catch(error=>app.handleError('overwrite training session',error))};
   actions.append(stay,cloud,copy,overwrite);
 };
 
-app.saveTrainingSession = async function saveTrainingSession({forceOverwrite=false}={}){
+app.saveTrainingSession = async function saveTrainingSession({forceOverwrite=false,autosave=false}={}){
   if(app.trainingSaveInFlight)return;
+  const existingSessionId=app.trainingState.currentSessionId||null;
+  if(existingSessionId&&!app.trainingLeaseCanMutate()){
+    if(!autosave)app.trainingStatus('Cette séance est en lecture seule. Passe en édition avant d’enregistrer.',true);
+    return;
+  }
   if(app.trainingLocalState.conflict&&!forceOverwrite){app.openTrainingConflictResolution();return}
+  const lease=app.trainingLeaseState;
+  const operationEpoch=lease.epoch;
   app.trainingSaveInFlight=true;
+  app.stopTrainingCloudTimers();
   const saveButtons=app.$$('#saveTrainingSessionHead,#saveTrainingSession');
   saveButtons.forEach(button=>{button.disabled=true});
   try{
@@ -1852,63 +2264,55 @@ app.saveTrainingSession = async function saveTrainingSession({forceOverwrite=fal
     if(!localCheckpoint.ok&&localCheckpoint.kind==='conflict'){app.openTrainingConflictResolution();return}
     const saveDocument=app.trainingEditorDocument({capture:false});
     const saveSnapshot=app.trainingSessionSnapshot();
-    app.trainingStatus(app.trainingState.currentSessionId?'Mise à jour…':'Enregistrement…');
+    app.setTrainingCloudStatus('saving');
+    if(!autosave)app.trainingStatus(app.trainingState.currentSessionId?'Mise à jour…':'Enregistrement…');
     const groupId=saveDocument.fields.groupId;
     const group=app.groupState.groups.find(g=>g.id===groupId);
     const date=app.frInputToIso(saveDocument.fields.date||app.isoToFrInput(app.today()));
     const presentIds=new Set(saveDocument.attendance.filter(item=>item.present).map(item=>String(item.playerId)));
-    if(!groupId||!group){app.trainingStatus('Choisis un groupe.',true);return}
-    if(!presentIds.size){app.trainingStatus('Sélectionne au moins un joueur présent.',true);return}
+    if(!groupId||!group){if(autosave)app.setTrainingCloudStatus('incomplete');else app.trainingStatus('Choisis un groupe.',true);return}
+    if(!presentIds.size){if(autosave)app.setTrainingCloudStatus('incomplete');else app.trainingStatus('Sélectionne au moins un joueur présent.',true);return}
     const withoutFocus=saveDocument.sessionExercises.find(ex=>app.isDualExercise(ex)&&!ex.focus);
-    if(withoutFocus){app.trainingStatus(`Choisis le focus Attaque ou Défense pour « ${withoutFocus.name} ».`,true);return}
+    if(withoutFocus){if(autosave)app.setTrainingCloudStatus('incomplete');else app.trainingStatus(`Choisis le focus Attaque ou Défense pour « ${withoutFocus.name} ».`,true);return}
 
-    let sessionId=app.trainingState.currentSessionId;
-    if(sessionId&&app.trainingLocalState.baseUpdatedAt&&!forceOverwrite){
-      const {data:remote,error:remoteError}=await app.db.from('training_sessions').select('id,updated_at').eq('id',sessionId).single();
-      if(remoteError)throw remoteError;
-      if(remote?.updated_at&&remote.updated_at!==app.trainingLocalState.baseUpdatedAt){app.showTrainingSaveConflict(remote.updated_at);return}
+    // La sauvegarde transite exclusivement par la RPC transactionnelle
+    // save_training_session (SECURITY INVOKER) : aucune écriture directe sur les tables
+    // enfants (training_attendance, training_session_exercices, training_results) ne
+    // subsiste ici. Les autorisations sont contrôlées par les policies RLS du parent ;
+    // les appels aux fonctions du schéma private ne sont pas réintroduits.
+    const sessionId=app.trainingState.currentSessionId||null;
+    // Brouillons créés avant le suivi de version : une séance existante sans version
+    // connue démarre un verrou optimiste sur la version courante, lue à la sauvegarde.
+    // Une version inconnue ne produit ainsi ni faux conflit (expected_version null
+    // signifierait TOUJOURS conflit côté RPC) ni écriture forcée (jamais p_force auto).
+    // La lecture récupère aussi l'équipe et le workspace historiques : la modification
+    // doit rester dans le workspace d'origine de la séance, jamais dans le workspace actif.
+    if(sessionId&&(app.trainingLocalState.baseVersion==null||app.trainingState.sessionTeamId==null)){
+      const {data:sessionRow,error:sessionError}=await app.db.from('training_sessions').select('version,team_id,workspace_id').eq('id',sessionId).maybeSingle();
+      if(sessionError)throw sessionError;
+      if(app.trainingLocalState.baseVersion==null)app.trainingLocalState.baseVersion=sessionRow?.version??null;
+      if(app.trainingState.sessionTeamId==null)app.trainingState.sessionTeamId=sessionRow?.team_id??null;
+      if(app.trainingState.sessionWorkspaceId==null)app.trainingState.sessionWorkspaceId=sessionRow?.workspace_id??null;
     }
 
-    const teamId=await app.ensureTeam(group.name);
-    const duration=saveDocument.fields.duration?Number(saveDocument.fields.duration):null;
-    const sessionPayload={
-      workspace_id:app.state.workspaceId,group_id:groupId,team_id:teamId,trained_on:date,
-      label:saveDocument.fields.theme.trim()||'Entraînement',
-      theme:saveDocument.fields.theme.trim()||null,
-      duration_minutes:duration,
-      notes:app.packTrainingNotes(saveDocument.fields.notes,saveDocument.planBlocks)
-    };
-
-    let savedUpdatedAt=null;
+    // Équipe transmise à la RPC. Séance existante : exclusivement l'équipe historique
+    // (jamais ensureTeam, qui opère dans le workspace actif et déclencherait
+    // « Équipe hors du workspace de la séance »). Nouvelle séance : équipe du workspace
+    // courant, comme auparavant. Si l'équipe historique est introuvable, on refuse
+    // d'écrire et on conserve le brouillon local (voir le catch plus bas).
+    let teamId;
     if(sessionId){
-      let update=app.db.from('training_sessions').update(sessionPayload).eq('id',sessionId);
-      if(app.trainingLocalState.baseUpdatedAt&&!forceOverwrite)update=update.eq('updated_at',app.trainingLocalState.baseUpdatedAt);
-      const {data:session,error}=await update.select('id,updated_at').maybeSingle();
-      if(error)throw error;
-      if(!session&&app.trainingLocalState.baseUpdatedAt&&!forceOverwrite){app.showTrainingSaveConflict();return}
-      savedUpdatedAt=session?.updated_at||null;
-      const deletes=await Promise.all([
-        app.db.from('training_results').delete().eq('session_id',sessionId),
-        app.db.from('training_attendance').delete().eq('session_id',sessionId),
-        app.db.from('training_session_exercises').delete().eq('session_id',sessionId)
-      ]);
-      for(const d of deletes) if(d.error) throw d.error;
+      teamId=app.trainingState.sessionTeamId;
+      if(teamId==null)throw new Error('Équipe de la séance introuvable. Tes modifications sont conservées localement.');
     }else{
-      const {data:session,error}=await app.db.from('training_sessions').insert(sessionPayload).select('id,updated_at').single();
-      if(error)throw error;
-      sessionId=session.id;
-      savedUpdatedAt=session.updated_at||null;
-      app.trainingState.currentSessionId=sessionId;
+      teamId=await app.ensureTeam(group.name);
     }
+    const duration=saveDocument.fields.duration?Number(saveDocument.fields.duration):null;
 
-    const attendance=saveDocument.attendance.map(item=>({session_id:sessionId,player_id:item.playerId,present:item.present}));
-    if(attendance.length){const {error}=await app.db.from('training_attendance').insert(attendance);if(error)throw error}
-
-    const sessionExRows=saveDocument.sessionExercises.map((ex,i)=>({
-      session_id:sessionId,exercise_id:ex.id,position:i+1,variant:ex.variant||null,target:ex.target||null,focus:app.isDualExercise(ex)?ex.focus:null
+    const attendance=saveDocument.attendance.map(item=>({player_id:item.playerId,present:!!item.present}));
+    const sessionExercises=saveDocument.sessionExercises.map((ex,i)=>({
+      exercise_id:ex.id,position:i+1,variant:ex.variant||null,target:ex.target||null,focus:app.isDualExercise(ex)?ex.focus:null
     }));
-    if(sessionExRows.length){const {error}=await app.db.from('training_session_exercises').insert(sessionExRows);if(error)throw error}
-
     const results=[];
     saveDocument.sessionExercises.forEach(ex=>{
       presentIds.forEach(playerId=>{
@@ -1917,36 +2321,98 @@ app.saveTrainingSession = async function saveTrainingSession({forceOverwrite=fal
         if(ex.measurement_type==='success_attempts'){
           if(d.successes===''&&d.attempts===''&&!note)return;
           results.push({
-            session_id:sessionId,exercise_id:ex.id,player_id:playerId,
+            exercise_id:ex.id,player_id:playerId,
             successes:d.successes===''?null:Number(d.successes),
             attempts:d.attempts===''?null:Number(d.attempts),note
           });
         }else{
           if(d.value===''&&!note)return;
           results.push({
-            session_id:sessionId,exercise_id:ex.id,player_id:playerId,
+            exercise_id:ex.id,player_id:playerId,
             numeric_value:d.value===''?null:Number(d.value),note
           });
         }
       });
     });
-    if(results.length){const {error}=await app.db.from('training_results').insert(results);if(error)throw error}
 
-    app.trainingState.currentSessionId=sessionId;
-    app.trainingLocalState.baseUpdatedAt=savedUpdatedAt;
-    app.trainingStatus('Séance enregistrée sur le cloud');
+    if(!sessionId)app.setTrainingLeaseStatus('pending');
+
+    const {data:rpcResult,error:rpcError}=await app.db.rpc('save_training_session',{
+      p_session_id:sessionId,
+      p_expected_version:sessionId?app.trainingLocalState.baseVersion:null,
+      p_editor_instance_id:lease.instanceId,
+      p_lease_token:sessionId?lease.token:null,
+      p_workspace_id:sessionId?null:app.state.workspaceId,
+      p_group_id:groupId,
+      p_team_id:teamId,
+      p_trained_on:date,
+      p_label:saveDocument.fields.theme.trim()||'Entraînement',
+      p_theme:saveDocument.fields.theme.trim()||null,
+      p_duration_minutes:duration,
+      p_notes:app.packTrainingNotes(saveDocument.fields.notes,saveDocument.planBlocks),
+      p_attendance:attendance,
+      p_exercises:sessionExercises,
+      p_results:results,
+      p_force:!!forceOverwrite
+    });
+    if(operationEpoch!==lease.epoch){
+      app.persistTrainingLocalDraft({checkpointReason:'Réponse de sauvegarde ignorée',scheduleCloud:false});
+      return;
+    }
+    if(rpcError)throw rpcError;
+    const result=Array.isArray(rpcResult)?rpcResult[0]:rpcResult;
+    if(!result||(result.status!=='saved'&&result.status!=='conflict')||(result.status==='saved'&&!result.session_id)){
+      throw new Error('Réponse de sauvegarde inattendue.');
+    }
+    if(result.status==='conflict'){
+      // Conflit de version : jamais considéré comme une sauvegarde réussie. Le brouillon
+      // local (capturé plus haut) reste récupérable et baseVersion n'est pas actualisé :
+      // seul l'utilisateur décide (continuer, charger le cloud, copie, ou écraser via
+      // p_force explicite après confirmation). En autosauvegarde, on suspend l'envoi et
+      // on affiche un bandeau non bloquant ; une sauvegarde manuelle ouvre le dialogue.
+      app.registerTrainingCloudConflict(result.updated_at||null);
+      if(!autosave)app.showTrainingSaveConflict(result.updated_at||null);
+      return;
+    }
+
+    if(!sessionId){
+      if(!result.lease_token)throw new Error('La séance a été créée sans bail d’édition. Recharge la page avant de continuer.');
+      lease.sessionId=result.session_id;lease.token=result.lease_token;lease.expiresAt=result.lease_expires_at||null;lease.lost=false;
+      app.setTrainingLeaseStatus('owned',{expiresAt:lease.expiresAt});
+      app.scheduleTrainingLeaseHeartbeat();
+    }
+    app.trainingState.currentSessionId=result.session_id;
+    app.applyTrainingLeaseControls();
+    app.trainingLocalState.baseUpdatedAt=result.updated_at||null;
+    app.trainingLocalState.baseVersion=result.version??null;
+    if(!autosave)app.trainingStatus('Séance enregistrée sur le cloud');
     app.setTrainingSaveLabels('Enregistrer les modifications');
     app.setCloud('Synchronisé',true);
+    app.clearTrainingCloudConflict();
+    app.trainingCloudState.backoffMs=0;
     app.trainingSessionBaseline=saveSnapshot;
     const currentSnapshot=app.trainingSessionSnapshot();
-    if(currentSnapshot===saveSnapshot&&!app.trainingDocumentHasLocalOnlyResults(saveDocument)){
+    if(currentSnapshot===saveSnapshot&&!app.trainingResultsChangedDuringSave(saveDocument)){
       const removed=app.removeCurrentTrainingLocalDraft();app.trainingLocalState.revision=0;
       if(removed.ok){app.setTrainingLocalStatus('Séance enregistrée sur le cloud','cloud');app.$('#openTrainingLocalHistory')?.classList.add('hidden');app.refreshTrainingLocalHome()}
+      app.setTrainingCloudStatus('saved');
     }else{
-      app.persistTrainingLocalDraft({checkpointReason:'Modifications pendant l’enregistrement'});
+      // Des modifications sont arrivées pendant la RPC : on conserve le brouillon et on
+      // reprogramme l'envoi des nouvelles modifications (le snapshot initial est enregistré).
+      app.persistTrainingLocalDraft({checkpointReason:'Modifications pendant l’enregistrement',scheduleCloud:false});
+      app.setTrainingCloudStatus('pending');
+      app.scheduleTrainingCloudSave();
     }
-  }catch(e){app.persistTrainingLocalDraft();app.trainingStatus(e.message||String(e),true);app.handleError('saveTrainingSession',e)}
-  finally{app.trainingSaveInFlight=false;saveButtons.forEach(button=>{button.disabled=false})}
+  }catch(e){
+    app.persistTrainingLocalDraft({scheduleCloud:false});
+    const leaseLost=e?.code==='55000'||/Bail d.edition|verrou/i.test(e?.message||'');
+    if(leaseLost&&existingSessionId)await app.loseTrainingSessionLease();
+    else if(!existingSessionId&&app.trainingLeaseState.status==='pending')app.setTrainingLeaseStatus('idle');
+    if(!autosave)app.trainingStatus(e.message||String(e),true);
+    if(!leaseLost)app.registerTrainingCloudError(e);
+    app.handleError('saveTrainingSession',e);
+  }
+  finally{app.trainingSaveInFlight=false;saveButtons.forEach(button=>{if(button.dataset.leaseDisabled!=='true')button.disabled=false});app.applyTrainingLeaseControls()}
 };
 // The historical UI had a handler pointing to an absent function. Reuse the
 // existing group-scoped read contracts rather than introduce SQL or a new RPC.

@@ -1,7 +1,12 @@
 const SUPABASE_URL='https://chrbzchthloxowlzdvpe.supabase.co';
 const SUPABASE_KEY='sb_publishable_4pQGJ5DSzMRBuHLrAUb30g_MGZVYvEY';
 if(!window.supabase)throw new Error('Supabase library failed to load');
-const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let liveLeaseHeaders={};
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{global:{fetch:(input,init={})=>{
+  const headers=new Headers(init.headers||{});
+  Object.entries(liveLeaseHeaders).forEach(([name,value])=>{if(value)headers.set(name,value)});
+  return fetch(input,{...init,headers});
+}}});
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 
 const CONTEXTS=[
@@ -32,7 +37,8 @@ const state={
   user:null,workspaceId:null,groups:[],players:[],sessions:[],exercises:[],periods:[],periodCounts:{},
   selectedGroupId:'',selectedSessionId:'__new__',attendance:new Set(),teamByPlayer:new Map(),
   currentSession:null,currentPeriod:null,events:[],selectedContext:'game_center',
-  activeTarget:null,faultTarget:null,saving:false,organizingTeams:false,organizerPlayerId:null,organizerSwapTeam:null
+  activeTarget:null,faultTarget:null,saving:false,organizingTeams:false,organizerPlayerId:null,organizerSwapTeam:null,
+  lease:{status:'idle',sessionId:null,instanceId:null,token:null,expiresAt:null,epoch:0,heartbeatTimer:null,pollTimer:null},loadEpoch:0
 };
 
 function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
@@ -47,6 +53,80 @@ function sessionById(id){return state.sessions.find(s=>s.id===id)||null}
 function exerciseById(id){return state.exercises.find(e=>e.id===id)||null}
 function presentPlayers(){return state.players.filter(p=>state.attendance.has(p.id))}
 function normalizeTeamColor(value){return TEAM_ORDER.includes(value)?value:null}
+function newUuid(){return crypto?.randomUUID?.()||'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==='x'?r:(r&3|8);return v.toString(16)})}
+function liveCanMutate(){return state.selectedSessionId==='__new__'||(state.lease.status==='owned'&&state.lease.sessionId===state.selectedSessionId&&!!state.lease.token)}
+function setLiveLeaseHeaders(){
+  const lease=state.lease;
+  liveLeaseHeaders=lease.status==='owned'&&lease.instanceId&&lease.token?{
+    'x-kb-editor-instance-id':lease.instanceId,'x-kb-lease-token':lease.token
+  }:{};
+}
+function stopLiveLeaseTimers(){const lease=state.lease;if(lease.heartbeatTimer){clearTimeout(lease.heartbeatTimer);lease.heartbeatTimer=null}if(lease.pollTimer){clearTimeout(lease.pollTimer);lease.pollTimer=null}}
+function applyLiveLeaseControls(){
+  const writable=liveCanMutate(),existing=state.selectedSessionId!=='__new__';
+  $('#groupSelect').disabled=state.saving;$('#sessionSelect').disabled=state.saving||!state.selectedGroupId;
+  ['selectAllPlayers','clearAllPlayers','autoAssignTeams','exerciseSelect','periodLabel','startCollection'].forEach(id=>{const el=$('#'+id);if(el)el.disabled=existing&&!writable||state.saving});
+  $$('#attendanceGrid input,#teamSetupGrid select').forEach(el=>{el.disabled=existing&&!writable});
+  ['finishPeriod','collectorExerciseSelect','saveClassification','organizeTeams','unassignedPlayerSelect','undoLast'].forEach(id=>{const el=$('#'+id);if(el)el.disabled=!writable||state.saving});
+  $$('[data-team-destination],[data-target-key],[data-outcome],[data-panel-fault]').forEach(el=>{el.disabled=!writable||state.saving});
+}
+function setLiveLeaseStatus(status,{holderName='',expiresAt=null}={}){
+  const lease=state.lease;lease.status=status;lease.expiresAt=expiresAt||null;setLiveLeaseHeaders();applyLiveLeaseControls();
+  if(status==='pending')setStatus($('#setupStatus'),'Vérification du droit d’édition…');
+  else if(status==='readonly')setStatus($('#setupStatus'),`Lecture seule · en cours de modification par ${holderName||'un autre entraîneur'}.`,true);
+  else if(status==='available')setStatus($('#setupStatus'),'Cette séance est disponible. Sélectionne-la à nouveau pour passer en édition.');
+  else if(status==='lost'){setStatus($('#setupStatus'),'Verrou d’édition perdu. La collecte est maintenant en lecture seule.',true);setStatus($('#saveStatus'),'Verrou d’édition perdu. Aucune nouvelle donnée ne sera envoyée.',true)}
+}
+async function renewLiveLease(){
+  const lease=state.lease;if(lease.status!=='owned'||!lease.token)return;
+  const epoch=lease.epoch,sessionId=lease.sessionId,token=lease.token;
+  try{
+    const {data,error}=await db.rpc('renew_training_session_lease',{p_session_id:sessionId,p_instance_id:lease.instanceId,p_lease_token:token});
+    if(epoch!==lease.epoch||sessionId!==lease.sessionId||token!==lease.token)return false;
+    const row=Array.isArray(data)?data[0]:data;if(error||row?.status!=='renewed'){loseLiveLease();return false}
+    lease.expiresAt=row.expires_at||null;scheduleLiveLeaseHeartbeat();return true;
+  }catch(_){if(epoch===lease.epoch)loseLiveLease();return false}
+}
+function scheduleLiveLeaseHeartbeat(){
+  const lease=state.lease;if(lease.status!=='owned'||!lease.token)return;
+  if(lease.heartbeatTimer)clearTimeout(lease.heartbeatTimer);
+  lease.heartbeatTimer=setTimeout(()=>{lease.heartbeatTimer=null;return renewLiveLease()},30000);
+}
+function scheduleLiveLeasePoll(){
+  const lease=state.lease;if(!lease.sessionId||lease.status==='owned'||lease.status==='pending'||lease.status==='available')return;
+  if(lease.pollTimer)clearTimeout(lease.pollTimer);const epoch=lease.epoch,sessionId=lease.sessionId;
+  lease.pollTimer=setTimeout(async()=>{
+    lease.pollTimer=null;
+    try{
+      const {data,error}=await db.rpc('get_training_session_lease',{p_session_id:sessionId});
+      if(epoch!==lease.epoch||sessionId!==lease.sessionId)return;if(error)throw error;
+      const row=Array.isArray(data)?data[0]:data;
+      if(row?.status==='free')setLiveLeaseStatus('available');else setLiveLeaseStatus('readonly',{holderName:row?.holder_name,expiresAt:row?.expires_at});
+    }catch(_){if(epoch===lease.epoch)setLiveLeaseStatus('lost')}
+    scheduleLiveLeasePoll();
+  },15000);
+}
+async function acquireLiveLease(sessionId){
+  const lease=state.lease;stopLiveLeaseTimers();const epoch=++lease.epoch;lease.sessionId=sessionId;lease.token=null;setLiveLeaseStatus('pending');
+  try{
+    const {data,error}=await db.rpc('acquire_training_session_lease',{p_session_id:sessionId,p_instance_id:lease.instanceId});
+    if(epoch!==lease.epoch||sessionId!==lease.sessionId)return false;if(error)throw error;
+    const row=Array.isArray(data)?data[0]:data;
+    if(row?.status==='acquired'&&row.lease_token){lease.token=row.lease_token;lease.expiresAt=row.expires_at||null;setLiveLeaseStatus('owned',{expiresAt:lease.expiresAt});scheduleLiveLeaseHeartbeat();return true}
+    setLiveLeaseStatus('readonly',{holderName:row?.holder_name,expiresAt:row?.expires_at});scheduleLiveLeasePoll();return false;
+  }catch(_){if(epoch===lease.epoch){setLiveLeaseStatus('lost');scheduleLiveLeasePoll()}return false}
+}
+function loseLiveLease(){
+  const lease=state.lease;if(lease.status==='lost')return;
+  stopLiveLeaseTimers();++lease.epoch;lease.token=null;state.activeTarget=null;state.faultTarget=null;state.organizingTeams=false;setLiveLeaseStatus('lost');renderAttendance();renderTargets();scheduleLiveLeasePoll();
+}
+async function releaseLiveLease(){
+  const lease=state.lease,sessionId=lease.sessionId,token=lease.token,instanceId=lease.instanceId;stopLiveLeaseTimers();++lease.epoch;lease.sessionId=null;lease.token=null;lease.expiresAt=null;lease.status='idle';setLiveLeaseHeaders();
+  if(!sessionId||!token)return false;
+  try{const {data,error}=await db.rpc('release_training_session_lease',{p_session_id:sessionId,p_instance_id:instanceId,p_lease_token:token});return !error&&data===true}catch(_){return false}
+}
+function requireLiveLease(){if(liveCanMutate()&&state.selectedSessionId!=='__new__')return true;setStatus($('#setupStatus'),'Cette séance est en lecture seule.',true);setStatus($('#saveStatus'),'Cette séance est en lecture seule.',true);return false}
+function handleLiveLeaseError(error){if(error?.code==='55000'||/bail|verrou/i.test(error?.message||''))loseLiveLease()}
 function teamForPlayer(playerId){return normalizeTeamColor(state.teamByPlayer.get(playerId))}
 function teamPlayers(team){return presentPlayers().filter(p=>teamForPlayer(p.id)===team)}
 function unassignedPlayers(){return presentPlayers().filter(p=>!teamForPlayer(p.id))}
@@ -63,7 +143,7 @@ function teamSetupPlayerHtml(player){return `<div class="teamSetupPlayer"><span>
 function renderTeamSetup(){
   const box=$('#teamSetupGrid'),summary=$('#teamSetupSummary');if(!box)return;
   const players=presentPlayers();
-  if(!players.length){box.innerHTML='<div class="small">Sélectionne d’abord les joueurs présents.</div>';if(summary)summary.textContent='';return}
+  if(!players.length){box.innerHTML='<div class="small">Sélectionne d’abord les joueurs présents.</div>';if(summary)summary.textContent='';applyLiveLeaseControls();return}
   const columns=TEAM_ORDER.map(team=>{
     const list=teamPlayers(team);
     return `<div class="teamSetupColumn team-${team}"><div class="teamSetupColumnHead"><strong>${escapeHtml(TEAM_META[team].label)}</strong><span>${list.length}</span></div><div class="teamSetupPlayers">${list.length?list.map(teamSetupPlayerHtml).join(''):'<div class="teamSetupEmpty">Aucun joueur</div>'}</div></div>`;
@@ -71,15 +151,17 @@ function renderTeamSetup(){
   const free=unassignedPlayers();
   box.innerHTML=columns+(free.length?`<div class="teamSetupUnassigned"><div class="teamSetupColumnHead"><strong>Non affectés</strong><span>${free.length}</span></div><div class="teamSetupPlayers">${free.map(teamSetupPlayerHtml).join('')}</div></div>`:'');
   box.querySelectorAll('[data-team-player]').forEach(sel=>sel.onchange=()=>{
+    if(!liveCanMutate()){renderTeamSetup();return}
     const playerId=sel.dataset.teamPlayer,nextTeam=normalizeTeamColor(sel.value),currentTeam=teamForPlayer(playerId);
     if(nextTeam&&nextTeam!==currentTeam&&teamPlayers(nextTeam).length>=4){setStatus($('#setupStatus'),`${TEAM_META[nextTeam].label} est déjà complète (4/4).`,true);renderTeamSetup();return}
     state.teamByPlayer.set(playerId,nextTeam);setStatus($('#setupStatus'),'');renderTeamSetup();
   });
   if(summary)summary.textContent=TEAM_ORDER.map(team=>`${TEAM_META[team].short} : ${teamPlayers(team).length}/4`).join(' · ')+(free.length?` · Non affectés : ${free.length}`:'');
+  applyLiveLeaseControls();
 }
 function nextPeriodNumber(){return Math.max(0,...state.periods.map(p=>Number(p.period_number)||0))+1}
 function suggestedPeriodLabel(){const ex=exerciseById($('#exerciseSelect').value);const n=nextPeriodNumber();return ex?`${ex.name} ${n}`:`Collecte ${n}`}
-function updateStartState(){const ready=!!state.selectedGroupId && state.attendance.size>0 && !state.saving;$('#startCollection').disabled=!ready}
+function updateStartState(){const ready=!!state.selectedGroupId && state.attendance.size>0 && !state.saving && liveCanMutate();$('#startCollection').disabled=!ready}
 function closeFieldTools(){
   document.body.classList.remove('fieldToolsOpen');
   const drawer=$('#fieldToolsDrawer'),toggle=$('#fieldToolsToggle');
@@ -146,23 +228,23 @@ function fillExerciseSelect(sel,selected=''){
   state.exercises.forEach(ex=>{const o=document.createElement('option');o.value=ex.id;o.textContent=ex.name+(ex.active?'':' · archivé');if(!ex.active&&ex.id!==current)o.disabled=true;sel.append(o)});
   if([...sel.options].some(o=>o.value===current))sel.value=current;
 }
-async function loadPlayers(groupId){
+async function loadPlayers(groupId,epoch=state.loadEpoch){
   const {data,error}=await db.from('coaching_group_players')
     .select('player_id,active,player:players!coaching_group_players_player_id_fkey(id,display_name)')
     .eq('group_id',groupId).eq('active',true);
-  if(error)throw error;
+  if(error)throw error;if(epoch!==state.loadEpoch||groupId!==state.selectedGroupId)return false;
   state.players=(data||[]).filter(x=>x.player).map(x=>x.player).sort((a,b)=>a.display_name.localeCompare(b.display_name,'fr'));
 }
-async function loadSessions(groupId){
+async function loadSessions(groupId,epoch=state.loadEpoch){
   const {data,error}=await db.from('training_sessions')
     .select('id,group_id,trained_on,label,theme,created_at')
     .eq('group_id',groupId).order('trained_on',{ascending:false}).order('created_at',{ascending:false}).limit(80);
-  if(error)throw error;state.sessions=data||[];
+  if(error)throw error;if(epoch!==state.loadEpoch||groupId!==state.selectedGroupId)return false;state.sessions=data||[];
   const sel=$('#sessionSelect');sel.disabled=false;sel.innerHTML='<option value="__new__">＋ Nouvelle séance aujourd’hui</option>';
   state.sessions.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=`${fmtDate(s.trained_on)} · ${s.theme||s.label||'Entraînement'}`;sel.append(o)});
   sel.value='__new__';state.selectedSessionId='__new__';
 }
-async function loadAttendance(sessionId){
+async function loadAttendance(sessionId,epoch=state.loadEpoch){
   state.teamByPlayer=new Map();
   if(sessionId==='__new__'){
     state.attendance=new Set(state.players.map(p=>p.id));
@@ -170,7 +252,7 @@ async function loadAttendance(sessionId){
     renderAttendance();return;
   }
   const {data,error}=await db.from('training_attendance').select('player_id,present').eq('session_id',sessionId);
-  if(error)throw error;
+  if(error)throw error;if(epoch!==state.loadEpoch||sessionId!==state.selectedSessionId)return false;
   if((data||[]).length){
     state.attendance=new Set(data.filter(x=>x.present).map(x=>x.player_id));
     state.teamByPlayer=new Map();
@@ -194,47 +276,51 @@ function renderAttendance(){
     };
     box.append(label);
   });
-  renderTeamSetup();updateStartState();
+  renderTeamSetup();updateStartState();applyLiveLeaseControls();
 }
-async function loadPeriods(sessionId){
+async function loadPeriods(sessionId,epoch=state.loadEpoch){
   if(!sessionId||sessionId==='__new__'){state.periods=[];state.periodCounts={};renderPeriodList();return}
   const [{data:periods,error:pe},{data:events,error:ee}]=await Promise.all([
     db.from('training_live_periods').select('id,session_id,group_id,exercise_id,period_number,label,started_at,ended_at,team_assignments,created_at').eq('session_id',sessionId).order('period_number'),
     db.from('training_live_events').select('period_id').eq('session_id',sessionId)
   ]);
-  if(pe)throw pe;if(ee)throw ee;
+  if(pe)throw pe;if(ee)throw ee;if(epoch!==state.loadEpoch||sessionId!==state.selectedSessionId)return false;
   state.periods=periods||[];state.periodCounts={};(events||[]).forEach(e=>state.periodCounts[e.period_id]=(state.periodCounts[e.period_id]||0)+1);renderPeriodList();
 }
 function renderPeriodList(){
   const block=$('#existingPeriodsBlock'),box=$('#periodList');
-  if(state.selectedSessionId==='__new__'){block.classList.add('hidden');box.innerHTML='';return}
+  if(state.selectedSessionId==='__new__'){block.classList.add('hidden');box.innerHTML='';applyLiveLeaseControls();return}
   block.classList.remove('hidden');
-  if(!state.periods.length){box.innerHTML='<div class="small">Aucune collecte enregistrée pour cette séance.</div>';return}
+  if(!state.periods.length){box.innerHTML='<div class="small">Aucune collecte enregistrée pour cette séance.</div>';applyLiveLeaseControls();return}
   box.innerHTML=state.periods.map(p=>{
     const ex=exerciseById(p.exercise_id),n=state.periodCounts[p.id]||0;
     const classification=ex?`<span class="classTag">${escapeHtml(ex.name)}</span>`:'<span class="classTag unassigned">À classer</span>';
     const stateLabel=p.ended_at?'Terminée':'En cours';
     return `<div class="periodCard" data-period-card="${p.id}"><div><div class="periodCardTitle">${escapeHtml(p.label)}</div><div class="periodCardMeta">Période ${p.period_number} · ${stateLabel} · ${n} ${plural(n,'action')} · ${classification}</div></div><div class="periodCardActions"><button class="ghost" type="button" data-open-period="${p.id}">${p.ended_at?'Reprendre':'Ouvrir'}</button></div></div>`;
   }).join('');
-  $$('[data-open-period]').forEach(b=>b.onclick=()=>resumePeriod(b.dataset.openPeriod).catch(showFatal));
+  $$('[data-open-period]').forEach(b=>b.onclick=()=>resumePeriod(b.dataset.openPeriod).catch(showFatal));applyLiveLeaseControls();
 }
 function syncNewSessionFields(){
   const isNew=state.selectedSessionId==='__new__';$('#setupGrid').classList.toggle('isNewSession',isNew);$$('.newSessionField').forEach(x=>x.classList.toggle('hidden',!isNew));
   if(isNew){$('#newSessionDate').value=$('#newSessionDate').value||today();$('#existingPeriodsBlock').classList.add('hidden')}
 }
 async function handleGroupChange(){
+  const epoch=++state.loadEpoch;
+  await releaseLiveLease();
+  if(epoch!==state.loadEpoch)return;
   state.selectedGroupId=$('#groupSelect').value;state.selectedSessionId='__new__';state.sessions=[];state.periods=[];state.players=[];state.attendance=new Set();state.teamByPlayer=new Map();renderAttendance();renderPeriodList();
   if(!state.selectedGroupId){$('#sessionSelect').disabled=true;$('#sessionSelect').innerHTML='<option>— Choisir d’abord un groupe —</option>';return}
   setStatus($('#setupStatus'),'Chargement…');
   try{
-    await Promise.all([loadPlayers(state.selectedGroupId),loadSessions(state.selectedGroupId)]);
-    syncNewSessionFields();await Promise.all([loadAttendance(state.selectedSessionId),loadPeriods(state.selectedSessionId)]);
+    await Promise.all([loadPlayers(state.selectedGroupId,epoch),loadSessions(state.selectedGroupId,epoch)]);
+    if(epoch!==state.loadEpoch)return;syncNewSessionFields();await Promise.all([loadAttendance(state.selectedSessionId,epoch),loadPeriods(state.selectedSessionId,epoch)]);
+    if(epoch!==state.loadEpoch)return;
     $('#periodLabel').value=suggestedPeriodLabel();setStatus($('#setupStatus'),'Prêt.');
   }catch(e){setStatus($('#setupStatus'),e.message||String(e),true)}
 }
 async function handleSessionChange(){
-  state.selectedSessionId=$('#sessionSelect').value||'__new__';syncNewSessionFields();setStatus($('#setupStatus'),'Chargement…');
-  try{await Promise.all([loadAttendance(state.selectedSessionId),loadPeriods(state.selectedSessionId)]);$('#periodLabel').value=suggestedPeriodLabel();setStatus($('#setupStatus'),'Prêt.')}catch(e){setStatus($('#setupStatus'),e.message||String(e),true)}
+  const epoch=++state.loadEpoch,next=$('#sessionSelect').value||'__new__';await releaseLiveLease();if(epoch!==state.loadEpoch)return;state.selectedSessionId=next;syncNewSessionFields();setStatus($('#setupStatus'),'Chargement…');
+  try{await Promise.all([loadAttendance(next,epoch),loadPeriods(next,epoch)]);if(epoch!==state.loadEpoch||next!==state.selectedSessionId)return;$('#periodLabel').value=suggestedPeriodLabel();if(next==='__new__')setStatus($('#setupStatus'),'Prêt.');else await acquireLiveLease(next)}catch(e){if(epoch===state.loadEpoch)setStatus($('#setupStatus'),e.message||String(e),true)}
 }
 async function ensureTeam(name){
   const {data:found,error}=await db.from('teams').select('id').eq('workspace_id',state.workspaceId).eq('name',name).limit(1);if(error)throw error;if(found?.length)return found[0].id;
@@ -244,10 +330,20 @@ async function createQuickTrainingSession(){
   const group=groupById(state.selectedGroupId);if(!group)throw new Error('Choisis un groupe.');
   const teamId=await ensureTeam(group.name);
   const label=$('#newSessionLabel').value.trim()||'Entraînement';
-  const payload={workspace_id:state.workspaceId,group_id:group.id,team_id:teamId,trained_on:$('#newSessionDate').value||today(),label,theme:label,created_by:state.user.id,updated_by:state.user.id};
-  const {data,error}=await db.from('training_sessions').insert(payload).select('id,group_id,trained_on,label,theme,created_at').single();if(error)throw error;
+  const trainedOn=$('#newSessionDate').value||today();setLiveLeaseStatus('pending');
+  const {data:rpcData,error}=await db.rpc('save_training_session',{
+    p_session_id:null,p_expected_version:null,p_editor_instance_id:state.lease.instanceId,p_lease_token:null,
+    p_workspace_id:state.workspaceId,p_group_id:group.id,p_team_id:teamId,p_trained_on:trainedOn,
+    p_label:label,p_theme:label,p_duration_minutes:null,p_notes:null,p_attendance:[],p_exercises:[],p_results:[],p_force:false
+  });
+  if(error)throw error;
+  const result=Array.isArray(rpcData)?rpcData[0]:rpcData;
+  if(result?.status!=='saved'||!result.session_id||!result.lease_token)throw new Error('Réponse de création inattendue.');
+  const data={id:result.session_id,group_id:group.id,trained_on:trainedOn,label,theme:label,created_at:result.updated_at};
+  state.lease.sessionId=data.id;state.lease.token=result.lease_token;state.lease.expiresAt=result.lease_expires_at||null;setLiveLeaseStatus('owned',{expiresAt:state.lease.expiresAt});scheduleLiveLeaseHeartbeat();
   state.sessions.unshift(data);state.selectedSessionId=data.id;state.currentSession=data;
-  const sel=$('#sessionSelect'),o=document.createElement('option');o.value=data.id;o.textContent=`${fmtDate(data.trained_on)} · ${data.theme||data.label}`;sel.append(o);sel.value=data.id;syncNewSessionFields();return data;
+  const sel=$('#sessionSelect'),o=document.createElement('option');o.value=data.id;o.textContent=`${fmtDate(data.trained_on)} · ${data.theme||data.label}`;sel.append(o);sel.value=data.id;syncNewSessionFields();
+  return data;
 }
 function currentPeriodTeamSnapshot(){
   const snapshot={};
@@ -277,7 +373,7 @@ function applyPeriodTeamSnapshot(snapshot){
 }
 
 async function persistCurrentPeriodTeamSnapshot(){
-  if(!state.currentPeriod?.id)return;
+  if(!state.currentPeriod?.id||!requireLiveLease())return;
   const snapshot=currentPeriodTeamSnapshot();
   const {data,error}=await db.from('training_live_periods')
     .update({team_assignments:snapshot,updated_at:new Date().toISOString()})
@@ -288,7 +384,7 @@ async function persistCurrentPeriodTeamSnapshot(){
   Object.assign(state.currentPeriod,data);
 }
 
-async function restorePeriodTeamSnapshot(period){
+async function restorePeriodTeamSnapshot(period,{persist=true}={}){
   if(period?.team_assignments!==null&&period?.team_assignments!==undefined){
     applyPeriodTeamSnapshot(period.team_assignments);
     renderAttendance();
@@ -318,6 +414,7 @@ async function restorePeriodTeamSnapshot(period){
 
   applyPeriodTeamSnapshot(snapshot);
 
+  if(!persist){renderAttendance();return}
   const {data,error}=await db.from('training_live_periods')
     .update({team_assignments:snapshot,updated_at:new Date().toISOString()})
     .eq('id',period.id)
@@ -329,6 +426,7 @@ async function restorePeriodTeamSnapshot(period){
 }
 
 async function saveAttendance(sessionId){
+  if(!requireLiveLease())throw new Error('Cette séance est en lecture seule.');
   const rows=state.players.map(p=>({session_id:sessionId,player_id:p.id,present:state.attendance.has(p.id),team_color:state.attendance.has(p.id)?teamForPlayer(p.id):null}));if(!rows.length)return;
   const {error}=await db.from('training_attendance').upsert(rows,{onConflict:'session_id,player_id'});if(error)throw error;
 }
@@ -338,6 +436,7 @@ async function startCollection(){
   try{
     let session=state.selectedSessionId==='__new__'?await createQuickTrainingSession():sessionById(state.selectedSessionId);
     if(!session)throw new Error('Séance introuvable.');state.currentSession=session;
+    if(!requireLiveLease())throw new Error('Cette séance est en lecture seule.');
     await saveAttendance(session.id);
     await loadPeriods(session.id);
     const number=nextPeriodNumber(),exerciseId=$('#exerciseSelect').value||null;
@@ -346,15 +445,16 @@ async function startCollection(){
     const {data:period,error}=await db.from('training_live_periods').insert({session_id:session.id,group_id:state.selectedGroupId,exercise_id:exerciseId,period_number:number,label,team_assignments:teamAssignments,created_by:state.user.id}).select('*').single();
     if(error)throw error;state.periods.push(period);state.periodCounts[period.id]=0;state.selectedSessionId=session.id;$('#sessionSelect').value=session.id;
     await openPeriod(period);setStatus($('#setupStatus'),'');setCloud('Synchronisé',true);
-  }catch(e){setStatus($('#setupStatus'),e.message||String(e),true);setCloud('Erreur',false)}finally{state.saving=false;updateStartState()}
+  }catch(e){handleLiveLeaseError(e);setStatus($('#setupStatus'),e.message||String(e),true);setCloud('Erreur',false)}finally{state.saving=false;updateStartState();applyLiveLeaseControls()}
 }
 async function resumePeriod(periodId){
   const period=state.periods.find(p=>p.id===periodId);if(!period)return;
+  const writable=liveCanMutate();
   state.currentSession=sessionById(period.session_id)||state.currentSession;
   if(!state.currentSession){const {data,error}=await db.from('training_sessions').select('id,group_id,trained_on,label,theme,created_at').eq('id',period.session_id).single();if(error)throw error;state.currentSession=data}
-  await restorePeriodTeamSnapshot(period);
-  await saveAttendance(period.session_id);
-  if(period.ended_at){const {data,error}=await db.from('training_live_periods').update({ended_at:null,updated_at:new Date().toISOString()}).eq('id',period.id).select('*').single();if(error)throw error;Object.assign(period,data)}
+  await restorePeriodTeamSnapshot(period,{persist:writable});
+  if(writable)await saveAttendance(period.session_id);
+  if(writable&&period.ended_at){const {data,error}=await db.from('training_live_periods').update({ended_at:null,updated_at:new Date().toISOString()}).eq('id',period.id).select('*').single();if(error)throw error;Object.assign(period,data)}
   await openPeriod(period);
 }
 async function openPeriod(period){
@@ -376,9 +476,9 @@ function renderClassification(){
   fillExerciseSelect($('#collectorExerciseSelect'),p.exercise_id||'');
 }
 async function saveClassification(){
-  if(!state.currentPeriod)return;const exerciseId=$('#collectorExerciseSelect').value||null;setStatus($('#classificationStatus'),'Enregistrement…');
+  if(!state.currentPeriod||!requireLiveLease())return;const exerciseId=$('#collectorExerciseSelect').value||null;setStatus($('#classificationStatus'),'Enregistrement…');
   const {data,error}=await db.from('training_live_periods').update({exercise_id:exerciseId,updated_at:new Date().toISOString()}).eq('id',state.currentPeriod.id).select('*').single();
-  if(error){setStatus($('#classificationStatus'),error.message||String(error),true);return}Object.assign(state.currentPeriod,data);renderClassification();setStatus($('#classificationStatus'),exerciseId?'Association enregistrée.':'Collecte conservée « À classer ».');setCloud('Synchronisé',true)
+  if(error){handleLiveLeaseError(error);setStatus($('#classificationStatus'),error.message||String(error),true);return}Object.assign(state.currentPeriod,data);renderClassification();setStatus($('#classificationStatus'),exerciseId?'Association enregistrée.':'Collecte conservée « À classer ».');setCloud('Synchronisé',true)
 }
 function renderContext(){
   $$('.contextBtn').forEach(b=>{const active=b.dataset.context===state.selectedContext;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));const s=b.querySelector('.contextState');if(s)s.textContent=active?'Sélectionné':'Choisir'});
@@ -418,18 +518,19 @@ function renderTeamOrganizer(){
   }
 }
 function setTeamOrganizerMode(enabled){
+  if(enabled&&!requireLiveLease())return;
   state.organizingTeams=!!enabled;state.organizerPlayerId=null;state.organizerSwapTeam=null;state.activeTarget=null;state.faultTarget=null;
   renderTeamOrganizer();renderTargets();
 }
 async function persistLiveTeamAssignments(playerIds){
-  if(!state.currentSession?.id)return;
+  if(!state.currentSession?.id||!requireLiveLease())return;
   const ids=[...new Set((playerIds||[]).filter(Boolean))];if(!ids.length)return;
   const rows=ids.map(id=>({session_id:state.currentSession.id,player_id:id,present:state.attendance.has(id),team_color:teamForPlayer(id)}));
   const {error}=await db.from('training_attendance').upsert(rows,{onConflict:'session_id,player_id'});if(error)throw error;
   await persistCurrentPeriodTeamSnapshot();
 }
 async function moveOrganizerPlayer(destination){
-  const player=organizerPlayer();if(!player)return;
+  if(!requireLiveLease())return;const player=organizerPlayer();if(!player)return;
   const targetTeam=normalizeTeamColor(destination);const sourceTeam=teamForPlayer(player.id);
   if(targetTeam===sourceTeam){state.organizerPlayerId=null;state.organizerSwapTeam=null;renderTeamOrganizer();renderTargets();return}
   if(targetTeam&&organizerTeamCount(targetTeam)>=4){state.organizerSwapTeam=targetTeam;renderTeamOrganizer();renderTargets();return}
@@ -438,7 +539,7 @@ async function moveOrganizerPlayer(destination){
   state.organizerPlayerId=null;state.organizerSwapTeam=null;renderTeamOrganizer();renderTargets();setStatus($('#saveStatus'),`${player.display_name} → ${targetTeam?TEAM_META[targetTeam].label:'Non affecté'}`);
 }
 async function handleOrganizerPlayerTap(playerId){
-  const player=state.players.find(p=>p.id===playerId);if(!player)return;
+  if(!requireLiveLease())return;const player=state.players.find(p=>p.id===playerId);if(!player)return;
   if(state.organizerSwapTeam&&state.organizerPlayerId){
     if(playerId===state.organizerPlayerId)return;
     if(teamForPlayer(playerId)!==state.organizerSwapTeam){state.organizerPlayerId=playerId;state.organizerSwapTeam=null;renderTeamOrganizer();renderTargets();return}
@@ -528,16 +629,16 @@ function renderTargets(){
   });
   box.querySelectorAll('[data-cancel-target]').forEach(b=>b.onclick=()=>{state.activeTarget=null;state.faultTarget=null;renderTargets()});
   box.querySelectorAll('[data-outcome]').forEach(b=>b.onclick=()=>{if(state.saving||state.organizingTeams||!state.activeTarget)return;if(b.dataset.outcome==='fault'){state.faultTarget={...state.activeTarget};renderFaultPanel()}else saveEvent(b.dataset.outcome,null).catch(showFatal)});
-  renderTeamOrganizer();renderFaultPanel();
+  renderTeamOrganizer();renderFaultPanel();applyLiveLeaseControls();
 }
 
 async function saveEvent(result,faultType){
-  if(!state.currentPeriod||!state.currentSession||!state.activeTarget)return;const target={...state.activeTarget},context=state.selectedContext;state.saving=true;renderTargets();setStatus($('#saveStatus'),'Enregistrement…');setCloud('Enregistrement…',null);
+  if(!state.currentPeriod||!state.currentSession||!state.activeTarget||!requireLiveLease())return;const target={...state.activeTarget},context=state.selectedContext,leaseEpoch=state.lease.epoch,periodId=state.currentPeriod.id,sessionId=state.currentSession.id;state.saving=true;renderTargets();setStatus($('#saveStatus'),'Enregistrement…');setCloud('Enregistrement…',null);
   try{
     const payload={period_id:state.currentPeriod.id,session_id:state.currentSession.id,group_id:state.currentPeriod.group_id,player_id:target.type==='player'?target.id:null,attribution_type:target.type,team_color:normalizeTeamColor(target.team),result,attack_context:context,fault_type:result==='fault'?faultType:null,created_by:state.user.id};
     const {data,error}=await db.from('training_live_events').insert(payload).select('id,period_id,session_id,group_id,player_id,attribution_type,team_color,attack_context,result,fault_type,occurred_at,created_by,created_at').single();
-    if(error)throw error;state.events.push(data);state.periodCounts[state.currentPeriod.id]=(state.periodCounts[state.currentPeriod.id]||0)+1;state.activeTarget=null;state.faultTarget=null;renderTargets();renderEvents();setStatus($('#saveStatus'),`${target.name} · ${CONTEXT_LABEL[context]} → ${RESULT_LABEL[result]}${faultType?' · '+faultType:''}`);setCloud('Synchronisé',true);
-  }catch(e){setStatus($('#saveStatus'),e.message||String(e),true);setCloud('Erreur',false)}finally{state.saving=false;renderTargets()}
+    if(error)throw error;if(leaseEpoch!==state.lease.epoch||periodId!==state.currentPeriod?.id||sessionId!==state.currentSession?.id)return;state.events.push(data);state.periodCounts[periodId]=(state.periodCounts[periodId]||0)+1;state.activeTarget=null;state.faultTarget=null;renderTargets();renderEvents();setStatus($('#saveStatus'),`${target.name} · ${CONTEXT_LABEL[context]} → ${RESULT_LABEL[result]}${faultType?' · '+faultType:''}`);setCloud('Synchronisé',true);
+  }catch(e){handleLiveLeaseError(e);setStatus($('#saveStatus'),e.message||String(e),true);setCloud('Erreur',false)}finally{state.saving=false;renderTargets()}
 }
 function playerName(id){return state.players.find(p=>p.id===id)?.display_name||'Joueur'}
 function eventTargetLabel(e){const team=normalizeTeamColor(e.team_color);return e.attribution_type==='collective'?`Collectif${team?' '+TEAM_META[team].short.toLowerCase():''}`:playerName(e.player_id)}
@@ -547,17 +648,17 @@ function renderEvents(){
   const total=state.events.length,points=state.events.filter(e=>e.result==='point').length,defended=state.events.filter(e=>e.result==='defended').length,faults=state.events.filter(e=>e.result==='fault').length;
   $('#metricTotal').textContent=total;$('#metricPoints').textContent=total?`${points} · ${Math.round(100*points/total)}%`:points;$('#metricDefended').textContent=total?`${defended} · ${Math.round(100*defended/total)}%`:defended;$('#metricFaults').textContent=total?`${faults} · ${Math.round(100*faults/total)}%`:faults;
   const last=state.events.at(-1);$('#lastEntry').textContent=last?`${eventTargetLabel(last)} · ${CONTEXT_LABEL[last.attack_context]} → ${eventResultLabel(last)}`:'—';
-  const own=lastOwnEvent();$('#undoLast').disabled=!own;$('#historyCount').textContent=`${total} ${plural(total,'action')}`;
+  const own=lastOwnEvent();$('#undoLast').disabled=!own||!liveCanMutate();$('#historyCount').textContent=`${total} ${plural(total,'action')}`;
   const rows=[...state.events].reverse().slice(0,30);$('#historyList').innerHTML=rows.length?rows.map(e=>`<div class="historyRow"><div class="time">${escapeHtml(fmtTime(e.occurred_at||e.created_at))}</div><div class="target">${e.attribution_type==='collective'?'👥 ':''}${escapeHtml(eventTargetLabel(e))}</div><div class="context">${escapeHtml(CONTEXT_LABEL[e.attack_context]||e.attack_context)}</div><div class="result">${escapeHtml(eventResultLabel(e))}</div></div>`).join(''):'<div class="historyEmpty">Aucune saisie dans cette période.</div>';
 }
 async function undoLast(){
-  const e=lastOwnEvent();if(!e)return;$('#undoLast').disabled=true;setStatus($('#saveStatus'),'Annulation…');
-  const {error}=await db.from('training_live_events').delete().eq('id',e.id);if(error){setStatus($('#saveStatus'),error.message||String(error),true);renderEvents();return}
+  const e=lastOwnEvent();if(!e||!requireLiveLease())return;$('#undoLast').disabled=true;setStatus($('#saveStatus'),'Annulation…');
+  const {error}=await db.from('training_live_events').delete().eq('id',e.id);if(error){handleLiveLeaseError(error);setStatus($('#saveStatus'),error.message||String(error),true);renderEvents();return}
   state.events=state.events.filter(x=>x.id!==e.id);state.periodCounts[state.currentPeriod.id]=Math.max(0,(state.periodCounts[state.currentPeriod.id]||1)-1);renderTargets();renderEvents();setStatus($('#saveStatus'),'Dernière saisie annulée.');setCloud('Synchronisé',true)
 }
 async function finishPeriod(){
-  if(!state.currentPeriod)return;const {data,error}=await db.from('training_live_periods').update({ended_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',state.currentPeriod.id).select('*').single();
-  if(error){setStatus($('#saveStatus'),error.message||String(error),true);return}Object.assign(state.currentPeriod,data);setStatus($('#saveStatus'),'Période terminée.');await returnToSetup();
+  if(!state.currentPeriod||!requireLiveLease())return;const {data,error}=await db.from('training_live_periods').update({ended_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',state.currentPeriod.id).select('*').single();
+  if(error){handleLiveLeaseError(error);setStatus($('#saveStatus'),error.message||String(error),true);return}Object.assign(state.currentPeriod,data);setStatus($('#saveStatus'),'Période terminée.');await returnToSetup();
 }
 async function returnToSetup(){
   closeFieldTools();setFieldCollectionMode(false);$('#collectorPanel').classList.add('hidden');$('#setupPanel').classList.remove('hidden');state.activeTarget=null;state.faultTarget=null;state.organizingTeams=false;state.organizerPlayerId=null;state.organizerSwapTeam=null;
@@ -571,18 +672,21 @@ async function returnToSetup(){
   }
   window.scrollTo({top:0,behavior:'instant'});
 }
-function showFatal(error){console.error(error);setCloud('Erreur',false);setStatus($('#saveStatus'),error?.message||String(error),true);setStatus($('#setupStatus'),error?.message||String(error),true)}
+function showFatal(error){handleLiveLeaseError(error);console.error(error);setCloud('Erreur',false);setStatus($('#saveStatus'),error?.message||String(error),true);setStatus($('#setupStatus'),error?.message||String(error),true)}
 
 $('#groupSelect').onchange=()=>handleGroupChange();
 $('#sessionSelect').onchange=()=>handleSessionChange();
-$('#selectAllPlayers').onclick=()=>{state.attendance=new Set(state.players.map(p=>p.id));renderAttendance()};
-$('#clearAllPlayers').onclick=()=>{state.attendance.clear();state.teamByPlayer.clear();renderAttendance()};
-$('#autoAssignTeams').onclick=()=>autoAssignTeams();
+$('#selectAllPlayers').onclick=()=>{if(!liveCanMutate())return;state.attendance=new Set(state.players.map(p=>p.id));renderAttendance()};
+$('#clearAllPlayers').onclick=()=>{if(!liveCanMutate())return;state.attendance.clear();state.teamByPlayer.clear();renderAttendance()};
+$('#autoAssignTeams').onclick=()=>{if(liveCanMutate())autoAssignTeams()};
 $('#organizeTeams').onclick=()=>setTeamOrganizerMode(!state.organizingTeams);
 $$('[data-team-destination]').forEach(b=>b.onclick=()=>{if(state.organizingTeams)moveOrganizerPlayer(b.dataset.teamDestination).catch(showFatal)});
 $('#exerciseSelect').onchange=()=>{$('#periodLabel').value=suggestedPeriodLabel()};
 $('#startCollection').onclick=()=>startCollection();
-$('#refreshPeriods').onclick=()=>loadPeriods(state.selectedSessionId).catch(showFatal);
+$('#refreshPeriods').onclick=()=>{
+  if(state.selectedSessionId!=='__new__'&&state.lease.status!=='owned')acquireLiveLease(state.selectedSessionId).catch(showFatal);
+  else loadPeriods(state.selectedSessionId).catch(showFatal);
+};
 $$('.contextBtn').forEach(b=>b.onclick=()=>{state.selectedContext=b.dataset.context;renderContext()});
 let cancelActiveTargetOnClick=false;
 $('#collectorPanel').addEventListener('pointerdown',e=>{
@@ -610,6 +714,13 @@ $('#faultPanelClose').onclick=()=>closeFaultPanel(false);
 $('#faultOverlay').onclick=e=>{if(e.target===$('#faultOverlay'))closeFaultPanel(true)};
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.body.classList.contains('fieldToolsOpen'))closeFieldTools()});
 initFieldToolsDrawer();
+state.lease.instanceId=newUuid();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state.lease.status==='owned'){stopLiveLeaseTimers();void renewLiveLease()}});
+window.addEventListener('pagehide',()=>{void releaseLiveLease()});
+window.addEventListener('beforeunload',event=>{if(!(state.saving&&state.lease.status==='pending'))return;event.preventDefault();event.returnValue=''});
+document.querySelector('a.backNav[href="index.html"]')?.addEventListener('click',event=>{
+  if(state.lease.status!=='owned')return;event.preventDefault();releaseLiveLease().finally(()=>{location.href='index.html'});
+});
 
 (async()=>{
   try{

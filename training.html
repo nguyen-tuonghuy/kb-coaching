@@ -212,7 +212,7 @@
 
  <section class="panel hidden" id="trainingSession">
    <div class="trainingSessionHead">
-     <div><h2 style="font-size:20px">Nouvelle séance</h2><div class="small">1. Informations · 2. Présents · 3. Exercices · 4. Résultats</div><div class="trainingPersistenceStatus" id="trainingLocalStatus" role="status" aria-live="polite">Séance enregistrée sur le cloud</div><div class="authStatus" id="trainingSaveStatusHead" aria-hidden="true"></div></div>
+     <div><h2 style="font-size:20px">Nouvelle séance</h2><div class="small">1. Informations · 2. Présents · 3. Exercices · 4. Résultats</div><div class="trainingPersistenceStatus" id="trainingLocalStatus" role="status" aria-live="polite">Séance enregistrée sur le cloud</div><div class="trainingCloudStatus hidden" id="trainingCloudStatus" role="status" aria-live="polite"></div><div class="authStatus" id="trainingSaveStatusHead" aria-hidden="true"></div></div>
       <div class="trainingSessionActions">
        <button class="ghost hidden" type="button" id="openTrainingLocalHistory">Versions locales</button>
        <button class="primary" type="button" id="saveTrainingSessionHead">Enregistrer la séance</button>
@@ -221,6 +221,8 @@
     </div>
     <div class="trainingUndoNotice hidden" id="trainingUndoNotice" role="status" aria-live="polite"><span id="trainingUndoMessage"></span><button class="ghost" type="button" id="undoTrainingAction">Annuler</button></div>
    <div class="trainingConflictNotice hidden" id="trainingConflictNotice" role="alert"><span id="trainingConflictMessage"></span><button class="ghost" type="button" id="resolveTrainingConflict">Résoudre</button></div>
+   <div class="trainingCloudConflictNotice hidden" id="trainingCloudConflictNotice" role="alert"><span>Séance modifiée ailleurs. Tes modifications restent conservées sur cet appareil.</span><button class="ghost" type="button" id="resolveTrainingCloudConflict">Résoudre le conflit</button></div>
+   <div class="trainingLockNotice hidden" id="trainingLockNotice" role="status" aria-live="polite"><span id="trainingLockMessage"></span><button class="ghost hidden" type="button" id="trainingLockAction">Actualiser</button></div>
    <div class="row">
     <div class="field"><label>Date</label><input id="trainingDate" type="text" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AA" autocomplete="off"></div>
     <div class="field"><label>Groupe</label><select id="trainingGroup"><option value="">— Choisir un groupe —</option></select></div>
