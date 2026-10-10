@@ -4,7 +4,10 @@
 // writable one keeps writes in memory. Neither proves RLS or real persistence.
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
 const {loadPage,settle}=require('./helpers/page-harness.cjs');
+const root=path.resolve(__dirname,'..');
 
 const GROUP_ID='g1';
 const TEAM_NAME='Groupe Test';
@@ -748,4 +751,125 @@ test('two distinct drafts for the same session are distinguished from the same-d
   app.openTrainingConflictResolution();
   assert.match(ui.page.$('#trainingRecoveryBody').textContent,/même séance|brouillon distinct/i);
   assert.equal(ui.page.$('#trainingRecoveryPopup').classList.contains('hidden'),false);
+});
+
+// --- Correctif: les brouillons locaux restent visibles sans dépendre du réseau ---
+
+// Reproduces the production failure: one Supabase query answers with an error
+// (like a lost connection). The local list reads only localStorage and must
+// still render on the training home.
+function failingQuery(){
+  const query=new Proxy({},{get(_,method){
+    if(method==='then')return resolve=>resolve({data:null,error:{message:'offline'}});
+    return()=>query;
+  }});
+  return query;
+}
+
+async function openOffline(ui,failedTable='exercises'){
+  const {client,tables}=store({writable:true});
+  ui.tablesRef=tables;
+  const originalFrom=client.from.bind(client);
+  client.from=table=>table===failedTable?failingQuery():originalFrom(table);
+  ui.page=await loadPage('training',{client});
+  return boot(ui);
+}
+
+test('local drafts render on the home before any Supabase response',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
+  seedDraft(app,{draftId:'v',theme:'Visible tout de suite'});
+  // Reload through the real navigation path, not a manual render call.
+  await app.openTrainingModule();
+  await settle();
+  assert.equal(ui.page.$('#trainingLocalHome').classList.contains('hidden'),false);
+  assert.match(ui.page.$('#trainingLocalHomeList').textContent,/Visible tout de suite/);
+});
+
+test('local drafts stay visible even when a Supabase query errors',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await openOffline(ui);
+  seedDraft(app,{draftId:'off',theme:'Hors ligne'});
+  await app.openTrainingModule();
+  await settle();
+  assert.equal(ui.page.$('#trainingHome').classList.contains('hidden'),false,'the home is shown');
+  assert.equal(ui.page.$('#trainingLocalHome').classList.contains('hidden'),false,
+    'the local list must not depend on a successful network call');
+  assert.match(ui.page.$('#trainingLocalHomeList').textContent,/Hors ligne/);
+  assert.equal(app.trainingLocalState.store.list({userId:'u1',workspaceId:'w1'}).records.length,1,
+    'the failed query never deletes the local draft');
+});
+
+test('leaving a dirty session lists its draft on the home without manual refresh',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
+  ui.page.$('#trainingTheme').value='Séance en cours';
+  ui.page.$('#trainingTheme').dispatchEvent(new ui.page.w.Event('input',{bubbles:true}));
+  await runAutosave(ui);
+  ui.page.$('#cancelTraining').click();await settle();
+  ui.page.$('#trainingUnsavedKeep').click();await settle();await settle();
+  assert.equal(ui.page.$('#trainingHome').classList.contains('hidden'),false);
+  assert.equal(ui.page.$('#trainingLocalHome').classList.contains('hidden'),false);
+  assert.match(ui.page.$('#trainingLocalHomeList').textContent,/Séance en cours/);
+});
+
+test('local drafts survive a full page reload',async t=>{
+  const ui1={},ui2={};t.after(()=>{ui1.page?.close();ui2.page?.close()});
+  const {client}=store({writable:true});
+  ui1.page=await loadPage('training',{client});
+  const app1=await boot(ui1);
+  seedDraft(app1,{draftId:'reload',theme:'Persisté au rechargement'});
+  const snapshot={};
+  const storage=ui1.page.w.localStorage;
+  for(let i=0;i<storage.length;i++){const key=storage.key(i);snapshot[key]=storage.getItem(key)}
+  ui2.page=await loadPage('training',{client});
+  for(const [key,value] of Object.entries(snapshot))ui2.page.w.localStorage.setItem(key,value);
+  const app2=await boot(ui2);
+  await app2.openTrainingModule();
+  await settle();
+  assert.equal(ui2.page.$('#trainingLocalHome').classList.contains('hidden'),false);
+  assert.match(ui2.page.$('#trainingLocalHomeList').textContent,/Persisté au rechargement/);
+});
+
+test('local draft cards match the saved-session actions (ghost buttons)',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
+  seedDraft(app,{draftId:'a',theme:'Thème'});
+  app.renderTrainingLocalHome();
+  const resume=ui.page.$('#trainingLocalHomeList [data-resume]');
+  const remove=ui.page.$('#trainingLocalHomeList [data-delete]');
+  assert.equal(resume.classList.contains('ghost'),true);
+  assert.equal(resume.classList.contains('primary'),false);
+  assert.equal(remove.classList.contains('ghost'),true);
+  assert.equal(remove.classList.contains('dangerAction'),true);
+});
+
+// --- Correctif: la carte brouillon rejoint le thème clair partagé ---
+
+function cssVar(css,name){
+  const match=css.match(new RegExp(`--${name}\\s*:\\s*(#[0-9A-Fa-f]{6})`));
+  assert.ok(match,`--${name} introuvable`);
+  return match[1];
+}
+function channel(hex){const value=parseInt(hex,16)/255;return value<=0.03928?value/12.92:((value+0.055)/1.055)**2.4}
+function luminance(hex){
+  const r=channel(hex.slice(1,3)),g=channel(hex.slice(3,5)),b=channel(hex.slice(5,7));
+  return 0.2126*r+0.7152*g+0.0722*b;
+}
+function contrast(foreground,background){
+  const [a,b]=[luminance(foreground),luminance(background)].sort((x,y)=>y-x);
+  return (a+0.05)/(b+0.05);
+}
+
+test('draft card uses the shared light surface, not the legacy dark theme',()=>{
+  const common=fs.readFileSync(path.join(root,'css/common.css'),'utf8');
+  assert.match(common,/\.trainingSavedSession,\.trainingLocalDraft,/,
+    'common.css must neutralise the draft card like the saved-session card');
+  const shared=fs.readFileSync(path.join(root,'css/coaching-shared.css'),'utf8');
+  assert.match(shared,/\.trainingSavedSession,\s*\.trainingLocalDraft\{/);
+  assert.match(shared,/\.trainingSavedSession:hover,\.trainingLocalDraft:hover\{/);
+  const training=fs.readFileSync(path.join(root,'css/training.css'),'utf8');
+  const rule=training.match(/\.trainingLocalDraft\{([^}]*)\}/);
+  assert.ok(rule,'.trainingLocalDraft rule expected in training.css');
+  assert.equal(/#171a21|#1b2029|#53637a/.test(rule[1]),false,'no leftover dark theme colours');
+  assert.match(rule[1],/var\(--panel2\)/);
+  const muted=cssVar(common,'muted'),surface=cssVar(common,'surface-muted');
+  const ratio=contrast(muted,surface);
+  assert.ok(ratio>=4.5,`secondary text contrast ${ratio.toFixed(2)} must reach WCAG AA`);
 });

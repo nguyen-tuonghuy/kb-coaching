@@ -439,7 +439,7 @@ a.backNav:hover,button.backNav:hover,.ghost.backNav:hover,.nav a.backNav:hover{
 .statsImpactCoachMessage,.statsImpactPlayerExplainerFormula,
 .playerPortalReadOnlyMessage,.playerPortalVolumeBadge,
 .coachMessageHistoryItem,.playerPortalMessageBubble,.playerObjectiveItem,
-.staffRecentMessage,.trainingSavedSession,
+.staffRecentMessage,.trainingSavedSession,.trainingLocalDraft,
 .opponentMatchRow td{
   background:var(--surface-muted)!important;
   color:var(--text)!important;

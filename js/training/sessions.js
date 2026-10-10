@@ -62,13 +62,16 @@ app.fetchTrainingExercises = async function fetchTrainingExercises({withProfiles
 };
 
 app.openTrainingModule = async function openTrainingModule(){
-  try{
-    // Afficher immédiatement la page : les données arrivent ensuite sans bloquer le clic.
-    app.hideMainModules();
-    app.setMatchHeaderMode(false);app.$('#trainingHome').classList.remove('hidden');
-    if(app.$('#trainingSavedSeasons'))app.$('#trainingSavedSeasons').innerHTML='<div class="small">Chargement des séances…</div>';
-    window.scrollTo({top:0,behavior:'instant'});
+  // Afficher immédiatement la page : les données arrivent ensuite sans bloquer le clic.
+  app.hideMainModules();
+  app.setMatchHeaderMode(false);app.$('#trainingHome').classList.remove('hidden');
+  if(app.$('#trainingSavedSeasons'))app.$('#trainingSavedSeasons').innerHTML='<div class="small">Chargement des séances…</div>';
+  // Brouillons locaux : lecture du localStorage seul, affichée avant tout appel
+  // réseau pour rester visible même si les requêtes Supabase échouent.
+  app.renderTrainingLocalHome();
+  window.scrollTo({top:0,behavior:'instant'});
 
+  try{
     if(!app.groupState.groups.length)await app.fetchMyGroups();
 
     // Données visibles prioritaires : exercices/catégories et séances partent en parallèle.
@@ -470,11 +473,9 @@ app.renderTrainingLocalHome = function renderTrainingLocalHome(){
     const meta=record.meta||{},saved=record.savedAt?new Date(record.savedAt).toLocaleString('fr-FR'):'';
     const kind=record.sessionId?'Modifications d’une séance enregistrée':'Nouvelle séance';
     const card=document.createElement('div');card.className='trainingLocalDraft';
-    card.innerHTML=`<div class="trainingLocalDraftTop"><div class="trainingLocalDraftTitle"><strong>${app.escapeHtml(meta.theme||'Séance sans thème')}</strong><div class="small">${app.escapeHtml(meta.groupName||'Groupe non indiqué')}${meta.date?' · '+app.escapeHtml(meta.date):''}</div><div class="small">${app.escapeHtml(kind)} · ${meta.blockCount||0} bloc${meta.blockCount===1?'':'s'}${saved?' · Sauvegardé le '+app.escapeHtml(saved):''}</div></div><div class="trainingLocalDraftActions"><button class="primary" type="button" data-resume>Reprendre</button><button class="ghost dangerAction" type="button" data-delete>Supprimer</button></div></div>`;
-    card.setAttribute('role','button');card.tabIndex=0;
+    card.innerHTML=`<div class="trainingLocalDraftTop"><div class="trainingLocalDraftTitle"><strong>${app.escapeHtml(meta.theme||'Séance sans thème')}</strong><div class="trainingLocalDraftGroup">${app.escapeHtml(meta.groupName||'Groupe non indiqué')}</div><div class="small">${app.escapeHtml(kind)}${meta.date?' · '+app.escapeHtml(meta.date):''} · ${meta.blockCount||0} bloc${meta.blockCount===1?'':'s'}${saved?' · Sauvegardé le '+app.escapeHtml(saved):''}</div></div><div class="trainingLocalDraftActions"><button class="ghost" type="button" data-resume>Reprendre</button><button class="ghost dangerAction" type="button" data-delete>Supprimer</button></div></div>`;
     const resume=()=>app.restoreTrainingDraftRecord(record).catch(error=>app.handleError('resume training draft',error));
     card.onclick=resume;
-    card.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();resume()}};
     card.querySelector('[data-resume]').onclick=event=>{event.stopPropagation();resume()};
     card.querySelector('[data-delete]').onclick=event=>{event.stopPropagation();app.deleteTrainingLocalDraft(record)};
     box.append(card);

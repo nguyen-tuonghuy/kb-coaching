@@ -2827,7 +2827,8 @@ button.primary,.primary,.on,.tab.active{background:var(--accent)!important;color
 .playerVideoCard,
 .staffRecentMessage,
 .statsImpactPlayerExplainerFormula,
-.trainingSavedSession{
+.trainingSavedSession,
+.trainingLocalDraft{
   background:#F8FAFC!important;color:var(--text)!important;border:1px solid var(--line)!important
 }
 
@@ -2853,7 +2854,7 @@ button.primary,.primary,.on,.tab.active{background:var(--accent)!important;color
 
 .playerVideoSpeedButton.active{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}
 
-.trainingSavedSession:hover{background:var(--control-hover)!important;border-color:var(--control-border-hover)!important}
+.trainingSavedSession:hover,.trainingLocalDraft:hover{background:var(--control-hover)!important;border-color:var(--control-border-hover)!important}
 
 .startupScreen{background:var(--nav)!important;color:#F8FAFC!important}
 
