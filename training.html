@@ -200,6 +200,10 @@
     <button class="ghost" id="openTrainingHistory">Historique joueur</button>
    </div>
    <div class="small">Les séances et résultats sont enregistrés dans la même base Supabase que les matchs.</div>
+   <section class="trainingLocalHome hidden" id="trainingLocalHome" aria-labelledby="trainingLocalHomeTitle">
+    <div class="trainingSavedHomeHead"><div><h3 id="trainingLocalHomeTitle">Brouillons locaux</h3><div class="small">Enregistrés uniquement sur cet appareil et ce navigateur. Non synchronisés sur le cloud.</div></div><span class="small" id="trainingLocalHomeCount"></span></div>
+    <div id="trainingLocalHomeList"></div>
+   </section>
    <div class="trainingSavedHome">
     <div class="trainingSavedHomeHead"><div><h3>Séances enregistrées</h3><div class="small">Classées par saison sportive. La saison en cours est ouverte automatiquement.</div></div><span class="small" id="trainingSavedCount"></span></div>
     <div id="trainingSavedSeasons"></div>
@@ -216,6 +220,7 @@
       </div>
     </div>
     <div class="trainingUndoNotice hidden" id="trainingUndoNotice" role="status" aria-live="polite"><span id="trainingUndoMessage"></span><button class="ghost" type="button" id="undoTrainingAction">Annuler</button></div>
+   <div class="trainingConflictNotice hidden" id="trainingConflictNotice" role="alert"><span id="trainingConflictMessage"></span><button class="ghost" type="button" id="resolveTrainingConflict">Résoudre</button></div>
    <div class="row">
     <div class="field"><label>Date</label><input id="trainingDate" type="text" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AA" autocomplete="off"></div>
     <div class="field"><label>Groupe</label><select id="trainingGroup"><option value="">— Choisir un groupe —</option></select></div>

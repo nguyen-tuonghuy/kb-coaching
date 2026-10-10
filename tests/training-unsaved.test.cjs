@@ -612,3 +612,140 @@ test('a throwing storage adapter returns an error without deleting recoverable d
   const result=repository.write({userId:'u1',workspaceId:'w1',draftId:'quota',sessionId:null,ownerTabId:'tab',expectedRevision:0,meta:{},document:app.trainingEditorDocument()});
   assert.equal(result.ok,false);assert.equal(result.kind,'storage');assert.equal(backing.size,0);
 });
+
+// --- Lot A: permanent local-draft list and cross-tab conflict resolution ---
+
+function seedDraft(app,{userId='u1',workspaceId='w1',draftId,sessionId=null,theme='Brouillon',groupName=TEAM_NAME,date='2026-04-01',blockCount=1,ownerTabId='seed'}={}){
+  const document=app.trainingEditorDocument();
+  document.fields.theme=theme;
+  return app.trainingLocalState.store.write({userId,workspaceId,draftId,sessionId,ownerTabId,expectedRevision:0,
+    meta:{theme,groupName,date,blockCount},document});
+}
+
+test('home lists multiple local drafts and collapses when empty',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
+  app.renderTrainingLocalHome();
+  assert.equal(ui.page.$('#trainingLocalHome').classList.contains('hidden'),true,'empty list does not clutter the home');
+  seedDraft(app,{draftId:'a',theme:'Thème A',blockCount:2});
+  seedDraft(app,{draftId:'b',theme:'Thème B',blockCount:0,date:'2026-04-02'});
+  app.renderTrainingLocalHome();
+  assert.equal(ui.page.$('#trainingLocalHome').classList.contains('hidden'),false);
+  assert.equal(ui.page.w.document.querySelectorAll('#trainingLocalHomeList .trainingLocalDraft').length,2);
+  const text=ui.page.$('#trainingLocalHomeList').textContent;
+  assert.match(text,/Thème A/);
+  assert.match(text,/Thème B/);
+  assert.match(text,/Nouvelle séance/);
+  assert.match(text,/sauvegardé/i);
+  assert.equal(ui.page.$('#trainingRecoveryPopup').classList.contains('hidden'),true,'the permanent list does not open the recovery popup');
+});
+
+test('resuming a draft from the home reopens the editor with its content',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
+  seedDraft(app,{draftId:'a',theme:'À reprendre'});
+  app.renderTrainingLocalHome();
+  ui.page.$('#trainingLocalHomeList [data-resume]').click();
+  await settle();
+  assert.equal(ui.page.$('#trainingSession').classList.contains('hidden'),false);
+  assert.equal(ui.page.$('#trainingTheme').value,'À reprendre');
+});
+
+test('an ignored draft stays listed on the home',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
+  seedDraft(app,{draftId:'a',theme:'Ignoré'});
+  app.trainingLocalState.ignored.add('a');
+  app.renderTrainingLocalHome();
+  assert.equal(ui.page.w.document.querySelectorAll('#trainingLocalHomeList .trainingLocalDraft').length,1);
+});
+
+test('deleting a home draft only touches local storage, never Supabase',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
+  seedDraft(app,{draftId:'a',theme:'À supprimer'});
+  app.renderTrainingLocalHome();
+  ui.page.w.confirm=()=>true;
+  ui.page.$('#trainingLocalHomeList [data-delete]').click();
+  assert.equal(app.trainingLocalState.store.read({userId:'u1',workspaceId:'w1',draftId:'a'}).record,null);
+  assert.equal((ui.tablesRef.training_sessions||[]).length,0,'no cloud session was removed');
+  assert.equal(ui.page.$('#trainingLocalHome').classList.contains('hidden'),true,'the section hides once empty');
+});
+
+test('home drafts are isolated per user',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
+  seedDraft(app,{userId:'u1',draftId:'a',theme:'Le mien'});
+  seedDraft(app,{userId:'u2',draftId:'b',theme:'Autre compte'});
+  app.renderTrainingLocalHome();
+  const text=ui.page.$('#trainingLocalHomeList').textContent;
+  assert.match(text,/Le mien/);
+  assert.equal(/Autre compte/.test(text),false);
+});
+
+test('a same-draft tab conflict explains itself and offers three resolutions',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
+  ui.page.$('#trainingTheme').value='Premier onglet';app.persistTrainingLocalDraft();
+  const identity=app.trainingDraftIdentity(),current=app.trainingLocalState.store.read(identity).record;
+  const foreignDocument=JSON.parse(JSON.stringify(current.document));foreignDocument.fields.theme='Second onglet';
+  app.trainingLocalState.store.write({...current,ownerTabId:'other-tab',expectedRevision:current.revision,document:foreignDocument});
+  await app.saveTrainingSession();await settle();
+  assert.equal(ui.page.$('#trainingConflictNotice').classList.contains('hidden'),false);
+  assert.match(ui.page.$('#trainingConflictMessage').textContent,/modifiée dans un autre onglet/);
+  assert.equal(app.trainingLocalState.conflict.kind,'sameDraft');
+  assert.equal(ui.page.$('#trainingRecoveryPopup').classList.contains('hidden'),false);
+  const labels=[...ui.page.w.document.querySelectorAll('#trainingRecoveryActions button')].map(button=>button.textContent);
+  assert.equal(labels.length,3);
+  assert.equal(labels.some(label=>/forc/i.test(label)),false,'no silent force-overwrite action');
+});
+
+test('keeping my work as a distinct draft preserves the other tab draft',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
+  ui.page.$('#trainingTheme').value='Premier onglet';app.persistTrainingLocalDraft();
+  const identity=app.trainingDraftIdentity(),current=app.trainingLocalState.store.read(identity).record;
+  const foreignDocument=JSON.parse(JSON.stringify(current.document));foreignDocument.fields.theme='Second onglet';
+  app.trainingLocalState.store.write({...current,ownerTabId:'other-tab',expectedRevision:current.revision,document:foreignDocument});
+  await app.saveTrainingSession();await settle();
+  app.forkCurrentTrainingDraft();
+  const records=app.trainingLocalState.store.list({userId:'u1',workspaceId:'w1'}).records;
+  assert.equal(records.length,2,'both works coexist');
+  assert.ok(records.some(record=>record.document.fields.theme==='Second onglet'));
+  assert.ok(records.some(record=>record.document.fields.theme==='Premier onglet'));
+  assert.equal(app.trainingLocalState.conflict,null);
+});
+
+test('resuming the latest version adopts the other tab content from disk',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
+  ui.page.$('#trainingTheme').value='Premier onglet';app.persistTrainingLocalDraft();
+  const identity=app.trainingDraftIdentity(),current=app.trainingLocalState.store.read(identity).record;
+  const foreignDocument=JSON.parse(JSON.stringify(current.document));foreignDocument.fields.theme='Second onglet';
+  // The other tab wrote to disk and is now closed: no message is delivered.
+  app.trainingLocalState.store.write({...current,ownerTabId:'other-tab',expectedRevision:current.revision,document:foreignDocument});
+  await app.saveTrainingSession();await settle();
+  await app.resumeTrainingFromLatest();await settle();
+  assert.equal(ui.page.$('#trainingTheme').value,'Second onglet');
+  assert.equal(app.trainingLocalState.conflict,null);
+  assert.ok(app.trainingLocalState.store.read(app.trainingDraftIdentity()).record.revision>current.revision);
+});
+
+test('returning to the other tab stops local writes in this tab',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
+  ui.page.$('#trainingTheme').value='Premier onglet';app.persistTrainingLocalDraft();
+  const identity=app.trainingDraftIdentity(),current=app.trainingLocalState.store.read(identity).record;
+  app.registerTrainingTabConflict({draftId:identity.draftId,sessionId:null,revision:current.revision+1,ownerTabId:'other-tab'});
+  app.concedeTrainingTab();
+  assert.equal(app.trainingLocalState.suppressed,true);
+  assert.equal(app.trainingLocalState.conflict,null);
+  const revision=app.trainingLocalState.store.read(identity).record.revision;
+  ui.page.$('#trainingTheme').value='Écrit après abandon';
+  app.persistTrainingLocalDraft();
+  assert.equal(app.trainingLocalState.store.read(identity).record.revision,revision,'no write happens after conceding');
+  assert.match(ui.page.$('#trainingLocalStatus').textContent,/n’enregistre plus/);
+});
+
+test('two distinct drafts for the same session are distinguished from the same-draft conflict',async t=>{
+  const ui={};t.after(()=>ui.page?.close());const app=await open(ui,{existing:true});
+  const document=app.trainingEditorDocument();document.fields.theme='Autre onglet';
+  const key=app.trainingLocalState.store.keyFor({userId:'u1',workspaceId:'w1',draftId:'foreign'});
+  const record=app.trainingLocalState.store.write({userId:'u1',workspaceId:'w1',draftId:'foreign',sessionId:'s1',ownerTabId:'other-tab',expectedRevision:0,meta:{theme:'Autre onglet'},document}).record;
+  ui.page.w.dispatchEvent(new ui.page.w.StorageEvent('storage',{key,newValue:JSON.stringify(record)}));
+  assert.equal(app.trainingLocalState.conflict.kind,'sameSession');
+  app.openTrainingConflictResolution();
+  assert.match(ui.page.$('#trainingRecoveryBody').textContent,/même séance|brouillon distinct/i);
+  assert.equal(ui.page.$('#trainingRecoveryPopup').classList.contains('hidden'),false);
+});

@@ -77,7 +77,7 @@ app.openTrainingModule = async function openTrainingModule(){
       app.fetchRecentTrainingSessions({withProfiles:false})
     ]);
     app.renderTrainingSavedHome();
-    app.offerTrainingDraftRecovery();
+    app.renderTrainingLocalHome();
     app.startupTiming('séances et exercices affichés');
 
     // Les noms des auteurs sont secondaires : ils ne retardent plus l'affichage des séances.
@@ -228,8 +228,9 @@ app.beginTrainingLocalDraft = function beginTrainingLocalDraft({draftId=null,rev
   const local=app.trainingLocalState;
   if(local.timer){clearTimeout(local.timer);local.timer=null}
   local.draftId=draftId||app.newUuid();local.revision=revision;local.baseUpdatedAt=baseUpdatedAt||null;
-  local.sourceSessionId=sourceSessionId||null;local.suppressed=false;local.conflict=false;local.undo=null;
+  local.sourceSessionId=sourceSessionId||null;local.suppressed=false;local.conflict=null;local.undo=null;
   local.lastCheckpointAt=Date.now();
+  app.hideTrainingConflictBanner();
   app.$('#trainingUndoNotice')?.classList.add('hidden');
   app.$('#openTrainingLocalHistory')?.classList.add('hidden');
   if(local.storageWarning)app.setTrainingLocalStatus(local.storageWarning,'error');
@@ -258,11 +259,15 @@ app.persistTrainingLocalDraft = function persistTrainingLocalDraft({checkpointRe
   if(!candidate)return {ok:false,kind:'context'};
   const result=local.store.write(candidate,{checkpointReason,preserveCurrent});
   if(!result.ok){
-    local.conflict=result.kind==='conflict';
-    app.setTrainingLocalStatus(result.kind==='conflict'?'Conflit avec un autre onglet':'Sauvegarde locale impossible','error');
+    if(result.kind==='conflict'){
+      app.registerTrainingTabConflict({draftId:local.draftId,sessionId:app.trainingState.currentSessionId||null,revision:result.record?.revision,ownerTabId:result.record?.ownerTabId,savedAt:result.record?.savedAt});
+    }else{
+      local.conflict=null;
+      app.setTrainingLocalStatus('Sauvegarde locale impossible','error');
+    }
     return result;
   }
-  local.revision=result.record.revision;local.conflict=false;
+  local.revision=result.record.revision;local.conflict=null;
   if(checkpointReason)local.lastCheckpointAt=Date.now();
   app.setTrainingLocalStatus(`Brouillon sauvegardé sur cet appareil à ${app.trainingLocalTime(result.record.savedAt)}`,'local');
   app.$('#openTrainingLocalHistory')?.classList.toggle('hidden',!result.record.history.length);
@@ -289,7 +294,10 @@ app.removeCurrentTrainingLocalDraft = function removeCurrentTrainingLocalDraft()
   const identity=app.trainingDraftIdentity();if(!identity)return {ok:true};
   const local=app.trainingLocalState;
   const result=local.store.remove({...identity,expectedRevision:local.revision,ownerTabId:local.tabId});
-  if(!result.ok){local.conflict=result.kind==='conflict';app.setTrainingLocalStatus(result.kind==='conflict'?'Conflit avec un autre onglet':'Sauvegarde locale impossible','error')}
+  if(!result.ok){
+    if(result.kind==='conflict')app.registerTrainingTabConflict({draftId:local.draftId,sessionId:app.trainingState.currentSessionId||null,revision:result.record?.revision,ownerTabId:result.record?.ownerTabId,savedAt:result.record?.savedAt});
+    else{local.conflict=null;app.setTrainingLocalStatus('Sauvegarde locale impossible','error')}
+  }
   return result;
 };
 
@@ -297,6 +305,7 @@ app.abandonTrainingLocalDraft = function abandonTrainingLocalDraft(){
   const local=app.trainingLocalState;
   local.suppressed=true;if(local.timer){clearTimeout(local.timer);local.timer=null}
   app.removeCurrentTrainingLocalDraft();local.draftId=null;local.revision=0;local.undo=null;
+  app.refreshTrainingLocalHome();
 };
 
 app.showTrainingUndo = function showTrainingUndo(message,undo){
@@ -398,6 +407,7 @@ app.restoreTrainingDraftRecord = async function restoreTrainingDraftRecord(recor
   app.beginTrainingLocalDraft({draftId:record.draftId,revision:record.revision,baseUpdatedAt:asCopy?null:record.baseUpdatedAt,sourceSessionId:asCopy?(record.sessionId||record.sourceSessionId):record.sourceSessionId});
   await app.applyTrainingEditorDocument(record.document);
   app.scheduleTrainingLocalDraft();
+  app.refreshTrainingLocalHome();
 };
 
 app.renderTrainingDraftRecoveryList = function renderTrainingDraftRecoveryList(records,{history=false}={}){
@@ -441,6 +451,137 @@ app.openTrainingLocalHistory = function openTrainingLocalHistory(){
   app.renderTrainingDraftRecoveryList(records,{history:true});
 };
 
+// Permanent list of on-device drafts. Reads the same versioned store as the
+// editor; it never touches Supabase and never filters ignored drafts.
+app.renderTrainingLocalHome = function renderTrainingLocalHome(){
+  const section=app.$('#trainingLocalHome'),box=app.$('#trainingLocalHomeList'),count=app.$('#trainingLocalHomeCount');
+  if(!section||!box)return;
+  const userId=app.currentUser?.id,workspaceId=app.state.workspaceId;
+  if(!userId||!workspaceId){section.classList.add('hidden');return}
+  const result=app.trainingLocalState.store.list({userId,workspaceId});
+  if(!result.ok){section.classList.add('hidden');return}
+  if(result.unreadable.length){app.trainingLocalState.storageWarning='Une sauvegarde locale ancienne ou incompatible a été conservée.';app.setTrainingLocalStatus(app.trainingLocalState.storageWarning,'error')}
+  const records=result.records;
+  if(!records.length){section.classList.add('hidden');box.innerHTML='';if(count)count.textContent='';return}
+  section.classList.remove('hidden');
+  if(count)count.textContent=`${records.length} brouillon${records.length>1?'s':''}`;
+  box.innerHTML='';
+  records.forEach(record=>{
+    const meta=record.meta||{},saved=record.savedAt?new Date(record.savedAt).toLocaleString('fr-FR'):'';
+    const kind=record.sessionId?'Modifications d’une séance enregistrée':'Nouvelle séance';
+    const card=document.createElement('div');card.className='trainingLocalDraft';
+    card.innerHTML=`<div class="trainingLocalDraftTop"><div class="trainingLocalDraftTitle"><strong>${app.escapeHtml(meta.theme||'Séance sans thème')}</strong><div class="small">${app.escapeHtml(meta.groupName||'Groupe non indiqué')}${meta.date?' · '+app.escapeHtml(meta.date):''}</div><div class="small">${app.escapeHtml(kind)} · ${meta.blockCount||0} bloc${meta.blockCount===1?'':'s'}${saved?' · Sauvegardé le '+app.escapeHtml(saved):''}</div></div><div class="trainingLocalDraftActions"><button class="primary" type="button" data-resume>Reprendre</button><button class="ghost dangerAction" type="button" data-delete>Supprimer</button></div></div>`;
+    card.setAttribute('role','button');card.tabIndex=0;
+    const resume=()=>app.restoreTrainingDraftRecord(record).catch(error=>app.handleError('resume training draft',error));
+    card.onclick=resume;
+    card.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();resume()}};
+    card.querySelector('[data-resume]').onclick=event=>{event.stopPropagation();resume()};
+    card.querySelector('[data-delete]').onclick=event=>{event.stopPropagation();app.deleteTrainingLocalDraft(record)};
+    box.append(card);
+  });
+};
+
+app.deleteTrainingLocalDraft = function deleteTrainingLocalDraft(record){
+  if(!confirm('Supprimer définitivement ce brouillon local ? La séance enregistrée sur le cloud (si elle existe) n’est pas supprimée.'))return;
+  const result=app.trainingLocalState.store.remove({userId:record.userId,workspaceId:record.workspaceId,draftId:record.draftId});
+  if(!result.ok){app.handleError('delete training draft',new Error('Suppression locale impossible.'));return}
+  app.renderTrainingLocalHome();
+};
+
+app.refreshTrainingLocalHome = function refreshTrainingLocalHome(){
+  const home=app.$('#trainingHome');
+  if(home&&!home.classList.contains('hidden'))app.renderTrainingLocalHome();
+};
+
+// Tab conflicts are surfaced through a non-modal notice plus an explicit
+// resolution dialog. No "force" action ever overwrites the other tab's draft.
+app.showTrainingConflictBanner = function showTrainingConflictBanner(){
+  const notice=app.$('#trainingConflictNotice');if(!notice)return;
+  if(!app.trainingLocalState.conflict||app.$('#trainingSession')?.classList.contains('hidden')){notice.classList.add('hidden');return}
+  const message=app.$('#trainingConflictMessage');
+  if(message)message.textContent='Cette séance a été modifiée dans un autre onglet. Pour éviter de perdre des données, nous avons interrompu son enregistrement local dans cet onglet.';
+  notice.classList.remove('hidden');
+};
+
+app.hideTrainingConflictBanner = function hideTrainingConflictBanner(){
+  app.$('#trainingConflictNotice')?.classList.add('hidden');
+};
+
+app.registerTrainingTabConflict = function registerTrainingTabConflict(info={}){
+  const local=app.trainingLocalState;
+  if(info.ownerTabId&&info.ownerTabId===local.tabId)return;
+  const sameDraft=!!info.draftId&&info.draftId===local.draftId;
+  const sameSession=!sameDraft&&!!info.sessionId&&info.sessionId===app.trainingState.currentSessionId;
+  if(!sameDraft&&!sameSession)return;
+  local.conflict={
+    kind:sameDraft?'sameDraft':'sameSession',
+    draftId:info.draftId||local.draftId,sessionId:info.sessionId||app.trainingState.currentSessionId||null,
+    revision:info.revision??null,savedAt:info.savedAt||null,ownerTabId:info.ownerTabId||null
+  };
+  app.setTrainingLocalStatus('Conflit avec un autre onglet','error');
+  app.showTrainingConflictBanner();
+};
+
+app.currentTrainingConflict = function currentTrainingConflict(){
+  const local=app.trainingLocalState;
+  if(local.conflict&&typeof local.conflict==='object')return local.conflict;
+  return {kind:'sameDraft',draftId:local.draftId,sessionId:app.trainingState.currentSessionId||null,revision:null,savedAt:null};
+};
+
+app.openTrainingConflictResolution = function openTrainingConflictResolution(){
+  const conflict=app.currentTrainingConflict();
+  const sameDraft=conflict.kind==='sameDraft';
+  app.openTrainingRecoveryDialog('Cette séance est modifiée dans un autre onglet','Cette séance a été modifiée dans un autre onglet. Pour éviter de perdre des données, nous avons interrompu son enregistrement local dans cet onglet.');
+  const saved=conflict.savedAt?`<div class="small" style="margin-top:6px">Dernière version détectée le ${app.escapeHtml(new Date(conflict.savedAt).toLocaleString('fr-FR'))}.</div>`:'';
+  app.$('#trainingRecoveryBody').innerHTML=`<div class="warning"><strong>${sameDraft?'Même brouillon local':'Deux brouillons liés à la même séance'}</strong><div class="small">${sameDraft?'Le même brouillon a été modifié dans un autre onglet.':'Un autre onglet travaille sur un brouillon distinct pour la même séance enregistrée.'}</div>${saved}</div>`;
+  const actions=app.$('#trainingRecoveryActions');
+  const resume=document.createElement('button');resume.type='button';resume.className='primary';resume.textContent='Reprendre ici depuis la dernière version';resume.onclick=()=>app.resumeTrainingFromLatest().catch(error=>{app.$('#trainingRecoveryStatus').textContent=error.message});
+  const concede=document.createElement('button');concede.type='button';concede.className='ghost';concede.textContent='Revenir à l’autre onglet';concede.onclick=()=>app.concedeTrainingTab();
+  const fork=document.createElement('button');fork.type='button';fork.className='ghost';fork.textContent='Garder mon travail comme brouillon distinct';fork.onclick=()=>app.forkCurrentTrainingDraft().catch(error=>{app.$('#trainingRecoveryStatus').textContent=error.message});
+  actions.append(resume,concede,fork);
+};
+
+app.concedeTrainingTab = function concedeTrainingTab(){
+  const local=app.trainingLocalState;
+  local.suppressed=true;local.conflict=null;
+  if(local.timer){clearTimeout(local.timer);local.timer=null}
+  app.closeTrainingRecoveryDialog();
+  app.setTrainingLocalStatus('Cet onglet n’enregistre plus. Reprends dans l’autre onglet.','error');
+  app.hideTrainingConflictBanner();
+};
+
+app.resumeTrainingFromLatest = async function resumeTrainingFromLatest(){
+  const local=app.trainingLocalState,conflict=app.currentTrainingConflict();
+  let record=null;
+  if(conflict.kind==='sameDraft'){
+    const identity=app.trainingDraftIdentity();
+    if(identity)record=local.store.read(identity).record||null;
+  }else{
+    const list=local.store.list({userId:app.currentUser?.id,workspaceId:app.state.workspaceId});
+    if(list.ok){
+      const sessionId=conflict.sessionId||app.trainingState.currentSessionId;
+      record=list.records.find(item=>item.sessionId&&item.sessionId===sessionId&&item.draftId!==local.draftId)||null;
+    }
+  }
+  if(!record)throw new Error('Aucune autre version locale n’est disponible.');
+  app.closeTrainingRecoveryDialog();
+  app.beginTrainingLocalDraft({draftId:record.draftId,revision:record.revision,baseUpdatedAt:record.baseUpdatedAt||null,sourceSessionId:record.sourceSessionId||null});
+  await app.applyTrainingEditorDocument(record.document);
+  app.persistTrainingLocalDraft({checkpointReason:'Reprise après conflit'});
+  app.hideTrainingConflictBanner();
+  app.refreshTrainingLocalHome();
+};
+
+app.forkCurrentTrainingDraft = function forkCurrentTrainingDraft(){
+  const local=app.trainingLocalState;
+  const baseUpdatedAt=local.baseUpdatedAt||null,sourceSessionId=local.sourceSessionId||null;
+  app.closeTrainingRecoveryDialog();
+  app.beginTrainingLocalDraft({draftId:app.newUuid(),revision:0,baseUpdatedAt,sourceSessionId});
+  app.persistTrainingLocalDraft({checkpointReason:'Brouillon distinct'});
+  app.hideTrainingConflictBanner();
+  app.refreshTrainingLocalHome();
+};
+
 app.initTrainingLocalDrafts = function initTrainingLocalDrafts(){
   const local=app.trainingLocalState;if(local.initialized)return;local.initialized=true;
   local.tabId=app.newUuid();
@@ -453,6 +594,7 @@ app.initTrainingLocalDrafts = function initTrainingLocalDrafts(){
   groupSelect?.addEventListener('focus',()=>{app.trainingPreviousGroupId=groupSelect.value});
   groupSelect?.addEventListener('pointerdown',()=>{app.trainingPreviousGroupId=groupSelect.value});
   app.$('#undoTrainingAction').onclick=app.undoTrainingAction;app.$('#openTrainingLocalHistory').onclick=app.openTrainingLocalHistory;
+  app.$('#resolveTrainingConflict').onclick=app.openTrainingConflictResolution;
   app.$('#closeTrainingRecovery').onclick=app.closeTrainingRecoveryDialog;
   app.$('#trainingRecoveryPopup').onclick=event=>{if(event.target===app.$('#trainingRecoveryPopup'))app.closeTrainingRecoveryDialog()};
   document.addEventListener('visibilitychange',()=>{if(document.hidden)app.persistTrainingLocalDraft()});
@@ -461,9 +603,8 @@ app.initTrainingLocalDrafts = function initTrainingLocalDrafts(){
     local.channel=new BroadcastChannel('kinball-training-drafts');
     local.channel.onmessage=event=>{
       const message=event.data||{};
-      const sameDraft=message.draftId===local.draftId&&message.revision>local.revision;
-      const sameSession=message.sessionId&&message.sessionId===app.trainingState.currentSessionId;
-      if(message.ownerTabId!==local.tabId&&(sameDraft||sameSession)){local.conflict=true;app.setTrainingLocalStatus('Conflit avec un autre onglet','error')}
+      if(message.revision<=local.revision&&message.draftId===local.draftId)return;
+      app.registerTrainingTabConflict(message);
     };
   }
   window.addEventListener('storage',event=>{
@@ -471,9 +612,9 @@ app.initTrainingLocalDrafts = function initTrainingLocalDrafts(){
     try{
       const record=JSON.parse(event.newValue);
       const sameAccount=record.userId===app.currentUser?.id&&record.workspaceId===app.state.workspaceId;
-      const sameDraft=record.draftId===local.draftId&&record.revision>local.revision;
-      const sameSession=record.sessionId&&record.sessionId===app.trainingState.currentSessionId;
-      if(sameAccount&&record.ownerTabId!==local.tabId&&(sameDraft||sameSession)){local.conflict=true;app.setTrainingLocalStatus('Conflit avec un autre onglet','error')}
+      if(!sameAccount)return;
+      if(record.revision<=local.revision&&record.draftId===local.draftId)return;
+      app.registerTrainingTabConflict(record);
     }catch(_){/* The unreadable value remains untouched for explicit recovery handling. */}
   });
 };
@@ -1698,7 +1839,7 @@ app.showTrainingSaveConflict = function showTrainingSaveConflict(remoteUpdatedAt
 
 app.saveTrainingSession = async function saveTrainingSession({forceOverwrite=false}={}){
   if(app.trainingSaveInFlight)return;
-  if(app.trainingLocalState.conflict&&!forceOverwrite){app.showTrainingSaveConflict();return}
+  if(app.trainingLocalState.conflict&&!forceOverwrite){app.openTrainingConflictResolution();return}
   app.trainingSaveInFlight=true;
   const saveButtons=app.$$('#saveTrainingSessionHead,#saveTrainingSession');
   saveButtons.forEach(button=>{button.disabled=true});
@@ -1707,7 +1848,7 @@ app.saveTrainingSession = async function saveTrainingSession({forceOverwrite=fal
     app.captureTrainingPlan();
     app.syncPlanStatExercises();
     const localCheckpoint=app.persistTrainingLocalDraft({checkpointReason:'Avant enregistrement cloud'});
-    if(!localCheckpoint.ok&&localCheckpoint.kind==='conflict'){app.showTrainingSaveConflict();return}
+    if(!localCheckpoint.ok&&localCheckpoint.kind==='conflict'){app.openTrainingConflictResolution();return}
     const saveDocument=app.trainingEditorDocument({capture:false});
     const saveSnapshot=app.trainingSessionSnapshot();
     app.trainingStatus(app.trainingState.currentSessionId?'Mise à jour…':'Enregistrement…');
@@ -1799,7 +1940,7 @@ app.saveTrainingSession = async function saveTrainingSession({forceOverwrite=fal
     const currentSnapshot=app.trainingSessionSnapshot();
     if(currentSnapshot===saveSnapshot&&!app.trainingDocumentHasLocalOnlyResults(saveDocument)){
       const removed=app.removeCurrentTrainingLocalDraft();app.trainingLocalState.revision=0;
-      if(removed.ok){app.setTrainingLocalStatus('Séance enregistrée sur le cloud','cloud');app.$('#openTrainingLocalHistory')?.classList.add('hidden')}
+      if(removed.ok){app.setTrainingLocalStatus('Séance enregistrée sur le cloud','cloud');app.$('#openTrainingLocalHistory')?.classList.add('hidden');app.refreshTrainingLocalHome()}
     }else{
       app.persistTrainingLocalDraft({checkpointReason:'Modifications pendant l’enregistrement'});
     }
