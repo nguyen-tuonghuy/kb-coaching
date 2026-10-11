@@ -299,6 +299,7 @@
      <button class="statsTab active" data-stats-tab="group">Groupe</button>
      <button class="statsTab" data-stats-tab="player">Joueur</button>
      <button class="statsTab" data-stats-tab="exercise">Exercice</button>
+     <button class="statsTab" data-stats-tab="leaderboards">Classements</button>
     </div>
 
     <div id="statsGroupView">
@@ -339,6 +340,49 @@
      </div>
      <div class="small" id="statsLeaderboardHint" style="margin-bottom:8px"></div>
      <div id="statsLeaderboard"></div>
+    </div>
+
+    <div id="statsLeaderboardsView" class="hidden">
+     <div class="analysisBlock">
+      <h3>Classements cumulés multi-exercices</h3>
+      <div class="analysisSubtle">Cumul des réussites/tentatives sur plusieurs exercices et séances. Seuls les exercices à mesure « Réussites/Tentatives » sont compatibles.</div>
+      <div class="row" style="flex-wrap:wrap;gap:12px;align-items:flex-end;margin-top:10px">
+       <div class="field" style="min-width:260px;max-width:100%">
+        <label>Exercices</label>
+        <select id="statsLeaderboardExercises" multiple size="6"></select>
+        <div class="small" style="margin-top:4px">Maintiens Ctrl/Cmd pour sélectionner plusieurs exercices.</div>
+       </div>
+       <div class="field">
+        <label>Période</label>
+        <select id="statsLeaderboardPeriod">
+         <option value="all">Toutes les séances</option>
+         <option value="range">Entre deux dates</option>
+        </select>
+       </div>
+       <div class="row" style="gap:8px">
+        <div class="field" style="min-width:150px">
+         <label>Début</label>
+         <input type="date" id="statsLeaderboardStart" disabled>
+        </div>
+        <div class="field" style="min-width:150px">
+         <label>Fin</label>
+         <input type="date" id="statsLeaderboardEnd" disabled>
+        </div>
+       </div>
+       <div class="field" style="min-width:160px">
+        <label>Seuil minimal de tentatives</label>
+        <input type="number" id="statsLeaderboardMinAttempts" min="0" step="1" value="5">
+       </div>
+       <div class="row" style="gap:6px;margin-top:8px">
+        <button class="primary" id="statsLeaderboardCompute">Calculer le classement</button>
+        <button class="ghost" id="statsLeaderboardClear">Effacer</button>
+       </div>
+      </div>
+     </div>
+     <div class="analysisBlock" style="margin-top:12px">
+      <div id="statsLeaderboardSummary" class="small" style="margin-bottom:8px"></div>
+      <div id="statsLeaderboardTable"></div>
+     </div>
     </div>
    </div>
 
