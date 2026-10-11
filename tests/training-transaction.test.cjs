@@ -1,5 +1,5 @@
-// Lot B — Harnais SQL de la RPC transactionnelle save_training_session.
-// Exécute la migration 20261010120000 sur une base PGlite synthétique puis vérifie
+// Lots B/C2/G2 — Harnais SQL des RPC transactionnelles d'entraînement.
+// Exécute la chaîne de migrations ciblée sur une base PGlite synthétique puis vérifie
 // atomicité, conflits de version, droits (miroir des policies RLS réelles), préservation
 // team_color / variant et compatibilité avec les séances historiques.
 // Prérequis : @electric-sql/pglite (absent du poste local, comme pour categories.test.cjs).
@@ -22,6 +22,9 @@ const migrationFix=fs.readFileSync(migrationFixFile,'utf8');
 const migrationLeaseFile=path.join(migrationDir,'20261010160000_training_session_edit_lease.sql');
 if(!fs.existsSync(migrationLeaseFile))throw new Error(`Missing test prerequisite: ${migrationLeaseFile}`);
 const migrationLease=fs.readFileSync(migrationLeaseFile,'utf8');
+const migrationG2File=path.join(migrationDir,'20261011120000_training_tactical_diagrams_g2.sql');
+if(!fs.existsSync(migrationG2File))throw new Error(`Missing test prerequisite: ${migrationG2File}`);
+const migrationG2=fs.readFileSync(migrationG2File,'utf8');
 
 const U_COACH='11111111-1111-4111-8111-111111111111';
 const U_EDITOR='22222222-2222-4222-8222-222222222222';
@@ -43,6 +46,12 @@ const S1='40000000-0000-4000-8000-000000000001';
 const S2='40000000-0000-4000-8000-000000000002';
 const INSTANCE_A='50000000-0000-4000-8000-000000000001';
 const INSTANCE_B='50000000-0000-4000-8000-000000000002';
+const O1='60000000-0000-4000-8000-000000000001';
+const O2='60000000-0000-4000-8000-000000000002';
+const O3='60000000-0000-4000-8000-000000000003';
+const O_SRC='60000000-0000-4000-8000-000000000004';
+const O_NEW='60000000-0000-4000-8000-000000000005';
+const U_OTHER='44444444-4444-4444-8444-444444444444';
 
 // Base synthétique. Les tables catalogue (workspaces, teams, players, exercises, groups)
 // n'ont volontairement PAS de RLS : le harnais isole le contrat de la RPC et la RLS du parent
@@ -138,7 +147,9 @@ returns boolean language sql stable as $$
                  and wm.user_id = auth.uid()
                  and wm.role in ('owner','admin','coach'));
 $$;
-grant usage on schema private to authenticated;
+-- Miroir de la production : authenticated n'a PAS USAGE sur le schema private. Les policies
+-- RLS n'ont besoin que des EXECUTE ci-dessous (sans USAGE de schema) ; toute RPC publique qui
+-- appellerait directement private.* echouerait donc ici, comme en production.
 grant execute on function private.is_group_coach(uuid), private.can_edit_workspace(uuid) to authenticated;
 
 -- Audit mimé : set_audit_user_fields + trg_training_sessions_audit. La migration ajoute
@@ -203,7 +214,7 @@ insert into public.training_results(session_id,exercise_id,player_id,successes,a
  ('${S1}','${EX1}','${P_A}',1,2,null),('${S1}','${EX1}','${P_B}',5,5,'speed');
 `;
 
-async function makeDB(){const db=new PGlite();await db.exec(fixture);await db.exec(migration);await db.exec(migrationFix);await db.exec(migrationLease);return db}
+async function makeDB(){const db=new PGlite();await db.exec(fixture);await db.exec(migration);await db.exec(migrationFix);await db.exec(migrationLease);await db.exec(migrationG2);return db}
 async function asUser(db,id){await db.exec(`set role authenticated;set request.jwt.claim.sub='${id}'`) }
 async function rows(db,sql,params=[]){return (await db.query(sql,params)).rows}
 async function one(db,sql,params=[]){return (await rows(db,sql,params))[0]}
@@ -236,6 +247,35 @@ async function saveRPC(db,{sessionId=null,expected=null,workspace=WS_A,group=G1,
     json(attendance),json(exercises),json(results),force]);
   if(!sessionId&&result?.lease_token)cache.set(`${result.session_id}:${instance}`,result.lease_token);
   return result;
+}
+
+async function saveG2(db,{occurrences=[],...options}={}){
+  const args={sessionId:null,expected:null,workspace:WS_A,group:G1,team:TEAM_A,trainedOn:null,
+    label:'Entraînement',theme:null,duration:null,notes:null,attendance:[],exercises:[],results:[],force:false,
+    instance:INSTANCE_A,token:undefined,...options};
+  let cache=leaseCache.get(db);if(!cache){cache=new Map();leaseCache.set(db,cache)}
+  const key=`${args.sessionId}:${args.instance}`;
+  let leaseToken=args.token;
+  if(args.sessionId&&leaseToken===undefined){
+    leaseToken=cache.get(key);
+    if(!leaseToken){const lease=await acquireLease(db,args.sessionId,args.instance);if(lease.status!=='acquired')throw new Error('lease not acquired');leaseToken=lease.lease_token;cache.set(key,leaseToken)}
+  }
+  const result=await one(db,`select * from public.save_training_session_with_occurrences(
+    p_session_id=>$1::uuid,p_expected_version=>$2::integer,p_editor_instance_id=>$3::uuid,p_lease_token=>$4::uuid,
+    p_workspace_id=>$5::uuid,p_group_id=>$6::uuid,p_team_id=>$7::uuid,p_trained_on=>$8::date,
+    p_label=>$9::text,p_theme=>$10::text,p_duration_minutes=>$11::integer,p_notes=>$12::text,
+    p_attendance=>$13::jsonb,p_exercises=>$14::jsonb,p_results=>$15::jsonb,p_force=>$16::boolean,
+    p_occurrences=>$17::jsonb)`,[args.sessionId,args.expected,args.instance,leaseToken??null,args.workspace,args.group,args.team,
+      args.trainedOn,args.label,args.theme,args.duration,args.notes,json(args.attendance),json(args.exercises),json(args.results),
+      args.force,json(occurrences)]);
+  if(!args.sessionId&&result?.lease_token)cache.set(`${result.session_id}:${args.instance}`,result.lease_token);
+  return result;
+}
+
+function diagram(id='diagram-test'){
+  const stamp='2026-10-11T12:00:00.000Z';
+  return {schema:'kinball-coach-tactical-diagram',schemaVersion:1,id,title:'Test',createdAt:stamp,updatedAt:stamp,
+    canvas:{width:1000,height:1000},court:{width:20,height:20,unit:'m',proportion:'square',basis:'working-default'},objects:[]};
 }
 
 test('RPC: création atomique par coach sans membership workspace, version 1, enfants valides',async()=>{
@@ -476,16 +516,17 @@ test('Bail: training_attendance et les tables live vérifient user, instance et 
   }finally{await db.close()}
 });
 
-test('Bail: ancienne signature save_training_session supprimée',async()=>{
+test('Bail: ancienne signature 14 args abandonnée au profit de la signature 16 args',async()=>{
   const db=await makeDB();
   try{
     await asUser(db,U_COACH);
-    await assert.rejects(
-      one(db,`select * from public.save_training_session(
-        $1::uuid,$2::integer,$3::uuid,$4::uuid,$5::uuid,$6::date,$7::text,$8::text,
-        $9::integer,$10::text,$11::jsonb,$12::jsonb,$13::jsonb,$14::boolean)`,
-      [S1,1,WS_A,G1,TEAM_A,null,'Ancien',null,null,null,'[]','[]','[]',false]),
-      /does not exist|function.*save_training_session/);
+    // Le contrat public reste unique : une seule surcharge save_training_session,
+    // la version 16 args héritée de C2 (bail d'édition + occurrences optionnelles),
+    // jamais l'ancienne signature pré-C2 à 14 arguments.
+    const overloads=await rows(db,`select pronargs from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+      where n.nspname='public' and p.proname='save_training_session' order by pronargs`);
+    assert.deepEqual(overloads.map(r=>Number(r.pronargs)),[16]);
+    assert.equal(overloads.some(r=>Number(r.pronargs)===14),false,'la signature pré-C2 ne doit plus exister');
   }finally{await db.close()}
 });
 
@@ -567,7 +608,7 @@ test('Point 1: verrou BEFORE STATEMENT present sur les tables garanties et live'
       order by c.relname`);
     assert.deepEqual(
       trigs.map(r=>r.relname),
-      ['training_attendance','training_live_events','training_live_periods','training_results','training_session_exercises']);
+      ['training_attendance','training_exercise_occurrences','training_live_events','training_live_periods','training_results','training_session_exercises','training_tactical_diagrams']);
     assert.ok(trigs.every(r=>r.is_row===0),'les verrous de bail doivent etre BEFORE STATEMENT');
   }finally{await db.close()}
 });
@@ -655,5 +696,168 @@ test('Point 2: la FK differee interdit un bail orphelin (session inexistante)',a
                 values($1,$2,$3,statement_timestamp()+interval '90 seconds')`,
         ['70000000-0000-4000-8000-0000000000ff',U_COACH,INSTANCE_A]),
       /foreign key|violates/i);
+  }finally{await db.close()}
+});
+
+test('G2: ancien contrat intact et synchronisation atomique des occurrences libres, manuelles et statistiques',async()=>{
+  const db=await makeDB();
+  try{
+    await asUser(db,U_COACH);
+    const legacy=await saveRPC(db,{sessionId:S1,expected:1,label:'Ancien contrat',
+      attendance:[{player_id:P_A,present:true}],exercises:[{exercise_id:EX1,position:1}]});
+    assert.equal(legacy.status,'saved');assert.equal(legacy.version,2);
+    assert.equal((await one(db,'select count(*)::int n from training_exercise_occurrences where session_id=$1',[S1])).n,0);
+
+    const saved=await saveG2(db,{sessionId:S1,expected:2,label:'Occurrences',
+      attendance:[{player_id:P_A,present:true}],exercises:[{exercise_id:EX1,position:1}],
+      occurrences:[
+        {id:O1,kind:'plan_block',exercise_id:null,position:0,stats_position:null,collects_stats:false,copy_diagrams_from_session_id:null,copy_diagrams_from_occurrence_id:null},
+        {id:O2,kind:'manual_stat',exercise_id:EX1,position:1,stats_position:1,collects_stats:true,copy_diagrams_from_session_id:null,copy_diagrams_from_occurrence_id:null},
+        {id:O3,kind:'plan_block',exercise_id:EX_ARCH,position:2,stats_position:null,collects_stats:false,copy_diagrams_from_session_id:null,copy_diagrams_from_occurrence_id:null}
+      ]});
+    assert.equal(saved.status,'saved');assert.equal(saved.version,3);
+    const occurrences=await rows(db,'select id,kind,exercise_id,collects_stats,active from training_exercise_occurrences where session_id=$1 order by position',[S1]);
+    assert.deepEqual(occurrences.map(o=>[o.id,o.kind,o.exercise_id,o.collects_stats,o.active]),[
+       [O1,'plan_block',null,false,true],[O2,'manual_stat',EX1,true,true],[O3,'plan_block',EX_ARCH,false,true]]);
+    assert.equal((await one(db,'select occurrence_id from training_session_exercises where session_id=$1',[S1])).occurrence_id,O2);
+    const usage=(await one(db,'select public.get_exercise_usage($1) usage',[EX_ARCH])).usage;
+    assert.equal(usage.used,true);assert.equal(usage.occurrence_count,1);assert.equal(usage.has_history,true);
+
+    // Retrait du bloc lié à EX_ARCH : l'occurrence devient inactive. L'usage visible
+    // (used, compteurs) retombe à zéro mais la référence historique demeure : la
+    // suppression physique reste interdite, conformément à la FK on delete restrict.
+    await saveG2(db,{sessionId:S1,expected:3,label:'Sans bloc archive',
+      attendance:[{player_id:P_A,present:true}],exercises:[{exercise_id:EX1,position:1}],
+      occurrences:[
+        {id:O2,kind:'manual_stat',exercise_id:EX1,position:1,stats_position:1,collects_stats:true,copy_diagrams_from_session_id:null,copy_diagrams_from_occurrence_id:null}
+      ]});
+    assert.equal((await one(db,'select active from public.training_exercise_occurrences where session_id=$1 and id=$2',[S1,O3])).active,false);
+    const afterDeactivation=(await one(db,'select public.get_exercise_usage($1) usage',[EX_ARCH])).usage;
+    assert.equal(afterDeactivation.used,false);
+    assert.equal(afterDeactivation.occurrence_count,0);
+    assert.equal(afterDeactivation.session_count,0);
+    assert.equal(afterDeactivation.has_history,true,'une occurrence inactive reste une référence historique');
+    await assert.rejects(rows(db,'delete from public.exercises where id=$1',[EX_ARCH]),/foreign key|violates/i);
+  }finally{await db.close()}
+});
+
+test('G2: UUID stable, omission inactive et réactivation sans purge',async()=>{
+  const db=await makeDB();
+  try{
+    await asUser(db,U_COACH);
+    const base={sessionId:S1,attendance:[{player_id:P_A,present:true}],exercises:[{exercise_id:EX1,position:1}]};
+    const stat={id:O2,kind:'plan_block',exercise_id:EX1,position:1,stats_position:1,collects_stats:true,copy_diagrams_from_session_id:null,copy_diagrams_from_occurrence_id:null};
+    const free={id:O1,kind:'plan_block',exercise_id:null,position:0,stats_position:null,collects_stats:false,copy_diagrams_from_session_id:null,copy_diagrams_from_occurrence_id:null};
+    await saveG2(db,{...base,expected:1,occurrences:[free,stat]});
+    await saveG2(db,{...base,expected:2,occurrences:[stat]});
+    assert.equal((await one(db,'select active from training_exercise_occurrences where session_id=$1 and id=$2',[S1,O1])).active,false);
+    await saveG2(db,{...base,expected:3,occurrences:[free,stat]});
+    const restored=await one(db,'select id,active from training_exercise_occurrences where session_id=$1 and id=$2',[S1,O1]);
+    assert.equal(restored.id,O1);assert.equal(restored.active,true);
+    assert.equal((await one(db,'select count(*)::int n from training_exercise_occurrences where session_id=$1',[S1])).n,2);
+  }finally{await db.close()}
+});
+
+test('G2: schéma manuel versionné, conflit optimiste et refus C2 sans bail',async()=>{
+  const db=await makeDB();
+  try{
+    await asUser(db,U_COACH);
+    await saveG2(db,{sessionId:S1,expected:1,attendance:[{player_id:P_A,present:true}],exercises:[],
+      occurrences:[{id:O1,kind:'plan_block',exercise_id:null,position:0,stats_position:null,collects_stats:false,copy_diagrams_from_session_id:null,copy_diagrams_from_occurrence_id:null}]});
+    const cache=leaseCache.get(db);const token=cache.get(`${S1}:${INSTANCE_A}`);
+    const created=await one(db,`select * from public.save_training_tactical_diagram($1,$2,null,null,$3::jsonb,0,$4,$5)`,
+      [S1,O1,json(diagram()),INSTANCE_A,token]);
+    assert.equal(created.status,'saved');assert.equal(created.version,1);
+    const changed={...diagram(),title:'Version 2'};
+    const updated=await one(db,`select * from public.save_training_tactical_diagram($1,$2,$3,1,$4::jsonb,0,$5,$6)`,
+      [S1,O1,created.diagram_id,json(changed),INSTANCE_A,token]);
+    assert.equal(updated.status,'saved');assert.equal(updated.version,2);
+    const conflict=await one(db,`select * from public.save_training_tactical_diagram($1,$2,$3,1,$4::jsonb,0,$5,$6)`,
+      [S1,O1,created.diagram_id,json(diagram()),INSTANCE_A,token]);
+    assert.equal(conflict.status,'conflict');assert.equal(conflict.remote_version,2);
+    await db.query("select set_config('request.headers','{}',false)");
+    await assert.rejects(rows(db,'update training_tactical_diagrams set position=1 where id=$1',[created.diagram_id]),/Bail d edition absent/);
+    await assert.rejects(one(db,'select public.delete_training_tactical_diagram($1,$2,1,$3,$4) ok',
+      [S1,created.diagram_id,INSTANCE_A,token]),/Conflit de version/);
+    assert.equal((await one(db,'select public.delete_training_tactical_diagram($1,$2,2,$3,$4) ok',
+      [S1,created.diagram_id,INSTANCE_A,token])).ok,true);
+  }finally{await db.close()}
+});
+
+test('G2: copie indépendante et idempotente au rejeu, puis blocage du wrapper historique',async()=>{
+  const db=await makeDB();
+  try{
+    await asUser(db,U_COACH);
+    await saveG2(db,{sessionId:S1,expected:1,attendance:[{player_id:P_A,present:true}],exercises:[],
+      occurrences:[{id:O1,kind:'plan_block',exercise_id:null,position:0,stats_position:null,collects_stats:false,copy_diagrams_from_session_id:null,copy_diagrams_from_occurrence_id:null}]});
+    let token=leaseCache.get(db).get(`${S1}:${INSTANCE_A}`);
+    const source=await one(db,'select * from public.save_training_tactical_diagram($1,$2,null,null,$3::jsonb,4,$4,$5)',
+      [S1,O1,json(diagram('diagram-source')),INSTANCE_A,token]);
+    const target=await saveG2(db,{attendance:[{player_id:P_A,present:true}],exercises:[],occurrences:[
+      {id:O2,kind:'plan_block',exercise_id:null,position:0,stats_position:null,collects_stats:false,copy_diagrams_from_session_id:S1,copy_diagrams_from_occurrence_id:O1}
+    ]});
+    const copied=await one(db,'select * from training_tactical_diagrams where session_id=$1',[target.session_id]);
+    assert.notEqual(copied.id,source.diagram_id);assert.notEqual(copied.document.id,'diagram-source');
+    assert.equal(copied.position,4);assert.equal(copied.document.title,'Test');
+    await one(db,'select * from public.save_training_tactical_diagram($1,$2,$3,1,$4::jsonb,4,$5,$6)',
+      [S1,O1,source.diagram_id,json({...diagram('diagram-source'),title:'Source modifiée'}),INSTANCE_A,token]);
+    assert.equal((await one(db,'select document from training_tactical_diagrams where id=$1',[copied.id])).document.title,'Test');
+    await saveG2(db,{sessionId:target.session_id,expected:1,attendance:[{player_id:P_A,present:true}],exercises:[],occurrences:[
+      {id:O2,kind:'plan_block',exercise_id:null,position:0,stats_position:null,collects_stats:false,copy_diagrams_from_session_id:S1,copy_diagrams_from_occurrence_id:O1}
+    ]});
+    assert.equal((await one(db,'select count(*)::int n from training_tactical_diagrams where session_id=$1',[target.session_id])).n,1);
+    await assert.rejects(saveRPC(db,{sessionId:target.session_id,expected:2,attendance:[{player_id:P_A,present:true}],exercises:[]}),/Mise à niveau requise/);
+  }finally{await db.close()}
+});
+
+test('G2: copie refusée depuis une occurrence d un workspace non autorisé',async()=>{
+  const db=await makeDB();
+  try{
+    // Autre séance (S2, workspace WS_B/G2) : U_OTHER en est le coach et y crée une occurrence
+    // source. U_COACH / U_EDITOR n'ont aucun droit sur ce workspace.
+    await db.exec(`insert into public.user_profiles values ('${U_OTHER}','Autre');
+      insert into public.coaching_group_coaches(group_id,user_id,role) values ('${G2}','${U_OTHER}','coach');`);
+    await asUser(db,U_OTHER);
+    await saveG2(db,{sessionId:S2,expected:1,workspace:WS_B,group:G2,team:TEAM_B,attendance:[],exercises:[],
+      occurrences:[{id:O_SRC,kind:'plan_block',exercise_id:null,position:0,stats_position:null,collects_stats:false,
+        copy_diagrams_from_session_id:null,copy_diagrams_from_occurrence_id:null}]});
+    const otherToken=leaseCache.get(db).get(`${S2}:${INSTANCE_A}`);
+    await one(db,'select * from public.save_training_tactical_diagram($1,$2,null,null,$3::jsonb,0,$4,$5)',
+      [S2,O_SRC,json(diagram()),INSTANCE_A,otherToken]);
+    assert.equal((await one(db,'select count(*)::int n from training_tactical_diagrams where session_id=$1',[S2])).n,1);
+
+    // U_COACH tente de copier ce schéma dans sa propre séance : la source n'est pas lisible
+    // (RLS via la séance parente) → refus explicite, cible intacte.
+    await asUser(db,U_COACH);
+    await assert.rejects(saveG2(db,{sessionId:S1,expected:1,attendance:[{player_id:P_A,present:true}],exercises:[],
+      occurrences:[{id:O_NEW,kind:'plan_block',exercise_id:null,position:0,stats_position:null,collects_stats:false,
+        copy_diagrams_from_session_id:S2,copy_diagrams_from_occurrence_id:O_SRC}]}),
+      /source introuvable ou inaccessible/i);
+    assert.equal((await one(db,'select count(*)::int n from training_exercise_occurrences where session_id=$1 and id=$2',[S1,O_NEW])).n,0);
+    assert.equal((await one(db,'select count(*)::int n from training_tactical_diagrams where session_id=$1',[S1])).n,0);
+    assert.equal((await one(db,'select version from training_sessions where id=$1',[S1])).version,1,'la cible reste intacte');
+  }finally{await db.close()}
+});
+
+test('G2: suppression de séance en cascade et rollback des écritures de base sur occurrence invalide',async()=>{
+  const db=await makeDB();
+  try{
+    await asUser(db,U_COACH);
+    await assert.rejects(saveG2(db,{sessionId:S1,expected:1,label:'Ne doit pas rester',
+      attendance:[{player_id:P_A,present:true}],exercises:[{exercise_id:EX1,position:1}],occurrences:[]}),
+      /correspondre exactement/);
+    const unchanged=await one(db,'select label,version from training_sessions where id=$1',[S1]);
+    assert.equal(unchanged.label,'Séance 1');assert.equal(unchanged.version,1);
+    assert.equal((await one(db,'select count(*)::int n from training_attendance where session_id=$1',[S1])).n,3);
+
+    await saveG2(db,{sessionId:S1,expected:1,attendance:[{player_id:P_A,present:true}],exercises:[],occurrences:[
+      {id:O1,kind:'plan_block',exercise_id:null,position:0,stats_position:null,collects_stats:false,copy_diagrams_from_session_id:null,copy_diagrams_from_occurrence_id:null}
+    ]});
+    const token=leaseCache.get(db).get(`${S1}:${INSTANCE_A}`);
+    await one(db,'select * from public.save_training_tactical_diagram($1,$2,null,null,$3::jsonb,0,$4,$5)',
+      [S1,O1,json(diagram()),INSTANCE_A,token]);
+    assert.equal((await one(db,'select public.delete_training_session_with_lease($1,$2,$3) ok',[S1,INSTANCE_A,token])).ok,true);
+    assert.equal((await one(db,'select count(*)::int n from training_exercise_occurrences where session_id=$1',[S1])).n,0);
+    assert.equal((await one(db,'select count(*)::int n from training_tactical_diagrams where session_id=$1',[S1])).n,0);
   }finally{await db.close()}
 });

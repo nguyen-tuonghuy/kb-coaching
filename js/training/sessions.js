@@ -114,14 +114,15 @@ app.trainingPresentPlayers = function trainingPresentPlayers(){
 
 // Unsaved-work protection for the session editor. The snapshot projects only
 // what a save actually persists, reusing the same field selection as
-// packTrainingNotes(). Identifiers regenerated at each opening (block ids,
-// exercise localKey) and presentation-only state (expanded, organizer mode) are
-// excluded: they change without any user edit and would report false warnings.
+// packTrainingNotes(). Stable occurrence identifiers are persisted; presentation-only
+// state (expanded, localKey, organizer mode) remains excluded.
 app.trainingSessionSnapshot = function trainingSessionSnapshot(){
   app.captureTrainingResultDraft();
   app.captureTrainingPlan();
+  app.ensureTrainingOccurrenceIds();
   app.syncPlanStatExercises();
   const blocks=app.trainingState.planBlocks.map(b=>({
+    id:b.id,
     start:String(b.start||''),
     duration:Math.max(0,Number(b.duration)||0),
     track:b.track||'both',
@@ -136,7 +137,7 @@ app.trainingSessionSnapshot = function trainingSessionSnapshot(){
   }));
   // Array order is meaningful: the save persists it as position.
 const exercises=[...app.trainingState.sessionExercises]
-    .map(ex=>({id:ex.id,focus:app.isDualExercise(ex)?(ex.focus||null):null}));
+    .map(ex=>({id:ex.id,occurrenceId:ex.occurrenceId||null,focus:app.isDualExercise(ex)?(ex.focus||null):null}));
   const present=app.trainingPresentPlayers().map(p=>String(p.id)).sort();
   // Mirror the persisted result set: exercises x present players, drafts
   // resolved by localKey. Iterating the same pairs as the save keeps the
@@ -147,6 +148,7 @@ const exercises=[...app.trainingState.sessionExercises]
       const draft=app.getTrainingDraft(ex.localKey,playerId);
       results.push({
         exerciseId:String(ex.id),
+        occurrenceId:String(ex.occurrenceId||''),
         playerId,
         successes:String(draft.successes??''),
         attempts:String(draft.attempts??''),
@@ -368,7 +370,7 @@ app.releaseTrainingSessionLease=async function releaseTrainingSessionLease(){
 };
 
 app.trainingEditorDocument = function trainingEditorDocument({capture=true}={}){
-  if(capture){app.captureTrainingResultDraft();app.captureTrainingPlan()}
+  if(capture){app.captureTrainingResultDraft();app.captureTrainingPlan();app.ensureTrainingOccurrenceIds();app.syncPlanStatExercises()}
   return {
     fields:{
       date:app.$('#trainingDate')?.value||'',groupId:app.$('#trainingGroup')?.value||'',
@@ -695,8 +697,9 @@ app.applyTrainingEditorDocument = async function applyTrainingEditorDocument(doc
   app.$('#trainingTheme').value=fields.theme||'';app.$('#trainingDuration').value=fields.duration||'';
   app.$('#trainingNotes').value=fields.notes||'';app.$('#trainingPlanStart').value=fields.planStart||'13:30';
   if(loadPlayers)await app.fetchTrainingPlayers(fields.groupId||null);
-  app.trainingState.planBlocks=JSON.parse(JSON.stringify(document.planBlocks));
-  app.trainingState.sessionExercises=JSON.parse(JSON.stringify(document.sessionExercises));
+  app.trainingState.planBlocks=app.hydrateTrainingPlanBlocks(JSON.parse(JSON.stringify(document.planBlocks)));
+  app.trainingState.sessionExercises=JSON.parse(JSON.stringify(document.sessionExercises)).map(exercise=>({...exercise,
+    occurrenceId:app.isTrainingOccurrenceId(exercise.occurrenceId)?exercise.occurrenceId:app.newUuid()}));
   app.trainingState.resultDraft=JSON.parse(JSON.stringify(document.resultDraft));
   const attendance=new Map(document.attendance.map(item=>[String(item.playerId),!!item.present]));
   app.$$('#trainingAttendance input').forEach(input=>{input.checked=attendance.get(String(input.value))??false});
@@ -770,7 +773,10 @@ app.restoreTrainingDraftRecord = async function restoreTrainingDraftRecord(recor
     app.trainingState.sessionTeamId=source.team_id??null;
   }
   app.beginTrainingLocalDraft({draftId:record.draftId,revision:record.revision,baseUpdatedAt:asCopy?null:record.baseUpdatedAt,baseVersion:asCopy?null:(source?.version??record.baseVersion),sourceSessionId:asCopy?(record.sessionId||record.sourceSessionId):record.sourceSessionId});
-  await app.applyTrainingEditorDocument(record.document);
+  const restoredDocument=asCopy
+    ?app.rekeyTrainingEditorDocument(record.document,record.sessionId||record.sourceSessionId||null)
+    :record.document;
+  await app.applyTrainingEditorDocument(restoredDocument);
   app.scheduleTrainingLocalDraft();
   app.refreshTrainingLocalHome();
 };
@@ -1191,7 +1197,94 @@ app.seedTrainingPlan27092026 = function seedTrainingPlan27092026(){
 };
 
 app.newPlanBlock = function newPlanBlock(seed={}){
-  return {id:app.newUuid(),start:seed.draft?'':(seed.start||app.trainingPlanStartValue()),duration:seed.duration??10,track:seed.track||'both',title:seed.title||'',details:seed.details||'',attention:seed.attention||'',sourceType:seed.sourceType||'free',exerciseId:seed.exerciseId||null,collectStats:!!seed.collectStats,focus:seed.focus||null,draft:!!seed.draft,expanded:seed.expanded??false};
+  const id=app.isTrainingOccurrenceId(seed.id)?seed.id:app.newUuid();
+  return {id,start:seed.draft?'':(seed.start||app.trainingPlanStartValue()),duration:seed.duration??10,track:seed.track||'both',title:seed.title||'',details:seed.details||'',attention:seed.attention||'',sourceType:seed.sourceType||'free',exerciseId:seed.exerciseId||null,collectStats:!!seed.collectStats,focus:seed.focus||null,draft:!!seed.draft,expanded:seed.expanded??false};
+};
+
+app.isTrainingOccurrenceId = function isTrainingOccurrenceId(value){
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value||''));
+};
+
+// Normalise les identifiants canoniques (UUID de bloc et d'occurrence) directement
+// dans l'état de l'éditeur, AVANT toute capture. Un identifiant valide et unique une
+// fois posé n'est jamais régénéré : l'opération est idempotente et ne produit donc
+// ni boucle de sauvegarde ni faux changement utilisateur. Un exercice de plan réutilise
+// l'occurrence de son bloc ; les autres reçoivent un UUID valide et distinct.
+app.ensureTrainingOccurrenceIds = function ensureTrainingOccurrenceIds(){
+  const blocks=app.trainingState.planBlocks||[];
+  const seenBlocks=new Set();
+  const remapped=new Map();
+  blocks.forEach(block=>{
+    const previous=block.id;
+    if(!app.isTrainingOccurrenceId(previous)||seenBlocks.has(previous)){
+      block.id=app.newUuid();
+      if(app.isTrainingOccurrenceId(previous))remapped.set(previous,block.id);
+    }
+    seenBlocks.add(block.id);
+  });
+  const blocksById=new Map(blocks.map(block=>[block.id,block]));
+  const seenOccurrences=new Set();
+  (app.trainingState.sessionExercises||[]).forEach(exercise=>{
+    if(exercise.fromPlanBlockId&&remapped.has(exercise.fromPlanBlockId))exercise.fromPlanBlockId=remapped.get(exercise.fromPlanBlockId);
+    const block=exercise.fromPlanBlockId?blocksById.get(exercise.fromPlanBlockId):null;
+    if(block){exercise.occurrenceId=block.id;seenOccurrences.add(block.id);return;}
+    if(!app.isTrainingOccurrenceId(exercise.occurrenceId)||seenOccurrences.has(exercise.occurrenceId))exercise.occurrenceId=app.newUuid();
+    seenOccurrences.add(exercise.occurrenceId);
+  });
+};
+
+app.hydrateTrainingPlanBlocks = function hydrateTrainingPlanBlocks(plan,{copyFromSessionId=null,copyableOccurrenceIds=null}={}){
+  const seen=new Set();
+  return (plan||[]).map(source=>{
+    const sourceId=app.isTrainingOccurrenceId(source?.id)&&!seen.has(source.id)?source.id:null;
+    if(sourceId)seen.add(sourceId);
+    const id=copyFromSessionId||!sourceId?app.newUuid():sourceId;
+    const block={...app.newPlanBlock({...source,id}),...source,id,expanded:false};
+    if(copyFromSessionId&&sourceId&&(!copyableOccurrenceIds||copyableOccurrenceIds.has(sourceId))){
+      block.copyDiagramsFromSessionId=copyFromSessionId;
+      block.copyDiagramsFromOccurrenceId=sourceId;
+    }
+    return block;
+  });
+};
+
+app.trainingOccurrenceCopySource = function trainingOccurrenceCopySource(item){
+  const explicitOccurrenceId=item?.copyDiagramsFromOccurrenceId||null;
+  if(item?.copyDiagramsFromSessionId&&app.isTrainingOccurrenceId(explicitOccurrenceId)){
+    return {sessionId:item.copyDiagramsFromSessionId,occurrenceId:explicitOccurrenceId};
+  }
+  const occurrenceId=item?.occurrenceId||item?.id||null;
+  return app.trainingState.currentSessionId&&app.trainingState.persistedOccurrenceIds?.has(occurrenceId)
+    ?{sessionId:app.trainingState.currentSessionId,occurrenceId}:null;
+};
+
+app.duplicateTrainingPlanBlockData = function duplicateTrainingPlanBlockData(source,{draft=source.draft}={}){
+  const copySource=app.trainingOccurrenceCopySource(source);
+  return {...source,id:app.newUuid(),draft:!!draft,start:draft?'':source.start,expanded:false,
+    copyDiagramsFromSessionId:copySource?.sessionId||null,
+    copyDiagramsFromOccurrenceId:copySource?.occurrenceId||null};
+};
+
+app.rekeyTrainingEditorDocument = function rekeyTrainingEditorDocument(document,sourceSessionId){
+  const copy=JSON.parse(JSON.stringify(document));
+  const blockIds=new Map();
+  copy.planBlocks=(copy.planBlocks||[]).map(block=>{
+    const oldId=app.isTrainingOccurrenceId(block.id)?block.id:null;
+    const id=app.newUuid();
+    if(oldId)blockIds.set(oldId,id);
+    return {...block,id,
+      copyDiagramsFromSessionId:oldId?(block.copyDiagramsFromSessionId||sourceSessionId||null):null,
+      copyDiagramsFromOccurrenceId:oldId?(block.copyDiagramsFromOccurrenceId||oldId):null};
+  });
+  copy.sessionExercises=(copy.sessionExercises||[]).map(exercise=>{
+    const oldOccurrence=app.isTrainingOccurrenceId(exercise.occurrenceId)?exercise.occurrenceId:null;
+    const planId=exercise.fromPlanBlockId&&blockIds.get(exercise.fromPlanBlockId);
+    const occurrenceId=planId||app.newUuid();
+    return {...exercise,occurrenceId,fromPlanBlockId:planId||null,
+      copyDiagramsFromSessionId:oldOccurrence?(exercise.copyDiagramsFromSessionId||sourceSessionId||null):null,
+      copyDiagramsFromOccurrenceId:oldOccurrence?(exercise.copyDiagramsFromOccurrenceId||oldOccurrence):null};
+  });
+  return copy;
 };
 
 app.planExerciseById = function planExerciseById(id){return app.trainingState.exercises.find(ex=>ex.id===id)||null};
@@ -1236,11 +1329,11 @@ app.syncPlanStatExercises = function syncPlanStatExercises(){
     wanted.add(b.id);
     let sx=app.planGeneratedExercise(b);
     if(!sx){
-      sx={...base,focus:app.isDualExercise(base)?(b.focus||null):null,localKey:app.planExerciseLocalKey(b),expanded:false,fromPlanBlockId:b.id};
+      sx={...base,focus:app.isDualExercise(base)?(b.focus||null):null,localKey:app.planExerciseLocalKey(b),occurrenceId:b.id,expanded:false,fromPlanBlockId:b.id};
       app.trainingState.sessionExercises.push(sx);
     }else{
       const expanded=sx.expanded;
-      Object.assign(sx,base,{localKey:app.planExerciseLocalKey(b),expanded,fromPlanBlockId:b.id,focus:app.isDualExercise(base)?(b.focus||null):null});
+      Object.assign(sx,base,{localKey:app.planExerciseLocalKey(b),occurrenceId:b.id,expanded,fromPlanBlockId:b.id,focus:app.isDualExercise(base)?(b.focus||null):null});
     }
   });
   app.trainingState.sessionExercises=app.trainingState.sessionExercises.filter(ex=>!ex.fromPlanBlockId||wanted.has(ex.fromPlanBlockId));
@@ -1250,8 +1343,9 @@ app.bindLoadedStatsToPlanBlocks = function bindLoadedStatsToPlanBlocks(){
   const used=new Set();
   app.trainingState.planBlocks.forEach(b=>{
     if(b.draft||b.sourceType!=='library'||!b.exerciseId||!b.collectStats)return;
-    const sx=app.trainingState.sessionExercises.find(ex=>!used.has(ex.localKey)&&ex.id===b.exerciseId);
-    if(sx){sx.fromPlanBlockId=b.id;sx.localKey=app.planExerciseLocalKey(b);sx.focus=app.isDualExercise(sx)?(b.focus||sx.focus||null):null;used.add(sx.localKey)}
+    const sx=app.trainingState.sessionExercises.find(ex=>!used.has(ex.localKey)&&ex.occurrenceId===b.id)
+      ||app.trainingState.sessionExercises.find(ex=>!used.has(ex.localKey)&&ex.id===b.exerciseId);
+    if(sx){sx.occurrenceId=b.id;sx.fromPlanBlockId=b.id;sx.localKey=app.planExerciseLocalKey(b);sx.focus=app.isDualExercise(sx)?(b.focus||sx.focus||null):null;used.add(sx.localKey)}
   });
   app.syncPlanStatExercises();
 };
@@ -1276,7 +1370,7 @@ app.addTrainingPlanBlock = function addTrainingPlanBlock(seed={}){if(!app.traini
 
 app.moveTrainingPlanBlock = function moveTrainingPlanBlock(id,delta){if(!app.trainingLeaseCanMutate())return;app.captureTrainingPlan();const i=app.trainingState.planBlocks.findIndex(x=>x.id===id);const j=i+delta;if(i<0||j<0||j>=app.trainingState.planBlocks.length)return;[app.trainingState.planBlocks[i],app.trainingState.planBlocks[j]]=[app.trainingState.planBlocks[j],app.trainingState.planBlocks[i]];app.recalculateTrainingPlanTimes();app.renderTrainingPlan();app.persistTrainingLocalDraft({checkpointReason:'Réorganisation du plan'});};
 
-app.duplicateTrainingPlanBlock = function duplicateTrainingPlanBlock(id){if(!app.trainingLeaseCanMutate())return;app.captureTrainingPlan();const i=app.trainingState.planBlocks.findIndex(x=>x.id===id);if(i<0)return;const src=app.trainingState.planBlocks[i];app.trainingState.planBlocks.splice(i+1,0,{...src,id:app.newUuid(),expanded:false});app.recalculateTrainingPlanTimes();app.syncPlanStatExercises();app.renderTrainingPlan();app.renderTrainingExerciseCards();app.persistTrainingLocalDraft({checkpointReason:'Duplication d’un bloc'});};
+app.duplicateTrainingPlanBlock = function duplicateTrainingPlanBlock(id){if(!app.trainingLeaseCanMutate())return;app.captureTrainingPlan();const i=app.trainingState.planBlocks.findIndex(x=>x.id===id);if(i<0)return;const src=app.trainingState.planBlocks[i];app.trainingState.planBlocks.splice(i+1,0,app.duplicateTrainingPlanBlockData(src));app.recalculateTrainingPlanTimes();app.syncPlanStatExercises();app.renderTrainingPlan();app.renderTrainingExerciseCards();app.persistTrainingLocalDraft({checkpointReason:'Duplication d’un bloc'});};
 
 app.removeTrainingPlanBlock = function removeTrainingPlanBlock(id){if(!app.trainingLeaseCanMutate())return;app.captureTrainingPlan();const index=app.trainingState.planBlocks.findIndex(x=>x.id===id);if(index<0)return;app.checkpointTrainingLocalDraft('Avant suppression d’un bloc');const [block]=app.trainingState.planBlocks.splice(index,1);app.recalculateTrainingPlanTimes();app.syncPlanStatExercises();app.renderTrainingPlan();app.renderTrainingExerciseCards();app.showTrainingUndo(`Bloc « ${block.title||'sans titre'} » supprimé.`,{type:'block',block,index});app.persistTrainingLocalDraft();};
 
@@ -1424,7 +1518,7 @@ app.renderTrainingPlan = function renderTrainingPlan(){
       const preview=(b.details||b.attention||'').trim();
       card.innerHTML=`<div class="trainingDraftCardTitle">${app.escapeHtml(b.title||ex?.name||'Bloc sans titre')}</div><div class="trainingDraftCardMeta">${app.escapeHtml(b.sourceType==='library'&&ex?'Bibliothèque · '+ex.name:'Bloc libre')} · ${app.escapeHtml(app.trainingTrackLabel(b.track))} · ${app.escapeHtml(String(b.duration||0))} min</div>${preview?`<div class="trainingDraftCardText">${app.escapeHtml(preview)}</div>`:''}<div class="trainingDraftCardActions"><button type="button" class="primary" data-draft-restore>Remettre dans le planning</button><button type="button" class="ghost" data-draft-copy>Dupliquer</button><button type="button" class="ghost" data-draft-remove>Supprimer</button></div>`;
       card.querySelector('[data-draft-restore]').onclick=()=>app.restoreTrainingPlanBlockFromDraft(b.id,b.track);
-       card.querySelector('[data-draft-copy]').onclick=()=>{app.captureTrainingPlan();const i=app.trainingState.planBlocks.findIndex(x=>x.id===b.id);if(i<0)return;app.trainingState.planBlocks.splice(i+1,0,{...b,id:app.newUuid(),draft:true,start:''});app.renderTrainingPlan();app.persistTrainingLocalDraft({checkpointReason:'Duplication d’un brouillon'})};
+       card.querySelector('[data-draft-copy]').onclick=()=>{app.captureTrainingPlan();const i=app.trainingState.planBlocks.findIndex(x=>x.id===b.id);if(i<0)return;app.trainingState.planBlocks.splice(i+1,0,app.duplicateTrainingPlanBlockData(b,{draft:true}));app.renderTrainingPlan();app.persistTrainingLocalDraft({checkpointReason:'Duplication d’un brouillon'})};
       card.querySelector('[data-draft-remove]').onclick=()=>{if(confirm('Supprimer définitivement ce brouillon ?'))app.removeTrainingPlanBlock(b.id)};
       card.addEventListener('click',e=>{if(app.trainingState.planOrganizerMode&&!e.target.closest('button,input,select,textarea,a'))app.selectTrainingPlanOrganizerBlock(b.id)});
       card.addEventListener('dragstart',e=>{if(app.trainingState.planOrganizerMode||coarsePointer){e.preventDefault();return}card.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',b.id)});
@@ -1473,6 +1567,7 @@ app.startNewTraining = async function startNewTraining({skipRecovery=false,draft
   app.trainingState.sessionExercises=[];
   app.trainingState.planBlocks=[];
   app.trainingState.currentSessionId=null;
+  app.trainingState.persistedOccurrenceIds=new Set();
   app.resetTrainingSessionContext();
   app.trainingState.resultDraft={};
   app.trainingState.planOrganizerMode=false;app.trainingState.planOrganizerSelectedId=null;
@@ -1550,7 +1645,7 @@ app.collapseAllTrainingExercises = function collapseAllTrainingExercises(exceptK
 
 app.addSessionExercise = function addSessionExercise(ex,focus=null){
   if(!app.trainingLeaseCanMutate())return;
-  app.trainingState.sessionExercises.push({...ex,focus:app.isDualExercise(ex)?focus:null,localKey:app.newUuid(),expanded:false});
+  app.trainingState.sessionExercises.push({...ex,focus:app.isDualExercise(ex)?focus:null,localKey:app.newUuid(),occurrenceId:app.newUuid(),expanded:false,fromPlanBlockId:null});
   app.renderTrainingExerciseCards();
   app.persistTrainingLocalDraft({checkpointReason:'Ajout d’un exercice'});
 };
@@ -1773,7 +1868,10 @@ app.changeExerciseLifecycleFromLibrary = async function changeExerciseLifecycleF
     if(error)throw error;
   }else{
     const usage=await app.fetchExerciseUsage(exerciseId);
-    if(!usage.used){
+    // Suppression physique uniquement si la RPC confirme explicitement l'absence de
+    // toute référence (has_history===false). Un champ absent ou indéterminé (ancienne
+    // version de la RPC) est traité de façon conservatrice : on archive.
+    if(usage.has_history===false){
       if(!confirm(`Supprimer définitivement « ${ex.name} » ?\n\nCet exercice n’a jamais été utilisé dans une séance.`))return;
       const {error}=await app.db.from('exercises').delete().eq('id',exerciseId).select('id').single();
       if(error){
@@ -1803,7 +1901,9 @@ app.changeExerciseLifecycle = async function changeExerciseLifecycle(reactivate=
   try{
     // Refresh before deletion: usage may have changed since opening the popup.
     const usage=await app.fetchExerciseUsage(id);
-    if(!reactivate&&!usage.used){
+    // has_history===false est la seule preuve que la suppression est sûre ; absent ou
+    // indéterminé, on archive pour ne jamais détruire une référence historique.
+    if(!reactivate&&usage.has_history===false){
       if(!confirm(`Supprimer définitivement « ${ex.name} » ? Cet exercice n’a aucune utilisation enregistrée.`))return;
       const {error}=await app.db.from('exercises').delete().eq('id',id).select('id').single();
       if(error){
@@ -2122,21 +2222,34 @@ app.duplicateTrainingSessionById = async function duplicateTrainingSessionById(s
   app.trainingState.resultDraft={};
   app.trainingState.planOrganizerMode=false;app.trainingState.planOrganizerSelectedId=null;
   app.syncTrainingFinishButton();
+  const sourcePlan=app.unpackTrainingNotes(source.notes||'');
 
-  const [{data:attendance,error:ae},{data:sessionExercises,error:xe}]=await Promise.all([
+  const [{data:attendance,error:ae},{data:sessionExercises,error:xe},{data:sourceOccurrences,error:oe}]=await Promise.all([
     app.db.from('training_attendance').select('player_id,present').eq('session_id',sessionId),
     app.db.from('training_session_exercises')
-      .select('position,variant,target,focus,exercise:exercises!training_session_exercises_exercise_id_fkey(id,name,category,category_id,copied_from_exercise_id,measurement_type,description,objective,attack_instruction,defense_instruction)')
+      .select('position,variant,target,focus,occurrence_id,exercise:exercises!training_session_exercises_exercise_id_fkey(id,name,category,category_id,copied_from_exercise_id,measurement_type,description,objective,attack_instruction,defense_instruction)')
       .eq('session_id',sessionId)
-      .order('position')
+      .order('position'),
+    app.db.from('training_exercise_occurrences').select('id').eq('session_id',sessionId).eq('active',true)
   ]);
   if(loadToken!==app.trainingState.editorLoadToken)return;
   if(ae) throw ae;
   if(xe) throw xe;
+  if(oe) throw oe;
 
+  const sourceOccurrenceIds=new Set((sourceOccurrences||[]).map(item=>item.id));
+  app.trainingState.persistedOccurrenceIds=new Set();
+  app.trainingState.planBlocks=app.hydrateTrainingPlanBlocks(sourcePlan.plan,{copyFromSessionId:sessionId,copyableOccurrenceIds:sourceOccurrenceIds});
+  const copiedPlanIds=new Map((sourcePlan.plan||[]).map((block,index)=>[block.id,app.trainingState.planBlocks[index]?.id]));
   app.trainingState.sessionExercises=(sessionExercises||[])
     .filter(x=>x.exercise)
-    .map(x=>({...x.exercise,localKey:app.newUuid(),expanded:false,variant:x.variant||null,target:x.target||null,focus:x.focus||null}));
+    .map(x=>{
+      const oldOccurrence=app.isTrainingOccurrenceId(x.occurrence_id)&&sourceOccurrenceIds.has(x.occurrence_id)?x.occurrence_id:null;
+      const planId=oldOccurrence?copiedPlanIds.get(oldOccurrence)||null:null;
+      return {...x.exercise,localKey:app.newUuid(),occurrenceId:planId||app.newUuid(),expanded:false,
+        variant:x.variant||null,target:x.target||null,focus:x.focus||null,fromPlanBlockId:planId,
+        copyDiagramsFromSessionId:oldOccurrence?sessionId:null,copyDiagramsFromOccurrenceId:oldOccurrence};
+    });
 
   app.$('#trainingDate').value=app.isoToFrInput(app.today());
   app.$('#trainingGroup').value=source.group_id||'';
@@ -2146,10 +2259,8 @@ app.duplicateTrainingSessionById = async function duplicateTrainingSessionById(s
   if(app.$('#trainingAttendancePresetStatus'))app.$('#trainingAttendancePresetStatus').textContent='';
   app.$('#trainingTheme').value=source.theme||source.label||'';
   app.$('#trainingDuration').value=source.duration_minutes||'';
-  const sourcePlan=app.unpackTrainingNotes(source.notes||'');
   app.$('#trainingNotes').value=sourcePlan.notes||'';
   app.autoGrowPlanTextarea(app.$('#trainingNotes'));
-  app.trainingState.planBlocks=(sourcePlan.plan||[]).map(b=>({...app.newPlanBlock(b),...b,id:app.newUuid(),expanded:false}));
   if(app.$('#trainingPlanStart')&&app.trainingState.planBlocks.length){const mins=app.trainingState.planBlocks.filter(b=>!b.draft).map(b=>app.planTimeMinutes(b.start)).filter(x=>x!==99999);if(mins.length)app.$('#trainingPlanStart').value=app.minutesToPlanTime(Math.min(...mins))}
   app.bindLoadedStatsToPlanBlocks();
   app.clearTrainingStatus();
@@ -2174,26 +2285,30 @@ app.editTrainingSessionById = async function editTrainingSessionById(sessionId,{
   if(app.trainingLeaseState.sessionId!==sessionId)await app.releaseTrainingSessionLease();
   if(loadToken!==app.trainingState.editorLoadToken)return;
 
-  const [{data:attendance,error:ae},{data:sessionExercises,error:xe},{data:results,error:re}]=await Promise.all([
+  const [{data:attendance,error:ae},{data:sessionExercises,error:xe},{data:results,error:re},{data:occurrences,error:oe}]=await Promise.all([
     app.db.from('training_attendance').select('player_id,present').eq('session_id',sessionId),
     app.db.from('training_session_exercises')
-      .select('position,variant,target,focus,exercise:exercises!training_session_exercises_exercise_id_fkey(id,name,category,category_id,copied_from_exercise_id,measurement_type,description,objective,attack_instruction,defense_instruction)')
+      .select('position,variant,target,focus,occurrence_id,exercise:exercises!training_session_exercises_exercise_id_fkey(id,name,category,category_id,copied_from_exercise_id,measurement_type,description,objective,attack_instruction,defense_instruction)')
       .eq('session_id',sessionId).order('position'),
     app.db.from('training_results')
       .select('exercise_id,player_id,successes,attempts,numeric_value,note')
-      .eq('session_id',sessionId)
+      .eq('session_id',sessionId),
+    app.db.from('training_exercise_occurrences').select('id').eq('session_id',sessionId).eq('active',true)
   ]);
   if(loadToken!==app.trainingState.editorLoadToken)return;
-  if(ae)throw ae;if(xe)throw xe;if(re)throw re;
+  if(ae)throw ae;if(xe)throw xe;if(re)throw re;if(oe)throw oe;
 
   app.trainingState.currentSessionId=sessionId;
+  app.trainingState.persistedOccurrenceIds=new Set((occurrences||[]).map(item=>item.id));
   app.trainingState.sessionWorkspaceId=source.workspace_id??null;
   app.trainingState.sessionTeamId=source.team_id??null;
   app.trainingState.resultDraft={};
   app.trainingState.planOrganizerMode=false;app.trainingState.planOrganizerSelectedId=null;
+  const sourcePlan=app.unpackTrainingNotes(source.notes||'');
+  app.trainingState.planBlocks=app.hydrateTrainingPlanBlocks(sourcePlan.plan);
   app.trainingState.sessionExercises=(sessionExercises||[])
     .filter(x=>x.exercise)
-    .map(x=>({...x.exercise,localKey:app.newUuid(),expanded:false,variant:x.variant||null,target:x.target||null,focus:x.focus||null}));
+    .map(x=>({...x.exercise,localKey:app.newUuid(),occurrenceId:app.isTrainingOccurrenceId(x.occurrence_id)?x.occurrence_id:app.newUuid(),expanded:false,variant:x.variant||null,target:x.target||null,focus:x.focus||null,fromPlanBlockId:null}));
 
   app.$('#trainingDate').value=app.isoToFrInput(source.trained_on||app.today());
   app.$('#trainingGroup').value=source.group_id||'';
@@ -2203,10 +2318,8 @@ app.editTrainingSessionById = async function editTrainingSessionById(sessionId,{
   if(app.$('#trainingAttendancePresetStatus'))app.$('#trainingAttendancePresetStatus').textContent='';
   app.$('#trainingTheme').value=source.theme||source.label||'';
   app.$('#trainingDuration').value=source.duration_minutes||'';
-  const sourcePlan=app.unpackTrainingNotes(source.notes||'');
   app.$('#trainingNotes').value=sourcePlan.notes||'';
   app.autoGrowPlanTextarea(app.$('#trainingNotes'));
-  app.trainingState.planBlocks=(sourcePlan.plan||[]).map(b=>({...app.newPlanBlock(b),...b,id:app.newUuid(),expanded:false}));
   if(app.$('#trainingPlanStart')&&app.trainingState.planBlocks.length){const mins=app.trainingState.planBlocks.filter(b=>!b.draft).map(b=>app.planTimeMinutes(b.start)).filter(x=>x!==99999);if(mins.length)app.$('#trainingPlanStart').value=app.minutesToPlanTime(Math.min(...mins))}
   app.bindLoadedStatsToPlanBlocks();
   app.clearTrainingStatus();
@@ -2267,12 +2380,53 @@ app.showTrainingSaveConflict = function showTrainingSaveConflict(remoteUpdatedAt
   const stay=document.createElement('button');stay.type='button';stay.className='ghost';stay.textContent='Continuer sans enregistrer';stay.onclick=app.closeTrainingRecoveryDialog;
   const cloud=document.createElement('button');cloud.type='button';cloud.className='ghost';cloud.textContent='Charger la version cloud';cloud.onclick=async()=>{const id=app.trainingState.currentSessionId;app.checkpointTrainingLocalDraft('Avant chargement de la version cloud');app.closeTrainingRecoveryDialog();if(!id)return;try{const source=await app.fetchTrainingSessionParent(id);if(!source)throw new Error('La séance cloud est introuvable.');await app.editTrainingSessionById(id,{skipRecovery:true})}catch(error){app.handleError('reload cloud training',error)}};
   // Copie : nouvelle séance sans lien de version vers une séance existante.
-  const copy=document.createElement('button');copy.type='button';copy.className='ghost';copy.textContent='Enregistrer comme copie';copy.onclick=async()=>{app.closeTrainingRecoveryDialog();await app.releaseTrainingSessionLease();app.trainingState.currentSessionId=null;app.resetTrainingSessionContext();app.trainingLocalState.baseUpdatedAt=null;app.trainingLocalState.baseVersion=null;app.setTrainingLeaseStatus('idle');app.saveTrainingSession({forceOverwrite:true}).catch(error=>app.handleError('save training copy',error))};
+  const copy=document.createElement('button');copy.type='button';copy.className='ghost';copy.textContent='Enregistrer comme copie';copy.onclick=async()=>{const sourceSessionId=app.trainingState.currentSessionId;const copyDocument=app.rekeyTrainingEditorDocument(app.trainingEditorDocument(),sourceSessionId);app.closeTrainingRecoveryDialog();await app.releaseTrainingSessionLease();app.trainingState.currentSessionId=null;app.resetTrainingSessionContext();app.trainingLocalState.baseUpdatedAt=null;app.trainingLocalState.baseVersion=null;app.setTrainingLeaseStatus('idle');await app.applyTrainingEditorDocument(copyDocument,{loadPlayers:false});app.saveTrainingSession({forceOverwrite:true}).catch(error=>app.handleError('save training copy',error))};
   const overwrite=document.createElement('button');overwrite.type='button';overwrite.className='primary';overwrite.textContent='Écraser avec ma version';overwrite.onclick=()=>{app.closeTrainingRecoveryDialog();app.trainingLocalState.conflict=false;app.saveTrainingSession({forceOverwrite:true}).catch(error=>app.handleError('overwrite training session',error))};
   actions.append(stay,cloud,copy,overwrite);
 };
 
 app.trainingSavePromise=null;
+
+app.trainingOccurrenceManifest = function trainingOccurrenceManifest(document){
+  const statsByOccurrence=new Map();
+  document.sessionExercises.forEach((exercise,index)=>{
+    if(!app.isTrainingOccurrenceId(exercise.occurrenceId))exercise.occurrenceId=app.newUuid();
+    statsByOccurrence.set(exercise.occurrenceId,{exercise,statsPosition:index+1});
+  });
+  const planIds=new Set();
+  const occurrences=document.planBlocks.map((block,index)=>{
+    if(!app.isTrainingOccurrenceId(block.id)||planIds.has(block.id))block.id=app.newUuid();
+    planIds.add(block.id);
+    const stats=statsByOccurrence.get(block.id)||null;
+    const copySessionId=block.copyDiagramsFromSessionId||null;
+    const copyOccurrenceId=app.isTrainingOccurrenceId(block.copyDiagramsFromOccurrenceId)?block.copyDiagramsFromOccurrenceId:null;
+    return {id:block.id,kind:'plan_block',position:index,exercise_id:block.sourceType==='library'?(block.exerciseId||null):null,
+      collects_stats:!!stats,stats_position:stats?.statsPosition||null,
+      copy_diagrams_from_session_id:copySessionId&&copyOccurrenceId?copySessionId:null,
+      copy_diagrams_from_occurrence_id:copySessionId&&copyOccurrenceId?copyOccurrenceId:null};
+  });
+  document.sessionExercises.forEach((exercise,index)=>{
+    if(planIds.has(exercise.occurrenceId))return;
+    const copySessionId=exercise.copyDiagramsFromSessionId||null;
+    const copyOccurrenceId=app.isTrainingOccurrenceId(exercise.copyDiagramsFromOccurrenceId)?exercise.copyDiagramsFromOccurrenceId:null;
+    occurrences.push({id:exercise.occurrenceId,kind:'manual_stat',position:document.planBlocks.length+index,
+      exercise_id:exercise.id,collects_stats:true,stats_position:index+1,
+      copy_diagrams_from_session_id:copySessionId&&copyOccurrenceId?copySessionId:null,
+      copy_diagrams_from_occurrence_id:copySessionId&&copyOccurrenceId?copyOccurrenceId:null});
+  });
+  return occurrences;
+};
+
+app.clearSavedTrainingOccurrenceCopySources = function clearSavedTrainingOccurrenceCopySources(manifest){
+  const copied=new Set(manifest.filter(item=>item.copy_diagrams_from_occurrence_id).map(item=>item.id));
+  [...app.trainingState.planBlocks,...app.trainingState.sessionExercises].forEach(item=>{
+    const occurrenceId=item.occurrenceId||item.id;
+    if(!copied.has(occurrenceId))return;
+    item.copyDiagramsFromSessionId=null;
+    item.copyDiagramsFromOccurrenceId=null;
+  });
+};
+
 // Point d'entrée unique : les appels concurrents partagent la même promesse afin
 // de pouvoir attendre la fin d'une sauvegarde déjà en cours (« Terminer l'édition »).
 app.saveTrainingSession = function saveTrainingSession(options={}){
@@ -2310,8 +2464,8 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
     const withoutFocus=saveDocument.sessionExercises.find(ex=>app.isDualExercise(ex)&&!ex.focus);
     if(withoutFocus){if(autosave)app.setTrainingCloudStatus('incomplete');else app.trainingStatus(`Choisis le focus Attaque ou Défense pour « ${withoutFocus.name} ».`,true);return}
 
-    // La sauvegarde transite exclusivement par la RPC transactionnelle
-    // save_training_session (SECURITY INVOKER) : aucune écriture directe sur les tables
+    // La sauvegarde transite exclusivement par la RPC transactionnelle G2
+    // save_training_session_with_occurrences (SECURITY INVOKER) : aucune écriture directe sur les tables
     // enfants (training_attendance, training_session_exercices, training_results) ne
     // subsiste ici. Les autorisations sont contrôlées par les policies RLS du parent ;
     // les appels aux fonctions du schéma private ne sont pas réintroduits.
@@ -2348,6 +2502,7 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
     const sessionExercises=saveDocument.sessionExercises.map((ex,i)=>({
       exercise_id:ex.id,position:i+1,variant:ex.variant||null,target:ex.target||null,focus:app.isDualExercise(ex)?ex.focus:null
     }));
+    const occurrences=app.trainingOccurrenceManifest(saveDocument);
     const results=[];
     saveDocument.sessionExercises.forEach(ex=>{
       presentIds.forEach(playerId=>{
@@ -2372,7 +2527,7 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
 
     if(!sessionId)app.setTrainingLeaseStatus('pending');
 
-    const {data:rpcResult,error:rpcError}=await app.db.rpc('save_training_session',{
+    const {data:rpcResult,error:rpcError}=await app.db.rpc('save_training_session_with_occurrences',{
       p_session_id:sessionId,
       p_expected_version:sessionId?app.trainingLocalState.baseVersion:null,
       p_editor_instance_id:lease.instanceId,
@@ -2388,6 +2543,7 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
       p_attendance:attendance,
       p_exercises:sessionExercises,
       p_results:results,
+      p_occurrences:occurrences,
       p_force:!!forceOverwrite
     });
     if(operationEpoch!==lease.epoch){
@@ -2417,6 +2573,8 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
       app.scheduleTrainingLeaseHeartbeat();
     }
     app.trainingState.currentSessionId=result.session_id;
+    app.trainingState.persistedOccurrenceIds=new Set(occurrences.map(item=>item.id));
+    app.clearSavedTrainingOccurrenceCopySources(occurrences);
     app.applyTrainingLeaseControls();
     app.trainingLocalState.baseUpdatedAt=result.updated_at||null;
     app.trainingLocalState.baseVersion=result.version??null;

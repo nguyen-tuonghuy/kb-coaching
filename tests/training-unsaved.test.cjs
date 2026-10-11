@@ -24,7 +24,7 @@ const EXERCISE={
 function store({writable=false}={}){
   const tables={
     exercise_categories:[{id:'c1',name:'Attaque',slug:'attaque',active:true,is_native:true,is_dual_focus:false}],
-    exercises:[EXERCISE],
+    exercises:[{...EXERCISE}],
     user_profiles:[{user_id:'u1',first_name:'Lucas'}],
     teams:[{id:'t1',workspace_id:'w1',name:TEAM_NAME},{id:'t2',workspace_id:'w2',name:TEAM_NAME}],
     coaching_group_coaches:[{user_id:'u1',role:'coach',group:{id:GROUP_ID,name:TEAM_NAME,club:'KC',invite_code:'ABC'}}],
@@ -34,10 +34,12 @@ function store({writable=false}={}){
     })),
     coaching_group_selections:[],
     training_attendance:[],
+    training_exercise_occurrences:[],
     training_session_exercises:[],
     training_results:[],
     training_sessions:[],
-    training_session_leases:[]
+    training_session_leases:[],
+    exercise_usage:{}
   };
   const mutations=[];
   let nextId=1;
@@ -112,18 +114,31 @@ function store({writable=false}={}){
         tables.training_session_leases=tables.training_session_leases.filter(row=>row.session_id!==req.p_session_id);
         return {data:true,error:null};
       }
-      if(name!=='save_training_session')throw new Error('Unexpected rpc '+name);
+      if(name==='get_exercise_usage'){
+        const usage=(tables.exercise_usage||{})[req.p_exercise_id]||{used:false,has_results:false,has_history:false};
+        return {data:usage,error:null};
+      }
+      if(name!=='save_training_session_with_occurrences')throw new Error('Unexpected rpc '+name);
       if(!req.p_group_id)return {data:null,error:{message:'Groupe requis'}};
       if(!req.p_team_id)return {data:null,error:{message:'Équipe requise'}};
       const stamp='2026-03-04T10:00:00.'+String(nextId).padStart(3,'0')+'Z';
       // Remplacement complet des enfants, comme la RPC transactionnelle : résultats,
       // présences et plan sont réécrits pour la séance ciblée uniquement.
       const writeChildren=id=>{
+        const wantedOccurrences=new Set((req.p_occurrences||[]).map(row=>row.id));
+        tables.training_exercise_occurrences.forEach(row=>{if(row.session_id===id&&!wantedOccurrences.has(row.id))row.active=false});
+        (req.p_occurrences||[]).forEach(row=>{
+          const current=tables.training_exercise_occurrences.find(item=>item.session_id===id&&item.id===row.id);
+          const value={...row,session_id:id,active:true};
+          if(current)Object.assign(current,value);else tables.training_exercise_occurrences.push(value);
+        });
         tables.training_attendance=(tables.training_attendance||[]).filter(row=>row.session_id!==id)
           .concat((req.p_attendance||[]).map(row=>({session_id:id,player_id:row.player_id,present:!!row.present})));
+        const occurrencesByStatsPosition=new Map((req.p_occurrences||[]).filter(row=>row.stats_position!=null).map(row=>[row.stats_position,row.occurrence_id]));
         tables.training_session_exercises=(tables.training_session_exercises||[]).filter(row=>row.session_id!==id)
           .concat((req.p_exercises||[]).map(row=>({session_id:id,exercise_id:row.exercise_id,position:row.position,
-            variant:row.variant??null,target:row.target??null,focus:row.focus??null,exercise:EXERCISE})));
+            variant:row.variant??null,target:row.target??null,focus:row.focus??null,
+            occurrence_id:occurrencesByStatsPosition.get(row.position)||null,exercise:EXERCISE})));
         tables.training_results=(tables.training_results||[]).filter(row=>row.session_id!==id)
           .concat((req.p_results||[]).map(row=>({session_id:id,exercise_id:row.exercise_id,player_id:row.player_id,
             successes:row.successes??null,attempts:row.attempts??null,numeric_value:row.numeric_value??null,note:row.note??null})));
@@ -252,11 +267,10 @@ test('snapshot is deterministic and ignores presentation-only state',async t=>{
   const first=app.trainingSessionSnapshot();
   assert.ok(JSON.parse(first).plan.length,'fixture plan is loaded');
   assert.equal(JSON.parse(first).results[0].playerId,'p1');
-  // Regenerated ids, expanded cards and organizer state are display details:
-  // none of them may look like an edit. Loading a session regenerates both the
-  // exercise keys and the draft keys, so mirror that coupling here.
+  // Block/occurrence ids are canonical and persisted: they must never look like an
+  // edit and are no longer regenerated at load. Only presentation-only state (expanded
+  // cards, organizer mode, regenerated local/draft keys) may differ.
   app.trainingState.planBlocks.forEach(b=>{b.expanded=true});
-  app.trainingState.planBlocks[0].id='regenerated-id';
   const remapped={};
   app.trainingState.sessionExercises.forEach(ex=>{
     const oldKey=ex.localKey;
@@ -484,7 +498,7 @@ test('a refused save keeps the session dirty',async t=>{
   page.$('#trainingTheme').value='Mon theme';
   await app.saveTrainingSession();
   await settle();
-  assert.ok(mutations.some(m=>m.table==='rpc'&&m.mode==='save_training_session'),'the write was attempted');
+  assert.ok(mutations.some(m=>m.table==='rpc'&&m.mode==='save_training_session_with_occurrences'),'the write was attempted');
   assert.equal(tables.training_sessions.length,0);
   assert.match(page.$('#trainingCloudStatus').textContent,/refuses rpc/);
   assert.equal(app.trainingSessionIsDirty(),true,'a refused save must not clear the baseline');
@@ -956,10 +970,10 @@ test('draft card uses the shared light surface, not the legacy dark theme',()=>{
   assert.ok(ratio>=4.5,`secondary text contrast ${ratio.toFixed(2)} must reach WCAG AA`);
 });
 
-// --- Lot B: la sauvegarde passe exclusivement par la RPC save_training_session ---
+// --- Lot B: la sauvegarde passe exclusivement par la RPC G2 transactionnelle ---
 
 const CHILD_TABLES=['training_attendance','training_session_exercises','training_results'];
-const rpcCalls=ui=>ui.mutationsRef.filter(m=>m.table==='rpc'&&m.mode==='save_training_session');
+const rpcCalls=ui=>ui.mutationsRef.filter(m=>m.table==='rpc'&&m.mode==='save_training_session_with_occurrences');
 const directWrites=ui=>ui.mutationsRef.filter(m=>[...CHILD_TABLES,'training_sessions'].includes(m.table)
   && ['insert','update','delete','upsert'].includes(m.mode));
 const recoveryButton=(ui,text)=>[...ui.page.w.document.querySelectorAll('#trainingRecoveryActions button')]
@@ -1057,7 +1071,7 @@ test('an RPC failure keeps the session dirty and the local draft intact',async t
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui);
   const real=app.db.rpc;
-  app.db.rpc=async(name,params)=>(name==='save_training_session'
+  app.db.rpc=async(name,params)=>(name==='save_training_session_with_occurrences'
     ?{data:null,error:{message:'réseau indisponible'}}:real(name,params));
   ui.page.$('#trainingTheme').value='À conserver localement';
   await app.saveTrainingSession();await settle();
@@ -1208,7 +1222,7 @@ test('the online event reschedules an unsynced autosave immediately',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui,{existing:true});
   const real=app.db.rpc;
-  app.db.rpc=async(name,params)=>(name==='save_training_session'
+  app.db.rpc=async(name,params)=>(name==='save_training_session_with_occurrences'
     ?{data:null,error:{message:'réseau indisponible'}}:real(name,params));
   editTheme(ui,'Reconnexion');
   await runCloudAutosave(ui);
@@ -1466,7 +1480,7 @@ test('finishing while the initial creation is in flight waits for the lease befo
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui);editTheme(ui,'Création en cours');
   const realRpc=app.db.rpc;let release;
-  app.db.rpc=async(name,params)=>name==='save_training_session'
+  app.db.rpc=async(name,params)=>name==='save_training_session_with_occurrences'
     ?new Promise(resolve=>{release=()=>realRpc(name,params).then(resolve)})
     :realRpc(name,params);
   const saving=app.saveTrainingSession();await settle();
@@ -1507,7 +1521,7 @@ test('finishing re-checks an edit made while the save was in flight',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui);
   const real=app.db.rpc;let release;const gate=new Promise(resolve=>{release=resolve});
-  app.db.rpc=async(name,params)=>{if(name==='save_training_session')await gate;return real(name,params)};
+  app.db.rpc=async(name,params)=>{if(name==='save_training_session_with_occurrences')await gate;return real(name,params)};
   editTheme(ui,'Première');
   const saving=app.saveTrainingSession();await settle();
   ui.page.$('#cancelTraining').click();await settle();
@@ -1522,7 +1536,7 @@ test('finishing with a failing save keeps the draft and never reports synchronis
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui);
   const real=app.db.rpc;
-  app.db.rpc=async(name,params)=>(name==='save_training_session'?{data:null,error:{message:'réseau indisponible'}}:real(name,params));
+  app.db.rpc=async(name,params)=>(name==='save_training_session_with_occurrences'?{data:null,error:{message:'réseau indisponible'}}:real(name,params));
   editTheme(ui,'À conserver');
   ui.page.$('#cancelTraining').click();await settle();await settle();
   assert.equal(ui.page.$('#trainingSession').classList.contains('hidden'),false,'the editor stays open when the save failed');
@@ -1543,6 +1557,87 @@ test('a read-only observer sees Retour and leaves without saving',async t=>{
   ui.page.$('#cancelTraining').click();await settle();await settle();
   assert.equal(ui.page.$('#trainingSession').classList.contains('hidden'),true);
   assert.equal(rpcCalls(ui).length,before,'a read-only observer never saves');
+});
+
+// --- G2.1 : occurrences, identifiants canoniques et provenance tactique ---
+
+async function openDuplicateSource(ui,{occurrences,exerciseOccurrenceId}){
+  const {client,tables,mutations}=store({writable:true});
+  ui.tablesRef=tables;ui.mutationsRef=mutations;
+  ui.page=await loadPage('training',{client});
+  const app=await boot(ui);
+  await app.startNewTraining();
+  const notes=app.packTrainingNotes('Observations',planFixture());
+  app.trainingState.recentSessions=[{id:'s1',trained_on:'2026-03-04',group_id:GROUP_ID,theme:'T',label:'T',duration_minutes:60,notes,version:1,updated_at:'2026-03-04T10:00:00Z',workspace_id:'w1',team_id:'t1'}];
+  tables.training_session_exercises=[{session_id:'s1',position:1,variant:null,target:null,focus:null,occurrence_id:exerciseOccurrenceId,exercise:EXERCISE}];
+  tables.training_exercise_occurrences=occurrences;
+  await app.duplicateTrainingSessionById('s1');
+  await settle();
+  return app;
+}
+
+test('G2: the save sends p_occurrences derived from canonical editor identifiers',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  const manual=app.trainingState.sessionExercises.find(e=>e.id==='ex1');
+  assert.ok(app.isTrainingOccurrenceId(manual.occurrenceId),'a manual exercise gets a canonical occurrence uuid');
+  const blockIds=app.trainingState.planBlocks.map(b=>b.id);
+  assert.ok(blockIds.every(id=>app.isTrainingOccurrenceId(id)),'plan blocks carry canonical uuids');
+  await app.saveTrainingSession();
+  await settle();
+  const call=rpcCalls(ui).at(-1);
+  assert.ok(call,'the G2 RPC was called');
+  const occurrences=call.values.p_occurrences;
+  assert.ok(Array.isArray(occurrences),'p_occurrences is always sent');
+  assert.equal(occurrences.length,app.trainingState.planBlocks.length+1);
+  const manualEntry=occurrences.find(o=>o.id===manual.occurrenceId);
+  assert.equal(manualEntry.kind,'manual_stat');
+  assert.equal(manualEntry.exercise_id,'ex1');
+  assert.equal(manualEntry.collects_stats,true);
+  assert.equal(manualEntry.stats_position,1);
+  assert.deepEqual(Array.from(occurrences.filter(o=>o.kind==='plan_block').map(o=>o.id)).sort(),Array.from(blockIds).sort());
+});
+
+test('G2: duplicated session copies tactical provenance only from active source occurrences',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const A='aaaaaaaa-0000-4000-8000-000000000001';
+  const app=await openDuplicateSource(ui,{exerciseOccurrenceId:A,occurrences:[{id:A,session_id:'s1',active:true}]});
+  const exercise=app.trainingState.sessionExercises.find(e=>e.id==='ex1');
+  assert.equal(exercise.copyDiagramsFromSessionId,'s1');
+  assert.equal(exercise.copyDiagramsFromOccurrenceId,A);
+  assert.notEqual(exercise.occurrenceId,A,'the copy gets its own occurrence uuid');
+});
+
+test('G2: duplicated session omits tactical provenance for inactive source occurrences',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const B='bbbbbbbb-0000-4000-8000-000000000002';
+  const app=await openDuplicateSource(ui,{exerciseOccurrenceId:B,occurrences:[{id:B,session_id:'s1',active:false}]});
+  const exercise=app.trainingState.sessionExercises.find(e=>e.id==='ex1');
+  assert.equal(exercise.copyDiagramsFromSessionId,null);
+  assert.equal(exercise.copyDiagramsFromOccurrenceId,null);
+});
+
+test('exercise deletion archives when has_history is missing',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui);
+  await app.fetchTrainingExercises();
+  ui.page.w.confirm=()=>true;
+  ui.tablesRef.exercise_usage.ex1={used:false,has_results:false};
+  await app.changeExerciseLifecycleFromLibrary('ex1');
+  const write=ui.mutationsRef.filter(m=>m.table==='exercises'&&['update','delete'].includes(m.mode)).at(-1);
+  assert.equal(write.mode,'update','a missing has_history must archive, never delete');
+  assert.equal(write.values.active,false);
+});
+
+test('exercise deletion proceeds only when has_history is explicitly false',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui);
+  await app.fetchTrainingExercises();
+  ui.page.w.confirm=()=>true;
+  ui.tablesRef.exercise_usage.ex1={used:false,has_results:false,has_history:false};
+  await app.changeExerciseLifecycleFromLibrary('ex1');
+  const write=ui.mutationsRef.filter(m=>m.table==='exercises'&&['update','delete'].includes(m.mode)).at(-1);
+  assert.equal(write.mode,'delete');
 });
 
 test('training-live sends instance and token headers and PostgreSQL guards all live writes',()=>{
