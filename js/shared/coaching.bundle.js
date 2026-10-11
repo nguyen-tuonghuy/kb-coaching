@@ -302,6 +302,7 @@
      <button class="statsTab active" data-stats-tab="group">Groupe</button>
      <button class="statsTab" data-stats-tab="player">Joueur</button>
      <button class="statsTab" data-stats-tab="exercise">Exercice</button>
+     <button class="statsTab" data-stats-tab="leaderboards">Classements</button>
     </div>
 
     <div id="statsGroupView">
@@ -342,6 +343,49 @@
      </div>
      <div class="small" id="statsLeaderboardHint" style="margin-bottom:8px"></div>
      <div id="statsLeaderboard"></div>
+    </div>
+
+    <div id="statsLeaderboardsView" class="hidden">
+     <div class="analysisBlock">
+      <h3>Classements cumulés multi-exercices</h3>
+      <div class="analysisSubtle">Cumul des réussites/tentatives sur plusieurs exercices et séances. Seuls les exercices à mesure « Réussites/Tentatives » sont compatibles.</div>
+      <div class="row" style="flex-wrap:wrap;gap:12px;align-items:flex-end;margin-top:10px">
+       <div class="field" style="min-width:260px;max-width:100%">
+        <label>Exercices</label>
+        <select id="statsLeaderboardExercises" multiple size="6"></select>
+        <div class="small" style="margin-top:4px">Maintiens Ctrl/Cmd pour sélectionner plusieurs exercices.</div>
+       </div>
+       <div class="field">
+        <label>Période</label>
+        <select id="statsLeaderboardPeriod">
+         <option value="all">Toutes les séances</option>
+         <option value="range">Entre deux dates</option>
+        </select>
+       </div>
+       <div class="row" style="gap:8px">
+        <div class="field" style="min-width:150px">
+         <label>Début</label>
+         <input type="date" id="statsLeaderboardStart" disabled>
+        </div>
+        <div class="field" style="min-width:150px">
+         <label>Fin</label>
+         <input type="date" id="statsLeaderboardEnd" disabled>
+        </div>
+       </div>
+       <div class="field" style="min-width:160px">
+        <label>Seuil minimal de tentatives</label>
+        <input type="number" id="statsLeaderboardMinAttempts" min="0" step="1" value="5">
+       </div>
+       <div class="row" style="gap:6px;margin-top:8px">
+        <button class="primary" id="statsLeaderboardCompute">Calculer le classement</button>
+        <button class="ghost" id="statsLeaderboardClear">Effacer</button>
+       </div>
+      </div>
+     </div>
+     <div class="analysisBlock" style="margin-top:12px">
+      <div id="statsLeaderboardSummary" class="small" style="margin-bottom:8px"></div>
+      <div id="statsLeaderboardTable"></div>
+     </div>
     </div>
    </div>
 
@@ -7004,6 +7048,155 @@ app.statsSparkline = function statsSparkline(values,labels=[]){
   return `<div class="statsChart"><svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Évolution des résultats"><polyline points="${poly}"></polyline>${circles}</svg></div>`;
 };
 
+app.aggregateLeaderboard = function aggregateLeaderboard({
+  results=[],
+  sessions=[],
+  players=[],
+  exerciseMap={},
+  selectedExerciseIds=[],
+  periodStart=null,
+  periodEnd=null,
+  minAttempts=0,
+  groupId=null
+}){
+  const sessionMap=Object.fromEntries(sessions.map(s=>[s.id,s]));
+  const playerMap=Object.fromEntries(players.map(p=>[p.id,p]));
+  const exSet=new Set(selectedExerciseIds.filter(Boolean));
+  const startStr=periodStart||null;
+  const endStr=periodEnd||null;
+  const min=Number(minAttempts)||0;
+
+  const grouped=new Map();
+  const seen=new Set();
+  for(const r of results){
+    const exId=r.exercise_id;
+    if(exSet.size && !exSet.has(exId)) continue;
+    const ex=exerciseMap[exId];
+    if(!ex || ex.measurement_type!=='success_attempts') continue;
+    const sess=sessionMap[r.session_id];
+    if(!sess) continue;
+    if(groupId && sess.group_id && sess.group_id!==groupId) continue;
+    const date=sess.trained_on||sess.date||sess.created_at||null;
+    if(startStr && date && date < startStr) continue;
+    if(endStr && date && date > endStr) continue;
+    const key=r.player_id+'|'+r.session_id+'|'+exId;
+    const rid=r.id||r.result_id||`${key}|${r.successes}|${r.attempts}`;
+    if(seen.has(rid)) continue;
+    seen.add(rid);
+    if(!grouped.has(key)){
+      grouped.set(key, {player_id:r.player_id, session_id:r.session_id, successes:0, attempts:0});
+    }
+    const g=grouped.get(key);
+    g.successes += Number(r.successes)||0;
+    g.attempts += Number(r.attempts)||0;
+  }
+
+  const byPlayer=new Map();
+  for(const g of grouped.values()){
+    const pid=g.player_id;
+    if(!byPlayer.has(pid)){
+      byPlayer.set(pid, {player_id:pid, successes:0, attempts:0, sessions:new Set()});
+    }
+    const bp=byPlayer.get(pid);
+    bp.successes += g.successes;
+    bp.attempts += g.attempts;
+    if(g.attempts>0 || g.successes>0) bp.sessions.add(g.session_id);
+  }
+
+  const entries=[];
+  for(const bp of byPlayer.values()){
+    if(min>0 && bp.attempts < min) continue;
+    if(bp.attempts<=0) continue;
+    const rate=bp.successes/bp.attempts;
+    entries.push({
+      player_id:bp.player_id,
+      name:playerMap[bp.player_id]?.display_name||playerMap[bp.player_id]?.name||'Joueur',
+      successes:bp.successes,
+      attempts:bp.attempts,
+      sessionsCount:bp.sessions.size,
+      rate
+    });
+  }
+
+  entries.sort((a,b)=>{
+    if(b.rate!==a.rate) return b.rate-a.rate;
+    if(b.attempts!==a.attempts) return b.attempts-a.attempts;
+    return (a.name||'').localeCompare(b.name||'','fr');
+  });
+
+  let rank=1;
+  for(let i=0;i<entries.length;i++){
+    if(i>0 && entries[i].rate===entries[i-1].rate) entries[i].rank=entries[i-1].rank;
+    else entries[i].rank=rank;
+    rank++;
+  }
+  return entries;
+};
+
+app.renderStatsLeaderboards = function renderStatsLeaderboards(){
+  const sel=app.$('#statsLeaderboardExercises');
+  if(sel){
+    const exs=Object.values(app.statsState.exerciseMap)
+      .filter(ex=>ex && ex.measurement_type==='success_attempts')
+      .sort((a,b)=>a.name.localeCompare(b.name,'fr'));
+    const current=new Set([...sel.selectedOptions].map(o=>o.value));
+    sel.innerHTML=exs.map(ex=>`<option value="${app.escapeHtml(ex.id)}" ${current.has(ex.id)?'selected':''}>${app.escapeHtml(ex.name)}</option>`).join('');
+  }
+  const start=app.$('#statsLeaderboardStart'), end=app.$('#statsLeaderboardEnd');
+  const p=app.$('#statsLeaderboardPeriod');
+  if(p && start && end){
+    const disabled=p.value!=='range';
+    start.disabled=disabled; end.disabled=disabled;
+  }
+};
+
+app.computeStatsLeaderboard = function computeStatsLeaderboard(){
+  const groupId=app.$('#statsGroup')?.value||app.statsState.groupId||'';
+  const sel=app.$('#statsLeaderboardExercises');
+  const selectedExerciseIds=sel?[...sel.selectedOptions].map(o=>o.value):[];
+  const period=app.$('#statsLeaderboardPeriod')?.value||'all';
+  let periodStart=null, periodEnd=null;
+  if(period==='range'){
+    periodStart=app.$('#statsLeaderboardStart')?.value||null;
+    periodEnd=app.$('#statsLeaderboardEnd')?.value||null;
+  }
+  const minAttempts=Number(app.$('#statsLeaderboardMinAttempts')?.value)||0;
+  const entries=app.aggregateLeaderboard({
+    results:app.statsState.results||[],
+    sessions:app.statsState.sessions||[],
+    players:app.statsState.players||[],
+    exerciseMap:app.statsState.exerciseMap||{},
+    selectedExerciseIds,
+    periodStart,
+    periodEnd,
+    minAttempts,
+    groupId
+  });
+  app.statsState.leaderboardCache=entries;
+  const sum=app.$('#statsLeaderboardSummary');
+  if(sum){
+    sum.textContent=entries.length
+      ? `${entries.length} joueur${entries.length>1?'s':''} classé${entries.length>1?'s':''} (exercices mesurés en réussites/tentatives${selectedExerciseIds.length?' · sélectionnés':' · tous disponibles'})`
+      : 'Aucun résultat ne correspond aux critères (vérifie sélection, période, seuil de tentatives).';
+  }
+  const table=app.$('#statsLeaderboardTable');
+  if(!table)return;
+  if(!entries.length){
+    table.innerHTML='<div class="statsEmpty">Aucun classement à afficher.</div>';
+    return;
+  }
+  table.innerHTML=`<div class="analysisTableWrap"><table class="analysisTable">
+    <thead><tr><th>Rang</th><th>Joueur</th><th>Taux</th><th>Réussites/Tentatives</th><th>Séances prises en compte</th></tr></thead>
+    <tbody>${entries.map(e=>`<tr>
+      <td>${e.rank}</td>
+      <td>${app.escapeHtml(e.name)}</td>
+      <td>${(e.rate*100).toFixed(1).replace('.',',')} %</td>
+      <td>${e.successes}/${e.attempts}</td>
+      <td>${e.sessionsCount}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+};
+
 app.statsBarList = function statsBarList(items){
   if(!items.length)return '<div class="statsEmpty">Aucune donnée.</div>';
   const max=Math.max(...items.map(x=>x.value),1);
@@ -7050,14 +7243,17 @@ app.switchStatsTab = function switchStatsTab(tab){
   app.$('#statsGroupView').classList.toggle('hidden',tab!=='group');
   app.$('#statsPlayerView').classList.toggle('hidden',tab!=='player');
   app.$('#statsExerciseView').classList.toggle('hidden',tab!=='exercise');
+  app.$('#statsLeaderboardsView').classList.toggle('hidden',tab!=='leaderboards');
   if(tab==='player')app.renderStatsPlayer();
   if(tab==='exercise')app.renderStatsExercise();
+  if(tab==='leaderboards')app.renderStatsLeaderboards();
 };
 
 app.renderStatsAll = function renderStatsAll(){
   app.renderStatsGroup();
   app.renderStatsPlayer();
   app.renderStatsExercise();
+  app.renderStatsLeaderboards();
 };
 
 app.renderStatsGroup = function renderStatsGroup(){
@@ -8620,6 +8816,33 @@ app.bindStatsControls = function bindStatsControls(){
 
   const statsExerciseFocus=app.$('#statsExerciseFocus');
   if(statsExerciseFocus)statsExerciseFocus.onchange=app.renderStatsExercise;
+
+  const statsLeaderboardExercises=app.$('#statsLeaderboardExercises');
+  if(statsLeaderboardExercises)statsLeaderboardExercises.onchange=()=>{ if(app.statsState.tab==='leaderboards')app.renderStatsLeaderboards(); };
+
+  const statsLeaderboardPeriod=app.$('#statsLeaderboardPeriod');
+  if(statsLeaderboardPeriod)statsLeaderboardPeriod.onchange=()=>{
+    const range=statsLeaderboardPeriod.value==='range';
+    const start=app.$('#statsLeaderboardStart'), end=app.$('#statsLeaderboardEnd');
+    if(start)start.disabled=!range;
+    if(end)end.disabled=!range;
+  };
+
+  const statsLeaderboardCompute=app.$('#statsLeaderboardCompute');
+  if(statsLeaderboardCompute)statsLeaderboardCompute.onclick=()=>app.computeStatsLeaderboard();
+
+  const statsLeaderboardClear=app.$('#statsLeaderboardClear');
+  if(statsLeaderboardClear)statsLeaderboardClear.onclick=()=>{
+    const sel=app.$('#statsLeaderboardExercises');
+    if(sel)sel.value='';
+    const p=app.$('#statsLeaderboardPeriod'); if(p)p.value='all';
+    const start=app.$('#statsLeaderboardStart'), end=app.$('#statsLeaderboardEnd');
+    if(start){start.value='';start.disabled=true;}
+    if(end){end.value='';end.disabled=true;}
+    app.$('#statsLeaderboardSummary').textContent='';
+    app.$('#statsLeaderboardTable').innerHTML='';
+    app.statsState.leaderboardCache=null;
+  };
 
   app.$$('.statsLeaderboardMode').forEach(b=>b.onclick=()=>{
     app.statsState.leaderMode=b.dataset.leaderMode;
