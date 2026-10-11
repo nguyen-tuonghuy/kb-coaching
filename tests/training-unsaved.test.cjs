@@ -7,6 +7,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const {loadPage,settle}=require('./helpers/page-harness.cjs');
+const TacticalModel=require('../js/tactical-editor-model.js');
 const root=path.resolve(__dirname,'..');
 
 const GROUP_ID='g1';
@@ -37,6 +38,7 @@ function store({writable=false}={}){
     training_exercise_occurrences:[],
     training_session_exercises:[],
     training_results:[],
+    training_tactical_diagrams:[],
     training_sessions:[],
     training_session_leases:[],
     exercise_usage:{}
@@ -117,6 +119,23 @@ function store({writable=false}={}){
       if(name==='get_exercise_usage'){
         const usage=(tables.exercise_usage||{})[req.p_exercise_id]||{used:false,has_results:false,has_history:false};
         return {data:usage,error:null};
+      }
+      if(name==='save_training_tactical_diagram'){
+        const validLease=tables.training_session_leases.some(lease=>lease.session_id===req.p_session_id&&lease.user_id==='u1'&&lease.instance_id===req.p_editor_instance_id&&lease.lease_token===req.p_lease_token);
+        if(!validLease)return {data:null,error:{code:'55000',message:'Bail d édition absent'}};
+        const occurrence=tables.training_exercise_occurrences.find(row=>row.session_id===req.p_session_id&&row.id===req.p_occurrence_id&&row.active);
+        if(!occurrence)return {data:null,error:{code:'23503',message:'Occurrence active introuvable'}};
+        if(req.p_diagram_id){
+          const row=tables.training_tactical_diagrams.find(item=>item.id===req.p_diagram_id&&item.session_id===req.p_session_id&&item.occurrence_id===req.p_occurrence_id);
+          if(!row)return {data:null,error:{message:'Schéma tactique introuvable'}};
+          if(req.p_expected_version!==row.version)return {data:[{status:'conflict',diagram_id:req.p_diagram_id,version:null,updated_at:row.updated_at,remote_version:row.version}],error:null};
+          row.document=clone(req.p_document);row.position=req.p_position;row.version+=1;row.updated_at=`2026-03-04T11:00:00.${nextId++}Z`;
+          return {data:[{status:'saved',diagram_id:row.id,version:row.version,updated_at:row.updated_at,remote_version:null}],error:null};
+        }
+        const row={id:`diagram-${nextId++}`,session_id:req.p_session_id,occurrence_id:req.p_occurrence_id,
+          document:clone(req.p_document),position:req.p_position,version:1,updated_at:`2026-03-04T11:00:00.${nextId++}Z`};
+        tables.training_tactical_diagrams.push(row);
+        return {data:[{status:'saved',diagram_id:row.id,version:row.version,updated_at:row.updated_at,remote_version:null}],error:null};
       }
       if(name!=='save_training_session_with_occurrences')throw new Error('Unexpected rpc '+name);
       if(!req.p_group_id)return {data:null,error:{message:'Groupe requis'}};
@@ -259,6 +278,22 @@ function serializedDraft(app){
   const raw=app.trainingLocalState.store.read(identity);
   assert.equal(raw.ok,true);
   return JSON.parse(JSON.stringify(raw.record));
+}
+
+function attachTacticalEditor(ui,app,occurrenceId,document=TacticalModel.createDocument('Schéma test')){
+  if(!ui.tablesRef.training_exercise_occurrences.some(row=>row.id===occurrenceId)){
+    ui.tablesRef.training_exercise_occurrences.push({id:occurrenceId,session_id:'s1',active:true});
+  }
+  app.trainingState.persistedOccurrenceIds.add(occurrenceId);
+  app.trainingTacticalState.occurrenceId=occurrenceId;
+  const editor={
+    document:TacticalModel.clone(document),dirty:true,
+    root:{ownerDocument:{defaultView:{KinballTacticalModel:TacticalModel}}},
+    getDiagram(){return TacticalModel.clone(this.document)},
+    loadDiagram(next,{clean=false}={}){this.document=TacticalModel.clone(next);this.dirty=!clean;return this.getDiagram()}
+  };
+  app.trainingTacticalState.editor=editor;
+  return editor;
 }
 
 test('snapshot is deterministic and ignores presentation-only state',async t=>{
@@ -1709,6 +1744,97 @@ test('G2: duplicated session omits tactical provenance for inactive source occur
   const exercise=app.trainingState.sessionExercises.find(e=>e.id==='ex1');
   assert.equal(exercise.copyDiagramsFromSessionId,null);
   assert.equal(exercise.copyDiagramsFromOccurrenceId,null);
+});
+
+// --- G2.2 : éditeur tactique intégré aux occurrences -------------------------
+
+test('G2.2: creates, saves, reopens and updates a tactical diagram',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  const occurrenceId='11111111-1111-4111-8111-111111111111';
+  const editor=attachTacticalEditor(ui,app,occurrenceId);
+  editor.document.objects.push(TacticalModel.createObject('ball'));
+  const created=await app.saveTrainingTacticalDiagram();
+  assert.equal(created.ok,true);assert.equal(created.record.version,1);
+  assert.equal(ui.tablesRef.training_tactical_diagrams.length,1);
+  assert.equal(editor.dirty,false,'successful save establishes a clean editor baseline');
+
+  await app.loadTrainingTacticalDiagrams();
+  assert.equal(app.trainingTacticalState.diagrams.length,1);
+  const reopened=app.trainingTacticalState.diagrams[0];
+  assert.equal(reopened.document.objects[0].type,'ball');
+  app.trainingTacticalState.record=reopened;
+  editor.document=TacticalModel.clone(reopened.document);editor.document.title='Schéma modifié';editor.dirty=true;
+  const updated=await app.saveTrainingTacticalDiagram();
+  assert.equal(updated.ok,true);assert.equal(updated.record.version,2);
+  assert.equal(ui.tablesRef.training_tactical_diagrams[0].document.title,'Schéma modifié');
+});
+
+test('G2.2: supports multiple diagrams and isolates two occurrences',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  const first='11111111-1111-4111-8111-111111111111',second='22222222-2222-4222-8222-222222222222';
+  attachTacticalEditor(ui,app,first,TacticalModel.createDocument('Premier'));
+  assert.equal((await app.saveTrainingTacticalDiagram()).ok,true);
+  app.trainingTacticalState.record=null;
+  attachTacticalEditor(ui,app,first,TacticalModel.createDocument('Deuxième'));
+  assert.equal((await app.saveTrainingTacticalDiagram()).ok,true);
+  attachTacticalEditor(ui,app,second,TacticalModel.createDocument('Autre occurrence'));
+  app.trainingTacticalState.record=null;app.trainingTacticalState.diagrams=[];
+  assert.equal((await app.saveTrainingTacticalDiagram()).ok,true);
+  assert.equal(ui.tablesRef.training_tactical_diagrams.length,3);
+
+  app.trainingTacticalState.occurrenceId=first;await app.loadTrainingTacticalDiagrams();
+  assert.deepEqual(app.trainingTacticalState.diagrams.map(row=>row.document.title),['Premier','Deuxième']);
+  app.trainingTacticalState.occurrenceId=second;await app.loadTrainingTacticalDiagrams();
+  assert.deepEqual(app.trainingTacticalState.diagrams.map(row=>row.document.title),['Autre occurrence']);
+});
+
+test('G2.2: refuses a dirty close and tears down the embedded editor after confirmation',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  const editor=attachTacticalEditor(ui,app,'11111111-1111-4111-8111-111111111111');
+  app.$('#trainingTacticalEditor').classList.remove('hidden');
+  app.$('#trainingTacticalFrame').src='tactical-editor.html?embedded=1';
+  assert.equal(app.leaveTrainingTacticalEditor(),false,'default confirmation refusal keeps edits open');
+  assert.equal(app.trainingTacticalState.editor,editor);
+  ui.page.w.confirm=()=>true;
+  assert.equal(app.leaveTrainingTacticalEditor(),true);
+  assert.equal(app.trainingTacticalState.editor,null);
+  assert.equal(app.$('#trainingTacticalFrame').getAttribute('src'),'about:blank','iframe teardown removes its event realm');
+});
+
+test('G2.2: network failure, version conflict and lost lease preserve editor changes',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  const occurrenceId='11111111-1111-4111-8111-111111111111';
+  const editor=attachTacticalEditor(ui,app,occurrenceId,TacticalModel.createDocument('À conserver'));
+  const real=app.db.rpc;
+  app.db.rpc=async(name,params)=>name==='save_training_tactical_diagram'?{data:null,error:{message:'réseau indisponible'}}:real(name,params);
+  const network=await app.saveTrainingTacticalDiagram();
+  assert.equal(network.kind,'network');assert.equal(editor.dirty,true);assert.equal(editor.document.title,'À conserver');
+
+  app.db.rpc=real;
+  const created=await app.saveTrainingTacticalDiagram();assert.equal(created.ok,true);
+  editor.document.title='Conflit local';editor.dirty=true;app.trainingTacticalState.record=created.record;
+  ui.tablesRef.training_tactical_diagrams[0].version=5;
+  const conflict=await app.saveTrainingTacticalDiagram();
+  assert.equal(conflict.kind,'conflict');assert.equal(editor.dirty,true);assert.equal(editor.document.title,'Conflit local');
+
+  app.trainingTacticalState.record=null;ui.tablesRef.training_session_leases=[];
+  const lease=await app.saveTrainingTacticalDiagram();
+  assert.equal(lease.kind,'lease');assert.equal(editor.dirty,true);assert.equal(app.trainingLeaseState.status,'lost');
+});
+
+test('G2.2: plan blocks and statistical exercises expose the same occurrence action',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  const calls=[];app.openTrainingTacticalDiagrams=(occurrenceId,title)=>calls.push({occurrenceId,title});
+  const plan=app.trainingState.planBlocks.find(block=>!block.draft),draft=app.trainingState.planBlocks.find(block=>block.draft);
+  ui.page.w.document.querySelector(`[data-plan-id="${plan.id}"] [data-plan-tactical]`).click();
+  ui.page.w.document.querySelector(`[data-plan-id="${draft.id}"] [data-draft-tactical]`).click();
+  ui.page.w.document.querySelector('[data-exercise-card] [data-tactical]').click();
+  assert.deepEqual(calls.map(call=>call.occurrenceId),[plan.id,draft.id,app.trainingState.sessionExercises[0].occurrenceId]);
 });
 
 test('exercise deletion archives when has_history is missing',async t=>{

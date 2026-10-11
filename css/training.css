@@ -130,6 +130,24 @@
 
 .trainingPlanBlock.expanded .trainingPlanBlockBody{display:block}
 
+.trainingTacticalSheet{width:min(1480px,calc(100vw - 24px));max-width:none;height:min(940px,calc(100dvh - 24px));max-height:none;display:flex;flex-direction:column;overflow:hidden}
+.trainingTacticalTop{flex:0 0 auto}
+.trainingTacticalManagerBar,.trainingTacticalFooter{justify-content:space-between;align-items:center;gap:10px}
+.trainingTacticalList{display:flex;flex-direction:column;gap:8px;margin-top:12px;overflow:auto}
+.trainingTacticalItem{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px;border:1px solid var(--line);border-radius:12px;background:var(--panel2)}
+.trainingTacticalItemInfo{min-width:0}.trainingTacticalItemInfo strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#trainingTacticalEditor{min-height:0;flex:1;display:flex;flex-direction:column;gap:8px}
+#trainingTacticalEditor.hidden{display:none}
+.trainingTacticalFrame{width:100%;min-height:0;flex:1;border:1px solid var(--line);border-radius:12px;background:#f6f8fb}
+.trainingTacticalFooter{display:flex;flex:0 0 auto}
+.trainingTacticalFooter [data-state="error"]{color:var(--danger);font-weight:700}
+
+@media(max-width:700px){
+  .trainingTacticalSheet{width:calc(100vw - 12px);height:calc(100dvh - 12px);padding:10px}
+  .trainingTacticalManagerBar,.trainingTacticalFooter,.trainingTacticalItem{align-items:stretch;flex-direction:column}
+  .trainingTacticalFooter>.row{display:grid;grid-template-columns:1fr 1fr}
+}
+
 .trainingPlanNotes textarea,.trainingGeneralNotes{display:block;width:100%;min-width:0;max-width:100%;min-height:132px;height:auto;max-height:none;resize:none;overflow-y:hidden;padding:11px 12px;line-height:1.5;border:1px solid var(--line);border-radius:11px;background:var(--panel2);color:var(--text);font:inherit;box-sizing:border-box;touch-action:manipulation;-webkit-overflow-scrolling:auto}
 
 @media(max-width:920px){.trainingTimelineTracks{grid-template-columns:1fr}.trainingPlanBlock[data-track="court1"],.trainingPlanBlock[data-track="court2"],.trainingPlanBlock[data-track="both"],.trainingPlanBlock[data-track="other"]{grid-column:auto}.trainingPlanNotes{grid-template-columns:1fr}.trainingPlanOrganizer{align-items:stretch}.trainingPlanOrganizerDestinations{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%}}

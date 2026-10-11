@@ -28,3 +28,4 @@ app.updateStartButton = function updateStartButton(){
 
 };
 window.KinballCoach.boot('training');
+window.KinballCoach.app.initTrainingTacticalDiagrams();

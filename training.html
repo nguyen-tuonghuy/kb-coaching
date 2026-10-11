@@ -509,6 +509,32 @@
  </div>
 </div>
 
+<div class="popupBackdrop hidden" id="trainingTacticalPopup">
+ <div class="sheet trainingTacticalSheet" role="dialog" aria-modal="true" aria-labelledby="trainingTacticalTitle">
+  <div class="sheetTop trainingTacticalTop">
+   <div><h2 id="trainingTacticalTitle">Schémas tactiques</h2><div class="meta" id="trainingTacticalMeta"></div></div>
+   <button class="closePopup" id="closeTrainingTactical" aria-label="Fermer">×</button>
+  </div>
+  <div id="trainingTacticalManager">
+   <div class="row trainingTacticalManagerBar">
+    <div class="small" id="trainingTacticalManagerStatus" role="status" aria-live="polite"></div>
+    <button class="primary" id="createTrainingTactical">Créer un schéma</button>
+   </div>
+   <div class="trainingTacticalList" id="trainingTacticalList"></div>
+  </div>
+  <div class="hidden" id="trainingTacticalEditor">
+   <iframe id="trainingTacticalFrame" class="trainingTacticalFrame" title="Éditeur de schéma tactique" src="about:blank"></iframe>
+   <div class="trainingTacticalFooter">
+    <div class="small" id="trainingTacticalSaveStatus" role="status" aria-live="polite"></div>
+    <div class="row">
+     <button class="ghost" id="backTrainingTactical">Retour aux schémas</button>
+     <button class="primary" id="saveTrainingTactical">Enregistrer</button>
+    </div>
+   </div>
+  </div>
+ </div>
+</div>
+
 <template data-kc-component="statsHelpBackdrop"></template>
 
 
@@ -517,6 +543,7 @@
 <script defer src="js/shared/coaching.bundle.js"></script>
 <script defer src="js/training/local-drafts.js"></script>
 <script defer src="js/training/sessions.js"></script>
+<script defer src="js/training/tactical-diagrams.js"></script>
 <script defer src="js/training.js"></script>
 
 <script defer src="js/pwa.js"></script>

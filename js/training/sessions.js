@@ -1491,7 +1491,7 @@ app.renderTrainingPlan = function renderTrainingPlan(){
       const card=document.createElement('div');card.className='trainingPlanBlock'+(b.expanded?' expanded':'')+(organizerSelected?' organizerSelected':'')+(organizerTarget?' organizerTarget':'');card.dataset.planId=b.id;card.dataset.track=b.track||'both';
       card.innerHTML=`<div class="trainingPlanBlockHead"><div class="trainingPlanBlockOverview" data-plan-overview role="button" tabindex="0" aria-expanded="${b.expanded?'true':'false'}"><button type="button" class="ghost trainingPlanDragHandle" draggable="true" data-plan-drag title="Maintenir et déplacer">⠿</button><div class="trainingPlanBlockMain"><div class="trainingPlanBlockTitle">${app.escapeHtml(b.title||ex?.name||'Nouveau bloc')}</div><div class="trainingPlanCompactMeta"><span class="trainingTrackTag">${app.escapeHtml(app.trainingTrackLabel(b.track))}</span><span class="trainingPlanMetaTag">${app.escapeHtml(String(b.duration||0))} min</span>${libraryMode?'<span class="trainingPlanMetaTag">Bibliothèque</span>':''}${b.collectStats?'<span class="trainingPlanMetaTag stats">Stats</span>':''}</div></div></div><button type="button" class="ghost trainingPlanToggle" data-plan-toggle title="${b.expanded?'Replier':'Déplier'}" aria-label="${b.expanded?'Replier':'Déplier'}">${b.expanded?'▴':'▾'}</button></div>
       <div class="trainingPlanBlockBody">
-      <div class="trainingPlanBlockActions"><button type="button" class="ghost" data-plan-up title="Monter">↑</button><button type="button" class="ghost" data-plan-down title="Descendre">↓</button><button type="button" class="ghost" data-plan-copy>Dupliquer le bloc</button><button type="button" class="ghost" data-plan-draft>Mettre en brouillon</button><button type="button" class="ghost" data-plan-remove>Supprimer</button></div>
+      <div class="trainingPlanBlockActions"><button type="button" class="ghost" data-plan-up title="Monter">↑</button><button type="button" class="ghost" data-plan-down title="Descendre">↓</button><button type="button" class="ghost" data-plan-tactical>Schémas tactiques</button><button type="button" class="ghost" data-plan-copy>Dupliquer le bloc</button><button type="button" class="ghost" data-plan-draft>Mettre en brouillon</button><button type="button" class="ghost" data-plan-remove>Supprimer</button></div>
       <div class="trainingPlanFields">
        <div class="field"><label>Heure calculée</label><input class="planStart" readonly value="${app.escapeAttr(b.start||'')}"></div>
        <div class="field"><label>Durée (min)</label><input class="planDuration" type="number" min="0" inputmode="numeric" value="${app.escapeAttr(b.duration??'')}"></div>
@@ -1517,7 +1517,7 @@ app.renderTrainingPlan = function renderTrainingPlan(){
       overview.onclick=e=>{if(e.target.closest('button,input,select,textarea,a'))return;if(app.trainingState.planOrganizerMode){app.selectTrainingPlanOrganizerBlock(b.id);return}togglePlanBlock()};
       overview.onkeydown=e=>{if((e.key==='Enter'||e.key===' ')&&!e.target.closest('button,input,select,textarea,a')){e.preventDefault();if(app.trainingState.planOrganizerMode)app.selectTrainingPlanOrganizerBlock(b.id);else togglePlanBlock()}};
       card.querySelector('[data-plan-up]').disabled=index===0;card.querySelector('[data-plan-down]').disabled=index===app.trainingState.planBlocks.length-1;
-      card.querySelector('[data-plan-up]').onclick=()=>app.moveTrainingPlanBlock(b.id,-1);card.querySelector('[data-plan-down]').onclick=()=>app.moveTrainingPlanBlock(b.id,1);card.querySelector('[data-plan-copy]').onclick=()=>app.duplicateTrainingPlanBlock(b.id);card.querySelector('[data-plan-draft]').onclick=()=>app.sendTrainingPlanBlockToDraft(b.id);card.querySelector('[data-plan-remove]').onclick=()=>{if(confirm('Supprimer définitivement ce bloc ?'))app.removeTrainingPlanBlock(b.id)};
+      card.querySelector('[data-plan-up]').onclick=()=>app.moveTrainingPlanBlock(b.id,-1);card.querySelector('[data-plan-down]').onclick=()=>app.moveTrainingPlanBlock(b.id,1);card.querySelector('[data-plan-tactical]').onclick=()=>app.openTrainingTacticalDiagrams?.(b.id,b.title||ex?.name||'Bloc');card.querySelector('[data-plan-copy]').onclick=()=>app.duplicateTrainingPlanBlock(b.id);card.querySelector('[data-plan-draft]').onclick=()=>app.sendTrainingPlanBlockToDraft(b.id);card.querySelector('[data-plan-remove]').onclick=()=>{if(confirm('Supprimer définitivement ce bloc ?'))app.removeTrainingPlanBlock(b.id)};
        card.querySelector('.planSourceType').onchange=e=>{app.captureTrainingPlan();b.sourceType=e.target.value;b.exerciseId=b.sourceType==='library'?b.exerciseId:null;b.collectStats=b.sourceType==='library'?b.collectStats:false;app.renderTrainingPlan();app.renderTrainingExerciseCards();app.persistTrainingLocalDraft({checkpointReason:'Changement du type de bloc'})};
        const exSel=card.querySelector('.planExercise');if(exSel)exSel.onchange=e=>{app.captureTrainingPlan();const prev=b.exerciseId;b.exerciseId=e.target.value||null;const chosen=app.planExerciseById(b.exerciseId);if(chosen){if(!b.title||b.title===app.planExerciseById(prev)?.name)b.title=chosen.name;if(!b.details)b.details=app.planExerciseDetails(chosen,b.focus)}else{b.collectStats=false;b.focus=null}app.syncPlanStatExercises();app.renderTrainingPlan();app.renderTrainingExerciseCards();app.persistTrainingLocalDraft({checkpointReason:'Changement d’exercice'})};
        const collect=card.querySelector('.planCollectStats');if(collect)collect.onchange=e=>{app.captureTrainingPlan();b.collectStats=!!e.target.checked;app.syncPlanStatExercises();app.renderTrainingPlan();app.renderTrainingExerciseCards();app.persistTrainingLocalDraft({checkpointReason:'Modification de la collecte statistique'})};
@@ -1544,8 +1544,9 @@ app.renderTrainingPlan = function renderTrainingPlan(){
       const organizerSelected=app.trainingState.planOrganizerMode&&app.trainingState.planOrganizerSelectedId===b.id;
       const card=document.createElement('div');card.className='trainingDraftCard'+(organizerSelected?' organizerSelected':'');card.dataset.planId=b.id;card.draggable=!app.trainingState.planOrganizerMode&&!coarsePointer;
       const preview=(b.details||b.attention||'').trim();
-      card.innerHTML=`<div class="trainingDraftCardTitle">${app.escapeHtml(b.title||ex?.name||'Bloc sans titre')}</div><div class="trainingDraftCardMeta">${app.escapeHtml(b.sourceType==='library'&&ex?'Bibliothèque · '+ex.name:'Bloc libre')} · ${app.escapeHtml(app.trainingTrackLabel(b.track))} · ${app.escapeHtml(String(b.duration||0))} min</div>${preview?`<div class="trainingDraftCardText">${app.escapeHtml(preview)}</div>`:''}<div class="trainingDraftCardActions"><button type="button" class="primary" data-draft-restore>Remettre dans le planning</button><button type="button" class="ghost" data-draft-copy>Dupliquer</button><button type="button" class="ghost" data-draft-remove>Supprimer</button></div>`;
+      card.innerHTML=`<div class="trainingDraftCardTitle">${app.escapeHtml(b.title||ex?.name||'Bloc sans titre')}</div><div class="trainingDraftCardMeta">${app.escapeHtml(b.sourceType==='library'&&ex?'Bibliothèque · '+ex.name:'Bloc libre')} · ${app.escapeHtml(app.trainingTrackLabel(b.track))} · ${app.escapeHtml(String(b.duration||0))} min</div>${preview?`<div class="trainingDraftCardText">${app.escapeHtml(preview)}</div>`:''}<div class="trainingDraftCardActions"><button type="button" class="primary" data-draft-restore>Remettre dans le planning</button><button type="button" class="ghost" data-draft-tactical>Schémas tactiques</button><button type="button" class="ghost" data-draft-copy>Dupliquer</button><button type="button" class="ghost" data-draft-remove>Supprimer</button></div>`;
       card.querySelector('[data-draft-restore]').onclick=()=>app.restoreTrainingPlanBlockFromDraft(b.id,b.track);
+      card.querySelector('[data-draft-tactical]').onclick=()=>app.openTrainingTacticalDiagrams?.(b.id,b.title||ex?.name||'Bloc');
        card.querySelector('[data-draft-copy]').onclick=()=>{app.captureTrainingPlan();const i=app.trainingState.planBlocks.findIndex(x=>x.id===b.id);if(i<0)return;app.trainingState.planBlocks.splice(i+1,0,app.duplicateTrainingPlanBlockData(b,{draft:true}));app.renderTrainingPlan();app.persistTrainingLocalDraft({checkpointReason:'Duplication d’un brouillon'})};
       card.querySelector('[data-draft-remove]').onclick=()=>{if(confirm('Supprimer définitivement ce brouillon ?'))app.removeTrainingPlanBlock(b.id)};
       card.addEventListener('click',e=>{if(app.trainingState.planOrganizerMode&&!e.target.closest('button,input,select,textarea,a'))app.selectTrainingPlanOrganizerBlock(b.id)});
@@ -1727,6 +1728,7 @@ app.renderTrainingExerciseCards = function renderTrainingExerciseCards({capture=
           <div class="small" style="margin-top:5px">${present.length} joueur${present.length>1?'s':''} présent${present.length>1?'s':''}</div>
         </div>
         <div class="row" style="gap:6px;flex:0 0 auto">
+          <button class="ghost" data-tactical="${ex.localKey}">Schémas</button>
           <button class="ghost${ex.expanded?'':' hidden'}" data-close="${ex.localKey}" aria-label="Fermer l’exercice">×</button>
           <button class="ghost" data-remove="${ex.localKey}">Retirer</button>
         </div>
@@ -1757,7 +1759,7 @@ app.renderTrainingExerciseCards = function renderTrainingExerciseCards({capture=
     }
 
     header.onclick=(ev)=>{
-      if(ev.target.closest('[data-close]')||ev.target.closest('[data-remove]')) return;
+      if(ev.target.closest('[data-close]')||ev.target.closest('[data-remove]')||ev.target.closest('[data-tactical]')) return;
       app.collapseAllTrainingExercises(ex.localKey);
     };
 
@@ -1769,6 +1771,11 @@ app.renderTrainingExerciseCards = function renderTrainingExerciseCards({capture=
     removeBtn.onclick=(ev)=>{
       ev.stopPropagation();
       app.removeSessionExercise(ex.localKey);
+    };
+
+    card.querySelector('[data-tactical]').onclick=(ev)=>{
+      ev.stopPropagation();
+      app.openTrainingTacticalDiagrams?.(ex.occurrenceId,ex.name||'Exercice');
     };
 
     if(!present.length) rb.insertAdjacentHTML('beforeend','<div class="small">Sélectionne au moins un joueur présent.</div>');
