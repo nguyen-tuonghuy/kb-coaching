@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0B315B">
+<link rel="apple-touch-icon" href="kinball-brand/logo-symbol.png">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<title>Kinball Coach - Éditeur tactique</title>
+<link rel="icon" type="image/png" href="kinball-brand/favicon.png">
+<link rel="stylesheet" href="css/tactical-editor.css">
+<link rel="stylesheet" href="css/common.css">
+</head>
+<body>
+<div class="tacticalApp">
+  <header class="top tacticalHeader">
+    <div class="kcBrand" aria-label="Kinball Coach">
+      <img class="kcBrandMark" src="kinball-brand/logo-symbol.png" alt="">
+      <span class="kcBrandWord"><span class="kcBrandKin">Kinball</span><span class="kcBrandCoach">Coach</span></span>
+      <span class="tacticalModuleName">Éditeur tactique</span>
+    </div>
+    <div class="topActions">
+      <span class="saveState" id="saveState" role="status" aria-live="polite">Nouveau schéma</span>
+      <a class="button ghost backNav" href="index.html">← Accueil</a>
+    </div>
+  </header>
+
+  <nav class="documentToolbar panel" aria-label="Commandes du schéma">
+    <div class="documentIdentity">
+      <label for="diagramTitle">Nom du schéma</label>
+      <input id="diagramTitle" maxlength="160" value="Nouveau schéma">
+    </div>
+    <div class="toolbarGroup">
+      <button type="button" class="ghost" id="newDiagram">Nouveau</button>
+      <button type="button" class="ghost" id="openDiagrams">Ouvrir</button>
+      <button type="button" class="primary" id="saveDiagram">Enregistrer</button>
+    </div>
+    <div class="toolbarGroup">
+      <button type="button" class="ghost iconButton" id="undoAction" title="Annuler (Ctrl+Z)" aria-label="Annuler" disabled>↶</button>
+      <button type="button" class="ghost iconButton" id="redoAction" title="Rétablir (Ctrl+Maj+Z)" aria-label="Rétablir" disabled>↷</button>
+    </div>
+    <div class="toolbarGroup exportGroup">
+      <button type="button" class="ghost" id="exportJson">JSON</button>
+      <button type="button" class="ghost" id="importJson">Importer</button>
+      <button type="button" class="ghost" id="exportPng">PNG</button>
+      <input class="visuallyHidden" type="file" id="importFile" accept="application/json,.json">
+    </div>
+  </nav>
+
+  <main class="editorLayout">
+    <details class="panel editorPanel toolsPanel" open>
+      <summary>Ajouter et naviguer</summary>
+      <div class="panelContent">
+        <div class="toolMode" role="group" aria-label="Mode du canevas">
+          <button type="button" class="toolButton active" data-mode="select" aria-pressed="true"><span aria-hidden="true">↖</span>Sélection</button>
+          <button type="button" class="toolButton" data-mode="pan" aria-pressed="false"><span aria-hidden="true">✥</span>Déplacer la vue</button>
+        </div>
+        <h2>Éléments</h2>
+        <div class="creationTools">
+          <button type="button" class="toolButton" data-add="player" data-team="black"><span class="toolSwatch teamBlack">N</span>Joueur noir</button>
+          <button type="button" class="toolButton" data-add="player" data-team="gray"><span class="toolSwatch teamGray">G</span>Joueur gris</button>
+          <button type="button" class="toolButton" data-add="player" data-team="pink"><span class="toolSwatch teamPink">R</span>Joueur rose</button>
+          <button type="button" class="toolButton" data-add="ball"><span aria-hidden="true">◉</span>Ballon</button>
+          <button type="button" class="toolButton" data-add="arrow"><span aria-hidden="true">→</span>Flèche</button>
+          <button type="button" class="toolButton" data-add="curve"><span aria-hidden="true">⌁</span>Trajectoire</button>
+          <button type="button" class="toolButton" data-add="line"><span aria-hidden="true">—</span>Ligne</button>
+          <button type="button" class="toolButton" data-add="zone"><span aria-hidden="true">▭</span>Zone</button>
+          <button type="button" class="toolButton" data-add="text"><span aria-hidden="true">T</span>Texte</button>
+        </div>
+        <div class="viewTools">
+          <label class="checkControl"><input type="checkbox" id="showGrid" checked> Grille</label>
+          <button type="button" class="ghost" id="zoomOut" aria-label="Dézoomer">−</button>
+          <output id="zoomValue" aria-live="polite">100 %</output>
+          <button type="button" class="ghost" id="zoomIn" aria-label="Zoomer">+</button>
+          <button type="button" class="ghost" id="fitView">Ajuster</button>
+        </div>
+        <div class="objectNavigator">
+          <h2>Objets du schéma</h2>
+          <div class="objectList" id="objectList" aria-label="Objets du schéma"></div>
+        </div>
+      </div>
+    </details>
+
+    <section class="canvasPanel panel" aria-labelledby="canvasTitle">
+      <div class="canvasHeading">
+        <div><h1 id="canvasTitle">Terrain tactique</h1><p id="canvasHint">Sélectionnez un objet, ou faites glisser sur le terrain pour en sélectionner plusieurs.</p></div>
+        <button type="button" class="ghost mobilePanToggle" id="mobilePanToggle" aria-pressed="false">Déplacer la vue</button>
+      </div>
+      <div class="canvasViewport" id="canvasViewport">
+        <div id="konvaContainer" aria-label="Terrain tactique interactif"></div>
+        <div class="selectionMarquee" id="selectionMarquee" hidden></div>
+        <div class="canvasEmpty" id="canvasEmpty"><strong>Schéma vide</strong><span>Ajoutez un joueur, un ballon ou une annotation avec les outils.</span></div>
+        <div class="canvasError" id="canvasError" role="alert" hidden></div>
+      </div>
+      <div class="canvasStatus"><span id="selectionStatus">Aucun objet sélectionné</span><span id="coordinateStatus">1000 × 1000 unités</span></div>
+    </section>
+
+    <details class="panel editorPanel propertiesPanel" open>
+      <summary>Propriétés</summary>
+      <div class="panelContent">
+        <div class="emptyProperties" id="emptyProperties">
+          <strong>Aucun objet sélectionné</strong>
+          <span>Sélectionnez un élément pour modifier ses propriétés.</span>
+        </div>
+        <form id="propertiesForm" class="propertiesForm" hidden>
+          <div class="selectionHeading"><strong id="selectedType">Objet</strong><span id="selectedCount"></span></div>
+          <div class="field propertySingle" data-property="label"><label for="objectLabel">Libellé</label><input id="objectLabel" maxlength="2000"></div>
+          <div class="field propertySingle" data-property="team"><label for="objectTeam">Équipe</label><select id="objectTeam"><option value="black">Noir (N)</option><option value="gray">Gris (G)</option><option value="pink">Rose (R)</option></select></div>
+          <div class="field propertySingle" data-property="shape"><label for="objectShape">Forme</label><select id="objectShape"><option value="rectangle">Rectangle</option><option value="ellipse">Ellipse</option></select></div>
+          <div class="propertyGrid">
+            <div class="field propertySingle" data-property="fill"><label for="objectFill">Remplissage</label><input type="color" id="objectFill"></div>
+            <div class="field" data-property="stroke"><label for="objectStroke">Trait</label><input type="color" id="objectStroke"></div>
+            <div class="field" data-property="strokeWidth"><label for="objectStrokeWidth">Épaisseur</label><input type="number" id="objectStrokeWidth" min="1" max="60" step="1"></div>
+            <div class="field propertySingle" data-property="fontSize"><label for="objectFontSize">Taille texte</label><input type="number" id="objectFontSize" min="8" max="180" step="1"></div>
+          </div>
+          <div class="field propertySingle curvatureField" data-property="curvature">
+            <label for="objectCurvature">Courbure <output id="objectCurvatureValue">0.30</output></label>
+            <input type="range" id="objectCurvature" min="-1.5" max="1.5" step="0.05" value="0.3">
+          </div>
+          <label class="checkControl propertySingle" data-property="dashed"><input type="checkbox" id="objectDashed"> Ligne pointillée</label>
+          <div class="objectActions">
+            <button type="button" class="ghost" id="duplicateObjects">Dupliquer</button>
+            <button type="button" class="ghost" id="bringForward">Avancer</button>
+            <button type="button" class="ghost" id="sendBackward">Reculer</button>
+            <button type="button" class="dangerAction" id="deleteObjects">Supprimer</button>
+          </div>
+          <p class="small">Les poignées permettent de redimensionner et faire pivoter. Maj + clic ajoute ou retire un objet de la sélection.</p>
+        </form>
+      </div>
+    </details>
+  </main>
+</div>
+
+<div class="dialogBackdrop" id="libraryDialog" hidden>
+  <section class="dialogPanel" role="dialog" aria-modal="true" aria-labelledby="libraryTitle">
+    <div class="dialogHeader"><div><h2 id="libraryTitle">Schémas locaux</h2><p class="small">Enregistrés uniquement dans ce navigateur.</p></div><button type="button" class="ghost dialogClose" aria-label="Fermer">×</button></div>
+    <div class="localDiagramList" id="localDiagramList"></div>
+    <div class="dialogFooter"><button type="button" class="ghost dialogClose">Fermer</button></div>
+  </section>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/konva@9.3.18/konva.min.js"></script>
+<script src="js/tactical-editor-model.js"></script>
+<script src="js/tactical-editor.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>

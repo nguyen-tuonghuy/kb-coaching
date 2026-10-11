@@ -1,0 +1,103 @@
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;overscroll-behavior:none}
+body{background:#F6F8FB;color:#172033}
+button,input,select{font:inherit}
+button{min-height:42px;padding:9px 12px;cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.5}
+.visuallyHidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.tacticalApp{min-height:100dvh;padding:10px;display:flex;flex-direction:column;gap:10px}
+.tacticalHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:0 0 auto}
+.tacticalModuleName{padding-left:10px;margin-left:4px;border-left:1px solid #D5DCE5;color:#627083;font-size:14px;font-weight:700}
+.topActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.saveState{font-size:12px;font-weight:700;color:#627083}
+.saveState.isDirty{color:#7A4A08}
+.documentToolbar{display:flex;align-items:flex-end;gap:10px;padding:10px;flex:0 0 auto;overflow-x:auto}
+.documentIdentity{display:flex;flex-direction:column;gap:4px;min-width:220px;flex:1 1 280px}
+.documentIdentity label,.field label{font-size:12px;font-weight:700;color:#41546D}
+.documentIdentity input,.field input,.field select{width:100%;min-height:42px;padding:8px 10px}
+.toolbarGroup{display:flex;gap:6px;flex:0 0 auto}
+.iconButton{width:44px;padding:8px;font-size:22px;line-height:1}
+.editorLayout{min-height:0;flex:1 1 auto;display:grid;grid-template-columns:minmax(210px,240px) minmax(360px,1fr) minmax(230px,280px);gap:10px}
+.editorPanel{min-width:0;margin:0;overflow:hidden}
+.editorPanel>summary{display:none;padding:12px 14px;font-weight:800;cursor:pointer}
+.panelContent{height:100%;padding:12px;overflow:auto}
+.panelContent h2{font-size:14px;margin:18px 0 8px;color:#41546D}
+.toolMode,.creationTools{display:grid;grid-template-columns:1fr;gap:7px}
+.toolButton{display:flex;align-items:center;justify-content:flex-start;gap:9px;text-align:left;background:#fff;border:1px solid #D5DCE5;border-radius:12px;color:#172033}
+.toolButton:hover{background:#EEF3F8}
+.toolButton.active{border-color:#1768B3;background:#E8F0FE;color:#1E478F;font-weight:800}
+.toolButton>span:first-child{display:inline-flex;width:25px;height:25px;align-items:center;justify-content:center;flex:0 0 25px;font-weight:850}
+.toolSwatch{border:2px solid #172033;border-radius:50%;font-size:11px}
+.teamBlack{background:#172033;color:#fff}.teamGray{background:#CBD5E1;color:#172033}.teamPink{background:#F4267D;color:#fff}
+.viewTools{display:grid;grid-template-columns:1fr 42px auto 42px;gap:6px;align-items:center;margin-top:18px;padding-top:12px;border-top:1px solid #D5DCE5}
+.viewTools .checkControl{grid-column:1/-1}
+.viewTools #fitView{grid-column:1/-1}
+.viewTools output{text-align:center;font-size:12px;font-weight:800;min-width:52px}
+.objectNavigator{margin-top:16px;padding-top:2px;border-top:1px solid #D5DCE5}
+.objectList{display:flex;flex-direction:column;gap:5px;max-height:220px;overflow:auto}
+.objectList button{min-height:38px;padding:7px 9px;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.objectList button.active{background:#E8F0FE!important;border-color:#B7CAF4!important;color:#1E478F!important;font-weight:800}
+.objectListEmpty{font-size:12px;color:#627083;padding:8px 0}
+.checkControl{display:flex;align-items:center;gap:8px;min-height:42px;font-size:13px;font-weight:700}
+.checkControl input{width:19px;height:19px}
+.canvasPanel{min-width:0;min-height:420px;display:flex;flex-direction:column;overflow:hidden}
+.canvasHeading{padding:9px 12px;border-bottom:1px solid #D5DCE5;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.canvasHeading h1{font-size:16px;margin:0}.canvasHeading p{font-size:12px;color:#627083;margin:3px 0 0}
+.mobilePanToggle{display:none}
+.canvasViewport{position:relative;min-height:300px;flex:1 1 auto;overflow:hidden;background:#DDE4EB;touch-action:none}
+#konvaContainer{position:absolute;inset:0}
+.canvasEmpty{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;display:flex;flex-direction:column;gap:5px;align-items:center;text-align:center;padding:16px;color:#41546D;background:rgba(255,255,255,.9);border:1px solid #D5DCE5;border-radius:14px}
+.canvasEmpty span{font-size:12px;max-width:260px}.canvasEmpty[hidden]{display:none}
+.canvasError{position:absolute;inset:14px auto auto 50%;transform:translateX(-50%);z-index:5;max-width:90%;padding:10px 12px;background:#FFF0EF;color:#8F241E;border:1px solid #E3AAA7;border-radius:12px;font-weight:700}
+.selectionMarquee{position:absolute;z-index:4;border:1px dashed #1768B3;background:rgba(23,104,179,.13);pointer-events:none}
+.canvasStatus{min-height:34px;padding:7px 10px;display:flex;justify-content:space-between;gap:10px;border-top:1px solid #D5DCE5;color:#627083;font-size:11px}
+.emptyProperties{display:flex;flex-direction:column;gap:7px;padding:14px;background:#F8FAFC;border:1px solid #D5DCE5;border-radius:14px;color:#627083}.emptyProperties strong{color:#172033}
+.propertiesForm{display:flex;flex-direction:column;gap:12px}.propertiesForm[hidden]{display:none}
+.selectionHeading{display:flex;justify-content:space-between;gap:8px;align-items:center;padding-bottom:10px;border-bottom:1px solid #D5DCE5}.selectionHeading span{font-size:12px;color:#627083}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.propertyGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field input[type="color"]{padding:4px;height:42px}
+.curvatureField input[type="range"]{min-height:42px;padding:0;width:100%}
+.curvatureField output{float:right;font-weight:800;color:#1768B3}
+.objectActions{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding-top:10px;border-top:1px solid #D5DCE5}
+.propertySingle[hidden],[data-property][hidden]{display:none}
+.dialogBackdrop{position:fixed;inset:0;z-index:1000;padding:20px;display:flex;align-items:center;justify-content:center;background:rgba(11,49,91,.42)}
+.dialogBackdrop[hidden]{display:none}
+.dialogPanel{width:min(680px,100%);max-height:min(720px,90dvh);display:flex;flex-direction:column;background:#fff;border:1px solid #D5DCE5;border-radius:18px;overflow:hidden}
+.dialogHeader,.dialogFooter{padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px}.dialogHeader{border-bottom:1px solid #D5DCE5}.dialogFooter{border-top:1px solid #D5DCE5;justify-content:flex-end}.dialogHeader h2{margin:0;font-size:19px}.dialogHeader p{margin:3px 0 0}.dialogClose{min-width:42px}
+.localDiagramList{padding:12px;overflow:auto;display:flex;flex-direction:column;gap:8px;min-height:160px}
+.localDiagramItem{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:11px;border:1px solid #D5DCE5;border-radius:14px;background:#F8FAFC}.localDiagramItem strong{display:block;overflow:hidden;text-overflow:ellipsis}.localDiagramMeta{font-size:11px;color:#627083;margin-top:4px}.localDiagramActions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.libraryEmpty{padding:28px;text-align:center;color:#627083}
+.toast{position:fixed;z-index:1200;left:50%;bottom:20px;transform:translateX(-50%);max-width:min(520px,calc(100% - 24px));padding:11px 14px;border:1px solid #B7CAF4;border-radius:12px;background:#E8F0FE;color:#1E478F;font-weight:750}.toast.isError{background:#FFF0EF;color:#8F241E;border-color:#E3AAA7}
+
+@media(max-width:1050px){
+  html,body{overscroll-behavior:auto}
+  .editorLayout{grid-template-columns:1fr 1fr;grid-template-rows:minmax(520px,1fr) auto}
+  .canvasPanel{grid-column:1/-1;grid-row:1}
+  .toolsPanel{grid-column:1;grid-row:2}.propertiesPanel{grid-column:2;grid-row:2}
+  .editorPanel>summary{display:block}.editorPanel[open]>summary{border-bottom:1px solid #D5DCE5}
+  .panelContent{height:auto;max-height:360px}
+  .creationTools{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .objectList{max-height:180px}
+  .viewTools{grid-template-columns:minmax(100px,1fr) 42px auto 42px auto}.viewTools .checkControl,.viewTools #fitView{grid-column:auto}
+}
+@media(max-width:700px){
+  .tacticalApp{padding:6px;gap:7px;min-height:100dvh}
+  .tacticalHeader{align-items:flex-start}.tacticalModuleName{display:none}.saveState{width:100%;text-align:right}
+  .documentToolbar{align-items:center;flex-wrap:wrap;overflow:visible}.documentIdentity{order:-2;flex-basis:100%;min-width:0}.exportGroup{flex:1 1 auto;overflow-x:auto}
+  .editorLayout{display:flex;flex-direction:column;min-height:0}
+  .canvasPanel{order:1;min-height:58dvh}.toolsPanel{order:2}.propertiesPanel{order:3}
+  .canvasHeading p{display:none}.mobilePanToggle{display:block;white-space:nowrap}
+  .creationTools{display:flex;overflow-x:auto;padding-bottom:4px}.creationTools .toolButton{flex:0 0 132px}
+  .toolMode{grid-template-columns:1fr 1fr}
+  .viewTools{grid-template-columns:minmax(90px,1fr) 42px auto 42px}.viewTools #fitView{grid-column:1/-1}
+  .panelContent{max-height:none}
+  .localDiagramItem{grid-template-columns:1fr}.localDiagramActions{justify-content:flex-start}
+  .dialogBackdrop{padding:8px}.dialogPanel{max-height:94dvh}
+}
+@media(max-width:390px){
+  .tacticalHeader{display:flex!important}.tacticalHeader .topActions{justify-content:flex-end!important}.kcBrandWord{display:none}
+  .documentToolbar button{padding-left:9px;padding-right:9px}
+  .toolbarGroup{max-width:100%;overflow-x:auto}
+  .canvasStatus{flex-direction:column;gap:2px}
+}
