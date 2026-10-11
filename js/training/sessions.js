@@ -348,7 +348,7 @@ app.loseTrainingSessionLease=async function loseTrainingSessionLease(){
   // Capturer les champs DOM avant tout disable/rendu : les saisies en cours ne doivent
   // jamais etre perdues si un heartbeat ou une sauvegarde constate la perte du bail.
   app.captureTrainingResultDraft();app.captureTrainingPlan();app.syncPlanStatExercises();
-  app.persistTrainingLocalDraft({checkpointReason:'Perte du verrou',scheduleCloud:false});
+  app.reconcileTrainingLocalDraft({checkpointReason:'Perte du verrou',scheduleCloud:false});
   app.stopTrainingCloudTimers();app.stopTrainingLeaseTimers();
   ++lease.epoch;lease.token=null;lease.lost=true;
   app.setTrainingLeaseStatus('lost');app.scheduleTrainingLeasePoll();
@@ -488,7 +488,7 @@ app.scheduleTrainingLocalDraft = function scheduleTrainingLocalDraft(){
   if(local.timer)clearTimeout(local.timer);
   local.timer=setTimeout(()=>{
     const checkpoint=local.revision>0&&Date.now()-local.lastCheckpointAt>=30000?'Révision de saisie':'';
-    app.persistTrainingLocalDraft({checkpointReason:checkpoint,scheduleCloud:false});
+    app.reconcileTrainingLocalDraft({checkpointReason:checkpoint,scheduleCloud:false});
   },750);
 };
 
@@ -505,6 +505,25 @@ app.removeCurrentTrainingLocalDraft = function removeCurrentTrainingLocalDraft()
     else{local.conflict=null;app.setTrainingLocalStatus('Sauvegarde locale impossible','error')}
   }
   return result;
+};
+
+// Les événements de cycle de vie ne doivent pas recréer un brouillon après une
+// synchronisation réussie. Une sauvegarde en vol reste toutefois conservatrice :
+// sa réponse peut échouer ou ne pas encore couvrir une modification récente.
+app.reconcileTrainingLocalDraft = function reconcileTrainingLocalDraft({checkpointReason='',scheduleCloud=false}={}){
+  const local=app.trainingLocalState;
+  if(local.suppressed||local.groupTransition||app.$('#trainingSession')?.classList.contains('hidden'))return {ok:true,skipped:true};
+  if(app.trainingSaveInFlight||app.trainingSessionIsDirty()){
+    return app.persistTrainingLocalDraft({checkpointReason,scheduleCloud});
+  }
+  if(local.timer){clearTimeout(local.timer);local.timer=null}
+  const removed=app.removeCurrentTrainingLocalDraft();
+  if(removed.ok){
+    local.revision=0;local.conflict=null;
+    app.$('#openTrainingLocalHistory')?.classList.add('hidden');
+    app.refreshTrainingLocalHome?.();
+  }
+  return removed;
 };
 
 app.abandonTrainingLocalDraft = function abandonTrainingLocalDraft(){
@@ -615,6 +634,7 @@ app.runTrainingCloudAutosave=async function runTrainingCloudAutosave(){
   if(app.trainingSaveInFlight)return;
   if(!app.currentUser?.id)return;
   if(!app.trainingSessionIsDirty()){
+    app.reconcileTrainingLocalDraft({scheduleCloud:false});
     app.setTrainingCloudStatus(app.trainingState.currentSessionId?'saved':'idle');
     return;
   }
@@ -960,7 +980,12 @@ app.initTrainingLocalDrafts = function initTrainingLocalDrafts(){
   app.trainingLeaseState.instanceId=local.tabId;
   local.store=app.createTrainingDraftStore();
   const originalShowSignedOut=app.showSignedOut;
-  app.showSignedOut=function showSignedOutWithTrainingDraft(){app.persistTrainingLocalDraft({scheduleCloud:false});local.suppressed=true;return originalShowSignedOut.apply(this,arguments)};
+  app.showSignedOut=function showSignedOutWithTrainingDraft(){
+    app.reconcileTrainingLocalDraft({checkpointReason:'Déconnexion',scheduleCloud:false});
+    local.suppressed=true;
+    if(!app.trainingSaveInFlight)void app.releaseTrainingSessionLease();
+    return originalShowSignedOut.apply(this,arguments);
+  };
   app.$('#trainingSession')?.addEventListener('input',app.markTrainingEdited);
   app.$('#trainingSession')?.addEventListener('change',app.markTrainingEdited);
   const groupSelect=app.$('#trainingGroup');
@@ -977,13 +1002,16 @@ app.initTrainingLocalDrafts = function initTrainingLocalDrafts(){
   app.$('#closeTrainingRecovery').onclick=app.closeTrainingRecoveryDialog;
   app.$('#trainingRecoveryPopup').onclick=event=>{if(event.target===app.$('#trainingRecoveryPopup'))app.closeTrainingRecoveryDialog()};
   document.addEventListener('visibilitychange',()=>{
-    if(document.hidden){app.persistTrainingLocalDraft({scheduleCloud:false});return}
+    if(document.hidden){app.reconcileTrainingLocalDraft({scheduleCloud:false});return}
     const lease=app.trainingLeaseState;
     if(lease.status==='owned'&&lease.sessionId&&lease.token){
       app.stopTrainingLeaseTimers();void app.renewTrainingSessionLease();
     }
   });
-  window.addEventListener('pagehide',()=>{app.persistTrainingLocalDraft({scheduleCloud:false});void app.releaseTrainingSessionLease()});
+  window.addEventListener('pagehide',()=>{
+    app.reconcileTrainingLocalDraft({scheduleCloud:false});
+    if(!app.trainingSaveInFlight)void app.releaseTrainingSessionLease();
+  });
   app.$('#trainingSession')?.addEventListener('click',event=>{
     if(app.trainingLeaseCanMutate())return;
     const button=event.target.closest('button');
@@ -2586,8 +2614,8 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
     app.trainingSessionBaseline=saveSnapshot;
     const currentSnapshot=app.trainingSessionSnapshot();
     if(currentSnapshot===saveSnapshot&&!app.trainingResultsChangedDuringSave(saveDocument)){
-      const removed=app.removeCurrentTrainingLocalDraft();app.trainingLocalState.revision=0;
-      if(removed.ok){app.setTrainingLocalStatus('Séance enregistrée sur le cloud','cloud');app.$('#openTrainingLocalHistory')?.classList.add('hidden');app.refreshTrainingLocalHome()}
+      const removed=app.removeCurrentTrainingLocalDraft();
+      if(removed.ok){app.trainingLocalState.revision=0;app.setTrainingLocalStatus('Séance enregistrée sur le cloud','cloud');app.$('#openTrainingLocalHistory')?.classList.add('hidden');app.refreshTrainingLocalHome()}
       app.setTrainingCloudStatus('saved');
     }else{
       // Des modifications sont arrivées pendant la RPC : on conserve le brouillon et on

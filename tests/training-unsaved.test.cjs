@@ -1170,6 +1170,45 @@ test('a real edit is autosaved to the cloud and clears the local draft',async t=
     'a clean autosave leaves no local draft');
 });
 
+test('a successful cloud save followed by visibilitychange creates no phantom draft',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  editTheme(ui,'Synchronisée puis masquée');
+  await runCloudAutosave(ui);
+  assert.equal(app.trainingSessionIsDirty(),false);
+  Object.defineProperty(ui.page.w.document,'hidden',{configurable:true,value:true});
+  ui.page.w.document.dispatchEvent(new ui.page.w.Event('visibilitychange'));
+  assert.equal(app.trainingLocalState.store.read(app.trainingDraftIdentity()).record,null);
+});
+
+test('pagehide after a successful cloud save leaves nothing to recover on reopen',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  editTheme(ui,'Synchronisée puis fermée');
+  await runCloudAutosave(ui);
+  ui.page.w.dispatchEvent(new ui.page.w.Event('pagehide'));
+  await settle();
+  assert.equal(app.trainingLocalState.store.read(app.trainingDraftIdentity()).record,null);
+  await app.editTrainingSessionById('s1');
+  await settle();
+  assert.equal(ui.page.$('#trainingRecoveryPopup').classList.contains('hidden'),true);
+});
+
+test('logout after a successful cloud save does not create a recoverable draft',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  editTheme(ui,'Synchronisée puis déconnectée');
+  await runCloudAutosave(ui);
+  const identity=app.trainingDraftIdentity();
+  app.showSignedOut();
+  await settle();
+  assert.equal(app.trainingLocalState.store.read(identity).record,null);
+  app.currentUser={id:'u1'};
+  await app.editTrainingSessionById('s1');
+  await settle();
+  assert.equal(ui.page.$('#trainingRecoveryPopup').classList.contains('hidden'),true);
+});
+
 test('reverting an edit prevents any cloud save',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui);
@@ -1180,6 +1219,9 @@ test('reverting an edit prevents any cloud save',async t=>{
   await runCloudAutosave(ui);
   assert.equal(rpcCalls(ui).length,0,'a no-op change is never sent');
   assert.equal(ui.tablesRef.training_sessions.length,0);
+  await runTimers(ui,delay=>delay===750);
+  assert.equal(app.trainingLocalState.store.read(app.trainingDraftIdentity()).record,null,
+    'the local debounce also removes the reverted document');
 });
 
 test('an incomplete session stays "À compléter" without RPC nor dialog',async t=>{
@@ -1254,6 +1296,58 @@ test('an edit during the autosave RPC keeps the draft and schedules another save
   assert.equal(serializedDraft(app).document.fields.theme,'Pendant l’envoi');
   const pending=[...ui.page.timers.values()].filter(timer=>timer.kind==='timeout'&&timer.delay===2500);
   assert.equal(pending.length,1,'the new edits are queued for another autosave');
+});
+
+test('visibilitychange during an in-flight save preserves the latest edit',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  const real=app.db.rpc;
+  let release;const gate=new Promise(resolve=>{release=resolve});
+  app.db.rpc=async(name,params)=>{if(name==='save_training_session_with_occurrences')await gate;return real(name,params)};
+  editTheme(ui,'Avant envoi');
+  const saving=app.saveTrainingSession();await settle();
+  editTheme(ui,'Pendant envoi');
+  Object.defineProperty(ui.page.w.document,'hidden',{configurable:true,value:true});
+  ui.page.w.document.dispatchEvent(new ui.page.w.Event('visibilitychange'));
+  assert.equal(serializedDraft(app).document.fields.theme,'Pendant envoi');
+  release();await saving;await settle();
+  assert.equal(app.trainingSessionIsDirty(),true);
+  assert.equal(serializedDraft(app).document.fields.theme,'Pendant envoi');
+});
+
+test('a concurrent local revision is not forgotten when cloud save cannot remove it',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  const real=app.db.rpc;let release;const gate=new Promise(resolve=>{release=resolve});
+  app.db.rpc=async(name,params)=>{if(name==='save_training_session_with_occurrences')await gate;return real(name,params)};
+  editTheme(ui,'Version envoyée');
+  const saving=app.saveTrainingSession();await settle();
+  const identity=app.trainingDraftIdentity();
+  const current=app.trainingLocalState.store.read(identity).record;
+  const foreign=app.trainingLocalState.store.write({...current,ownerTabId:'other-tab',expectedRevision:current.revision});
+  assert.equal(foreign.ok,true);
+  release();await saving;await settle();
+  assert.equal(app.trainingLocalState.revision,current.revision,'the stale local revision is not reset to zero');
+  assert.equal(app.trainingLocalState.store.read(identity).record.revision,foreign.record.revision);
+  assert.equal(app.trainingLocalState.conflict?.ownerTabId,'other-tab');
+});
+
+test('pagehide during initial creation does not invalidate the in-flight response',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui);const real=app.db.rpc;let release;
+  app.db.rpc=async(name,params)=>name==='save_training_session_with_occurrences'
+    ?new Promise(resolve=>{release=()=>real(name,params).then(resolve)})
+    :real(name,params);
+  editTheme(ui,'Création interrompue');
+  const saving=app.saveTrainingSession();await settle();
+  const epoch=app.trainingLeaseState.epoch;
+  ui.page.w.dispatchEvent(new ui.page.w.Event('pagehide'));
+  assert.equal(app.trainingLeaseState.epoch,epoch,'the pending operation keeps its lease epoch');
+  assert.equal(serializedDraft(app).document.fields.theme,'Création interrompue');
+  release();await saving;await settle();
+  assert.ok(app.trainingState.currentSessionId,'the successful creation response is applied');
+  assert.equal(app.trainingSessionIsDirty(),false);
+  assert.equal(app.trainingLocalState.store.read(app.trainingDraftIdentity()).record,null);
 });
 
 test('a successful autosave no longer leaves a phantom draft for an absent player',async t=>{
