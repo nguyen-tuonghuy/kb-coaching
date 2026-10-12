@@ -109,7 +109,7 @@ app.saveTrainingTacticalDiagram=async function saveTrainingTacticalDiagram(){
   const editor=state.editor,occurrenceId=state.occurrenceId,sessionId=app.trainingState.currentSessionId;
   const record=state.record?{...state.record}:null,operationToken=++state.saveToken;
   const lease={instanceId:app.trainingLeaseState.instanceId,token:app.trainingLeaseState.token};
-  state.saving=true;app.$('#saveTrainingTactical').disabled=true;app.$('#backTrainingTactical').disabled=true;app.$('#closeTrainingTactical').disabled=true;app.trainingTacticalStatus('Enregistrement…');
+  state.saving=true;app.$('#saveTrainingTactical').disabled=true;app.$('#backTrainingTactical').disabled=true;app.$('#returnTrainingTactical').disabled=true;app.$('#closeTrainingTactical').disabled=true;app.trainingTacticalStatus('Enregistrement…');
   try{
     const {data,error}=await app.db.rpc('save_training_tactical_diagram',{
       p_session_id:sessionId,p_occurrence_id:occurrenceId,
@@ -138,7 +138,7 @@ app.saveTrainingTacticalDiagram=async function saveTrainingTacticalDiagram(){
     app.handleError('save training tactical diagram',error);
     return {ok:false,kind:leaseLost?'lease':'network',error};
   }finally{
-    if(operationToken===state.saveToken){state.saving=false;app.$('#saveTrainingTactical').disabled=!app.trainingTacticalCanWrite();app.$('#backTrainingTactical').disabled=false;app.$('#closeTrainingTactical').disabled=false}
+    if(operationToken===state.saveToken){state.saving=false;app.$('#saveTrainingTactical').disabled=!app.trainingTacticalCanWrite();app.$('#backTrainingTactical').disabled=false;app.$('#returnTrainingTactical').disabled=false;app.$('#closeTrainingTactical').disabled=false}
   }
 };
 
@@ -154,7 +154,7 @@ app.leaveTrainingTacticalEditor=function leaveTrainingTacticalEditor(){
 };
 
 app.closeTrainingTacticalDiagrams=function closeTrainingTacticalDiagrams(){
-  if(app.trainingTacticalState.saving)return false;
+  if(app.trainingTacticalState.saving){app.trainingTacticalStatus('Attends la fin de l’enregistrement avant de fermer.');return false}
   if(!app.$('#trainingTacticalEditor').classList.contains('hidden')&&!app.leaveTrainingTacticalEditor())return false;
   const state=app.trainingTacticalState;
   app.$('#trainingTacticalPopup').classList.add('hidden');
@@ -168,6 +168,7 @@ app.initTrainingTacticalDiagrams=function initTrainingTacticalDiagrams(){
   app.$('#createTrainingTactical').onclick=()=>app.openTrainingTacticalEditor(null);
   app.$('#saveTrainingTactical').onclick=()=>app.saveTrainingTacticalDiagram();
   app.$('#backTrainingTactical').onclick=app.leaveTrainingTacticalEditor;
+  app.$('#returnTrainingTactical').onclick=app.closeTrainingTacticalDiagrams;
   app.$('#closeTrainingTactical').onclick=app.closeTrainingTacticalDiagrams;
   app.$('#trainingTacticalPopup').onclick=event=>{if(event.target===app.$('#trainingTacticalPopup'))app.closeTrainingTacticalDiagrams()};
   document.addEventListener('keydown',event=>{

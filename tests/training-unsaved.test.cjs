@@ -1804,6 +1804,47 @@ test('G2.2: refuses a dirty close and tears down the embedded editor after confi
   assert.equal(app.$('#trainingTacticalFrame').getAttribute('src'),'about:blank','iframe teardown removes its event realm');
 });
 
+test('G2.2.1: returns directly to the session, preserves focus and blocks unsafe closes',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  const origin=app.$('[data-plan-tactical]');origin.focus();
+  app.trainingTacticalState.previousFocus=origin;
+  app.$('#trainingTacticalPopup').classList.remove('hidden');
+  app.$('#trainingTacticalEditor').classList.remove('hidden');
+  const editor=attachTacticalEditor(ui,app,'11111111-1111-4111-8111-111111111111');
+  app.$('#trainingTacticalFrame').src='tactical-editor.html?embedded=1';
+
+  app.trainingTacticalState.saving=true;
+  assert.equal(app.closeTrainingTacticalDiagrams(),false,'an in-flight save blocks the direct return');
+  assert.equal(app.$('#trainingTacticalPopup').classList.contains('hidden'),false);
+  app.trainingTacticalState.saving=false;
+
+  assert.equal(app.closeTrainingTacticalDiagrams(),false,'cancelling the dirty confirmation keeps the document open');
+  assert.equal(app.trainingTacticalState.editor,editor);
+  ui.page.w.confirm=()=>true;
+  assert.equal(app.closeTrainingTacticalDiagrams(),true);
+  assert.equal(app.$('#trainingTacticalPopup').classList.contains('hidden'),true);
+  assert.equal(app.$('#trainingTacticalFrame').getAttribute('src'),'about:blank');
+  assert.equal(ui.page.w.document.activeElement,origin,'focus returns to the exercise action without rerendering the session');
+});
+
+test('G2.2.1: the dedicated action closes a saved diagram without returning to the list',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  const origin=app.$('[data-plan-tactical]');
+  app.trainingTacticalState.previousFocus=origin;
+  app.$('#trainingTacticalPopup').classList.remove('hidden');
+  app.$('#trainingTacticalManager').classList.add('hidden');
+  app.$('#trainingTacticalEditor').classList.remove('hidden');
+  const editor=attachTacticalEditor(ui,app,'11111111-1111-4111-8111-111111111111');
+  editor.dirty=false;
+
+  app.$('#returnTrainingTactical').click();
+  assert.equal(app.$('#trainingTacticalPopup').classList.contains('hidden'),true);
+  assert.equal(app.trainingTacticalState.editor,null);
+  assert.equal(ui.page.w.document.activeElement,origin);
+});
+
 test('G2.2: network failure, version conflict and lost lease preserve editor changes',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui,{existing:true});

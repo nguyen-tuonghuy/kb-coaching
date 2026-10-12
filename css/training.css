@@ -145,7 +145,8 @@
 @media(max-width:700px){
   .trainingTacticalSheet{width:calc(100vw - 12px);height:calc(100dvh - 12px);padding:10px}
   .trainingTacticalManagerBar,.trainingTacticalFooter,.trainingTacticalItem{align-items:stretch;flex-direction:column}
-  .trainingTacticalFooter>.row{display:grid;grid-template-columns:1fr 1fr}
+  .trainingTacticalFooter>.row{display:grid;grid-template-columns:1fr 1fr;width:100%}
+  #saveTrainingTactical{grid-column:1/-1}
 }
 
 .trainingPlanNotes textarea,.trainingGeneralNotes{display:block;width:100%;min-width:0;max-width:100%;min-height:132px;height:auto;max-height:none;resize:none;overflow-y:hidden;padding:11px 12px;line-height:1.5;border:1px solid var(--line);border-radius:11px;background:var(--panel2);color:var(--text);font:inherit;box-sizing:border-box;touch-action:manipulation;-webkit-overflow-scrolling:auto}
