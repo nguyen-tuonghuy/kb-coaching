@@ -303,7 +303,8 @@ function attachTacticalEditor(ui,app,occurrenceId,document=TacticalModel.createD
     document:TacticalModel.clone(document),dirty:true,
     root:{ownerDocument:{defaultView:{KinballTacticalModel:TacticalModel}}},
     getDiagram(){return TacticalModel.clone(this.document)},
-    loadDiagram(next,{clean=false}={}){this.document=TacticalModel.clone(next);this.dirty=!clean;return this.getDiagram()}
+    loadDiagram(next,{clean=false}={}){this.document=TacticalModel.clone(next);this.dirty=!clean;return this.getDiagram()},
+    discardChanges(){this.dirty=false;return true}
   };
   app.trainingTacticalState.editor=editor;
   return editor;
@@ -1798,9 +1799,9 @@ test('G2.2: supports multiple diagrams and isolates two occurrences',async t=>{
   assert.equal(ui.tablesRef.training_tactical_diagrams.length,3);
 
   app.trainingTacticalState.occurrenceId=first;await app.loadTrainingTacticalDiagrams();
-  assert.deepEqual(app.trainingTacticalState.diagrams.map(row=>row.document.title),['Premier','Deuxième']);
+  assert.equal(app.trainingTacticalState.diagrams.map(row=>row.document.title).join(','),'Premier,Deuxième');
   app.trainingTacticalState.occurrenceId=second;await app.loadTrainingTacticalDiagrams();
-  assert.deepEqual(app.trainingTacticalState.diagrams.map(row=>row.document.title),['Autre occurrence']);
+  assert.equal(app.trainingTacticalState.diagrams.map(row=>row.document.title).join(','),'Autre occurrence');
 });
 
 test('G2.2: refuses a dirty close and tears down the embedded editor after confirmation',async t=>{
@@ -1916,18 +1917,23 @@ test('G2.3: renders lightweight thumbnails and opens the diagram selected from i
 test('G2.3: renames, duplicates independently and deletes only after server confirmation',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui,{existing:true});
-  const occurrenceId='11111111-1111-4111-8111-111111111111';
+  const block=app.trainingState.planBlocks.find(item=>!item.draft);block.expanded=true;
+  const occurrenceId=block.id;
   const document=TacticalModel.createDocument('Original');document.objects.push(TacticalModel.createObject('zone'));
   attachTacticalEditor(ui,app,occurrenceId,document);const created=await app.saveTrainingTacticalDiagram();assert.equal(created.ok,true);
   const originalId=created.record.id,originalDocumentId=created.record.document.id;
+  app.renderTrainingPlan();runTacticalThumbnailRenders(ui);
+  assert.equal(app.$(`[data-plan-id="${occurrenceId}"] .trainingTacticalInlineCard`).textContent.trim().endsWith('Original'),true);
 
   ui.page.w.prompt=()=> 'Nouveau titre';
   const renamed=await app.renameTrainingTacticalDiagram(originalId);
   assert.equal(renamed.ok,true);assert.equal(renamed.record.id,originalId);assert.equal(renamed.record.document.title,'Nouveau titre');
+  assert.match(app.$(`[data-plan-id="${occurrenceId}"] .trainingTacticalInlineCard`).textContent,/Nouveau titre/);
 
   const duplicated=await app.duplicateTrainingTacticalDiagram(originalId);
   assert.equal(duplicated.ok,true);assert.notEqual(duplicated.record.id,originalId);assert.notEqual(duplicated.record.document.id,originalDocumentId);
   assert.deepEqual(duplicated.record.document.objects,renamed.record.document.objects);
+  assert.equal(app.$(`[data-plan-id="${occurrenceId}"]`).querySelectorAll('.trainingTacticalInlineCard').length,2);
   duplicated.record.document.objects[0].x+=100;
   assert.notEqual(duplicated.record.document.objects[0].x,renamed.record.document.objects[0].x,'the copy does not share its JSON object graph');
 
@@ -1938,6 +1944,7 @@ test('G2.3: renames, duplicates independently and deletes only after server conf
   assert.equal((await app.deleteTrainingTacticalDiagram(duplicated.record.id)).ok,true);
   assert.equal(app.trainingTacticalState.diagrams.map(item=>item.id).join(','),originalId);
   assert.equal(ui.tablesRef.training_tactical_diagrams.map(item=>item.id).join(','),originalId);
+  assert.equal(app.$(`[data-plan-id="${occurrenceId}"]`).querySelectorAll('.trainingTacticalInlineCard').length,1);
 });
 
 test('G2.3: network, version and lease failures preserve tactical records',async t=>{
@@ -1961,6 +1968,119 @@ test('G2.3: network, version and lease failures preserve tactical records',async
   app.db.rpc=real;ui.tablesRef.training_session_leases=[];
   const lease=await app.deleteTrainingTacticalDiagram(created.record.id);
   assert.equal(lease.kind,'lease');assert.equal(app.trainingTacticalState.diagrams.length,1);assert.equal(app.trainingLeaseState.status,'lost');
+});
+
+test('G2.3.1: inline galleries stay hidden when empty and isolate matching catalogue occurrences',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  const first=app.trainingState.planBlocks.find(item=>!item.draft),second={...first,id:app.newUuid(),title:'Même exercice 2',expanded:false,start:'13:45'};
+  first.sourceType='library';first.exerciseId='ex1';first.expanded=true;second.sourceType='library';second.exerciseId='ex1';
+  app.trainingState.planBlocks=[first,second];app.trainingState.persistedOccurrenceIds.add(first.id);app.trainingState.persistedOccurrenceIds.add(second.id);
+  app.setTrainingTacticalSessionCache('s1',[]);app.renderTrainingPlan();
+  const firstCard=app.$(`[data-plan-id="${first.id}"]`);
+  assert.equal(firstCard.querySelector('.trainingTacticalInlineGallery'),null,'no empty gallery is rendered');
+  assert.ok(firstCard.querySelector('[data-training-tactical-add]'),'an editable empty occurrence keeps a simple add action');
+  assert.equal(firstCard.querySelector('[data-training-tactical-mode="badge"]').textContent,'');
+
+  const firstDocument=TacticalModel.createDocument('Occurrence A'),secondDocument=TacticalModel.createDocument('Occurrence B');
+  app.setTrainingTacticalSessionCache('s1',[
+    {id:'inline-a',session_id:'s1',occurrence_id:first.id,document:firstDocument,position:0,version:1},
+    {id:'inline-b',session_id:'s1',occurrence_id:second.id,document:secondDocument,position:0,version:1}
+  ]);
+  app.renderTrainingPlan();runTacticalThumbnailRenders(ui);
+  const renderedFirst=app.$(`[data-plan-id="${first.id}"]`),renderedSecond=app.$(`[data-plan-id="${second.id}"]`);
+  assert.match(renderedFirst.querySelector('[data-training-tactical-mode="badge"]').textContent,/1 schéma/);
+  assert.match(renderedSecond.querySelector('[data-training-tactical-mode="badge"]').textContent,/1 schéma/);
+  assert.match(renderedFirst.querySelector('.trainingTacticalInlineCard').textContent,/Occurrence A/);
+  assert.equal(renderedFirst.textContent.includes('Occurrence B'),false,'same catalogue exercise does not merge occurrence diagrams');
+  assert.equal(renderedSecond.querySelector('.trainingTacticalInlineGallery'),null,'collapsed blocks render only the counter');
+
+  let direct=null;app.openTrainingTacticalDiagrams=(occurrenceId,title,options)=>{direct={occurrenceId,title,options}};
+  renderedFirst.querySelector('.trainingTacticalInlineCard').click();
+  assert.equal(direct.occurrenceId,first.id);assert.equal(direct.options.diagramId,'inline-a');
+});
+
+test('G2.3.1: one grouped query feeds repeated renders and stale session responses are ignored',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  const groupedReads=()=>ui.mutationsRef.filter(call=>call.table==='training_tactical_diagrams'&&call.mode==='select').length;
+  assert.equal(groupedReads(),1,'opening a session performs one grouped tactical read');
+  app.renderTrainingPlan();app.renderTrainingPlan();app.renderTrainingExerciseCards();
+  assert.equal(groupedReads(),1,'block and exercise rerenders never issue tactical reads');
+  const source=app.trainingState.planBlocks.find(item=>!item.draft);
+  const newBlock={...source,id:app.newUuid(),title:'Nouvelle occurrence',expanded:true,start:'15:00'};
+  app.trainingState.planBlocks.push(newBlock);app.renderTrainingPlan();
+  assert.equal(app.$(`[data-plan-id="${newBlock.id}"] [data-training-tactical-add]`),null,'an unpersisted occurrence has no write action');
+  ui.page.$('#trainingTheme').value='Sauvegarde sans changement tactique';
+  await app.saveTrainingSession();await settle();
+  assert.equal(groupedReads(),1,'an ordinary session save keeps the authoritative tactical cache');
+  assert.ok(app.$(`[data-plan-id="${newBlock.id}"] [data-training-tactical-add]`),'the first save enables the new occurrence inline action');
+
+  const realFrom=app.db.from.bind(app.db);let resolveLate;
+  app.db.from=table=>{
+    if(table!=='training_tactical_diagrams')return realFrom(table);
+    const query={select(){return query},eq(){return query},order(){return query},then(resolve){resolveLate=resolve}};return query;
+  };
+  const pending=app.loadTrainingTacticalSessionDiagrams('s1',{force:true});
+  await settle();
+  app.trainingState.currentSessionId='s2';app.resetTrainingTacticalSessionCache();
+  resolveLate({data:[{id:'late',occurrence_id:'old',document:TacticalModel.createDocument('Périmé'),position:0,version:1}],error:null});
+  await pending;
+  assert.equal(app.trainingTacticalState.cacheSessionId,null);assert.equal(app.trainingTacticalState.diagramsByOccurrence.size,0);
+});
+
+test('G2.3.1: tactical mutations invalidate stale grouped reads and preserve edits made during save',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true}),occurrenceId=app.trainingState.planBlocks.find(item=>!item.draft).id;
+  const initial={id:'race-diagram',occurrence_id:occurrenceId,document:TacticalModel.createDocument('Initial'),position:0,version:1};
+  app.trainingState.persistedOccurrenceIds.add(occurrenceId);app.setTrainingTacticalSessionCache('s1',[initial]);
+
+  const realFrom=app.db.from.bind(app.db),resolvers=[];
+  app.db.from=table=>{
+    if(table!=='training_tactical_diagrams')return realFrom(table);
+    const query={select(){return query},eq(){return query},order(){return query},then(resolve){resolvers.push(resolve)}};return query;
+  };
+  const pending=app.loadTrainingTacticalSessionDiagrams('s1',{force:true,required:true});await settle();
+  const fresh={...initial,document:TacticalModel.createDocument('Récent'),version:2};
+  app.updateTrainingTacticalOccurrenceCache(occurrenceId,[fresh]);
+  resolvers[0]({data:[initial],error:null});await settle();
+  assert.equal(resolvers.length,2,'a required grouped refresh is retried after local invalidation');
+  resolvers[1]({data:[fresh,{id:'copied',occurrence_id:occurrenceId,document:TacticalModel.createDocument('Copié'),position:1,version:1}],error:null});await pending;
+  assert.equal(app.trainingTacticalOccurrenceDiagrams(occurrenceId).map(item=>item.document.title).join(','),'Récent,Copié','the retry keeps the mutation and retrieves server-side copies');
+
+  app.db.from=realFrom;
+  const editor=attachTacticalEditor(ui,app,occurrenceId,TacticalModel.createDocument('Version envoyée'));
+  app.trainingTacticalState.diagrams=[];app.trainingTacticalState.record=null;
+  const realRpc=app.db.rpc.bind(app.db);let releaseSave;
+  const saveGate=new Promise(resolve=>{releaseSave=resolve});
+  app.db.rpc=async(name,params)=>{if(name==='save_training_tactical_diagram')await saveGate;return realRpc(name,params)};
+  const saving=app.saveTrainingTacticalDiagram();await settle();
+  editor.document.title='Modification plus récente';editor.dirty=true;releaseSave();
+  const saved=await saving;
+  assert.equal(saved.ok,true);assert.equal(editor.document.title,'Modification plus récente');assert.equal(editor.dirty,true,'the newer local edit remains unsaved');
+  assert.equal(app.trainingTacticalState.record.document.title,'Version envoyée','the cache records the snapshot accepted by the server');
+});
+
+test('G2.3.1: diagrams remain consultable without a lease and lease loss locks a dirty editor',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  const occurrenceId=app.trainingState.planBlocks.find(item=>!item.draft).id,document=TacticalModel.createDocument('Consultation');
+  const record={id:'readonly-diagram',occurrence_id:occurrenceId,document,position:0,version:1};
+  app.trainingState.persistedOccurrenceIds.add(occurrenceId);
+  app.setTrainingTacticalSessionCache('s1',[record]);app.trainingTacticalState.occurrenceId=occurrenceId;app.trainingTacticalState.diagrams=[record];
+  app.trainingLeaseState.token=null;app.setTrainingLeaseStatus('readonly',{holderName:'Autre coach'});app.renderTrainingTacticalManager();
+  assert.equal(app.$('[data-training-tactical-open]').disabled,false,'consultation remains available');
+  assert.equal(app.$('[data-training-tactical-rename]').disabled,true);assert.equal(app.$('#createTrainingTactical').disabled,true);
+  app.openTrainingTacticalEditor(record);assert.equal(app.trainingTacticalState.record.id,record.id,'existing document can enter the embedded viewer');
+
+  let readOnly=false;
+  const editor={dirty:true,document:TacticalModel.clone(document),setReadOnly(value){readOnly=value},getDiagram(){return TacticalModel.clone(this.document)}};
+  app.trainingTacticalState.editor=editor;app.$('#trainingTacticalEditor').classList.remove('hidden');
+  const writesBefore=ui.mutationsRef.filter(call=>call.mode==='save_training_tactical_diagram').length;
+  await app.loseTrainingSessionLease();
+  assert.equal(readOnly,true);assert.equal(editor.dirty,true);assert.equal(editor.document.title,'Consultation');assert.equal(app.$('#saveTrainingTactical').disabled,true);
+  const refused=await app.saveTrainingTacticalDiagram();assert.equal(refused.kind,'lease');
+  assert.equal(ui.mutationsRef.filter(call=>call.mode==='save_training_tactical_diagram').length,writesBefore,'no RPC write bypasses read-only mode');
 });
 
 test('exercise deletion archives when has_history is missing',async t=>{

@@ -48,7 +48,7 @@ function createEditorHarness(){
   };
   const sandbox={
     window:{KinballTacticalModel:Model},Konva,
-    document:{querySelector:()=>null},console,setTimeout,clearTimeout
+    document:{querySelector:selector=>selector==='#libraryDialog'?{hidden:true}:null},console,setTimeout,clearTimeout
   };
   const source=fs.readFileSync(path.join(__dirname,'../js/tactical-editor.js'),'utf8');
   vm.runInNewContext(source,sandbox,{filename:'js/tactical-editor.js'});
@@ -57,24 +57,30 @@ function createEditorHarness(){
   const elements={
     '#canvasViewport':{style:{}},
     '#canvasHint':{textContent:'Sélectionnez un objet'},
-    '#canvasEmpty':{hidden:false}
+    '#canvasEmpty':{hidden:false},
+    '#diagramTitle':{value:'Nouveau schéma',readOnly:false,setAttribute(){}}
   };
-  editor.root={querySelectorAll:()=>[]};
+  editor.root={querySelectorAll:()=>[],classList:{toggle(){}}};
   editor.$=selector=>elements[selector]||null;
-  editor.document=Model.createDocument();
+  editor.readOnly=false;editor.saveHandler=null;editor._document=Model.createDocument();
+  Object.defineProperty(editor,'document',{enumerable:true,get:()=>editor._document,set:value=>{
+    if(editor.readOnly)throw new Error('Éditeur tactique en lecture seule.');editor._document=value;
+  }});
   editor.history=new Model.History(editor.document);
   editor.savedSnapshot=JSON.stringify(editor.document);
+  editor.dirty=false;editor.currentStored=false;
   editor.selectedIds=[];editor.nodes=new Map();editor.mode='select';editor.drawTool=null;editor.draw=null;
   editor.defaultHint=elements['#canvasHint'].textContent;
   editor.stage=new FakeStage();
   editor.layer={batchDraw(){}};editor.overlayLayer={batchDraw(){}};
   editor.world={
-    on(){},draggable(){},
+    on(){},draggable(){},stopDrag(){},
     getAbsoluteTransform(){return {copy(){return this},invert(){return this},point(point){return {...point}}}}
   };
   editor.objectGroup=new Konva.Group();editor.previewGroup=new Konva.Group({listening:false});
-  editor.transformer={on(){},visible(){},forceUpdate(){}};
+  editor.transformer={on(){},visible(){},forceUpdate(){},nodes(){}};
   editor.updateSelection=()=>{};editor.renderObjectList=()=>{};editor.markDirty=()=>{};editor.updateHistoryButtons=()=>{};
+  editor.showToast=()=>{};
   editor.bindStage();
   return {editor,Konva};
 }
@@ -222,4 +228,42 @@ test('store reports corrupt records without hiding valid diagrams',()=>{
   store.save(document);storage.setItem(`${Model.STORAGE_PREFIX}broken`,'not json');
   const listed=store.list();
   assert.equal(listed.ok,true);assert.equal(listed.documents.length,1);assert.equal(listed.errors.length,1);
+});
+
+test('read-only mode blocks direct API, keyboard and document mutations then restores editing',async()=>{
+  const {editor}=createEditorHarness();
+  editor.document.objects.push(Model.createObject('ball'));
+  editor.history.reset(editor.document);editor.selectedIds=[editor.document.objects[0].id];
+  let saveCalls=0;editor.setSaveHandler(()=>{saveCalls+=1;return {ok:true}});
+  const before=JSON.stringify(editor.getDiagram());
+
+  assert.equal(editor.setReadOnly(true),true);
+  assert.equal(Object.isFrozen(editor.document),true);assert.equal(Object.isFrozen(editor.document.objects),true);
+  assert.throws(()=>editor.document.objects.push(Model.createObject('player')),/extensible|read only|frozen/i);
+  assert.throws(()=>{editor.document=Model.createDocument('Forcé')},/lecture seule/i);
+  assert.equal(editor.addObject('player'),false);
+  assert.equal(editor.startDraw('arrow'),false);
+  assert.equal(editor.handleDrawPoint(),false);
+  assert.equal(editor.finalizeDraw(Model.createObject('line')),false);
+  assert.equal(editor.syncSelectedNodes('Déplacement'),false);
+  assert.equal(editor.updateSelectedProperty('label','Forcé'),false);
+  assert.equal(editor.applyCurvature(Model.createObject('curve')),false);
+  assert.equal(editor.duplicateSelected(),false);assert.equal(editor.deleteSelected(),false);assert.equal(editor.changeOrder(1),false);
+  assert.equal(editor.commit(),false);assert.equal(editor.undo(),false);assert.equal(editor.redo(),false);assert.equal(editor.newDiagram(),false);
+  assert.equal(editor.loadDiagram(Model.createDocument('Autre')).kind,'readonly');
+  assert.equal(editor.save().kind,'readonly');assert.equal(saveCalls,0);
+  assert.equal((await editor.importJSON({size:2,text:async()=>before})).kind,'readonly');
+  editor.renameStored(editor.getDiagram());editor.removeStored(editor.getDiagram());
+  for(const event of [
+    {key:'s',ctrlKey:true},{key:'z',ctrlKey:true},{key:'y',ctrlKey:true},{key:'d',ctrlKey:true},
+    {key:'Delete'},{key:'ArrowRight'}
+  ])editor.onKeyDown({target:{tagName:'DIV'},metaKey:false,shiftKey:false,repeat:false,code:'',preventDefault(){},...event});
+  assert.equal(JSON.stringify(editor.getDiagram()),before);assert.equal(saveCalls,0);
+
+  assert.equal(editor.discardChanges(),true);assert.equal(editor.dirty,false);assert.equal(JSON.stringify(editor.getDiagram()),before);
+
+  assert.equal(editor.setReadOnly(false),false);assert.equal(Object.isFrozen(editor.document),false);
+  editor.stage=null;
+  editor.addObject('player');assert.equal(editor.document.objects.length,2);
+  editor.save();assert.equal(saveCalls,1);
 });

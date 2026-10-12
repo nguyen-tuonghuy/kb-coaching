@@ -13,6 +13,10 @@
   const STROKE_TYPES=new Set(['arrow','curve','line','zone']);
   const DRAW_TYPES=new Set(['arrow','curve','line']);
   const DRAW_HINT='Premier clic : départ. Second clic : arrivée. Échap annule.';
+  const deepFreeze=value=>{
+    if(!value||typeof value!=='object'||Object.isFrozen(value))return value;
+    Object.freeze(value);Object.values(value).forEach(deepFreeze);return value;
+  };
 
   class TacticalEditor{
     constructor(root,options={}){
@@ -20,7 +24,11 @@
       this.root=root;
       this.options=options;
       this.$=selector=>root.querySelector(selector);
-      this.document=Model.createDocument();
+      this.readOnly=false;this.saveHandler=null;this._document=Model.createDocument();
+      Object.defineProperty(this,'document',{enumerable:true,get:()=>this._document,set:value=>{
+        if(this.readOnly)throw new Error('Éditeur tactique en lecture seule.');
+        this._document=value;
+      }});
       this.history=new Model.History(this.document);
       this.store=Model.createStore(options.storage);
       this.selectedIds=[];
@@ -44,6 +52,33 @@
       this.initStage();
       this.bindUI();
       this.loadDiagram(this.document,{clean:true,resetHistory:true});
+      if(options.readOnly)this.setReadOnly(true);
+    }
+
+    canMutate(notify=true){
+      if(!this.readOnly)return true;
+      if(notify)this.showToast('Ce schéma est ouvert en lecture seule.',true);
+      return false;
+    }
+
+    setSaveHandler(handler){this.saveHandler=typeof handler==='function'?handler:null}
+
+    setReadOnly(readOnly=true){
+      const next=!!readOnly;if(next===this.readOnly)return next;
+      if(next){
+        this.cancelDraw(false);this.world?.stopDrag?.();this.world?.draggable?.(false);
+        this._document=deepFreeze(Model.clone(this._document));
+      }else this._document=Model.clone(this._document);
+      this.readOnly=next;this.root.classList?.toggle('tacticalReadOnly',next);
+      const title=this.$('#diagramTitle');if(title){title.readOnly=next;title.setAttribute?.('aria-readonly',String(next));title.value=this.document.title}
+      const selectors=['#newDiagram','#saveDiagram','#openDiagrams','#importJson','#importFile','#duplicateObjects','#deleteObjects','#bringForward','#sendBackward','[data-add]','#propertiesForm input','#propertiesForm select','#propertiesForm textarea'];
+      this.root.querySelectorAll(selectors.join(',')).forEach(control=>{
+        if(next){if(!control.disabled){control.disabled=true;control.dataset.readOnlyDisabled='true'}}
+        else if(control.dataset.readOnlyDisabled==='true'){control.disabled=false;delete control.dataset.readOnlyDisabled}
+      });
+      for(const node of this.nodes.values())node.draggable(this.mode==='select'&&!next);
+      if(this.transformer){this.transformer.visible(!next&&this.mode==='select'&&this.selectedIds.length>0);this.transformer.forceUpdate();this.overlayLayer.batchDraw()}
+      this.updateHistoryButtons();this.markDirty();return next;
     }
 
     initStage(){
@@ -151,11 +186,11 @@
         this.setZoom(this.zoom+direction,this.stage.getPointerPosition());
       });
       this.stage.on('pointerdown',event=>{
-        if(this.mode!=='draw')return;
+        if(this.mode!=='draw'||this.readOnly)return;
         event.evt.preventDefault();
         this.handleDrawPoint();
       });
-      this.stage.on('pointermove',()=>{if(this.mode==='draw')this.updateDrawPreview()});
+      this.stage.on('pointermove',()=>{if(this.mode==='draw'&&!this.readOnly)this.updateDrawPreview()});
       this.stage.on('mousedown touchstart',event=>{
         if(this.mode==='draw')return;
         if(this.mode==='pan'){
@@ -229,8 +264,14 @@
       this.$('#importJson').addEventListener('click',()=>this.$('#importFile').click());
       this.$('#importFile').addEventListener('change',event=>this.importJSON(event.target.files[0]));
       this.$('#exportPng').addEventListener('click',()=>this.downloadPNG());
-      this.$('#diagramTitle').addEventListener('input',event=>{this.document.title=event.target.value;this.markDirty()});
-      this.$('#diagramTitle').addEventListener('change',()=>{this.document.title=this.document.title.trim()||'Nouveau schéma';this.$('#diagramTitle').value=this.document.title;this.commit('Renommage')});
+      this.$('#diagramTitle').addEventListener('input',event=>{
+        if(!this.canMutate(false)){event.target.value=this.document.title;return}
+        this.document.title=event.target.value;this.markDirty();
+      });
+      this.$('#diagramTitle').addEventListener('change',()=>{
+        if(!this.canMutate(false)){this.$('#diagramTitle').value=this.document.title;return}
+        this.document.title=this.document.title.trim()||'Nouveau schéma';this.$('#diagramTitle').value=this.document.title;this.commit('Renommage');
+      });
       this.$('#duplicateObjects').addEventListener('click',()=>this.duplicateSelected());
       this.$('#deleteObjects').addEventListener('click',()=>this.deleteSelected());
       this.$('#bringForward').addEventListener('click',()=>this.changeOrder(1));
@@ -291,6 +332,7 @@
       if(modifier&&event.key.toLowerCase()==='d'&&this.selectedIds.length){event.preventDefault();this.duplicateSelected();return}
       if(modifier&&event.key.toLowerCase()==='a'){event.preventDefault();this.selectedIds=this.document.objects.map(object=>object.id);this.updateSelection();return}
       if(this.selectedIds.length&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)){
+        if(!this.canMutate())return;
         event.preventDefault();const step=event.shiftKey?10:2;const delta={ArrowLeft:[-step,0],ArrowRight:[step,0],ArrowUp:[0,-step],ArrowDown:[0,step]}[event.key];
         this.document.objects.filter(object=>this.selectedIds.includes(object.id)).forEach(object=>{object.x+=delta[0];object.y+=delta[1]});this.commit('Déplacement clavier');return;
       }
@@ -304,8 +346,8 @@
       this.root.querySelectorAll('[data-mode]').forEach(button=>{const active=button.dataset.mode===this.mode;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))});
       const mobile=this.$('#mobilePanToggle');mobile.classList.toggle('active',this.mode==='pan');mobile.setAttribute('aria-pressed',String(this.mode==='pan'));
       this.$('#canvasViewport').style.cursor=this.mode==='pan'?'grab':'default';
-      for(const node of this.nodes.values())node.draggable(this.mode==='select');
-      if(this.transformer){this.transformer.visible(this.mode==='select'&&this.selectedIds.length>0);this.overlayLayer.batchDraw()}
+      for(const node of this.nodes.values())node.draggable(this.mode==='select'&&!this.readOnly);
+      if(this.transformer){this.transformer.visible(!this.readOnly&&this.mode==='select'&&this.selectedIds.length>0);this.overlayLayer.batchDraw()}
     }
 
     localCenter(){
@@ -316,6 +358,7 @@
     }
 
     addObject(type,overrides={}){
+      if(!this.canMutate())return false;
       const center=this.localCenter();
       const same=this.document.objects.filter(object=>object.type===type).length;
       const position={x:center.x+(same%5)*12,y:center.y+(same%5)*12};
@@ -332,6 +375,7 @@
     markActiveTool(type){this.root.querySelectorAll('[data-add]').forEach(button=>button.classList.toggle('active',button.dataset.add===type))}
 
     startDraw(type){
+      if(!this.canMutate())return false;
       if(this.mode==='pan')this.setMode('select');
       this.cancelDraw(false);
       this.mode='draw';this.drawTool=type;
@@ -344,6 +388,7 @@
     }
 
     handleDrawPoint(){
+      if(!this.canMutate())return false;
       const point=this.stageToLocal();if(!point)return;
       if(!this.draw){
         const group=this.buildPreview(this.drawTool,point);
@@ -379,6 +424,7 @@
     }
 
     finalizeDraw(object){
+      if(!this.canMutate())return false;
       this.document.objects.push(object);
       this.cancelDraw(false);
       this.selectedIds=[object.id];
@@ -391,7 +437,7 @@
       this.markActiveTool(null);
       if(this.$('#canvasViewport'))this.$('#canvasViewport').style.cursor='default';
       if(this.$('#canvasHint'))this.$('#canvasHint').textContent=this.defaultHint;
-      for(const node of this.nodes.values())node.draggable(true);
+      for(const node of this.nodes.values())node.draggable(!this.readOnly);
       this.root.querySelectorAll('[data-mode]').forEach(button=>{const active=button.dataset.mode==='select';button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))});
       if(showToast)this.showToast('Tracé annulé');
     }
@@ -404,7 +450,7 @@
     }
 
     buildNode(object){
-      const group=new Konva.Group({id:object.id,x:object.x,y:object.y,rotation:object.rotation,scaleX:object.scaleX,scaleY:object.scaleY,opacity:object.opacity,draggable:this.mode==='select'});
+      const group=new Konva.Group({id:object.id,x:object.x,y:object.y,rotation:object.rotation,scaleX:object.scaleX,scaleY:object.scaleY,opacity:object.opacity,draggable:this.mode==='select'&&!this.readOnly});
       if(object.type==='player'){
         const style=TEAM_STYLE[object.team];
         group.add(new Konva.Circle({radius:object.radius,fill:style.fill,stroke:'#0B315B',strokeWidth:5}));
@@ -459,6 +505,7 @@
     }
 
     syncSelectedNodes(reason){
+      if(!this.canMutate())return false;
       for(const id of this.selectedIds){
         const object=this.document.objects.find(item=>item.id===id),node=this.nodes.get(id);
         if(!object||!node)continue;
@@ -471,7 +518,7 @@
 
     updateSelection(){
       this.selectedIds=this.selectedIds.filter(id=>this.nodes.has(id));
-      if(this.transformer){this.transformer.nodes(this.selectedIds.map(id=>this.nodes.get(id)).filter(Boolean));this.transformer.visible(this.mode==='select'&&this.selectedIds.length>0);this.transformer.forceUpdate();this.overlayLayer.batchDraw()}
+      if(this.transformer){this.transformer.nodes(this.selectedIds.map(id=>this.nodes.get(id)).filter(Boolean));this.transformer.visible(!this.readOnly&&this.mode==='select'&&this.selectedIds.length>0);this.transformer.forceUpdate();this.overlayLayer.batchDraw()}
       const count=this.selectedIds.length;
       this.$('#selectionStatus').textContent=count?`${count} objet${count>1?'s':''} sélectionné${count>1?'s':''}`:'Aucun objet sélectionné';
       this.$('#emptyProperties').hidden=count>0;this.$('#propertiesForm').hidden=count===0;
@@ -501,6 +548,7 @@
     }
 
     updateSelectedProperty(key,value){
+      if(!this.canMutate())return false;
       const object=this.firstSelected();if(!object)return;
       if(typeof value==='number'&&!Number.isFinite(value)){this.showToast('Valeur numérique invalide',true);this.updateSelection();return}
       const previous=object[key];object[key]=value;
@@ -511,6 +559,7 @@
     }
 
     applyCurvature(object){
+      if(!this.canMutate())return false;
       if(object.type!=='curve'||!Array.isArray(object.points)||object.points.length!==6)return;
       const start={x:object.x+object.points[0],y:object.y+object.points[1]};
       const end={x:object.x+object.points[4],y:object.y+object.points[5]};
@@ -533,17 +582,20 @@
     }
 
     duplicateSelected(){
+      if(!this.canMutate())return false;
       if(!this.selectedIds.length)return;
       const copies=this.document.objects.filter(object=>this.selectedIds.includes(object.id)).map(object=>({...Model.clone(object),id:Model.createId(object.type),x:object.x+28,y:object.y+28}));
       this.document.objects.push(...copies);this.selectedIds=copies.map(object=>object.id);this.commit('Duplication');
     }
 
     deleteSelected(){
+      if(!this.canMutate())return false;
       if(!this.selectedIds.length)return;
       this.document.objects=this.document.objects.filter(object=>!this.selectedIds.includes(object.id));this.selectedIds=[];this.commit('Suppression');
     }
 
     changeOrder(direction){
+      if(!this.canMutate())return false;
       if(!this.selectedIds.length)return;
       const selected=new Set(this.selectedIds),items=this.document.objects;
       if(direction>0){for(let index=items.length-2;index>=0;index-=1)if(selected.has(items[index].id)&&!selected.has(items[index+1].id))[items[index],items[index+1]]=[items[index+1],items[index]]}
@@ -552,38 +604,44 @@
     }
 
     commit(){
+      if(!this.canMutate())return false;
       const comparable=value=>JSON.stringify({...value,updatedAt:null});
       if(comparable(this.document)===comparable(this.history.present)){this.document=Model.clone(this.history.present);this.refreshDocumentUI();return}
       this.document.updatedAt=new Date().toISOString();
       this.history.commit(this.document);this.markDirty();this.renderObjects();this.updateHistoryButtons();
     }
 
-    undo(){const document=this.history.undo();if(document){this.document=document;this.selectedIds=[];this.markDirty();this.refreshDocumentUI()}}
-    redo(){const document=this.history.redo();if(document){this.document=document;this.selectedIds=[];this.markDirty();this.refreshDocumentUI()}}
+    undo(){if(!this.canMutate())return false;const document=this.history.undo();if(document){this.document=document;this.selectedIds=[];this.markDirty();this.refreshDocumentUI()}}
+    redo(){if(!this.canMutate())return false;const document=this.history.redo();if(document){this.document=document;this.selectedIds=[];this.markDirty();this.refreshDocumentUI()}}
 
-    updateHistoryButtons(){this.$('#undoAction').disabled=!this.history.canUndo;this.$('#redoAction').disabled=!this.history.canRedo}
+    updateHistoryButtons(){this.$('#undoAction').disabled=this.readOnly||!this.history.canUndo;this.$('#redoAction').disabled=this.readOnly||!this.history.canRedo}
 
     markDirty(){
       this.dirty=JSON.stringify(this.document)!==this.savedSnapshot;
-      const status=this.$('#saveState');status.classList.toggle('isDirty',this.dirty);status.textContent=this.dirty?'Modifications non enregistrées':(this.currentStored?'Enregistré localement':'Nouveau schéma');
+      const status=this.$('#saveState');status.classList.toggle('isDirty',this.dirty);status.textContent=(this.dirty?'Modifications non enregistrées':(this.currentStored?'Enregistré localement':'Nouveau schéma'))+(this.readOnly?' · Lecture seule':'');
     }
+
+    discardChanges(){this.savedSnapshot=JSON.stringify(this.document);this.dirty=false;this.markDirty();return true}
 
     refreshDocumentUI(){this.$('#diagramTitle').value=this.document.title;this.renderObjects();this.updateHistoryButtons()}
 
     confirmDiscard(){return !this.dirty||window.confirm('Des modifications ne sont pas enregistrées. Continuer sans les enregistrer ?')}
 
-    newDiagram(){if(!this.confirmDiscard())return;this.loadDiagram(Model.createDocument(),{clean:true,resetHistory:true});this.showToast('Nouveau schéma créé')}
+    newDiagram(){if(!this.canMutate())return false;if(!this.confirmDiscard())return;this.loadDiagram(Model.createDocument(),{clean:true,resetHistory:true});this.showToast('Nouveau schéma créé')}
 
     save(){
+      if(!this.canMutate())return {ok:false,kind:'readonly'};
       this.document.title=(this.$('#diagramTitle').value||'').trim()||'Nouveau schéma';
       if(this.document.title!==this.history.present.title)this.commit('Renommage');
       this.document.updatedAt=new Date().toISOString();
+      if(this.saveHandler)return this.saveHandler(this.getDiagram());
       const result=this.store.save(this.document);
       if(!result.ok){this.showToast(result.error,true);return result}
       this.history.present=Model.clone(this.document);this.savedSnapshot=JSON.stringify(this.document);this.currentStored=true;this.dirty=false;this.markDirty();this.$('#diagramTitle').value=this.document.title;this.showToast('Schéma enregistré dans ce navigateur');return result;
     }
 
     loadDiagram(document,{clean=false,resetHistory=true,stored=false}={}){
+      if(!this.canMutate())return {ok:false,kind:'readonly'};
       const checked=Model.validateDocument(document);if(!checked.ok)throw new Error(checked.error);
       this.document=checked.document;this.selectedIds=[];
       if(resetHistory)this.history.reset(this.document);
@@ -620,6 +678,7 @@
     closeLibrary(){const dialog=document.querySelector('#libraryDialog');dialog.hidden=true;this.lastFocus?.focus()}
 
     renameStored(diagram){
+      if(!this.canMutate())return false;
       const title=window.prompt('Nouveau nom du schéma',diagram.title);if(title===null)return;
       const trimmed=title.trim();if(!trimmed){this.showToast('Le nom ne peut pas être vide',true);return}
       const currentWasDirty=this.document.id===diagram.id&&this.dirty;
@@ -628,6 +687,7 @@
     }
 
     removeStored(diagram){
+      if(!this.canMutate())return false;
       if(!window.confirm(`Supprimer définitivement « ${diagram.title} » de ce navigateur ?`))return;
       const result=this.store.remove(diagram.id);if(!result.ok)this.showToast(result.error,true);else{if(this.document.id===diagram.id){this.savedSnapshot='';this.currentStored=false;this.markDirty()}this.renderLibrary();document.querySelector('#libraryDialog .dialogClose')?.focus()}
     }
@@ -638,6 +698,7 @@
     }
 
     async importJSON(file){
+      if(!this.canMutate())return {ok:false,kind:'readonly'};
       this.$('#importFile').value='';if(!file)return;
       if(!this.confirmDiscard())return;
       try{

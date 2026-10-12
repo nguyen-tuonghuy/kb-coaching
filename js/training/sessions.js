@@ -64,6 +64,7 @@ app.fetchTrainingExercises = async function fetchTrainingExercises({withProfiles
 
 app.openTrainingModule = async function openTrainingModule(){
   await app.releaseTrainingSessionLease();
+  app.resetTrainingTacticalSessionCache?.();
   // Afficher immédiatement la page : les données arrivent ensuite sans bloquer le clic.
   app.hideMainModules();
   app.setMatchHeaderMode(false);app.$('#trainingHome').classList.remove('hidden');
@@ -266,6 +267,7 @@ app.setTrainingLeaseStatus=function setTrainingLeaseStatus(status,{holderUserId=
     }
   }
   app.applyTrainingLeaseControls();
+  app.syncTrainingTacticalReadOnly?.();
 };
 
 app.renewTrainingSessionLease=async function renewTrainingSessionLease(){
@@ -1489,9 +1491,10 @@ app.renderTrainingPlan = function renderTrainingPlan(){
       const organizerSelected=app.trainingState.planOrganizerMode&&app.trainingState.planOrganizerSelectedId===b.id;
       const organizerTarget=app.trainingState.planOrganizerMode&&app.trainingState.planOrganizerSelectedId&&app.trainingState.planOrganizerSelectedId!==b.id;
       const card=document.createElement('div');card.className='trainingPlanBlock'+(b.expanded?' expanded':'')+(organizerSelected?' organizerSelected':'')+(organizerTarget?' organizerTarget':'');card.dataset.planId=b.id;card.dataset.track=b.track||'both';
-      card.innerHTML=`<div class="trainingPlanBlockHead"><div class="trainingPlanBlockOverview" data-plan-overview role="button" tabindex="0" aria-expanded="${b.expanded?'true':'false'}"><button type="button" class="ghost trainingPlanDragHandle" draggable="true" data-plan-drag title="Maintenir et déplacer">⠿</button><div class="trainingPlanBlockMain"><div class="trainingPlanBlockTitle">${app.escapeHtml(b.title||ex?.name||'Nouveau bloc')}</div><div class="trainingPlanCompactMeta"><span class="trainingTrackTag">${app.escapeHtml(app.trainingTrackLabel(b.track))}</span><span class="trainingPlanMetaTag">${app.escapeHtml(String(b.duration||0))} min</span>${libraryMode?'<span class="trainingPlanMetaTag">Bibliothèque</span>':''}${b.collectStats?'<span class="trainingPlanMetaTag stats">Stats</span>':''}</div></div></div><button type="button" class="ghost trainingPlanToggle" data-plan-toggle title="${b.expanded?'Replier':'Déplier'}" aria-label="${b.expanded?'Replier':'Déplier'}">${b.expanded?'▴':'▾'}</button></div>
+      card.innerHTML=`<div class="trainingPlanBlockHead"><div class="trainingPlanBlockOverview" data-plan-overview role="button" tabindex="0" aria-expanded="${b.expanded?'true':'false'}"><button type="button" class="ghost trainingPlanDragHandle" draggable="true" data-plan-drag title="Maintenir et déplacer">⠿</button><div class="trainingPlanBlockMain"><div class="trainingPlanBlockTitle">${app.escapeHtml(b.title||ex?.name||'Nouveau bloc')}</div><div class="trainingPlanCompactMeta"><span class="trainingTrackTag">${app.escapeHtml(app.trainingTrackLabel(b.track))}</span><span class="trainingPlanMetaTag">${app.escapeHtml(String(b.duration||0))} min</span>${libraryMode?'<span class="trainingPlanMetaTag">Bibliothèque</span>':''}${b.collectStats?'<span class="trainingPlanMetaTag stats">Stats</span>':''}<span data-training-tactical-inline="${app.escapeAttr(b.id)}" data-training-tactical-mode="badge" data-training-tactical-title="${app.escapeAttr(b.title||ex?.name||'Bloc')}"></span></div></div></div><button type="button" class="ghost trainingPlanToggle" data-plan-toggle title="${b.expanded?'Replier':'Déplier'}" aria-label="${b.expanded?'Replier':'Déplier'}">${b.expanded?'▴':'▾'}</button></div>
       <div class="trainingPlanBlockBody">
-      <div class="trainingPlanBlockActions"><button type="button" class="ghost" data-plan-up title="Monter">↑</button><button type="button" class="ghost" data-plan-down title="Descendre">↓</button><button type="button" class="ghost" data-plan-tactical>Schémas tactiques</button><button type="button" class="ghost" data-plan-copy>Dupliquer le bloc</button><button type="button" class="ghost" data-plan-draft>Mettre en brouillon</button><button type="button" class="ghost" data-plan-remove>Supprimer</button></div>
+       <div class="trainingPlanBlockActions"><button type="button" class="ghost" data-plan-up title="Monter">↑</button><button type="button" class="ghost" data-plan-down title="Descendre">↓</button><button type="button" class="ghost" data-plan-tactical>Schémas tactiques</button><button type="button" class="ghost" data-plan-copy>Dupliquer le bloc</button><button type="button" class="ghost" data-plan-draft>Mettre en brouillon</button><button type="button" class="ghost" data-plan-remove>Supprimer</button></div>
+       <div data-training-tactical-inline="${app.escapeAttr(b.id)}" data-training-tactical-mode="section" data-training-tactical-visible="${b.expanded?'true':'false'}" data-training-tactical-title="${app.escapeAttr(b.title||ex?.name||'Bloc')}"></div>
       <div class="trainingPlanFields">
        <div class="field"><label>Heure calculée</label><input class="planStart" readonly value="${app.escapeAttr(b.start||'')}"></div>
        <div class="field"><label>Durée (min)</label><input class="planDuration" type="number" min="0" inputmode="numeric" value="${app.escapeAttr(b.duration??'')}"></div>
@@ -1531,7 +1534,7 @@ app.renderTrainingPlan = function renderTrainingPlan(){
       if(dragHandle)dragHandle.draggable=!app.trainingState.planOrganizerMode&&!coarsePointer;
       dragHandle?.addEventListener('dragstart',e=>{if(app.trainingState.planOrganizerMode||coarsePointer){e.preventDefault();return}app.captureTrainingPlan();card.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',b.id)});
       dragHandle?.addEventListener('dragend',()=>{card.classList.remove('dragging');box.classList.remove('drag-over')});
-      tracks.append(card);
+       app.refreshTrainingTacticalInline?.(null,card);tracks.append(card);
     });
     box.append(slot);
   });
@@ -1544,7 +1547,7 @@ app.renderTrainingPlan = function renderTrainingPlan(){
       const organizerSelected=app.trainingState.planOrganizerMode&&app.trainingState.planOrganizerSelectedId===b.id;
       const card=document.createElement('div');card.className='trainingDraftCard'+(organizerSelected?' organizerSelected':'');card.dataset.planId=b.id;card.draggable=!app.trainingState.planOrganizerMode&&!coarsePointer;
       const preview=(b.details||b.attention||'').trim();
-      card.innerHTML=`<div class="trainingDraftCardTitle">${app.escapeHtml(b.title||ex?.name||'Bloc sans titre')}</div><div class="trainingDraftCardMeta">${app.escapeHtml(b.sourceType==='library'&&ex?'Bibliothèque · '+ex.name:'Bloc libre')} · ${app.escapeHtml(app.trainingTrackLabel(b.track))} · ${app.escapeHtml(String(b.duration||0))} min</div>${preview?`<div class="trainingDraftCardText">${app.escapeHtml(preview)}</div>`:''}<div class="trainingDraftCardActions"><button type="button" class="primary" data-draft-restore>Remettre dans le planning</button><button type="button" class="ghost" data-draft-tactical>Schémas tactiques</button><button type="button" class="ghost" data-draft-copy>Dupliquer</button><button type="button" class="ghost" data-draft-remove>Supprimer</button></div>`;
+      card.innerHTML=`<div class="trainingDraftCardTitle">${app.escapeHtml(b.title||ex?.name||'Bloc sans titre')}</div><div class="trainingDraftCardMeta">${app.escapeHtml(b.sourceType==='library'&&ex?'Bibliothèque · '+ex.name:'Bloc libre')} · ${app.escapeHtml(app.trainingTrackLabel(b.track))} · ${app.escapeHtml(String(b.duration||0))} min <span data-training-tactical-inline="${app.escapeAttr(b.id)}" data-training-tactical-mode="badge" data-training-tactical-title="${app.escapeAttr(b.title||ex?.name||'Bloc')}"></span></div>${preview?`<div class="trainingDraftCardText">${app.escapeHtml(preview)}</div>`:''}<div data-training-tactical-inline="${app.escapeAttr(b.id)}" data-training-tactical-mode="draft" data-training-tactical-title="${app.escapeAttr(b.title||ex?.name||'Bloc')}"></div><div class="trainingDraftCardActions"><button type="button" class="primary" data-draft-restore>Remettre dans le planning</button><button type="button" class="ghost" data-draft-tactical>Schémas tactiques</button><button type="button" class="ghost" data-draft-copy>Dupliquer</button><button type="button" class="ghost" data-draft-remove>Supprimer</button></div>`;
       card.querySelector('[data-draft-restore]').onclick=()=>app.restoreTrainingPlanBlockFromDraft(b.id,b.track);
       card.querySelector('[data-draft-tactical]').onclick=()=>app.openTrainingTacticalDiagrams?.(b.id,b.title||ex?.name||'Bloc');
        card.querySelector('[data-draft-copy]').onclick=()=>{app.captureTrainingPlan();const i=app.trainingState.planBlocks.findIndex(x=>x.id===b.id);if(i<0)return;app.trainingState.planBlocks.splice(i+1,0,app.duplicateTrainingPlanBlockData(b,{draft:true}));app.renderTrainingPlan();app.persistTrainingLocalDraft({checkpointReason:'Duplication d’un brouillon'})};
@@ -1552,7 +1555,7 @@ app.renderTrainingPlan = function renderTrainingPlan(){
       card.addEventListener('click',e=>{if(app.trainingState.planOrganizerMode&&!e.target.closest('button,input,select,textarea,a'))app.selectTrainingPlanOrganizerBlock(b.id)});
       card.addEventListener('dragstart',e=>{if(app.trainingState.planOrganizerMode||coarsePointer){e.preventDefault();return}card.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',b.id)});
       card.addEventListener('dragend',()=>card.classList.remove('dragging'));
-      draftBox.append(card);
+      app.refreshTrainingTacticalInline?.(null,card);draftBox.append(card);
     });
     draftBox.ondragover=e=>{e.preventDefault();draftBox.classList.add('drag-over');if(e.dataTransfer)e.dataTransfer.dropEffect='move'};
     draftBox.ondragleave=e=>{if(!draftBox.contains(e.relatedTarget))draftBox.classList.remove('drag-over')};
@@ -1597,6 +1600,7 @@ app.startNewTraining = async function startNewTraining({skipRecovery=false,draft
   app.trainingState.planBlocks=[];
   app.trainingState.currentSessionId=null;
   app.trainingState.persistedOccurrenceIds=new Set();
+  app.resetTrainingTacticalSessionCache?.();
   app.resetTrainingSessionContext();
   app.trainingState.resultDraft={};
   app.trainingState.planOrganizerMode=false;app.trainingState.planOrganizerSelectedId=null;
@@ -1725,7 +1729,7 @@ app.renderTrainingExerciseCards = function renderTrainingExerciseCards({capture=
           <h3>${idx+1}. ${app.escapeHtml(ex.name)}</h3>
           <div class="small">${app.escapeHtml(app.categoryLabel(ex))} · ${app.escapeHtml(app.measurementLabel(ex.measurement_type))}${ex.objective?' · '+app.escapeHtml(ex.objective):''}</div>
           ${app.isDualExercise(ex)?`<div class="small" style="margin-top:5px"><strong>Focus : ${app.escapeHtml(app.focusLabel(ex.focus)||'à choisir')}</strong>${app.focusInstruction(ex)?' · '+app.escapeHtml(app.focusInstruction(ex)):''}</div>`:''}
-          <div class="small" style="margin-top:5px">${present.length} joueur${present.length>1?'s':''} présent${present.length>1?'s':''}</div>
+          <div class="small" style="margin-top:5px">${present.length} joueur${present.length>1?'s':''} présent${present.length>1?'s':''} <span data-training-tactical-inline="${app.escapeAttr(ex.occurrenceId)}" data-training-tactical-mode="badge" data-training-tactical-title="${app.escapeAttr(ex.name||'Exercice')}"></span></div>
         </div>
         <div class="row" style="gap:6px;flex:0 0 auto">
           <button class="ghost" data-tactical="${ex.localKey}">Schémas</button>
@@ -1734,6 +1738,7 @@ app.renderTrainingExerciseCards = function renderTrainingExerciseCards({capture=
         </div>
       </div>
       <div class="trainingResults${ex.expanded?'':' hidden'}">
+        <div data-training-tactical-inline="${app.escapeAttr(ex.occurrenceId)}" data-training-tactical-mode="section" data-training-tactical-visible="${ex.expanded?'true':'false'}" data-training-tactical-title="${app.escapeAttr(ex.name||'Exercice')}"></div>
         ${app.isDualExercise(ex)?`<div class="field" style="margin-bottom:10px">
           <label>Focus de l’exercice dans cette séance</label>
           <select class="sessionExerciseFocus">
@@ -1792,7 +1797,7 @@ app.renderTrainingExerciseCards = function renderTrainingExerciseCards({capture=
       rb.append(row);
     });
 
-    box.append(card);
+    app.refreshTrainingTacticalInline?.(null,card);box.append(card);
   });
 };
 
@@ -2151,6 +2156,7 @@ Les présences, exercices et résultats enregistrés pour cette séance seront �
     await app.releaseTrainingSessionLease();
     app.trainingState.recentSessions=(app.trainingState.recentSessions||[]).filter(x=>x.id!==sessionId);
     if(app.trainingState.currentSessionId===sessionId){app.trainingState.currentSessionId=null;app.resetTrainingSessionContext();app.trainingState.resultDraft={}}
+    if(app.trainingTacticalState?.cacheSessionId===sessionId)app.resetTrainingTacticalSessionCache?.();
     app.renderTrainingSavedHome();
     if(app.$('#trainingDuplicate')&&!app.$('#trainingDuplicate').classList.contains('hidden'))app.renderDuplicateTrainingSessions();
     app.setCloud('Synchronisé',true);
@@ -2253,6 +2259,7 @@ app.duplicateTrainingSessionById = async function duplicateTrainingSessionById(s
   await app.releaseTrainingSessionLease();
   if(loadToken!==app.trainingState.editorLoadToken)return;
   app.trainingState.currentSessionId=null;
+  app.resetTrainingTacticalSessionCache?.();
   app.resetTrainingSessionContext();
   app.trainingState.resultDraft={};
   app.trainingState.planOrganizerMode=false;app.trainingState.planOrganizerSelectedId=null;
@@ -2320,7 +2327,7 @@ app.editTrainingSessionById = async function editTrainingSessionById(sessionId,{
   if(app.trainingLeaseState.sessionId!==sessionId)await app.releaseTrainingSessionLease();
   if(loadToken!==app.trainingState.editorLoadToken)return;
 
-  const [{data:attendance,error:ae},{data:sessionExercises,error:xe},{data:results,error:re},{data:occurrences,error:oe}]=await Promise.all([
+  const [{data:attendance,error:ae},{data:sessionExercises,error:xe},{data:results,error:re},{data:occurrences,error:oe},{data:tacticalDiagrams,error:te}]=await Promise.all([
     app.db.from('training_attendance').select('player_id,present').eq('session_id',sessionId),
     app.db.from('training_session_exercises')
       .select('position,variant,target,focus,occurrence_id,exercise:exercises!training_session_exercises_exercise_id_fkey(id,name,category,category_id,copied_from_exercise_id,measurement_type,description,objective,attack_instruction,defense_instruction)')
@@ -2328,13 +2335,17 @@ app.editTrainingSessionById = async function editTrainingSessionById(sessionId,{
     app.db.from('training_results')
       .select('exercise_id,player_id,successes,attempts,numeric_value,note')
       .eq('session_id',sessionId),
-    app.db.from('training_exercise_occurrences').select('id').eq('session_id',sessionId).eq('active',true)
+    app.db.from('training_exercise_occurrences').select('id').eq('session_id',sessionId).eq('active',true),
+    app.db.from('training_tactical_diagrams').select('id,occurrence_id,document,position,version,updated_at').eq('session_id',sessionId).order('position',{ascending:true})
   ]);
   if(loadToken!==app.trainingState.editorLoadToken)return;
   if(ae)throw ae;if(xe)throw xe;if(re)throw re;if(oe)throw oe;
 
   app.trainingState.currentSessionId=sessionId;
   app.trainingState.persistedOccurrenceIds=new Set((occurrences||[]).map(item=>item.id));
+  if(te){
+    const tactical=app.trainingTacticalState;if(tactical){++tactical.cacheToken;tactical.cacheSessionId=sessionId;tactical.cacheStatus='error';tactical.cacheError=te.message||String(te);tactical.cachePromise=null;tactical.diagramsByOccurrence=new Map()}
+  }else app.setTrainingTacticalSessionCache?.(sessionId,tacticalDiagrams||[]);
   app.trainingState.sessionWorkspaceId=source.workspace_id??null;
   app.trainingState.sessionTeamId=source.team_id??null;
   app.trainingState.resultDraft={};
@@ -2607,9 +2618,15 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
       app.setTrainingLeaseStatus('owned',{expiresAt:lease.expiresAt});
       app.scheduleTrainingLeaseHeartbeat();
     }
+    const copiedTacticalDiagrams=occurrences.some(item=>item.copy_diagrams_from_occurrence_id);
+    const previousPersistedOccurrenceIds=app.trainingState.persistedOccurrenceIds;
     app.trainingState.currentSessionId=result.session_id;
     app.trainingState.persistedOccurrenceIds=new Set(occurrences.map(item=>item.id));
     app.clearSavedTrainingOccurrenceCopySources(occurrences);
+    app.syncTrainingTacticalReadOnly?.();
+    occurrences.filter(item=>!previousPersistedOccurrenceIds?.has(item.id)).forEach(item=>app.refreshTrainingTacticalInline?.(item.id));
+    if(copiedTacticalDiagrams)app.loadTrainingTacticalSessionDiagrams?.(result.session_id,{force:true,required:true}).catch(error=>app.handleError('refresh training tactical diagrams',error));
+    else if(!sessionId)app.setTrainingTacticalSessionCache?.(result.session_id,[]);
     app.applyTrainingLeaseControls();
     app.trainingLocalState.baseUpdatedAt=result.updated_at||null;
     app.trainingLocalState.baseVersion=result.version??null;

@@ -1,6 +1,6 @@
 /* G2: manual tactical diagrams attached to persisted training occurrences. */
 ((app)=>{
-app.trainingTacticalState={occurrenceId:null,occurrenceTitle:'',diagrams:[],record:null,editor:null,previousFocus:null,saving:false,managing:false,frameToken:0,loadToken:0,saveToken:0,previewToken:0,previewObserver:null};
+app.trainingTacticalState={occurrenceId:null,occurrenceTitle:'',diagrams:[],record:null,editor:null,previousFocus:null,saving:false,managing:false,frameToken:0,loadToken:0,saveToken:0,previewToken:0,previewObserver:null,cacheSessionId:null,cacheStatus:'idle',cacheError:'',cacheToken:0,cachePromise:null,cacheRefreshRequired:false,diagramsByOccurrence:new Map(),inlineWritable:null};
 
 app.trainingTacticalStatus=function trainingTacticalStatus(message,error=false){
   const target=app.$('#trainingTacticalSaveStatus');if(!target)return;
@@ -12,26 +12,97 @@ app.trainingTacticalManagerStatus=function trainingTacticalManagerStatus(message
   target.textContent=message||'';target.dataset.state=error?'error':'ok';
 };
 
-app.trainingTacticalCanWrite=function trainingTacticalCanWrite(){
+app.trainingTacticalCanWrite=function trainingTacticalCanWrite(occurrenceId=app.trainingTacticalState.occurrenceId){
   const state=app.trainingTacticalState;
   return !!app.trainingState.currentSessionId
-    &&app.trainingState.persistedOccurrenceIds?.has(state.occurrenceId)
+    &&app.trainingState.persistedOccurrenceIds?.has(occurrenceId)
     &&app.trainingLeaseState.status==='owned'
     &&app.trainingLeaseState.sessionId===app.trainingState.currentSessionId
     &&!!app.trainingLeaseState.token;
 };
 
+app.resetTrainingTacticalSessionCache=function resetTrainingTacticalSessionCache(){
+  const state=app.trainingTacticalState;++state.cacheToken;state.cacheSessionId=null;state.cacheStatus='idle';state.cacheError='';state.cachePromise=null;state.cacheRefreshRequired=false;state.diagramsByOccurrence=new Map();
+  app.refreshTrainingTacticalInline?.();
+};
+
+app.setTrainingTacticalSessionCache=function setTrainingTacticalSessionCache(sessionId,rows=[]){
+  const state=app.trainingTacticalState,map=new Map();
+  ++state.cacheToken;
+  for(const row of rows){const items=map.get(row.occurrence_id)||[];items.push(row);map.set(row.occurrence_id,items)}
+  for(const items of map.values())items.sort((a,b)=>(Number(a.position)||0)-(Number(b.position)||0));
+  state.cacheSessionId=sessionId;state.cacheStatus='ready';state.cacheError='';state.cachePromise=null;state.cacheRefreshRequired=false;state.diagramsByOccurrence=map;
+  app.refreshTrainingTacticalInline?.();return map;
+};
+
+app.loadTrainingTacticalSessionDiagrams=async function loadTrainingTacticalSessionDiagrams(sessionId=app.trainingState.currentSessionId,{force=false,required=false}={}){
+  const state=app.trainingTacticalState;if(!sessionId){app.resetTrainingTacticalSessionCache();return []}
+  if(required)state.cacheRefreshRequired=true;
+  if(!force&&state.cacheSessionId===sessionId&&state.cacheStatus==='ready')return [...state.diagramsByOccurrence.values()].flat();
+  if(!force&&state.cacheSessionId===sessionId&&state.cachePromise)return state.cachePromise;
+  const token=++state.cacheToken;state.cacheSessionId=sessionId;state.cacheStatus='loading';state.cacheError='';app.refreshTrainingTacticalInline?.();
+  const promise=(async()=>{
+    const {data,error}=await app.db.from('training_tactical_diagrams').select('id,occurrence_id,document,position,version,updated_at').eq('session_id',sessionId).order('position',{ascending:true});
+    if(token!==state.cacheToken||sessionId!==app.trainingState.currentSessionId){
+      if(sessionId===app.trainingState.currentSessionId&&state.cacheRefreshRequired){
+        if(state.cachePromise&&state.cachePromise!==promise)return state.cachePromise;
+        return app.loadTrainingTacticalSessionDiagrams(sessionId,{force:true,required:true});
+      }
+      return [];
+    }
+    if(error){state.cacheStatus='error';state.cacheError=error.message||String(error);state.cachePromise=null;state.cacheRefreshRequired=false;app.refreshTrainingTacticalInline?.();throw error}
+    app.setTrainingTacticalSessionCache(sessionId,data||[]);return data||[];
+  })();
+  state.cachePromise=promise;return promise;
+};
+
+app.trainingTacticalOccurrenceDiagrams=function trainingTacticalOccurrenceDiagrams(occurrenceId){
+  const state=app.trainingTacticalState;
+  if(state.cacheSessionId!==app.trainingState.currentSessionId||state.cacheStatus!=='ready')return [];
+  return state.diagramsByOccurrence.get(occurrenceId)||[];
+};
+
+app.updateTrainingTacticalOccurrenceCache=function updateTrainingTacticalOccurrenceCache(occurrenceId,diagrams){
+  const state=app.trainingTacticalState;if(state.cacheSessionId!==app.trainingState.currentSessionId)return;
+  ++state.cacheToken;state.cachePromise=null;
+  const next=new Map(state.diagramsByOccurrence);if(diagrams.length)next.set(occurrenceId,[...diagrams]);else next.delete(occurrenceId);
+  state.diagramsByOccurrence=next;state.cacheStatus='ready';app.refreshTrainingTacticalInline?.(occurrenceId);
+};
+
 app.loadTrainingTacticalDiagrams=async function loadTrainingTacticalDiagrams(){
   const state=app.trainingTacticalState,sessionId=app.trainingState.currentSessionId,occurrenceId=state.occurrenceId;
   if(!sessionId||!occurrenceId){state.diagrams=[];return []}
-  const {data,error}=await app.db.from('training_tactical_diagrams')
-    .select('id,document,position,version,updated_at')
-    .eq('session_id',sessionId).eq('occurrence_id',occurrenceId)
-    .order('position',{ascending:true});
-  if(error)throw error;
+  await app.loadTrainingTacticalSessionDiagrams(sessionId);
   if(sessionId!==app.trainingState.currentSessionId||occurrenceId!==state.occurrenceId)return [];
-  state.diagrams=data||[];
+  state.diagrams=[...app.trainingTacticalOccurrenceDiagrams(occurrenceId)];
   return state.diagrams;
+};
+
+app.trainingTacticalInlineMarkup=function trainingTacticalInlineMarkup(occurrenceId,mode,title){
+  const state=app.trainingTacticalState,diagrams=app.trainingTacticalOccurrenceDiagrams(occurrenceId),count=diagrams.length,writable=app.trainingTacticalCanWrite(occurrenceId);
+  if(mode==='badge')return count?`<span class="trainingPlanMetaTag tacticalCount">${count} schéma${count>1?'s':''}</span>`:'';
+  if(state.cacheSessionId===app.trainingState.currentSessionId&&state.cacheStatus==='loading')return '<div class="small trainingTacticalInlineState">Chargement des schémas…</div>';
+  if(state.cacheSessionId===app.trainingState.currentSessionId&&state.cacheStatus==='error')return `<div class="trainingTacticalInlineState"><span class="small">Aperçus indisponibles.</span><button type="button" class="ghost" data-training-tactical-retry>Réessayer</button></div>`;
+  if(!count)return writable?'<button type="button" class="ghost trainingTacticalInlineAdd" data-training-tactical-add>+ Ajouter un schéma</button>':'';
+  const cards=diagrams.map(diagram=>`<button type="button" class="trainingTacticalInlineCard" data-training-tactical-direct="${app.escapeAttr(diagram.id)}" aria-label="Ouvrir ${app.escapeAttr(diagram.document?.title||'ce schéma')}"><span class="trainingTacticalInlinePreview" data-training-tactical-inline-preview="${app.escapeAttr(diagram.id)}"><span>Chargement…</span></span><span>${app.escapeHtml(diagram.document?.title||'Schéma')}</span></button>`).join('');
+  return `<section class="trainingTacticalInlineSection${mode==='draft'?' compact':''}" aria-label="Schémas tactiques"><div class="trainingTacticalInlineHead"><strong>Schémas tactiques</strong><button type="button" class="ghost" data-training-tactical-manage>Gérer</button></div><div class="trainingTacticalInlineGallery">${cards}</div>${writable?'<button type="button" class="ghost trainingTacticalInlineAdd" data-training-tactical-add>+ Ajouter un schéma</button>':''}</section>`;
+};
+
+app.refreshTrainingTacticalInline=function refreshTrainingTacticalInline(occurrenceId=null,root=document){
+  const targets=[...root.querySelectorAll?.('[data-training-tactical-inline]')||[]].filter(target=>!occurrenceId||target.dataset.trainingTacticalInline===occurrenceId);
+  for(const target of targets){
+    const id=target.dataset.trainingTacticalInline,mode=target.dataset.trainingTacticalMode||'section',title=target.dataset.trainingTacticalTitle||'Exercice';
+    if(mode==='section'&&target.dataset.trainingTacticalVisible==='false'){target.replaceChildren();continue}
+    target.innerHTML=app.trainingTacticalInlineMarkup(id,mode,title);
+    target.querySelectorAll('[data-training-tactical-direct]').forEach(button=>button.onclick=event=>{event.stopPropagation();app.openTrainingTacticalDiagrams(id,title,{diagramId:button.dataset.trainingTacticalDirect})});
+    target.querySelector('[data-training-tactical-manage]')?.addEventListener('click',event=>{event.stopPropagation();app.openTrainingTacticalDiagrams(id,title)});
+    target.querySelector('[data-training-tactical-add]')?.addEventListener('click',event=>{event.stopPropagation();app.openTrainingTacticalDiagrams(id,title,{create:true})});
+    target.querySelector('[data-training-tactical-retry]')?.addEventListener('click',event=>{event.stopPropagation();app.loadTrainingTacticalSessionDiagrams(app.trainingState.currentSessionId,{force:true}).catch(error=>app.handleError('reload training tactical diagrams',error))});
+    target.querySelectorAll('[data-training-tactical-inline-preview]').forEach(preview=>setTimeout(()=>{
+      if(!preview.isConnected)return;const record=app.trainingTacticalOccurrenceDiagrams(id).find(item=>item.id===preview.dataset.trainingTacticalInlinePreview);
+      try{if(!record)throw new Error('Schéma introuvable');app.renderTrainingTacticalThumbnail(preview,record.document)}catch(_){preview.dataset.state='error';preview.textContent='Aperçu indisponible'}
+    },0));
+  }
 };
 
 app.renderTrainingTacticalThumbnail=function renderTrainingTacticalThumbnail(target,document){
@@ -102,7 +173,7 @@ app.renderTrainingTacticalManager=function renderTrainingTacticalManager(){
     <div class="trainingTacticalPreview" data-training-tactical-preview="${app.escapeAttr(diagram.id)}" data-state="loading"><span>Chargement…</span></div>
     <div class="trainingTacticalItemInfo"><strong>${app.escapeHtml(diagram.document?.title||`Schéma ${index+1}`)}</strong><span class="small">Version ${diagram.version} · ${app.escapeHtml(app.formatDateShort?.(diagram.updated_at)||'')}</span></div>
     <div class="trainingTacticalItemActions">
-     <button type="button" class="ghost" data-training-tactical-open="${app.escapeAttr(diagram.id)}" ${writable&&!busy?'':'disabled'}>Ouvrir / modifier</button>
+     <button type="button" class="ghost" data-training-tactical-open="${app.escapeAttr(diagram.id)}" ${!busy?'':'disabled'}>${writable?'Ouvrir / modifier':'Consulter'}</button>
      <button type="button" class="ghost" data-training-tactical-rename="${app.escapeAttr(diagram.id)}" ${writable&&!busy?'':'disabled'}>Renommer</button>
      <button type="button" class="ghost" data-training-tactical-duplicate="${app.escapeAttr(diagram.id)}" ${writable&&!busy?'':'disabled'}>Dupliquer</button>
      <button type="button" class="ghost danger" data-training-tactical-delete="${app.escapeAttr(diagram.id)}" ${writable&&!busy?'':'disabled'}>Supprimer</button>
@@ -157,7 +228,7 @@ app.renameTrainingTacticalDiagram=async function renameTrainingTacticalDiagram(d
   if(trimmed===(record.document?.title||''))return {ok:true,record};
   const document=JSON.parse(JSON.stringify(record.document));document.title=trimmed;document.updatedAt=new Date().toISOString();
   const result=await app.persistTrainingTacticalRecord(record,document,record.position);
-  if(result.ok){state.diagrams[state.diagrams.findIndex(item=>item.id===record.id)]=result.record;app.renderTrainingTacticalManager();app.trainingTacticalManagerStatus('Schéma renommé.');return result}
+  if(result.ok){state.diagrams[state.diagrams.findIndex(item=>item.id===record.id)]=result.record;app.updateTrainingTacticalOccurrenceCache(state.occurrenceId,state.diagrams);app.renderTrainingTacticalManager();app.trainingTacticalManagerStatus('Schéma renommé.');return result}
   const message=result.kind==='conflict'?'Conflit de version : le nom distant a changé. Recharge la liste avant de réessayer.'
     :result.kind==='lease'?'Bail d’édition perdu : le schéma n’a pas été renommé.':'Renommage impossible : le schéma original est conservé.';
   app.trainingTacticalManagerStatus(message,true);if(result.error)app.handleError('rename training tactical diagram',result.error);return result;
@@ -169,7 +240,7 @@ app.duplicateTrainingTacticalDiagram=async function duplicateTrainingTacticalDia
   document.id=app.trainingTacticalDocumentId();document.title=`Copie de ${document.title||'Schéma'}`.slice(0,160);document.createdAt=stamp;document.updatedAt=stamp;
   const position=state.diagrams.reduce((max,item)=>Math.max(max,Number(item.position)||0),-1)+1;
   const result=await app.persistTrainingTacticalRecord(null,document,position);
-  if(result.ok){state.diagrams.push(result.record);app.renderTrainingTacticalManager();app.trainingTacticalManagerStatus('Copie indépendante créée.');return result}
+  if(result.ok){state.diagrams.push(result.record);app.updateTrainingTacticalOccurrenceCache(state.occurrenceId,state.diagrams);app.renderTrainingTacticalManager();app.trainingTacticalManagerStatus('Copie indépendante créée.');return result}
   const message=result.kind==='lease'?'Bail d’édition perdu : aucune copie n’a été créée.':'Duplication impossible : le schéma original est conservé.';
   app.trainingTacticalManagerStatus(message,true);if(result.error)app.handleError('duplicate training tactical diagram',result.error);return result;
 };
@@ -188,7 +259,7 @@ app.deleteTrainingTacticalDiagram=async function deleteTrainingTacticalDiagram(d
       p_editor_instance_id:lease.instanceId,p_lease_token:lease.token
     });
     if(error)throw error;if(data!==true)throw new Error('Suppression du schéma non confirmée.');
-    state.diagrams=state.diagrams.filter(item=>item.id!==record.id);result={ok:true};
+    state.diagrams=state.diagrams.filter(item=>item.id!==record.id);app.updateTrainingTacticalOccurrenceCache(state.occurrenceId,state.diagrams);result={ok:true};
   }catch(error){
     const leaseLost=error?.code==='55000'||/Bail d.edition|verrou/i.test(error?.message||'');
     const conflict=error?.code==='40001'||/conflit de version/i.test(error?.message||'');
@@ -200,7 +271,7 @@ app.deleteTrainingTacticalDiagram=async function deleteTrainingTacticalDiagram(d
   return result;
 };
 
-app.openTrainingTacticalDiagrams=async function openTrainingTacticalDiagrams(occurrenceId,title='Exercice'){
+app.openTrainingTacticalDiagrams=async function openTrainingTacticalDiagrams(occurrenceId,title='Exercice',{diagramId=null,create=false}={}){
   const state=app.trainingTacticalState;
   state.occurrenceId=occurrenceId;state.occurrenceTitle=title;state.record=null;state.previousFocus=document.activeElement;
   const loadToken=++state.loadToken;
@@ -211,14 +282,19 @@ app.openTrainingTacticalDiagrams=async function openTrainingTacticalDiagrams(occ
   app.$('#trainingTacticalPopup').classList.remove('hidden');
   const page=app.$('.app');if(page)page.inert=true;
   app.$('#trainingTacticalList').innerHTML='<div class="statsEmpty">Chargement…</div>';
-  try{await app.loadTrainingTacticalDiagrams();if(loadToken===state.loadToken)app.renderTrainingTacticalManager()}
+  try{
+    await app.loadTrainingTacticalDiagrams();if(loadToken!==state.loadToken)return;
+    app.renderTrainingTacticalManager();
+    const record=diagramId?state.diagrams.find(item=>item.id===diagramId):null;
+    if(record)app.openTrainingTacticalEditor(record);else if(create&&app.trainingTacticalCanWrite())app.openTrainingTacticalEditor(null);
+  }
   catch(error){if(loadToken!==state.loadToken)return;app.$('#trainingTacticalList').innerHTML=`<div class="statsEmpty">${app.escapeHtml(error.message||String(error))}</div>`;app.handleError('training tactical list',error)}
   app.$('#closeTrainingTactical')?.focus();
 };
 
 app.openTrainingTacticalEditor=function openTrainingTacticalEditor(record=null){
   const state=app.trainingTacticalState,frame=app.$('#trainingTacticalFrame');
-  if(!app.trainingTacticalCanWrite())return;
+  if(!record&&!app.trainingTacticalCanWrite())return;
   state.record=record;state.editor=null;
   app.$('#trainingTacticalManager').classList.add('hidden');
   app.$('#trainingTacticalEditor').classList.remove('hidden');
@@ -233,17 +309,38 @@ app.openTrainingTacticalEditor=function openTrainingTacticalEditor(record=null){
       child.document.querySelector('.tacticalHeader')?.classList.add('hidden');
       child.document.querySelector('#newDiagram')?.classList.add('hidden');
       child.document.querySelector('#openDiagrams')?.classList.add('hidden');
-      editor.save=()=>app.saveTrainingTacticalDiagram();
+      editor.setSaveHandler(()=>app.saveTrainingTacticalDiagram());
       child.document.addEventListener('keydown',event=>{
         if(event.key==='Escape'){event.preventDefault();app.leaveTrainingTacticalEditor()}
       },true);
       const document=record?.document||child.KinballTacticalModel.createDocument('Nouveau schéma');
       editor.loadDiagram(document,{clean:!!record,resetHistory:true,stored:false});
       state.editor=editor;
-      app.trainingTacticalStatus(record?'Schéma chargé.':'Nouveau schéma non enregistré.');
+      app.syncTrainingTacticalReadOnly();
+      app.trainingTacticalStatus(app.trainingTacticalCanWrite()?(record?'Schéma chargé.':'Nouveau schéma non enregistré.'):'Lecture seule. Reprends le bail de la séance pour modifier ce schéma.');
     }catch(error){app.trainingTacticalStatus(error.message||String(error),true);app.handleError('training tactical editor',error)}
   };
   frame.src=`tactical-editor.html?embedded=1&v=${token}`;
+};
+
+app.syncTrainingTacticalReadOnly=function syncTrainingTacticalReadOnly(){
+  const state=app.trainingTacticalState,readOnly=!app.trainingTacticalCanWrite();
+  const inlineWritable=!!app.trainingState.currentSessionId
+    &&app.trainingLeaseState.status==='owned'
+    &&app.trainingLeaseState.sessionId===app.trainingState.currentSessionId
+    &&!!app.trainingLeaseState.token;
+  const writabilityChanged=state.inlineWritable!==inlineWritable;state.inlineWritable=inlineWritable;
+  state.editor?.setReadOnly?.(readOnly);
+  const save=app.$('#saveTrainingTactical');if(save)save.disabled=readOnly||state.saving;
+  if(state.editor&&readOnly){
+    const message=state.editor.dirty?'Bail d’édition perdu. Lecture seule : tes modifications non enregistrées restent ouvertes.':'Lecture seule. Reprends le bail de la séance pour modifier ce schéma.';
+    app.trainingTacticalStatus(message,state.editor.dirty);
+  }
+  if(writabilityChanged){
+    if(!app.$('#trainingTacticalPopup')?.classList.contains('hidden')&&app.$('#trainingTacticalEditor')?.classList.contains('hidden'))app.renderTrainingTacticalManager();
+    app.refreshTrainingTacticalInline();
+  }
+  return readOnly;
 };
 
 app.saveTrainingTacticalDiagram=async function saveTrainingTacticalDiagram(){
@@ -257,7 +354,7 @@ app.saveTrainingTacticalDiagram=async function saveTrainingTacticalDiagram(){
   if(!checked.ok){app.trainingTacticalStatus(checked.error,true);return {ok:false,kind:'invalid'}}
   const document=checked.document;document.updatedAt=new Date().toISOString();
   const position=state.record?.position??(state.diagrams.reduce((max,item)=>Math.max(max,Number(item.position)||0),-1)+1);
-  const editor=state.editor,occurrenceId=state.occurrenceId,sessionId=app.trainingState.currentSessionId;
+  const editor=state.editor,editorSnapshot=JSON.stringify(editor.getDiagram()),occurrenceId=state.occurrenceId,sessionId=app.trainingState.currentSessionId;
   const record=state.record?{...state.record}:null,operationToken=++state.saveToken;
   const lease={instanceId:app.trainingLeaseState.instanceId,token:app.trainingLeaseState.token};
   state.saving=true;app.$('#saveTrainingTactical').disabled=true;app.$('#backTrainingTactical').disabled=true;app.$('#returnTrainingTactical').disabled=true;app.$('#closeTrainingTactical').disabled=true;app.trainingTacticalStatus('Enregistrement…');
@@ -279,8 +376,11 @@ app.saveTrainingTacticalDiagram=async function saveTrainingTacticalDiagram(){
     const saved={id:result.diagram_id,document,position,version:result.version,updated_at:result.updated_at};
     const index=state.diagrams.findIndex(item=>item.id===saved.id);
     if(index<0)state.diagrams.push(saved);else state.diagrams[index]=saved;
-    state.record=saved;editor.loadDiagram(document,{clean:true,resetHistory:true,stored:false});
-    app.trainingTacticalStatus('Schéma enregistré.');
+    state.record=saved;app.updateTrainingTacticalOccurrenceCache(occurrenceId,state.diagrams);
+    const unchanged=JSON.stringify(editor.getDiagram())===editorSnapshot;
+    if(app.trainingTacticalCanWrite()&&unchanged){editor.loadDiagram(document,{clean:true,resetHistory:true,stored:false});app.trainingTacticalStatus('Schéma enregistré.')}
+    else if(app.trainingTacticalCanWrite())app.trainingTacticalStatus('Schéma enregistré. Des modifications plus récentes restent à enregistrer.');
+    else{app.syncTrainingTacticalReadOnly();app.trainingTacticalStatus('Réponse reçue après la perte du bail. Le schéma reste ouvert en lecture seule.',true)}
     return {ok:true,record:saved};
   }catch(error){
     const leaseLost=error?.code==='55000'||/Bail d.edition|verrou/i.test(error?.message||'');
@@ -297,7 +397,7 @@ app.leaveTrainingTacticalEditor=function leaveTrainingTacticalEditor(){
   const state=app.trainingTacticalState;
   if(state.saving){app.trainingTacticalStatus('Attends la fin de l’enregistrement avant de fermer.');return false}
   if(state.editor?.dirty&&!confirm('Ce schéma contient des modifications non enregistrées. Les abandonner ?'))return false;
-  if(state.editor?.dirty)state.editor.loadDiagram(state.editor.getDiagram(),{clean:true,resetHistory:true,stored:false});
+  if(state.editor?.dirty)state.editor.discardChanges?.();
   state.editor=null;state.record=null;++state.frameToken;
   const frame=app.$('#trainingTacticalFrame');frame.onload=null;frame.src='about:blank';
   app.$('#trainingTacticalEditor').classList.add('hidden');app.$('#trainingTacticalManager').classList.remove('hidden');

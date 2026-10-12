@@ -141,6 +141,21 @@
 .trainingTacticalItemInfo{min-width:0}.trainingTacticalItemInfo strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .trainingTacticalItemActions{display:flex;justify-content:flex-end;gap:7px;flex-wrap:wrap;max-width:410px}
 .trainingTacticalItemActions button{min-height:42px}
+.trainingTacticalInlineSection{margin:10px 0;padding:10px;border:1px solid var(--line);border-radius:11px;background:var(--panel2)}
+.trainingTacticalInlineSection.compact{margin:9px 0}
+.trainingTacticalInlineHead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.trainingTacticalInlineHead strong{font-size:13px}
+.trainingTacticalInlineGallery{display:flex;gap:8px;overflow-x:auto;padding:1px 1px 6px;scrollbar-width:thin}
+.trainingTacticalInlineCard{flex:0 0 112px;display:flex;flex-direction:column;gap:6px;padding:7px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text);font:inherit;text-align:left;box-shadow:none;cursor:pointer}
+.trainingTacticalInlineCard:hover{border-color:var(--accent)}
+.trainingTacticalInlineCard:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.trainingTacticalInlineCard>span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:700}
+.trainingTacticalInlinePreview{width:96px;aspect-ratio:1;display:grid;place-items:center;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:#f6f8fb;color:var(--muted);font-size:10px}
+.trainingTacticalInlinePreview svg{display:block;width:100%;height:100%}
+.trainingTacticalInlinePreview[data-state="error"]{border-style:dashed}
+.trainingTacticalInlineAdd{margin-top:7px;min-height:40px}
+.trainingTacticalInlineState{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0}
+.trainingPlanMetaTag.tacticalCount{font-weight:700;color:var(--text)}
 #trainingTacticalEditor{min-height:0;flex:1;display:flex;flex-direction:column;gap:8px}
 #trainingTacticalEditor.hidden{display:none}
 .trainingTacticalFrame{width:100%;min-height:0;flex:1;border:1px solid var(--line);border-radius:12px;background:#f6f8fb}
@@ -154,6 +169,8 @@
   .trainingTacticalItem{grid-template-columns:96px minmax(0,1fr)}
   .trainingTacticalPreview{width:96px;grid-row:1}
   .trainingTacticalItemActions{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;max-width:none}
+  .trainingTacticalInlineCard{flex-basis:104px}
+  .trainingTacticalInlinePreview{width:88px}
   .trainingTacticalFooter>.row{display:grid;grid-template-columns:1fr 1fr;width:100%}
   #saveTrainingTactical{grid-column:1/-1}
 }
