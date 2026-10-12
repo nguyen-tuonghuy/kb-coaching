@@ -134,17 +134,26 @@
 .trainingTacticalTop{flex:0 0 auto}
 .trainingTacticalManagerBar,.trainingTacticalFooter{justify-content:space-between;align-items:center;gap:10px}
 .trainingTacticalList{display:flex;flex-direction:column;gap:8px;margin-top:12px;overflow:auto}
-.trainingTacticalItem{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px;border:1px solid var(--line);border-radius:12px;background:var(--panel2)}
+.trainingTacticalItem{display:grid;grid-template-columns:160px minmax(150px,1fr) auto;align-items:center;gap:12px;padding:11px;border:1px solid var(--line);border-radius:12px;background:var(--panel2)}
+.trainingTacticalPreview{width:160px;aspect-ratio:1;border:1px solid var(--line);border-radius:10px;display:grid;place-items:center;overflow:hidden;background:#f6f8fb;color:var(--muted);font-size:12px}
+.trainingTacticalPreview svg{display:block;width:100%;height:100%}
+.trainingTacticalPreview[data-state="error"]{border-style:dashed}
 .trainingTacticalItemInfo{min-width:0}.trainingTacticalItemInfo strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trainingTacticalItemActions{display:flex;justify-content:flex-end;gap:7px;flex-wrap:wrap;max-width:410px}
+.trainingTacticalItemActions button{min-height:42px}
 #trainingTacticalEditor{min-height:0;flex:1;display:flex;flex-direction:column;gap:8px}
 #trainingTacticalEditor.hidden{display:none}
 .trainingTacticalFrame{width:100%;min-height:0;flex:1;border:1px solid var(--line);border-radius:12px;background:#f6f8fb}
 .trainingTacticalFooter{display:flex;flex:0 0 auto}
 .trainingTacticalFooter [data-state="error"]{color:var(--danger);font-weight:700}
+#trainingTacticalManagerStatus[data-state="error"]{color:var(--danger);font-weight:700}
 
 @media(max-width:700px){
   .trainingTacticalSheet{width:calc(100vw - 12px);height:calc(100dvh - 12px);padding:10px}
-  .trainingTacticalManagerBar,.trainingTacticalFooter,.trainingTacticalItem{align-items:stretch;flex-direction:column}
+  .trainingTacticalManagerBar,.trainingTacticalFooter{align-items:stretch;flex-direction:column}
+  .trainingTacticalItem{grid-template-columns:96px minmax(0,1fr)}
+  .trainingTacticalPreview{width:96px;grid-row:1}
+  .trainingTacticalItemActions{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;max-width:none}
   .trainingTacticalFooter>.row{display:grid;grid-template-columns:1fr 1fr;width:100%}
   #saveTrainingTactical{grid-column:1/-1}
 }

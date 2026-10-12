@@ -137,6 +137,14 @@ function store({writable=false}={}){
         tables.training_tactical_diagrams.push(row);
         return {data:[{status:'saved',diagram_id:row.id,version:row.version,updated_at:row.updated_at,remote_version:null}],error:null};
       }
+      if(name==='delete_training_tactical_diagram'){
+        const validLease=tables.training_session_leases.some(lease=>lease.session_id===req.p_session_id&&lease.user_id==='u1'&&lease.instance_id===req.p_editor_instance_id&&lease.lease_token===req.p_lease_token);
+        if(!validLease)return {data:null,error:{code:'55000',message:'Bail d édition absent'}};
+        const index=tables.training_tactical_diagrams.findIndex(item=>item.id===req.p_diagram_id&&item.session_id===req.p_session_id);
+        if(index<0)return {data:null,error:{message:'Schéma tactique introuvable'}};
+        if(req.p_expected_version!==tables.training_tactical_diagrams[index].version)return {data:null,error:{code:'40001',message:'Conflit de version du schéma tactique'}};
+        tables.training_tactical_diagrams.splice(index,1);return {data:true,error:null};
+      }
       if(name!=='save_training_session_with_occurrences')throw new Error('Unexpected rpc '+name);
       if(!req.p_group_id)return {data:null,error:{message:'Groupe requis'}};
       if(!req.p_team_id)return {data:null,error:{message:'Équipe requise'}};
@@ -271,6 +279,11 @@ async function runAutosave(ui){
   const timers=[...ui.page.timers.entries()].filter(([,timer])=>timer.kind==='timeout'&&timer.delay===750);
   for(const [id,timer] of timers){ui.page.timers.delete(id);timer.callback()}
   await settle();
+}
+
+function runTacticalThumbnailRenders(ui){
+  const timers=[...ui.page.timers.entries()].filter(([,timer])=>timer.kind==='timeout'&&timer.delay===0);
+  for(const [id,timer] of timers){ui.page.timers.delete(id);timer.callback()}
 }
 
 function serializedDraft(app){
@@ -1876,6 +1889,78 @@ test('G2.2: plan blocks and statistical exercises expose the same occurrence act
   ui.page.w.document.querySelector(`[data-plan-id="${draft.id}"] [data-draft-tactical]`).click();
   ui.page.w.document.querySelector('[data-exercise-card] [data-tactical]').click();
   assert.deepEqual(calls.map(call=>call.occurrenceId),[plan.id,draft.id,app.trainingState.sessionExercises[0].occurrenceId]);
+});
+
+test('G2.3: renders lightweight thumbnails and opens the diagram selected from its preview card',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  const occurrenceId='11111111-1111-4111-8111-111111111111';
+  const first=TacticalModel.createDocument('Placement');first.objects.push(TacticalModel.createObject('player',{x:250,y:300}));
+  attachTacticalEditor(ui,app,occurrenceId,first);assert.equal((await app.saveTrainingTacticalDiagram()).ok,true);
+  const second=TacticalModel.createDocument('Trajectoire');second.objects.push(TacticalModel.createObject('ball',{x:700,y:650}));
+  app.trainingTacticalState.record=null;attachTacticalEditor(ui,app,occurrenceId,second);assert.equal((await app.saveTrainingTacticalDiagram()).ok,true);
+  app.renderTrainingTacticalManager();runTacticalThumbnailRenders(ui);
+
+  const previews=[...app.$('#trainingTacticalList').querySelectorAll('[data-training-tactical-preview]')];
+  assert.equal(previews.length,2);assert.ok(previews.every(preview=>preview.dataset.state==='ready'&&preview.querySelector('svg')));
+  let opened=null;app.openTrainingTacticalEditor=record=>{opened=record};
+  app.$(`[data-training-tactical-open="${app.trainingTacticalState.diagrams[1].id}"]`).click();
+  assert.equal(opened.document.title,'Trajectoire');
+
+  app.trainingTacticalState.diagrams.push({id:'broken',document:{title:'Invalide'},position:2,version:1});
+  app.renderTrainingTacticalManager();runTacticalThumbnailRenders(ui);
+  assert.equal(app.$('[data-training-tactical-preview="broken"]').dataset.state,'error');
+  assert.equal(app.$('[data-training-tactical-preview="broken"]').textContent,'Aperçu indisponible');
+});
+
+test('G2.3: renames, duplicates independently and deletes only after server confirmation',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  const occurrenceId='11111111-1111-4111-8111-111111111111';
+  const document=TacticalModel.createDocument('Original');document.objects.push(TacticalModel.createObject('zone'));
+  attachTacticalEditor(ui,app,occurrenceId,document);const created=await app.saveTrainingTacticalDiagram();assert.equal(created.ok,true);
+  const originalId=created.record.id,originalDocumentId=created.record.document.id;
+
+  ui.page.w.prompt=()=> 'Nouveau titre';
+  const renamed=await app.renameTrainingTacticalDiagram(originalId);
+  assert.equal(renamed.ok,true);assert.equal(renamed.record.id,originalId);assert.equal(renamed.record.document.title,'Nouveau titre');
+
+  const duplicated=await app.duplicateTrainingTacticalDiagram(originalId);
+  assert.equal(duplicated.ok,true);assert.notEqual(duplicated.record.id,originalId);assert.notEqual(duplicated.record.document.id,originalDocumentId);
+  assert.deepEqual(duplicated.record.document.objects,renamed.record.document.objects);
+  duplicated.record.document.objects[0].x+=100;
+  assert.notEqual(duplicated.record.document.objects[0].x,renamed.record.document.objects[0].x,'the copy does not share its JSON object graph');
+
+  ui.page.w.confirm=()=>false;
+  assert.equal((await app.deleteTrainingTacticalDiagram(duplicated.record.id)).kind,'cancelled');
+  assert.equal(ui.tablesRef.training_tactical_diagrams.length,2);
+  ui.page.w.confirm=()=>true;
+  assert.equal((await app.deleteTrainingTacticalDiagram(duplicated.record.id)).ok,true);
+  assert.equal(app.trainingTacticalState.diagrams.map(item=>item.id).join(','),originalId);
+  assert.equal(ui.tablesRef.training_tactical_diagrams.map(item=>item.id).join(','),originalId);
+});
+
+test('G2.3: network, version and lease failures preserve tactical records',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  const occurrenceId='11111111-1111-4111-8111-111111111111';
+  attachTacticalEditor(ui,app,occurrenceId,TacticalModel.createDocument('À préserver'));
+  const created=await app.saveTrainingTacticalDiagram();assert.equal(created.ok,true);
+  const original=JSON.stringify(app.trainingTacticalState.diagrams);
+  ui.page.w.confirm=()=>true;
+
+  ui.tablesRef.training_tactical_diagrams[0].version=7;
+  const conflict=await app.deleteTrainingTacticalDiagram(created.record.id);
+  assert.equal(conflict.kind,'conflict');assert.equal(JSON.stringify(app.trainingTacticalState.diagrams),original);
+
+  ui.tablesRef.training_tactical_diagrams[0].version=created.record.version;
+  const real=app.db.rpc;app.db.rpc=async(name,params)=>name==='delete_training_tactical_diagram'?{data:null,error:{message:'réseau indisponible'}}:real(name,params);
+  const network=await app.deleteTrainingTacticalDiagram(created.record.id);
+  assert.equal(network.kind,'network');assert.equal(JSON.stringify(app.trainingTacticalState.diagrams),original);
+
+  app.db.rpc=real;ui.tablesRef.training_session_leases=[];
+  const lease=await app.deleteTrainingTacticalDiagram(created.record.id);
+  assert.equal(lease.kind,'lease');assert.equal(app.trainingTacticalState.diagrams.length,1);assert.equal(app.trainingLeaseState.status,'lost');
 });
 
 test('exercise deletion archives when has_history is missing',async t=>{
