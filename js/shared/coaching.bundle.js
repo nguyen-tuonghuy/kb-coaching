@@ -52,6 +52,7 @@
    </div>
 
    <div class="authStatus" id="authStatus"></div>
+   <p class="small"><a href="privacy.html">Politique de confidentialité</a></p>
  </section>`,
   "adminHome": `<section class="panel hidden" id="adminHome">
    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:12px">
