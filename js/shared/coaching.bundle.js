@@ -3016,11 +3016,11 @@ app.loadPlayerFollowUpReview = async function loadPlayerFollowUpReview(){
       const videos=data||[];
       const unread=app.videoNotificationCountFor(groupId,playerId);
       const pending=videos.filter(v=>v.status!=='reviewed');
-      const lastReviewed=videos.find(v=>v.status==='reviewed'&&v.review_text);
-      if(unread)items.push({kind:'Vidéo',text:`${unread} vidéo${unread>1?'s':''} en attente d’analyse du staff.`,href:videoHref,action:'Voir mes vidéos'});
-      if(lastReviewed)items.push({kind:'Retour staff',text:lastReviewed.review_text,href:videoHref,action:'Ouvrir la vidéo'});
-      if(pending.length&&!unread)items.push({kind:'Vidéo',text:`${pending.length} vidéo${pending.length>1?'s':''} sans retour du staff.`,href:videoHref,action:'Voir mes vidéos'});
-      if(!items.length)items.push({kind:'Suivi',text:'Aucun retour vidéo récent. Les analyses du staff apparaîtront ici.',href:videoHref,action:'Ouvrir mes vidéos'});
+      const lastReviewed=videos.find(v=>v.status==='reviewed');
+      if(unread)items.push({kind:'Vidéo',text:`${unread} nouvelle${unread>1?'s':''} vidéo${unread>1?'s':''} à consulter par le staff.`,href:videoHref,action:'Voir mes vidéos'});
+      if(lastReviewed)items.push({kind:'Analyse partagée',text:lastReviewed.review_text||'Une analyse vidéo a été partagée par le staff.',href:videoHref,action:'Ouvrir la vidéo'});
+      if(pending.length&&!unread)items.push({kind:'Vidéo',text:`${pending.length} analyse${pending.length>1?'s':''} vidéo non partagée${pending.length>1?'s':''}.`,href:videoHref,action:'Voir mes vidéos'});
+      if(!items.length)items.push({kind:'Suivi',text:'Aucune analyse vidéo partagée récemment.',href:videoHref,action:'Ouvrir mes vidéos'});
     }catch(e){
       items=[{kind:'Vidéo',text:'Revue vidéo momentanément indisponible.',href:videoHref,action:'Ouvrir mes vidéos'}];
       app.handleError('player follow-up review',e);

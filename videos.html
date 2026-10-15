@@ -95,6 +95,26 @@
           <div class="small">Le repère utilise le timestamp courant.</div>
         </div>
 
+        <section class="analysisSharing hidden" id="analysisSharing" aria-labelledby="analysisSharingTitle">
+          <div class="analysisSharingHead">
+            <div>
+              <strong id="analysisSharingTitle">Analyse non partagée</strong>
+              <div class="small" id="analysisSharingDescription"></div>
+            </div>
+            <span class="badge" id="analysisSharingBadge"></span>
+          </div>
+          <div class="analysisSharingCount" id="analysisSharingCount"></div>
+          <div class="field">
+            <label for="analysisReviewText">Commentaire global (facultatif si un repère est enregistré)</label>
+            <textarea id="analysisReviewText" maxlength="5000" placeholder="Retour global d’analyse…"></textarea>
+          </div>
+          <div class="analysisSharingActions">
+            <button class="primary" id="shareAnalysisBtn" type="button"></button>
+            <button class="ghost hidden" id="updateAnalysisBtn" type="button">Mettre à jour le retour</button>
+            <span class="small" id="analysisSharingMessage" role="status" aria-live="polite"></span>
+          </div>
+        </section>
+
         <div class="composer hidden" id="composer">
           <div class="tools">
             <label class="small" for="drawTool">Outil</label>
@@ -112,13 +132,25 @@
         </div>
 
         <div class="readonly hidden" id="readonly"></div>
-        <div class="readonly hidden" id="playerAnnotationInfo">Les outils de dessin et de commentaire horodaté sont réservés aux entraîneurs. Les repères validés apparaissent ici une fois la vidéo analysée.</div>
+        <div class="readonly hidden" id="playerAnnotationInfo">Les outils de dessin et de commentaire horodaté sont réservés aux entraîneurs. Les repères sont accessibles lorsque l’entraîneur a partagé son analyse.</div>
         <div class="noteList" id="noteList"><div class="small">Sélectionne une vidéo.</div></div>
       </div>
     </section>
 
     <section class="videoList" id="videoList"><div class="small">Chargement…</div></section>
   </main>
+</div>
+
+<div class="analysisDialogBackdrop hidden" id="analysisDialogBackdrop" aria-hidden="true">
+  <section class="analysisDialog" role="dialog" aria-modal="true" aria-labelledby="analysisDialogTitle" aria-describedby="analysisDialogText">
+    <h2 id="analysisDialogTitle"></h2>
+    <p id="analysisDialogText"></p>
+    <div class="analysisDialogActions">
+      <button class="primary" id="analysisDialogPrimary" type="button"></button>
+      <button class="ghost hidden" id="analysisDialogSecondary" type="button"></button>
+      <button class="ghost" id="analysisDialogCancel" type="button">Annuler</button>
+    </div>
+  </section>
 </div>
 
 
@@ -185,7 +217,8 @@ const state={
   user:null,session:null,groupId:null,playerId:null,playerName:'',groupName:'',
   isCoach:false,config:null,videos:[],currentVideoId:null,notes:[],
   shapes:[],activeShape:null,annotationMode:false,editingNoteId:null,
-  streamMode:'',proxyStreamUrl:'',from:'',source:'index'
+  streamMode:'',proxyStreamUrl:'',from:'',source:'index',reviewDrafts:{},
+  analysisActionPromise:null,dialogResolve:null,dialogLastFocus:null,videoLoadToken:0
 };
 
 function setStatus(text,cls=''){const el=$('#status');el.textContent=text||'';el.className='small '+cls}
@@ -197,10 +230,13 @@ function setCloud(text,ok=true){
 }
 function errorText(e){return e?.message||String(e)||'Erreur'}
 function formatDate(v){try{return new Date(v).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'})}catch{return String(v||'')}}
-function statusLabel(v){return v.status==='reviewed'?'Analysée':v.status==='seen'?'Vue par le staff':'Nouvelle'}
+function statusLabel(v){return v.status==='reviewed'?'Analyse partagée':v.status==='seen'?'Consultée par le staff':'Nouvelle'}
 function formatTime(s){const n=Number(s);if(!Number.isFinite(n)||n<0)return'00:00.000';const m=Math.floor(n/60),sec=n-m*60;return`${String(m).padStart(2,'0')}:${sec.toFixed(3).padStart(6,'0')}`}
 function driveUrl(id){return`https://drive.google.com/file/d/${encodeURIComponent(id)}/view`}
 function currentVideo(){return state.videos.find(v=>v.id===state.currentVideoId)||null}
+function playerFirstName(){return (state.playerName||'le joueur').trim().split(/\s+/)[0]||'le joueur'}
+function savedNoteCount(){return state.notes.length}
+function hasUnsharedSavedAnalysis(){return !!(state.isCoach&&currentVideo()?.status!=='reviewed'&&savedNoteCount())}
 
 async function init(){
   if(!window.supabase)throw new Error('Supabase indisponible.');
@@ -294,11 +330,8 @@ function renderVideos(){
     const msg=v.player_comment?`<div class="small"><strong>Message joueur :</strong> ${escapeHtml(v.player_comment)}</div>`:'';
     const review=!state.isCoach && v.status==='reviewed' && v.review_text?`<div class="review"><div class="small">Retour du staff</div><div style="white-space:pre-wrap">${escapeHtml(v.review_text)}</div></div>`:'';
     const coachReview=state.isCoach?`<div class="review">
-      <textarea data-review="${escapeHtml(v.id)}" maxlength="5000" placeholder="Retour global d’analyse…">${escapeHtml(v.review_text||'')}</textarea>
-      <div class="actions">
-        <button class="primary" data-reviewed="${escapeHtml(v.id)}">${v.status==='reviewed'?'Mettre à jour le retour':'Marquer comme analysée'}</button>
-        ${!v.seen_by_me?`<button class="ghost" data-seen="${escapeHtml(v.id)}">Marquer vue</button>`:''}
-      </div>
+      <div class="small"><strong>${v.status==='reviewed'?'Analyse partagée avec le joueur':'Analyse non partagée'}</strong>${v.review_text?' · Commentaire global enregistré':''}</div>
+      ${!v.seen_by_me?`<div class="actions"><button class="ghost" data-seen="${escapeHtml(v.id)}">Marquer comme consultée</button></div>`:''}
     </div>`:'';
     return`<article class="card">
       <div class="cardHead">
@@ -310,9 +343,8 @@ function renderVideos(){
       ${coachReview}${review}
     </article>`;
   }).join('');
-  box.querySelectorAll('[data-play]').forEach(b=>b.onclick=()=>openVideo(b.dataset.play));
+  box.querySelectorAll('[data-play]').forEach(b=>b.onclick=()=>requestOpenVideo(b.dataset.play));
   box.querySelectorAll('[data-seen]').forEach(b=>b.onclick=()=>markSeen(b.dataset.seen));
-  box.querySelectorAll('[data-reviewed]').forEach(b=>b.onclick=()=>reviewVideo(b.dataset.reviewed));
 }
 
 async function syncDrive(){
@@ -355,13 +387,133 @@ async function uploadVideo(){
 async function markSeen(videoId){
   const {error}=await db.rpc('mark_player_video_seen',{p_group_id:state.groupId,p_video_id:videoId});if(error)throw error;await loadVideos()
 }
-async function reviewVideo(videoId){
-  const ta=document.querySelector(`[data-review="${CSS.escape(videoId)}"]`),text=(ta?.value||'').trim();
-  if(!text){alert('Écris le retour avant de marquer la vidéo comme analysée.');return}
-  setStatus('Enregistrement du retour…');
-  const {error}=await db.rpc('review_player_video',{p_group_id:state.groupId,p_video_id:videoId,p_review_text:text});if(error)throw error;
-  setStatus('Vidéo marquée comme analysée.','ok');await loadVideos();
-  if(state.currentVideoId===videoId)await loadNotes(videoId);
+function reviewDraft(video){
+  if(!video)return'';
+  if(!Object.hasOwn(state.reviewDrafts,video.id))state.reviewDrafts[video.id]=video.review_text||'';
+  return state.reviewDrafts[video.id];
+}
+function setAnalysisMessage(text,kind=''){
+  const message=$('#analysisSharingMessage');
+  message.textContent=text||'';
+  message.className='small'+(kind?` ${kind}`:'');
+}
+function renderAnalysisSharing(message=null,kind=''){
+  const panel=$('#analysisSharing'),video=currentVideo();
+  panel.classList.toggle('hidden',!state.isCoach||!video);
+  if(!state.isCoach||!video)return;
+  const shared=video.status==='reviewed',count=savedNoteCount(),firstName=playerFirstName();
+  $('#analysisSharingTitle').textContent=shared?'Analyse partagée':'Analyse non partagée';
+  $('#analysisSharingDescription').textContent=shared
+    ?`Les repères enregistrés sont visibles par ${firstName}.`
+    :'Les annotations sont enregistrées, mais le joueur ne peut pas encore les consulter.';
+  $('#analysisSharingBadge').textContent=shared?'Partagée':'Brouillon';
+  $('#analysisSharingBadge').className=`badge ${shared?'reviewed':'seen'}`;
+  const visibility=shared?'visibles':'non visibles';
+  $('#analysisSharingCount').textContent=count
+    ?`${count} repère${count>1?'s':''} enregistré${count>1?'s':''} — ${visibility} par le joueur.`
+    :shared?'Aucun repère enregistré. Le commentaire global reste partagé.':'Aucun repère enregistré pour le moment.';
+  const textarea=$('#analysisReviewText'),draft=reviewDraft(video);
+  if(textarea.value!==draft)textarea.value=draft;
+  $('#shareAnalysisBtn').textContent=`Partager l’analyse avec ${firstName}`;
+  $('#shareAnalysisBtn').classList.toggle('hidden',shared);
+  $('#updateAnalysisBtn').classList.toggle('hidden',!shared);
+  const pending=!!state.analysisActionPromise;
+  $('#shareAnalysisBtn').disabled=pending;
+  $('#updateAnalysisBtn').disabled=pending;
+  textarea.disabled=pending;
+  if(message!==null)setAnalysisMessage(message,kind);
+}
+
+function closeAnalysisDialog(result='cancel'){
+  const backdrop=$('#analysisDialogBackdrop');
+  if(backdrop.classList.contains('hidden'))return;
+  backdrop.classList.add('hidden');
+  backdrop.setAttribute('aria-hidden','true');
+  const resolve=state.dialogResolve,lastFocus=state.dialogLastFocus;
+  state.dialogResolve=null;state.dialogLastFocus=null;
+  resolve?.(result);
+  lastFocus?.focus?.();
+}
+function showAnalysisDialog({title,text,primary,secondary=''}){
+  if(state.dialogResolve)return Promise.resolve('cancel');
+  state.dialogLastFocus=document.activeElement;
+  $('#analysisDialogTitle').textContent=title;
+  $('#analysisDialogText').textContent=text;
+  $('#analysisDialogPrimary').textContent=primary;
+  $('#analysisDialogSecondary').textContent=secondary;
+  $('#analysisDialogSecondary').classList.toggle('hidden',!secondary);
+  const backdrop=$('#analysisDialogBackdrop');
+  backdrop.classList.remove('hidden');backdrop.setAttribute('aria-hidden','false');
+  requestAnimationFrame(()=>$('#analysisDialogPrimary').focus());
+  return new Promise(resolve=>{state.dialogResolve=resolve});
+}
+
+async function saveAnalysisReview(videoId,{publish=false,confirmPublish=true}={}){
+  if(state.analysisActionPromise)return state.analysisActionPromise;
+  state.analysisActionPromise=(async()=>{
+    const video=state.videos.find(item=>item.id===videoId);
+    if(!state.isCoach||!video)return false;
+    const text=($('#analysisReviewText').value||'').trim();
+    state.reviewDrafts[videoId]=text;
+    if(publish&&!savedNoteCount()&&!text){
+      setAnalysisMessage('Ajoutez au moins un repère ou un commentaire global avant de partager.','error');
+      return false;
+    }
+    if(publish&&confirmPublish){
+      const firstName=playerFirstName();
+      const decision=await showAnalysisDialog({
+        title:'Partager cette analyse ?',
+        text:`Partager cette analyse avec ${firstName} ? Il pourra consulter les annotations et le commentaire global associés à cette vidéo.`,
+        primary:'Partager l’analyse'
+      });
+      if(decision!=='primary')return false;
+    }
+    renderAnalysisSharing(publish?'Partage en cours…':'Mise à jour en cours…');
+    const {error}=await db.rpc('review_player_video',{p_group_id:state.groupId,p_video_id:videoId,p_review_text:text||null});
+    if(error)throw error;
+    video.status='reviewed';video.review_text=text||null;
+    state.reviewDrafts[videoId]=text;
+    renderVideos();
+    renderAnalysisSharing(publish?`Analyse partagée avec ${playerFirstName()}.`:'Retour mis à jour.','ok');
+    try{await loadVideos()}catch(refreshError){console.warn('[video analysis] refresh failed',refreshError)}
+    const refreshedVideo=state.videos.find(item=>item.id===videoId);
+    if(!text&&refreshedVideo)state.reviewDrafts[videoId]=refreshedVideo.review_text||'';
+    const updateMessage=!publish&&!text&&refreshedVideo?.review_text?'Commentaire existant conservé.':'Retour mis à jour.';
+    renderAnalysisSharing(publish?`Analyse partagée avec ${playerFirstName()}.`:updateMessage,'ok');
+    return true;
+  })().catch(error=>{
+    setAnalysisMessage(`${publish?'Partage':'Mise à jour'} impossible : ${errorText(error)}`,'error');
+    return false;
+  }).finally(()=>{
+    state.analysisActionPromise=null;
+    renderAnalysisSharing();
+  });
+  renderAnalysisSharing();
+  return state.analysisActionPromise;
+}
+
+async function guardAnalysisExit(action){
+  if(state.analysisActionPromise){
+    setAnalysisMessage('Publication en cours, veuillez patienter…');
+    const completed=await state.analysisActionPromise;
+    if(completed){action();return true}
+    return false;
+  }
+  if(!hasUnsharedSavedAnalysis()){action();return true}
+  const firstName=playerFirstName();
+  const decision=await showAnalysisDialog({
+    title:'Analyse non partagée',
+    text:`Cette analyse n'a pas encore été partagée avec ${firstName}. Les annotations sont bien enregistrées et resteront disponibles pour une publication ultérieure.`,
+    primary:'Partager maintenant',
+    secondary:'Quitter sans partager'
+  });
+  if(decision==='primary'){
+    const shared=await saveAnalysisReview(state.currentVideoId,{publish:true,confirmPublish:false});
+    if(shared){action();return true}
+    return false;
+  }
+  if(decision==='secondary'){action();return true}
+  return false;
 }
 
 /* Lecteur avancé */
@@ -372,30 +524,32 @@ function setRate(r){$('#video').playbackRate=RATES.includes(r)?r:1;updateRate()}
 function step(frames){const v=$('#video');if(!Number.isFinite(v.duration))return;v.pause();v.currentTime=Math.max(0,Math.min(v.duration,v.currentTime+frames*FRAME));updateTime()}
 function togglePlay(){const v=$('#video');v.paused?v.play().catch(()=>{}):v.pause()}
 
-async function getWorkerStreamUrl(){
-  if(state.proxyStreamUrl)return state.proxyStreamUrl;
-  if(!state.currentVideoId)throw new Error('Vidéo non sélectionnée.');
+async function getWorkerStreamUrl(videoId=state.currentVideoId){
+  if(videoId===state.currentVideoId&&state.proxyStreamUrl)return state.proxyStreamUrl;
+  if(!videoId)throw new Error('Vidéo non sélectionnée.');
 
   const {data,error}=await db.functions.invoke('player-drive',{body:{
     action:'get_stream_url',
     group_id:state.groupId,
-    video_id:state.currentVideoId
+    video_id:videoId
   }});
   if(error)throw error;
   if(data?.error)throw new Error(data.error);
   if(!data?.stream_url)throw new Error('Lien vidéo sécurisé absent.');
 
-  state.proxyStreamUrl=data.stream_url;
-  return state.proxyStreamUrl;
+  if(videoId===state.currentVideoId)state.proxyStreamUrl=data.stream_url;
+  return data.stream_url;
 }
 
 async function openVideo(videoId){
   const item=state.videos.find(v=>v.id===videoId);if(!item)return;
+  const loadToken=++state.videoLoadToken;
 
   state.currentVideoId=videoId;
   state.shapes=[];
   state.proxyStreamUrl='';
   state.streamMode='worker';
+  reviewDraft(item);
   setAnnotationMode(false);
   drawOverlay();
 
@@ -405,7 +559,8 @@ async function openVideo(videoId){
   setStatus('Préparation du lecteur…');
 
   try{
-    const streamUrl=await getWorkerStreamUrl();
+    const streamUrl=await getWorkerStreamUrl(videoId);
+    if(loadToken!==state.videoLoadToken||state.currentVideoId!==videoId)return;
     const v=$('#video');
     v.pause();
     v.crossOrigin='anonymous';
@@ -415,19 +570,33 @@ async function openVideo(videoId){
     updateRate();
 
     if(state.isCoach&&!item.seen_by_me){
-      await db.rpc('mark_player_video_seen',{p_group_id:state.groupId,p_video_id:videoId});
+      const {error}=await db.rpc('mark_player_video_seen',{p_group_id:state.groupId,p_video_id:videoId});
+      if(error)console.warn('[video analysis] seen marker failed',error);
+      else{
+        item.seen_by_me=true;
+        if(item.status!=='reviewed')item.status='seen';
+        renderVideos();
+      }
     }
 
-    await loadNotes(videoId);
+    if(loadToken!==state.videoLoadToken||state.currentVideoId!==videoId)return;
+    await loadNotes(videoId,loadToken);
+    if(loadToken!==state.videoLoadToken||state.currentVideoId!==videoId)return;
     setStatus('');
   }catch(e){
+    if(loadToken!==state.videoLoadToken||state.currentVideoId!==videoId)return;
     setStatus(errorText(e),'error');
     console.error(e);
   }
 }
+function requestOpenVideo(videoId){
+  if(state.currentVideoId&&state.currentVideoId!==videoId)return guardAnalysisExit(()=>openVideo(videoId));
+  return openVideo(videoId);
+}
 
 function closeVideo(){
   const v=$('#video');
+  state.videoLoadToken+=1;
   setAnnotationMode(false);
   resetDraft();
   v.pause();
@@ -442,6 +611,7 @@ function closeVideo(){
   state.proxyStreamUrl='';
 
   $('#playerBox').classList.add('hidden');
+  $('#analysisSharing').classList.add('hidden');
 }
 
 /* Annotations */
@@ -509,7 +679,8 @@ function captureComposite(){
   const c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d');ctx.drawImage(v,0,0,w,h);drawShapesOnCanvas(ctx,state.shapes,w,h);return c.toDataURL('image/jpeg',.82)
 }
 
-async function loadNotes(videoId){
+async function loadNotes(videoId,loadToken=null){
+  if(videoId!==state.currentVideoId)return;
   state.shapes=[];drawOverlay();resetDraft();
   const item=state.videos.find(v=>v.id===videoId),list=$('#noteList');
   $('#composer').classList.add('hidden');
@@ -518,13 +689,15 @@ async function loadNotes(videoId){
   $('#playerAnnotationInfo').classList.toggle('hidden',state.isCoach);
   $('#readonly').classList.toggle('hidden',state.isCoach||item?.status==='reviewed');
   if(!state.isCoach&&item?.status!=='reviewed'){
-    $('#readonly').textContent="L’analyse détaillée sera visible lorsque la vidéo sera marquée comme analysée.";
-    list.innerHTML='<div class="small">Les repères seront visibles lorsque la vidéo sera marquée comme analysée.</div>';
+    $('#readonly').textContent="Les annotations seront accessibles lorsque l’entraîneur aura partagé son analyse.";
+    list.innerHTML='<div class="small">Les annotations seront accessibles lorsque l’entraîneur aura partagé son analyse.</div>';
     return
   }
-  $('#readonly').textContent="L’analyse détaillée sera visible lorsque la vidéo sera marquée comme analysée.";
+  $('#readonly').textContent="Les annotations seront accessibles lorsque l’entraîneur aura partagé son analyse.";
   list.innerHTML='<div class="small">Chargement des repères…</div>';
-  const {data,error}=await db.rpc('get_player_video_notes',{p_group_id:state.groupId,p_video_id:videoId});if(error)throw error;state.notes=data||[];renderNotes()
+  const {data,error}=await db.rpc('get_player_video_notes',{p_group_id:state.groupId,p_video_id:videoId});if(error)throw error;
+  if(videoId!==state.currentVideoId||(loadToken!==null&&loadToken!==state.videoLoadToken))return;
+  state.notes=data||[];renderNotes();renderAnalysisSharing()
 }
 function renderNotes(){
   const list=$('#noteList');if(!state.notes.length){list.innerHTML='<div class="small">Aucun repère enregistré pour cette vidéo.</div>';return}
@@ -614,12 +787,22 @@ async function saveNote(){
     clearDrawing();
     requestAnimationFrame(()=>clearDrawing());
     await loadNotes(state.currentVideoId);
+    if(currentVideo()?.status==='reviewed')setAnalysisMessage(`Repère ${editingId?'modifié':'ajouté'} et visible par ${playerFirstName()}.`,'ok');
   }catch(e){st.textContent=errorText(e);console.error(e)}
 }
 
 /* Events */
-$('#globalHomeLink').onclick=e=>{e.preventDefault();returnFromVideoToHome()};
+document.addEventListener('click',e=>{
+  const link=e.target.closest?.('a[href]');
+  if(!link||link.target==='_blank'||link.getAttribute('href')?.startsWith('#')||!hasUnsharedSavedAnalysis())return;
+  const target=new URL(link.href,location.href);
+  if(target.origin!==location.origin)return;
+  e.preventDefault();e.stopImmediatePropagation();
+  guardAnalysisExit(()=>{location.href=target.href});
+},true);
+$('#globalHomeLink').onclick=e=>{if(e.defaultPrevented)return;e.preventDefault();guardAnalysisExit(returnFromVideoToHome)};
 $('#videosBackLink').onclick=e=>{
+  if(e.defaultPrevented)return;
   if(state.isCoach){
     try{
       const ref=document.referrer?new URL(document.referrer):null;
@@ -635,10 +818,14 @@ $('#videosBackLink').onclick=e=>{
   e.preventDefault();
   returnFromVideoToHome();
 };
-$('#logout').onclick=async()=>{if(!confirm('Voulez-vous vraiment vous déconnecter ?'))return;await db.auth.signOut();location.href='index.html'};
+$('#logout').onclick=()=>{
+  const signOut=async()=>{await db.auth.signOut();location.href='index.html'};
+  if(hasUnsharedSavedAnalysis()){guardAnalysisExit(signOut);return}
+  if(confirm('Voulez-vous vraiment vous déconnecter ?'))signOut();
+};
 $('#syncBtn').onclick=()=>syncDrive().catch(e=>setStatus(errorText(e),'error'));
 $('#uploadBtn').onclick=uploadVideo;
-$('#closePlayer').onclick=closeVideo;$('#prevFrame').onclick=()=>step(-1);$('#nextFrame').onclick=()=>step(1);$('#playPause').onclick=togglePlay;
+$('#closePlayer').onclick=()=>guardAnalysisExit(closeVideo);$('#prevFrame').onclick=()=>step(-1);$('#nextFrame').onclick=()=>step(1);$('#playPause').onclick=togglePlay;
 $$('[data-rate]').forEach(b=>b.onclick=()=>setRate(Number(b.dataset.rate)));
 $('#video').addEventListener('timeupdate',updateTime);$('#video').addEventListener('loadedmetadata',()=>{updateTime();syncCanvas()});$('#video').addEventListener('loadeddata',syncCanvas);$('#video').addEventListener('seeked',syncCanvas);$('#video').addEventListener('ratechange',updateRate);
 $('#overlay').addEventListener('pointerdown',pointerDown,{passive:false});$('#overlay').addEventListener('pointermove',pointerMove,{passive:false});$('#overlay').addEventListener('pointerup',pointerUp,{passive:false});$('#overlay').addEventListener('pointercancel',pointerUp,{passive:false});$('#overlay').addEventListener('pointerleave',pointerUp,{passive:false});
@@ -646,8 +833,24 @@ $('#annotationModeBtn').onclick=toggleAnnotationMode;
 $('#closeNotePopup').onclick=closeNotePopup;
 $('#notePopupBackdrop').onclick=e=>{if(e.target===$('#notePopupBackdrop'))closeNotePopup()};
 $('#clearDrawing').onclick=clearDrawing;$('#newNote').onclick=resetDraft;$('#saveNote').onclick=saveNote;
+$('#analysisReviewText').addEventListener('input',()=>{const video=currentVideo();if(video)state.reviewDrafts[video.id]=$('#analysisReviewText').value});
+$('#shareAnalysisBtn').onclick=()=>saveAnalysisReview(state.currentVideoId,{publish:true});
+$('#updateAnalysisBtn').onclick=()=>saveAnalysisReview(state.currentVideoId);
+$('#analysisDialogPrimary').onclick=()=>closeAnalysisDialog('primary');
+$('#analysisDialogSecondary').onclick=()=>closeAnalysisDialog('secondary');
+$('#analysisDialogCancel').onclick=()=>closeAnalysisDialog('cancel');
+$('#analysisDialogBackdrop').onclick=e=>{if(e.target===$('#analysisDialogBackdrop'))closeAnalysisDialog('cancel')};
 window.addEventListener('resize',syncCanvas);
 document.addEventListener('keydown',e=>{
+  if(!$('#analysisDialogBackdrop').classList.contains('hidden')){
+    if(e.key==='Escape'){e.preventDefault();closeAnalysisDialog('cancel');return}
+    if(e.key==='Tab'){
+      const controls=[$('#analysisDialogPrimary'),$('#analysisDialogSecondary'),$('#analysisDialogCancel')].filter(button=>!button.classList.contains('hidden')&&!button.disabled);
+      const index=controls.indexOf(document.activeElement),next=e.shiftKey?(index<=0?controls.length-1:index-1):(index===controls.length-1?0:index+1);
+      e.preventDefault();controls[next]?.focus();return
+    }
+    return
+  }
   if(e.key==='Escape'&&!$('#notePopupBackdrop').classList.contains('hidden')){e.preventDefault();closeNotePopup();return}
   if($('#playerBox').classList.contains('hidden'))return;
   const tag=(document.activeElement?.tagName||'').toLowerCase();
