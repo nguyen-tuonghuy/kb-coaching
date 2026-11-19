@@ -143,6 +143,13 @@ app.clearPlayerInviteToken = function clearPlayerInviteToken(){try{const u=new U
 
 app.authRedirectWithPlayerInvite = function authRedirectWithPlayerInvite(){const direct=app.playerInviteToken(),group=app.playerGroupInviteToken(),playerId=app.playerGroupInvitePlayerId();if(!direct&&!group)return app.AUTH_REDIRECT_URL;const u=new URL(app.AUTH_REDIRECT_URL);if(direct)u.searchParams.set('player_invite',direct);if(group)u.searchParams.set('player_group_invite',group);if(group&&playerId)u.searchParams.set('player_id',playerId);return u.toString()};
 
+app.normalizeSharedInviteState = function normalizeSharedInviteState(token,data){
+  const players=data?.players||[];
+  const groupIds=[data?.group_id,data?.group?.id,...players.map(player=>player?.group_id)].filter(Boolean);
+  const uniqueGroupIds=[...new Set(groupIds)];
+  return {token,groupId:uniqueGroupIds.length===1?uniqueGroupIds[0]:'',groupName:data?.group_name||'',players}
+};
+
 app.loadSharedPlayerInvite = async function loadSharedPlayerInvite(){
   const token=app.playerGroupInviteToken(),box=app.$('#playerJoinBox');
   if(!token){box?.classList.add('hidden');return false}
@@ -153,7 +160,7 @@ app.loadSharedPlayerInvite = async function loadSharedPlayerInvite(){
   if(error){if(status)status.textContent=error.message||'Lien invalide ou expiré';if(sel)sel.innerHTML='<option value="">Lien indisponible</option>';cont?.classList.add('hidden');return false}
   if(app.$('#playerJoinGroupName'))app.$('#playerJoinGroupName').textContent=`${data?.group_name||'Groupe'} · sélectionne ton prénom.`;
   const players=data?.players||[],available=players.filter(p=>!p.linked),saved=app.playerGroupInvitePlayerId();
-  app.sharedInviteState={token,groupName:data?.group_name||'',players};
+  app.sharedInviteState=app.normalizeSharedInviteState(token,data);
   if(sel){
     sel.innerHTML='<option value="">— Choisir mon prénom —</option>'+players.map(p=>`<option value="${app.escapeHtml(p.player_id)}" ${p.linked?'disabled':''}>${app.escapeHtml(p.player_name)}${p.linked?' · compte déjà activé':''}</option>`).join('');
     if(saved&&available.some(p=>p.player_id===saved))sel.value=saved;
@@ -197,7 +204,7 @@ app.ensureSharedInviteState = async function ensureSharedInviteState(token){
   if(app.sharedInviteState?.token===token)return app.sharedInviteState;
   const {data,error}=await app.db.rpc('get_player_group_invite',{p_token:token});
   if(error)throw error;
-  app.sharedInviteState={token,groupName:data?.group_name||'',players:data?.players||[]};
+  app.sharedInviteState=app.normalizeSharedInviteState(token,data);
   return app.sharedInviteState
 };
 
@@ -350,18 +357,7 @@ app.initAuth = async function initAuth(){
   const {data:{session}}=await app.db.auth.getSession();
   app.startupTiming('session Supabase disponible');
   if(session?.user){
-    if(app.playerGroupInviteToken()&&!app.playerGroupInvitePlayerId()){
-      app.currentUser=session.user;
-      app.$('#authPanel').classList.remove('hidden');
-      app.$('#setup').classList.add('hidden');
-      app.$('#logout').classList.remove('hidden');
-      app.setCloud('Accès joueur',true);
-      app.authMessage('Tu es déjà connecté : sélectionne ton prénom puis continue.');
-      app.hideStartupScreen();
-      app.runStartupBackground('invitation joueur',()=>app.loadSharedPlayerInvite());
-    }else{
-      try{await app.initAuthenticated(session.user)}catch(e){if(!e?.playerClaimCancelled)console.error('initAuthenticated',e)}
-    }
+    try{await app.initAuthenticated(session.user)}catch(e){if(!e?.playerClaimCancelled)console.error('initAuthenticated',e)}
     if(recoveryLink) app.openResetPasswordPopup(true);
   }else{
     app.$('#authPanel').classList.remove('hidden');

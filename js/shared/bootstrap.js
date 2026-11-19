@@ -94,6 +94,8 @@ app.KC_STARTUP_T0 = performance.now();
 
 app.sharedInviteState = null;
 
+app.playerClaimJustCompleted = false;
+
 window.addEventListener('hashchange',()=>{
   if(app.$('#playerPortal')?.classList.contains('hidden'))return;
   if(location.hash==='#team-stats'){
@@ -148,7 +150,6 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)app.syncPl
 app.videoNotificationState = [];
 
 app.$('#login').onclick=async()=>{
-  if(app.playerGroupInviteToken()&&!app.playerGroupInvitePlayerId()){app.authMessage('Sélectionne d’abord ton prénom.',true);return}
   app.authMessage('Connexion…');
   const email=app.$('#authEmail').value.trim();
   const password=app.$('#authPassword').value;
@@ -1016,6 +1017,11 @@ app.$('#playerFollowUpDetailPopup').addEventListener('mousedown',e=>{if(e.target
 app.$('#playerSpaceBtn').onclick=()=>app.enterMyPlayerPortal().catch(err=>app.handleError('open player portal',err));
 
 app.$('#playerPortalBackStaff').onclick=()=>app.returnToStaffSpace().catch(e=>app.handleError('return staff space',e));
+
+app.$('#playerClaimSuccessContinue').onclick=()=>{
+  app.$('#playerClaimSuccess').classList.add('hidden');
+  app.playerPortalSetView('home');
+};
 
 app.$('#playerJoinContinue').onclick=async()=>{const playerId=app.playerGroupInvitePlayerId();if(!playerId){app.authMessage('Sélectionne d’abord ton prénom.',true);return}const {data:{session}}=await app.db.auth.getSession();if(!session?.user){app.authMessage('Connecte-toi ou crée ton compte pour continuer.',true);return}app.authMessage('Activation de ton accès…');try{await app.initAuthenticated(session.user);app.authMessage('')}catch(e){if(!e?.playerClaimCancelled)console.error('player join continue',e)}};
 

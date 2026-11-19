@@ -117,6 +117,10 @@
    <h3 style="font-size:16px;margin:14px 0 8px">Mes groupes</h3>
    <div id="groupsList"></div>
  </section>`,
+  "playerClaimSuccess": `<div class="successNotice hidden" id="playerClaimSuccess" role="status" aria-live="polite">
+   <p>Ton compte est maintenant associé à ton profil joueur. Pour tes prochaines visites, accède directement à Kinball Coach. Tu n'auras plus besoin de ce lien d'invitation.</p>
+   <button class="primary" type="button" id="playerClaimSuccessContinue">Accéder à mon espace joueur</button>
+  </div>`,
   "playerPortalStatsView": `<div class="hidden" id="playerPortalStatsView">
    <div class="playerPortalStatsHeader">
     <div><div class="analysisSubtle">Matchs</div><h2 id="playerPortalTitle">Mes statistiques</h2><div class="small" id="playerPortalSubtitle"></div></div>
@@ -2123,6 +2127,13 @@ app.clearPlayerInviteToken = function clearPlayerInviteToken(){try{const u=new U
 
 app.authRedirectWithPlayerInvite = function authRedirectWithPlayerInvite(){const direct=app.playerInviteToken(),group=app.playerGroupInviteToken(),playerId=app.playerGroupInvitePlayerId();if(!direct&&!group)return app.AUTH_REDIRECT_URL;const u=new URL(app.AUTH_REDIRECT_URL);if(direct)u.searchParams.set('player_invite',direct);if(group)u.searchParams.set('player_group_invite',group);if(group&&playerId)u.searchParams.set('player_id',playerId);return u.toString()};
 
+app.normalizeSharedInviteState = function normalizeSharedInviteState(token,data){
+  const players=data?.players||[];
+  const groupIds=[data?.group_id,data?.group?.id,...players.map(player=>player?.group_id)].filter(Boolean);
+  const uniqueGroupIds=[...new Set(groupIds)];
+  return {token,groupId:uniqueGroupIds.length===1?uniqueGroupIds[0]:'',groupName:data?.group_name||'',players}
+};
+
 app.loadSharedPlayerInvite = async function loadSharedPlayerInvite(){
   const token=app.playerGroupInviteToken(),box=app.$('#playerJoinBox');
   if(!token){box?.classList.add('hidden');return false}
@@ -2133,7 +2144,7 @@ app.loadSharedPlayerInvite = async function loadSharedPlayerInvite(){
   if(error){if(status)status.textContent=error.message||'Lien invalide ou expiré';if(sel)sel.innerHTML='<option value="">Lien indisponible</option>';cont?.classList.add('hidden');return false}
   if(app.$('#playerJoinGroupName'))app.$('#playerJoinGroupName').textContent=`${data?.group_name||'Groupe'} · sélectionne ton prénom.`;
   const players=data?.players||[],available=players.filter(p=>!p.linked),saved=app.playerGroupInvitePlayerId();
-  app.sharedInviteState={token,groupName:data?.group_name||'',players};
+  app.sharedInviteState=app.normalizeSharedInviteState(token,data);
   if(sel){
     sel.innerHTML='<option value="">— Choisir mon prénom —</option>'+players.map(p=>`<option value="${app.escapeHtml(p.player_id)}" ${p.linked?'disabled':''}>${app.escapeHtml(p.player_name)}${p.linked?' · compte déjà activé':''}</option>`).join('');
     if(saved&&available.some(p=>p.player_id===saved))sel.value=saved;
@@ -2177,7 +2188,7 @@ app.ensureSharedInviteState = async function ensureSharedInviteState(token){
   if(app.sharedInviteState?.token===token)return app.sharedInviteState;
   const {data,error}=await app.db.rpc('get_player_group_invite',{p_token:token});
   if(error)throw error;
-  app.sharedInviteState={token,groupName:data?.group_name||'',players:data?.players||[]};
+  app.sharedInviteState=app.normalizeSharedInviteState(token,data);
   return app.sharedInviteState
 };
 
@@ -2330,18 +2341,7 @@ app.initAuth = async function initAuth(){
   const {data:{session}}=await app.db.auth.getSession();
   app.startupTiming('session Supabase disponible');
   if(session?.user){
-    if(app.playerGroupInviteToken()&&!app.playerGroupInvitePlayerId()){
-      app.currentUser=session.user;
-      app.$('#authPanel').classList.remove('hidden');
-      app.$('#setup').classList.add('hidden');
-      app.$('#logout').classList.remove('hidden');
-      app.setCloud('Accès joueur',true);
-      app.authMessage('Tu es déjà connecté : sélectionne ton prénom puis continue.');
-      app.hideStartupScreen();
-      app.runStartupBackground('invitation joueur',()=>app.loadSharedPlayerInvite());
-    }else{
-      try{await app.initAuthenticated(session.user)}catch(e){if(!e?.playerClaimCancelled)console.error('initAuthenticated',e)}
-    }
+    try{await app.initAuthenticated(session.user)}catch(e){if(!e?.playerClaimCancelled)console.error('initAuthenticated',e)}
     if(recoveryLink) app.openResetPasswordPopup(true);
   }else{
     app.$('#authPanel').classList.remove('hidden');
@@ -2424,6 +2424,7 @@ app.closeResetPasswordPopup = function closeResetPasswordPopup(){
     if(app.accountDefaults)Object.assign(app,JSON.parse(app.accountDefaults));
     if(app.groupAnalysisState)app.groupAnalysisState.selected=new Set();
     app.sharedInviteState=null;
+    app.playerClaimJustCompleted=false;
     for(const id of ['groupsList','groupPlayersList','groupCoachesList','playerPortalContent','playerPortalConversationList','statsImpactContent','statsMatchSummary','trainingSavedSeasons','trainingPlanTimeline','trainingPlanDraft','trainingExerciseCards','historyResults']){
       const el=app.$('#'+id);if(el)el.innerHTML='';
     }
@@ -2468,31 +2469,60 @@ app.closeResetPasswordPopup = function closeResetPasswordPopup(){
     const version=app.sessionVersion=(app.sessionVersion||0)+1;
     const active=()=>app.sessionVersion===version&&app.currentUser?.id===user.id;
     const pending=app.pendingPlayerInviteFromUser(user);
-    const invited=!!(app.playerGroupInviteToken()||app.playerInviteToken()||pending.group||pending.direct);
+    const groupInviteToken=app.playerGroupInviteToken()||pending.group;
+    const invited=!!(groupInviteToken||app.playerInviteToken()||pending.direct);
+    let accessesPromise=null;
+    let preferredPlayerGroupId='';
+    const loadAccesses=()=>accessesPromise||(accessesPromise=app.fetchMyPlayerAccesses().catch(error=>{
+      if(!active())return [];
+      console.warn('[startup] accès joueur',error);
+      app.playerPortalState.accesses=[];
+      return [];
+    }));
     app.$('#authPanel').classList.add('hidden');
     app.$('#setup').classList.add('hidden');
     app.$('#logout').classList.remove('hidden');
     app.setCloud('Connexion…',true);
     const splashGuard=setTimeout(app.hideStartupScreen,4000);
     try{
-      try{await app.claimPlayerInviteIfPresent(user)}catch(e){
+      try{
+        let claimed=false;
+        if(groupInviteToken){
+          // Le lien est validé avant de réutiliser un accès existant. Le group_id,
+          // jamais le libellé du groupe, détermine si cette invitation est déjà satisfaite.
+          const [invite,accesses]=await Promise.all([app.ensureSharedInviteState(groupInviteToken),loadAccesses()]);
+          preferredPlayerGroupId=invite.groupId;
+          const existing=invite.groupId&&accesses.find(access=>access.group_id===invite.groupId);
+          if(existing){
+            app.clearPlayerInviteToken();
+            await app.clearPendingPlayerInviteMetadata();
+          }else{
+            claimed=await app.claimPlayerInviteIfPresent(user);
+          }
+        }else{
+          claimed=await app.claimPlayerInviteIfPresent(user);
+        }
+        if(claimed){
+          app.playerClaimJustCompleted=true;
+          // La lecture lancée avant la mutation ne contient pas encore le nouvel accès.
+          accessesPromise=null;
+        }
+      }catch(e){
         if(!active())return;
         const cancelled=!!e?.playerClaimCancelled;
         clearTimeout(splashGuard);
         app.$('#authPanel').classList.remove('hidden');
         await app.loadSharedPlayerInvite().catch(()=>{});
+        accessesPromise?.then(accesses=>{
+          if(active())app.$('#playerSpaceBtn').classList.toggle('hidden',!accesses.length);
+        });
         app.authMessage(cancelled?'Association non confirmée. Vérifie le joueur choisi, puis réessaie.':(e.message||'Impossible d’activer cet accès joueur.'),!cancelled);
         app.setCloud('Accès joueur à compléter',false);
         app.hideStartupScreen();
         throw e;
       }
       if(!active())return;
-      const accessesPromise=app.fetchMyPlayerAccesses().catch(error=>{
-        if(!active())return [];
-        console.warn('[startup] accès joueur',error);
-        app.playerPortalState.accesses=[];
-        return [];
-      });
+      loadAccesses();
       await app.fetchMyGroups();
       if(!active())return;
       app.startupTiming('groupes entraîneur chargés');
@@ -2508,7 +2538,7 @@ app.closeResetPasswordPopup = function closeResetPasswordPopup(){
       const accesses=await accessesPromise;
       if(!active())return;
       if(accesses.length&&(invited||!app.groupState.groups.length)){
-        const portalPromise=app.openPlayerPortal(accesses);
+        const portalPromise=app.openPlayerPortal(accesses,preferredPlayerGroupId);
         clearTimeout(splashGuard);
         app.hideStartupScreen();
         app.startSecondaryStartupTasks();
@@ -3205,7 +3235,7 @@ const background=[
 app.syncStandaloneVideoLinks();app.playerPortalRenderMatches();app.$('#playerPortalContent').innerHTML=app.playerPortalSheetHtml(data,data?.details||[]);
 await Promise.allSettled(background)};
 
-app.openPlayerPortal = async function openPlayerPortal(accesses){
+app.openPlayerPortal = async function openPlayerPortal(accesses,preferredGroupId=''){
   app.playerPortalState.accesses=accesses||await app.fetchMyPlayerAccesses();
   if(!app.playerPortalState.accesses.length)return false;
   app.playerPortalState.hasStaffAccess=app.groupState.groups.length>0;
@@ -3218,11 +3248,16 @@ app.openPlayerPortal = async function openPlayerPortal(accesses){
   if(app.$('#playerPortalConversationLabel'))app.$('#playerPortalConversationLabel').textContent=app.playerPortalState.staffPreview?'Échanges avec ce joueur':'Échanges avec les entraîneurs';
   const accountCard=app.$('#playerPortalAccountCard');if(accountCard)accountCard.classList.toggle('hidden',app.playerPortalState.staffPreview);
   if(app.$('#playerPortalAccountEmail'))app.$('#playerPortalAccountEmail').textContent=app.playerPortalState.staffPreview?'':(app.currentUser?.email||'');
+  const claimSuccess=app.$('#playerClaimSuccess');
+  claimSuccess?.classList.toggle('hidden',!app.playerClaimJustCompleted);
+  app.playerClaimJustCompleted=false;
   const sel=app.$('#playerPortalGroup'),field=app.$('#playerPortalGroupField');
   sel.innerHTML=app.playerPortalState.accesses.map(a=>`<option value="${app.escapeHtml(a.group_id)}">${app.escapeHtml(a.group_name)} · ${app.escapeHtml(a.player_name)}</option>`).join('');
   field.classList.toggle('hidden',app.playerPortalState.staffPreview||app.playerPortalState.accesses.length<2);
   sel.onchange=()=>app.loadPlayerPortalGroup(sel.value).catch(e=>app.handleError('player portal group',e));
-  await app.loadPlayerPortalGroup(app.playerPortalState.accesses[0].group_id);
+  const initialAccess=app.playerPortalState.accesses.find(access=>access.group_id===preferredGroupId)||app.playerPortalState.accesses[0];
+  sel.value=initialAccess.group_id;
+  await app.loadPlayerPortalGroup(initialAccess.group_id);
   if(app.page==='index')app.syncPlayerPortalMessagePolling();
   if(location.hash==='#team-stats'){
     const access=app.playerPortalAccessForGroup(app.playerPortalState.groupId)||app.playerPortalState.accesses?.[0];
@@ -8951,6 +8986,8 @@ app.KC_STARTUP_T0 = performance.now();
 
 app.sharedInviteState = null;
 
+app.playerClaimJustCompleted = false;
+
 window.addEventListener('hashchange',()=>{
   if(app.$('#playerPortal')?.classList.contains('hidden'))return;
   if(location.hash==='#team-stats'){
@@ -9005,7 +9042,6 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)app.syncPl
 app.videoNotificationState = [];
 
 app.$('#login').onclick=async()=>{
-  if(app.playerGroupInviteToken()&&!app.playerGroupInvitePlayerId()){app.authMessage('Sélectionne d’abord ton prénom.',true);return}
   app.authMessage('Connexion…');
   const email=app.$('#authEmail').value.trim();
   const password=app.$('#authPassword').value;
@@ -9873,6 +9909,11 @@ app.$('#playerFollowUpDetailPopup').addEventListener('mousedown',e=>{if(e.target
 app.$('#playerSpaceBtn').onclick=()=>app.enterMyPlayerPortal().catch(err=>app.handleError('open player portal',err));
 
 app.$('#playerPortalBackStaff').onclick=()=>app.returnToStaffSpace().catch(e=>app.handleError('return staff space',e));
+
+app.$('#playerClaimSuccessContinue').onclick=()=>{
+  app.$('#playerClaimSuccess').classList.add('hidden');
+  app.playerPortalSetView('home');
+};
 
 app.$('#playerJoinContinue').onclick=async()=>{const playerId=app.playerGroupInvitePlayerId();if(!playerId){app.authMessage('Sélectionne d’abord ton prénom.',true);return}const {data:{session}}=await app.db.auth.getSession();if(!session?.user){app.authMessage('Connecte-toi ou crée ton compte pour continuer.',true);return}app.authMessage('Activation de ton accès…');try{await app.initAuthenticated(session.user);app.authMessage('')}catch(e){if(!e?.playerClaimCancelled)console.error('player join continue',e)}};
 

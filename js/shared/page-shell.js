@@ -114,6 +114,10 @@
    <h3 style="font-size:16px;margin:14px 0 8px">Mes groupes</h3>
    <div id="groupsList"></div>
  </section>`,
+  "playerClaimSuccess": `<div class="successNotice hidden" id="playerClaimSuccess" role="status" aria-live="polite">
+   <p>Ton compte est maintenant associé à ton profil joueur. Pour tes prochaines visites, accède directement à Kinball Coach. Tu n'auras plus besoin de ce lien d'invitation.</p>
+   <button class="primary" type="button" id="playerClaimSuccessContinue">Accéder à mon espace joueur</button>
+  </div>`,
   "playerPortalStatsView": `<div class="hidden" id="playerPortalStatsView">
    <div class="playerPortalStatsHeader">
     <div><div class="analysisSubtle">Matchs</div><h2 id="playerPortalTitle">Mes statistiques</h2><div class="small" id="playerPortalSubtitle"></div></div>

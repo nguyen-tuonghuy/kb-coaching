@@ -664,7 +664,7 @@ const background=[
 app.syncStandaloneVideoLinks();app.playerPortalRenderMatches();app.$('#playerPortalContent').innerHTML=app.playerPortalSheetHtml(data,data?.details||[]);
 await Promise.allSettled(background)};
 
-app.openPlayerPortal = async function openPlayerPortal(accesses){
+app.openPlayerPortal = async function openPlayerPortal(accesses,preferredGroupId=''){
   app.playerPortalState.accesses=accesses||await app.fetchMyPlayerAccesses();
   if(!app.playerPortalState.accesses.length)return false;
   app.playerPortalState.hasStaffAccess=app.groupState.groups.length>0;
@@ -677,11 +677,16 @@ app.openPlayerPortal = async function openPlayerPortal(accesses){
   if(app.$('#playerPortalConversationLabel'))app.$('#playerPortalConversationLabel').textContent=app.playerPortalState.staffPreview?'Échanges avec ce joueur':'Échanges avec les entraîneurs';
   const accountCard=app.$('#playerPortalAccountCard');if(accountCard)accountCard.classList.toggle('hidden',app.playerPortalState.staffPreview);
   if(app.$('#playerPortalAccountEmail'))app.$('#playerPortalAccountEmail').textContent=app.playerPortalState.staffPreview?'':(app.currentUser?.email||'');
+  const claimSuccess=app.$('#playerClaimSuccess');
+  claimSuccess?.classList.toggle('hidden',!app.playerClaimJustCompleted);
+  app.playerClaimJustCompleted=false;
   const sel=app.$('#playerPortalGroup'),field=app.$('#playerPortalGroupField');
   sel.innerHTML=app.playerPortalState.accesses.map(a=>`<option value="${app.escapeHtml(a.group_id)}">${app.escapeHtml(a.group_name)} · ${app.escapeHtml(a.player_name)}</option>`).join('');
   field.classList.toggle('hidden',app.playerPortalState.staffPreview||app.playerPortalState.accesses.length<2);
   sel.onchange=()=>app.loadPlayerPortalGroup(sel.value).catch(e=>app.handleError('player portal group',e));
-  await app.loadPlayerPortalGroup(app.playerPortalState.accesses[0].group_id);
+  const initialAccess=app.playerPortalState.accesses.find(access=>access.group_id===preferredGroupId)||app.playerPortalState.accesses[0];
+  sel.value=initialAccess.group_id;
+  await app.loadPlayerPortalGroup(initialAccess.group_id);
   if(app.page==='index')app.syncPlayerPortalMessagePolling();
   if(location.hash==='#team-stats'){
     const access=app.playerPortalAccessForGroup(app.playerPortalState.groupId)||app.playerPortalState.accesses?.[0];

@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const {loadPage,mockClient,settle,deferred}=require('./helpers/page-harness.cjs');
 const plain=value=>JSON.parse(JSON.stringify(value));
 const user={id:'u1',email:'lucas@example.test',user_metadata:{}};
-const invitation={group_name:'Test',players:[{player_id:'p1',player_name:'Lucas'}]};
+const invitation={group_id:'g1',group_name:'Test',players:[{player_id:'p1',player_name:'Lucas'}]};
 
 async function setup(t,page,options){
   const ui=await loadPage(page,options);t.after(()=>ui.close());
@@ -157,6 +157,77 @@ for(const page of ['index','training']){
     assert.equal((await result).playerClaimCancelled,true);
     assert.equal(ui.w.document.activeElement.id,'authEmail');
     assert.equal(client.calls.some(c=>c.name.startsWith('claim_')),false);
+  });
+
+  test(`${page}: a validated group invite already satisfied by this account opens that exact player space`,async t=>{
+    const access={group_id:'g1',group_name:'Test',player_id:'p1',player_name:'Lucas'};
+    const client=mockClient({tables:{coaching_group_coaches:[]},rpcs:{get_player_group_invite:invitation,get_my_player_access:[access]}});
+    const ui=await setup(t,page,{client});
+    client.session={user};
+    ui.w.history.replaceState({},'',`/${page}.html?player_group_invite=token`);
+    let openedGroup='';
+    ui.app.loadPlayerPortalGroup=async groupId=>{openedGroup=groupId;ui.app.playerPortalState.groupId=groupId};
+    ui.app.loadPlayerFollowUpReview=async()=>{};
+    ui.app.syncPlayerPortalMessagePolling=()=>{};
+    await ui.app.initAuthenticated(user);
+    assert.equal(openedGroup,'g1');
+    assert.equal(ui.$('#playerPortalGroup').value,'g1');
+    assert.equal(ui.$('#playerJoinBox').classList.contains('hidden'),true);
+    assert.equal(client.calls.some(c=>c.name==='claim_coaching_player_group_invite'),false);
+    assert.equal(client.calls.filter(c=>c.name==='get_my_player_access').length,1);
+    assert.equal(new ui.w.URLSearchParams(ui.w.location.search).has('player_group_invite'),false);
+  });
+
+  test(`${page}: an access to another group does not satisfy the invitation`,async t=>{
+    const otherAccess={group_id:'other',group_name:'Autre',player_id:'p2',player_name:'Lucas'};
+    const client=mockClient({tables:{coaching_group_coaches:[]},rpcs:{get_player_group_invite:invitation,get_my_player_access:[otherAccess]}});
+    const ui=await setup(t,page,{client});
+    client.session={user};
+    ui.w.history.replaceState({},'',`/${page}.html?player_group_invite=token`);
+    await assert.rejects(ui.app.initAuthenticated(user),/Sélectionne ton prénom/);
+    assert.equal(client.calls.some(c=>c.name==='claim_coaching_player_group_invite'),false);
+    assert.equal(ui.$('#authPanel').classList.contains('hidden'),false);
+    assert.match(ui.w.location.search,/player_group_invite=token/);
+  });
+
+  test(`${page}: a valid invite can add a second group and targets it after the confirmed claim`,{timeout:5000},async t=>{
+    const otherAccess={group_id:'other',group_name:'Autre',player_id:'p2',player_name:'Lucas'};
+    const newAccess={group_id:'g1',group_name:'Test',player_id:'p1',player_name:'Lucas'};
+    let accessReads=0;
+    const client=mockClient({tables:{coaching_group_coaches:[],user_profiles:{first_name:'Lucas'}},rpcs:{
+      get_player_group_invite:invitation,
+      get_my_player_access:()=>({data:++accessReads===1?[otherAccess]:[otherAccess,newAccess],error:null}),
+      claim_coaching_player_group_invite:true
+    }});
+    const ui=await setup(t,page,{client});invited(ui);
+    let openedGroup='';
+    ui.app.loadPlayerPortalGroup=async groupId=>{openedGroup=groupId;ui.app.playerPortalState.groupId=groupId};
+    ui.app.loadPlayerFollowUpReview=async()=>{};
+    ui.app.syncPlayerPortalMessagePolling=()=>{};
+    const startup=ui.app.initAuthenticated(user);
+    await settle();ui.$('#confirmPlayerClaim').click();
+    await startup;
+    assert.equal(client.calls.filter(c=>c.name==='claim_coaching_player_group_invite').length,1);
+    assert.equal(client.calls.filter(c=>c.name==='get_my_player_access').length,2);
+    assert.equal(openedGroup,'g1');
+    assert.equal(ui.$('#playerClaimSuccess').classList.contains('hidden'),false);
+    assert.match(ui.$('#playerClaimSuccess').textContent,/Tu n'auras plus besoin de ce lien d'invitation/);
+    ui.$('#playerClaimSuccessContinue').click();
+    assert.equal(ui.$('#playerClaimSuccess').classList.contains('hidden'),true);
+  });
+
+  test(`${page}: an invalid group invite never reuses an existing player access`,async t=>{
+    const invalid=()=>({data:null,error:new Error('Lien invalide ou expiré')});
+    const client=mockClient({tables:{coaching_group_coaches:[]},rpcs:{get_player_group_invite:invalid,get_my_player_access:[{group_id:'g1'}]}});
+    const ui=await setup(t,page,{client});
+    client.session={user};
+    ui.w.history.replaceState({},'',`/${page}.html?player_group_invite=invalid`);
+    await assert.rejects(ui.app.initAuthenticated(user),/Lien invalide ou expiré/);
+    await settle();
+    assert.equal(client.calls.some(c=>c.name.startsWith('claim_')),false);
+    assert.equal(ui.$('#playerPortal').classList.contains('hidden'),true);
+    assert.equal(ui.$('#playerSpaceBtn').classList.contains('hidden'),false);
+    assert.match(ui.w.location.search,/player_group_invite=invalid/);
   });
 
   test(`${page}: concurrent authenticated starts do not duplicate queries or listeners`,async t=>{

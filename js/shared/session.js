@@ -4,6 +4,7 @@
     if(app.accountDefaults)Object.assign(app,JSON.parse(app.accountDefaults));
     if(app.groupAnalysisState)app.groupAnalysisState.selected=new Set();
     app.sharedInviteState=null;
+    app.playerClaimJustCompleted=false;
     for(const id of ['groupsList','groupPlayersList','groupCoachesList','playerPortalContent','playerPortalConversationList','statsImpactContent','statsMatchSummary','trainingSavedSeasons','trainingPlanTimeline','trainingPlanDraft','trainingExerciseCards','historyResults']){
       const el=app.$('#'+id);if(el)el.innerHTML='';
     }
@@ -48,31 +49,60 @@
     const version=app.sessionVersion=(app.sessionVersion||0)+1;
     const active=()=>app.sessionVersion===version&&app.currentUser?.id===user.id;
     const pending=app.pendingPlayerInviteFromUser(user);
-    const invited=!!(app.playerGroupInviteToken()||app.playerInviteToken()||pending.group||pending.direct);
+    const groupInviteToken=app.playerGroupInviteToken()||pending.group;
+    const invited=!!(groupInviteToken||app.playerInviteToken()||pending.direct);
+    let accessesPromise=null;
+    let preferredPlayerGroupId='';
+    const loadAccesses=()=>accessesPromise||(accessesPromise=app.fetchMyPlayerAccesses().catch(error=>{
+      if(!active())return [];
+      console.warn('[startup] accès joueur',error);
+      app.playerPortalState.accesses=[];
+      return [];
+    }));
     app.$('#authPanel').classList.add('hidden');
     app.$('#setup').classList.add('hidden');
     app.$('#logout').classList.remove('hidden');
     app.setCloud('Connexion…',true);
     const splashGuard=setTimeout(app.hideStartupScreen,4000);
     try{
-      try{await app.claimPlayerInviteIfPresent(user)}catch(e){
+      try{
+        let claimed=false;
+        if(groupInviteToken){
+          // Le lien est validé avant de réutiliser un accès existant. Le group_id,
+          // jamais le libellé du groupe, détermine si cette invitation est déjà satisfaite.
+          const [invite,accesses]=await Promise.all([app.ensureSharedInviteState(groupInviteToken),loadAccesses()]);
+          preferredPlayerGroupId=invite.groupId;
+          const existing=invite.groupId&&accesses.find(access=>access.group_id===invite.groupId);
+          if(existing){
+            app.clearPlayerInviteToken();
+            await app.clearPendingPlayerInviteMetadata();
+          }else{
+            claimed=await app.claimPlayerInviteIfPresent(user);
+          }
+        }else{
+          claimed=await app.claimPlayerInviteIfPresent(user);
+        }
+        if(claimed){
+          app.playerClaimJustCompleted=true;
+          // La lecture lancée avant la mutation ne contient pas encore le nouvel accès.
+          accessesPromise=null;
+        }
+      }catch(e){
         if(!active())return;
         const cancelled=!!e?.playerClaimCancelled;
         clearTimeout(splashGuard);
         app.$('#authPanel').classList.remove('hidden');
         await app.loadSharedPlayerInvite().catch(()=>{});
+        accessesPromise?.then(accesses=>{
+          if(active())app.$('#playerSpaceBtn').classList.toggle('hidden',!accesses.length);
+        });
         app.authMessage(cancelled?'Association non confirmée. Vérifie le joueur choisi, puis réessaie.':(e.message||'Impossible d’activer cet accès joueur.'),!cancelled);
         app.setCloud('Accès joueur à compléter',false);
         app.hideStartupScreen();
         throw e;
       }
       if(!active())return;
-      const accessesPromise=app.fetchMyPlayerAccesses().catch(error=>{
-        if(!active())return [];
-        console.warn('[startup] accès joueur',error);
-        app.playerPortalState.accesses=[];
-        return [];
-      });
+      loadAccesses();
       await app.fetchMyGroups();
       if(!active())return;
       app.startupTiming('groupes entraîneur chargés');
@@ -88,7 +118,7 @@
       const accesses=await accessesPromise;
       if(!active())return;
       if(accesses.length&&(invited||!app.groupState.groups.length)){
-        const portalPromise=app.openPlayerPortal(accesses);
+        const portalPromise=app.openPlayerPortal(accesses,preferredPlayerGroupId);
         clearTimeout(splashGuard);
         app.hideStartupScreen();
         app.startSecondaryStartupTasks();
