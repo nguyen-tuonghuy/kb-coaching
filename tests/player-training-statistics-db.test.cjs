@@ -6,8 +6,10 @@ const {PGlite}=require('@electric-sql/pglite');
 
 const root=path.resolve(__dirname,'..');
 const migration=fs.readFileSync(path.join(root,'supabase/migrations/20261124173651_player_training_statistics.sql'),'utf8');
+const viewMigration=fs.readFileSync(path.join(root,'supabase/migrations/20261124190000_training_statistics_view_mode.sql'),'utf8');
 
 const COACH='11111111-1111-4111-8111-111111111111';
+const COACH_ONLY='17171717-1717-4717-8717-171717171717';
 const ALICE_USER='22222222-2222-4222-8222-222222222222';
 const BOB_USER='33333333-3333-4333-8333-333333333333';
 const PERSONAL_USER='44444444-4444-4444-8444-444444444444';
@@ -18,6 +20,7 @@ const TEAM='cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const ALICE='dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const BOB='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
 const PERSONAL='ffffffff-ffff-4fff-8fff-ffffffffffff';
+const COACH_PLAYER='14141414-1414-4414-8414-141414141414';
 const SESSION='12121212-1212-4212-8212-121212121212';
 const EXERCISE='13131313-1313-4313-8313-131313131313';
 
@@ -74,16 +77,19 @@ insert into public.coaching_groups values ('${GROUP}','Groupe test');
 insert into public.players values
   ('${ALICE}','Alice','${WORKSPACE}'),
   ('${BOB}','Bob','${WORKSPACE}'),
-  ('${PERSONAL}','Charlie','${WORKSPACE}');
-insert into public.coaching_group_coaches values ('${GROUP}','${COACH}','coach');
+  ('${PERSONAL}','Charlie','${WORKSPACE}'),
+  ('${COACH_PLAYER}','Dana','${WORKSPACE}');
+insert into public.coaching_group_coaches values ('${GROUP}','${COACH}','coach'),('${GROUP}','${COACH_ONLY}','coach');
 insert into public.coaching_group_players values
   ('${GROUP}','${ALICE}',true,'group'),
   ('${GROUP}','${BOB}',true,'group'),
-  ('${GROUP}','${PERSONAL}',true,'personal');
+  ('${GROUP}','${PERSONAL}',true,'personal'),
+  ('${GROUP}','${COACH_PLAYER}',true,'group');
 insert into public.coaching_player_accounts values
   ('${GROUP}','${ALICE}','${ALICE_USER}'),
   ('${GROUP}','${BOB}','${BOB_USER}'),
-  ('${GROUP}','${PERSONAL}','${PERSONAL_USER}');
+  ('${GROUP}','${PERSONAL}','${PERSONAL_USER}'),
+  ('${GROUP}','${COACH_PLAYER}','${COACH}');
 insert into public.exercises values ('${EXERCISE}','Passes',null,null,null,'success_attempts');
 insert into public.training_sessions values
   ('${SESSION}','${WORKSPACE}','${GROUP}','${TEAM}','2026-11-20','Entrainement',null);
@@ -98,6 +104,7 @@ async function makeDB(){
   const db=new PGlite();
   await db.exec(fixture);
   await db.exec(migration);
+  await db.exec(viewMigration);
   return db;
 }
 
@@ -105,8 +112,11 @@ async function asUser(db,userId){
   await db.exec(`set role authenticated; set request.jwt.claim.sub='${userId}'`);
 }
 
-async function dataset(db){
-  const result=await db.query('select public.get_training_statistics_dataset($1::uuid) as value',[GROUP]);
+async function dataset(db,view){
+  const sql=view
+    ?'select public.get_training_statistics_dataset($1::uuid,$2::text) as value'
+    :'select public.get_training_statistics_dataset($1::uuid) as value';
+  const result=await db.query(sql,view?[GROUP,view]:[GROUP]);
   return result.rows[0].value;
 }
 
@@ -114,10 +124,10 @@ test('two players receive identical results with caller-specific names and stabl
   const db=await makeDB();
   try{
     await asUser(db,ALICE_USER);
-    const aliceFirst=await dataset(db);
-    const aliceSecond=await dataset(db);
+    const aliceFirst=await dataset(db,'player');
+    const aliceSecond=await dataset(db,'player');
     await asUser(db,BOB_USER);
-    const bob=await dataset(db);
+    const bob=await dataset(db,'player');
 
     assert.deepEqual(aliceFirst.players,aliceSecond.players);
     assert.equal(aliceFirst.players.find(player=>player.is_me).display_name,'Alice');
@@ -133,16 +143,44 @@ test('two players receive identical results with caller-specific names and stabl
   }finally{await db.close()}
 });
 
-test('personal and outside accounts are rejected while coaches retain identities',async()=>{
+test('a dual-role account gets aliases in player view and real names in staff view',async()=>{
   const db=await makeDB();
   try{
-    await asUser(db,PERSONAL_USER);
-    await assert.rejects(dataset(db),/Acces aux statistiques du groupe refuse/);
-    await asUser(db,OUTSIDER);
-    await assert.rejects(dataset(db),/Acces aux statistiques du groupe refuse/);
     await asUser(db,COACH);
-    const coach=await dataset(db);
-    assert.deepEqual(coach.players.map(player=>player.display_name),['Alice','Bob','Charlie']);
+    const playerView=await dataset(db,'player');
+    const staffView=await dataset(db,'staff');
+    const legacyView=await dataset(db);
+    assert.equal(playerView.players.find(player=>player.is_me).display_name,'Dana');
+    assert.equal(JSON.stringify(playerView).includes('Alice'),false);
+    assert.equal(JSON.stringify(playerView).includes('Bob'),false);
+    assert.equal(JSON.stringify(playerView).includes('Charlie'),false);
+    assert.deepEqual(staffView.players.map(player=>player.display_name).sort(),['Alice','Bob','Charlie','Dana']);
+    assert.equal(legacyView.viewer_role,'player');
+    assert.deepEqual(legacyView.players,playerView.players);
+    assert.deepEqual(playerView.results,staffView.results);
+  }finally{await db.close()}
+});
+
+test('the legacy one-argument call stays compatible for coaches without a linked player',async()=>{
+  const db=await makeDB();
+  try{
+    await asUser(db,COACH_ONLY);
+    const legacyView=await dataset(db);
+    assert.equal(legacyView.viewer_role,'staff');
+    assert.deepEqual(legacyView.players.map(player=>player.display_name).sort(),['Alice','Bob','Charlie','Dana']);
+  }finally{await db.close()}
+});
+
+test('player-only and outside accounts cannot request staff data',async()=>{
+  const db=await makeDB();
+  try{
+    await asUser(db,ALICE_USER);
+    await assert.rejects(dataset(db,'staff'),/Acces entraineur aux statistiques refuse/);
+    await asUser(db,PERSONAL_USER);
+    await assert.rejects(dataset(db,'player'),/Acces aux statistiques du groupe refuse/);
+    await asUser(db,OUTSIDER);
+    await assert.rejects(dataset(db,'player'),/Acces aux statistiques du groupe refuse/);
+    await assert.rejects(dataset(db,'staff'),/Acces entraineur aux statistiques refuse/);
   }finally{await db.close()}
 });
 

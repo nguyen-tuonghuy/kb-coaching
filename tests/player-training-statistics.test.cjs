@@ -6,6 +6,7 @@ const vm=require('node:vm');
 
 const root=path.resolve(__dirname,'..');
 const migration=fs.readFileSync(path.join(root,'supabase/migrations/20261124173651_player_training_statistics.sql'),'utf8');
+const viewMigration=fs.readFileSync(path.join(root,'supabase/migrations/20261124190000_training_statistics_view_mode.sql'),'utf8');
 const data=fs.readFileSync(path.join(root,'js/shared/data.js'),'utf8');
 const statistics=fs.readFileSync(path.join(root,'js/shared/statistics.js'),'utf8');
 const shell=fs.readFileSync(path.join(root,'js/shared/page-shell.js'),'utf8');
@@ -79,9 +80,11 @@ test('staff and anonymized datasets produce identical cumulative scores and rank
 });
 
 test('the shared player view uses only the training RPC and hides non-training domains',()=>{
-  assert.match(data,/trainingStatisticsDataset\(groupId\)[\s\S]*get_training_statistics_dataset/);
+  assert.match(data,/trainingStatisticsDataset\(groupId,\{view\}=\{\}\)[\s\S]*p_view:view/);
   const loader=statistics.slice(statistics.indexOf('app.loadStatsData ='),statistics.indexOf('app.switchStatsTab ='));
-  assert.match(loader,/services\.trainingStatisticsDataset\(groupId\)/);
+  assert.match(loader,/readOnlyViewer\?'player':'staff'/);
+  assert.match(loader,/services\.trainingStatisticsDataset\(groupId,\{view:requestedView\}\)/);
+  assert.match(loader,/dataset\.viewer_role!==requestedView/);
   assert.doesNotMatch(loader,/services\.trainingSessions/);
   assert.doesNotMatch(loader,/fetchGroupPlayers/);
   assert.doesNotMatch(loader,/services\.trainingResults/);
@@ -89,4 +92,54 @@ test('the shared player view uses only the training RPC and hides non-training d
   assert.match(statistics,/readOnlyViewer&&tab==='player'/);
   assert.match(shell,/id="statsTitle"/);
   assert.match(shell,/id="statsGroupHint"/);
+});
+
+test('player and staff modes are authorized independently with a compatible legacy wrapper',()=>{
+  assert.match(viewMigration,/get_training_statistics_dataset\(p_group_id uuid, p_view text\)/);
+  assert.match(viewMigration,/if v_view = 'staff'[\s\S]*coaching_group_coaches/);
+  assert.match(viewMigration,/else[\s\S]*coaching_player_accounts[\s\S]*gp\.active = true[\s\S]*gp\.stats_access = 'group'/);
+  assert.match(viewMigration,/when v_view = 'staff' then p\.display_name/);
+  assert.match(viewMigration,/when a\.player_id = v_self_player_id then v_self_name/);
+  assert.match(viewMigration,/create or replace function public\.get_training_statistics_dataset\(p_group_id uuid\)[\s\S]*coaching_player_accounts[\s\S]*if v_self_player_id is not null then[\s\S]*return public\.get_training_statistics_dataset\(p_group_id, 'player'\)[\s\S]*return public\.get_training_statistics_dataset\(p_group_id, 'staff'\)/);
+});
+
+test('loading clears names before network work and rejects a response for the wrong view',()=>{
+  const loader=statistics.slice(statistics.indexOf('app.loadStatsData ='),statistics.indexOf('app.switchStatsTab ='));
+  const clearIndex=loader.indexOf('app.statsState.viewerRole=null;app.statsState.sessions=[]');
+  const tableClearIndex=loader.indexOf("app.$('#statsLeaderboardTable').innerHTML=''");
+  const renderIndex=loader.indexOf('app.populateStatsSelectors();app.renderStatsAll();');
+  const fetchIndex=loader.indexOf('await app.fetchExerciseCategories()');
+  const requestIndex=loader.indexOf('await app.services.trainingStatisticsDataset');
+  const roleCheckIndex=loader.indexOf('dataset.viewer_role!==requestedView');
+  const publishIndex=loader.indexOf('app.statsState.players=Array.isArray');
+  assert.ok(clearIndex>=0&&clearIndex<tableClearIndex&&tableClearIndex<renderIndex&&renderIndex<fetchIndex&&fetchIndex<requestIndex);
+  assert.ok(roleCheckIndex>requestIndex&&roleCheckIndex<publishIndex);
+});
+
+test('player loading never republishes stale staff names on a rejected response',async()=>{
+  const app=loadStatistics();
+  const elements={
+    '#statsStatus':{textContent:''},
+    '#statsLeaderboardSummary':{textContent:'Ancien classement'},
+    '#statsLeaderboardTable':{innerHTML:'<strong>Alice</strong>'}
+  };
+  let releaseCategories;
+  const categories=new Promise(resolve=>{releaseCategories=resolve});
+  let rpcCalls=0;
+  app.$=selector=>elements[selector]||null;
+  app.statsState={readOnlyViewer:true,loadToken:0,players:[{display_name:'Alice'}],sessions:[],attendance:[],sessionExercises:[],results:[],exerciseMap:{},sessionMap:{},leaderboardCache:[{name:'Alice'}]};
+  app.populateStatsSelectors=()=>{};
+  app.renderStatsAll=()=>{};
+  app.fetchExerciseCategories=()=>categories;
+  app.services={trainingStatisticsDataset:async()=>{rpcCalls++;return {viewer_role:'staff',players:[{display_name:'Alice'}]}}};
+
+  const loading=app.loadStatsData('group-1');
+  assert.equal(app.statsState.players.length,0);
+  assert.equal(elements['#statsLeaderboardSummary'].textContent,'');
+  assert.equal(elements['#statsLeaderboardTable'].innerHTML,'');
+  assert.equal(rpcCalls,0);
+  releaseCategories();
+  await assert.rejects(loading,/ne correspond pas à la vue demandée/);
+  assert.equal(app.statsState.players.length,0);
+  assert.equal(rpcCalls,1);
 });

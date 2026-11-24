@@ -231,14 +231,19 @@ app.statsFilteredExerciseResults = function statsFilteredExerciseResults(exercis
 
 app.loadStatsData = async function loadStatsData(groupId){
   const loadToken=++app.statsState.loadToken;
+  const requestedView=app.statsState.readOnlyViewer?'player':'staff';
+  app.statsState.groupId=groupId;
+  app.statsState.viewerRole=null;app.statsState.sessions=[];app.statsState.attendance=[];app.statsState.sessionExercises=[];app.statsState.results=[];app.statsState.players=[];app.statsState.exerciseMap={};app.statsState.sessionMap={};app.statsState.leaderboardCache=null;
+  if(app.$('#statsLeaderboardSummary'))app.$('#statsLeaderboardSummary').textContent='';
+  if(app.$('#statsLeaderboardTable'))app.$('#statsLeaderboardTable').innerHTML='';
+  app.populateStatsSelectors();app.renderStatsAll();
+  if(!groupId)return;
+  app.$('#statsStatus').textContent='Chargement…';
   await app.fetchExerciseCategories();
   if(loadToken!==app.statsState.loadToken)return;
-  app.statsState.groupId=groupId;
-  app.statsState.sessions=[];app.statsState.attendance=[];app.statsState.sessionExercises=[];app.statsState.results=[];app.statsState.players=[];app.statsState.exerciseMap={};app.statsState.sessionMap={};
-  if(!groupId){app.renderStatsAll();return}
-  app.$('#statsStatus').textContent='Chargement…';
-  const dataset=await app.services.trainingStatisticsDataset(groupId);
+  const dataset=await app.services.trainingStatisticsDataset(groupId,{view:requestedView});
   if(loadToken!==app.statsState.loadToken||app.statsState.groupId!==groupId)return;
+  if(dataset.viewer_role!==requestedView)throw new Error('La réponse des statistiques ne correspond pas à la vue demandée.');
   app.statsState.viewerRole=dataset.viewer_role||null;
   app.statsState.sessions=Array.isArray(dataset.sessions)?dataset.sessions:[];
   app.statsState.players=Array.isArray(dataset.players)?dataset.players:[];
