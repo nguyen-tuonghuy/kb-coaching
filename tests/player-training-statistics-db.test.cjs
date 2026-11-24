@@ -5,7 +5,7 @@ const path=require('node:path');
 const {PGlite}=require('@electric-sql/pglite');
 
 const root=path.resolve(__dirname,'..');
-const migration=fs.readFileSync(path.join(root,'supabase/migrations/20261124120000_player_training_statistics.sql'),'utf8');
+const migration=fs.readFileSync(path.join(root,'supabase/migrations/20261124173651_player_training_statistics.sql'),'utf8');
 
 const COACH='11111111-1111-4111-8111-111111111111';
 const ALICE_USER='22222222-2222-4222-8222-222222222222';

@@ -5,7 +5,7 @@ const path=require('node:path');
 const vm=require('node:vm');
 
 const root=path.resolve(__dirname,'..');
-const migration=fs.readFileSync(path.join(root,'supabase/migrations/20261124120000_player_training_statistics.sql'),'utf8');
+const migration=fs.readFileSync(path.join(root,'supabase/migrations/20261124173651_player_training_statistics.sql'),'utf8');
 const data=fs.readFileSync(path.join(root,'js/shared/data.js'),'utf8');
 const statistics=fs.readFileSync(path.join(root,'js/shared/statistics.js'),'utf8');
 const shell=fs.readFileSync(path.join(root,'js/shared/page-shell.js'),'utf8');
