@@ -64,9 +64,9 @@
       const responses=await Promise.all([
         db.from('training_attendance').select('session_id,player_id,present').in('session_id',sessionIds),
         db.from('training_session_exercises')
-          .select('session_id,exercise_id,focus,position,exercise:exercises!training_session_exercises_exercise_id_fkey(id,name,category,category_id,copied_from_exercise_id,measurement_type)')
+          .select('session_id,occurrence_id,exercise_id,focus,position,exercise:exercises!training_session_exercises_exercise_id_fkey(id,name,category,category_id,copied_from_exercise_id,measurement_type)')
           .in('session_id',sessionIds),
-        db.from('training_results').select('id,session_id,exercise_id,player_id,successes,attempts,numeric_value,note,created_at').in('session_id',sessionIds)
+        db.from('training_results').select('id,session_id,occurrence_id,exercise_id,player_id,successes,attempts,numeric_value,note,created_at').in('session_id',sessionIds)
       ]);
       for(const response of responses)if(response.error)throw response.error;
       return {attendance:responses[0].data||[],sessionExercises:responses[1].data||[],results:responses[2].data||[]};

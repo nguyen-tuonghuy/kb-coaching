@@ -331,6 +331,20 @@ button:active{transform:scale(.985)}
 
 .trainingResults{display:flex;flex-direction:column;gap:8px;margin-top:10px}
 
+.trainingPlayerCollection{display:grid;gap:9px;padding:11px;border:1px solid var(--line);border-radius:12px;background:var(--panel);margin-bottom:2px}
+
+.trainingPlayerCollection.locked{border-style:dashed}
+
+.trainingPlayerCollectionHead,.trainingPlayerCollectionActions{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+
+.trainingPlayerDiscrepancies{display:grid;gap:8px;padding-top:9px;border-top:1px solid var(--line)}
+
+.trainingPlayerDiscrepancy{display:grid;gap:8px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--panel2)}
+
+.trainingPlayerValues{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+
+.trainingPlayerValues span{display:grid;gap:2px;padding:8px;border:1px solid var(--line);border-radius:9px}
+
 .resultRow{background:#171a21;border-radius:12px;padding:10px}
 
 .resultRow .name{font-weight:750;margin-bottom:7px}
@@ -2467,6 +2481,30 @@ body.videoReviewWideActive #popup.actionDetailPanel.hidden,body.videoReviewWideA
 .playerPortalHomeHero{padding:4px 0 8px}
 
 .playerPortalHomeHero h2{margin:0 0 4px;font-size:24px}
+
+.playerTrainingResults{display:grid;gap:10px;margin:12px 0 4px;padding:15px;border:1px solid var(--line);border-radius:16px;background:var(--panel2)}
+
+.playerTrainingResultsHead,.playerTrainingResultTaskHead,.playerTrainingResultActions{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+
+.playerTrainingResultsHead h2{margin:0;font-size:19px}
+
+#playerTrainingResultsList{display:grid;gap:9px}
+
+.playerTrainingResultTask{display:grid;gap:10px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+
+.playerTrainingResultTask.locked{border-style:dashed}
+
+.playerTrainingResultState{font-size:12px;font-weight:750;padding:4px 8px;border:1px solid var(--line);border-radius:999px;white-space:nowrap}
+
+.playerTrainingResultForm{display:grid;gap:10px;padding-top:10px;border-top:1px solid var(--line)}
+
+.playerTrainingResultActions{align-items:center}
+
+@media(max-width:560px){
+  .trainingPlayerValues{grid-template-columns:1fr}
+  .trainingPlayerCollectionActions button,.playerTrainingResultActions button{width:100%}
+  .playerTrainingResultActions .small{width:100%}
+}
 
 .playerPortalHomeGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}
 

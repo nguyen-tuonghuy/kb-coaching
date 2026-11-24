@@ -204,6 +204,8 @@ app.trainingLocalState={
 app.resetTrainingSessionContext=function resetTrainingSessionContext(){
   app.trainingState.sessionWorkspaceId=null;
   app.trainingState.sessionTeamId=null;
+  app.trainingState.playerCollectionRows=[];
+  app.trainingState.resultMeta={};
 };
 
 // --- Bail d'edition exclusif (Lot C2) --------------------------------------
@@ -723,6 +725,8 @@ app.applyTrainingEditorDocument = async function applyTrainingEditorDocument(doc
   app.trainingState.sessionExercises=JSON.parse(JSON.stringify(document.sessionExercises)).map(exercise=>({...exercise,
     occurrenceId:app.isTrainingOccurrenceId(exercise.occurrenceId)?exercise.occurrenceId:app.newUuid()}));
   app.trainingState.resultDraft=JSON.parse(JSON.stringify(document.resultDraft));
+  // Un brouillon local ne porte pas les versions cloud des resultats verrouilles.
+  app.trainingState.resultMeta={};
   const attendance=new Map(document.attendance.map(item=>[String(item.playerId),!!item.present]));
   app.$$('#trainingAttendance input').forEach(input=>{input.checked=attendance.get(String(input.value))??false});
   app.syncPlanStatExercises();app.renderTrainingExerciseCards({capture:false});app.renderTrainingPlan();app.autoGrowPlanTextarea(app.$('#trainingNotes'));
@@ -1603,6 +1607,7 @@ app.startNewTraining = async function startNewTraining({skipRecovery=false,draft
   app.resetTrainingTacticalSessionCache?.();
   app.resetTrainingSessionContext();
   app.trainingState.resultDraft={};
+  app.trainingState.resultMeta={};
   app.trainingState.planOrganizerMode=false;app.trainingState.planOrganizerSelectedId=null;
   app.syncTrainingFinishButton();
   if(!app.groupState.groups.length)await app.fetchMyGroups();
@@ -1713,6 +1718,124 @@ app.resultInputsHtml = function resultInputsHtml(ex,p){
   return `<label>${app.escapeHtml(app.measurementLabel(ex.measurement_type))}</label><input class="tr-value" data-key="${key}" type="number" step="any" inputmode="decimal"${max} value="${app.escapeAttr(d.value)}">`;
 };
 
+app.trainingPlayerCollectionFor = function trainingPlayerCollectionFor(occurrenceId){
+  return (app.trainingState.playerCollectionRows||[]).filter(row=>row.occurrence_id===occurrenceId);
+};
+
+app.trainingResultValueText = function trainingResultValueText(type,row,prefix){
+  if(type==='success_attempts'){
+    const successes=row?.[`${prefix}_successes`],attempts=row?.[`${prefix}_attempts`];
+    return successes==null&&attempts==null?'À compléter':`${successes??'—'}/${attempts??'—'}`;
+  }
+  const value=row?.[`${prefix}_numeric_value`];
+  return value==null?'À compléter':String(value);
+};
+
+app.trainingPlayerCollectionHtml = function trainingPlayerCollectionHtml(ex){
+  const rows=app.trainingPlayerCollectionFor(ex.occurrenceId);
+  if(!rows.length)return `<div class="trainingPlayerCollection"><button type="button" class="ghost" data-player-collection-open>Ouvrir la saisie joueurs</button></div>`;
+  const submitted=rows.filter(row=>row.declaration_id).length;
+  const missing=rows.filter(row=>row.account_linked&&!row.declaration_id).map(row=>row.player_name);
+  const unlinked=rows.filter(row=>!row.account_linked).map(row=>row.player_name);
+  const pending=rows.filter(row=>row.resolution_state==='pending');
+  const state=rows[0].collection_state;
+  const discrepancies=pending.map(row=>`<div class="trainingPlayerDiscrepancy" data-declaration-id="${app.escapeAttr(row.declaration_id)}">
+    <div class="name">${app.escapeHtml(row.player_name)}</div>
+    <div class="trainingPlayerValues"><span>Joueur <strong>${app.escapeHtml(app.trainingResultValueText(ex.measurement_type,row,'player'))}</strong>${row.player_note?`<small>${app.escapeHtml(row.player_note)}</small>`:''}</span><span>Coach <strong>${app.escapeHtml(app.trainingResultValueText(ex.measurement_type,row,'coach'))}</strong>${row.coach_note?`<small>${app.escapeHtml(row.coach_note)}</small>`:''}</span></div>
+    <div class="trainingPlayerCollectionActions"><button type="button" class="ghost" data-player-arbitrate="coach">Conserver la valeur coach</button><button type="button" class="primary" data-player-arbitrate="player">Utiliser la valeur joueur</button></div>
+  </div>`).join('');
+  return `<div class="trainingPlayerCollection ${state==='locked'?'locked':''}">
+    <div class="trainingPlayerCollectionHead"><strong>${submitted} joueur${submitted>1?'s':''} sur ${rows.length} ${submitted>1?'ont':'a'} saisi ${submitted>1?'leurs':'ses'} résultats</strong><span class="small">${state==='open'?'Saisie ouverte':'Saisie verrouillée'}</span></div>
+    ${missing.length?`<div class="small">Manquants : ${app.escapeHtml(missing.join(', '))}</div>`:'<div class="small">Toutes les déclarations ont été reçues.</div>'}
+    ${unlinked.length?`<div class="small">Sans compte joueur lié : ${app.escapeHtml(unlinked.join(', '))}</div>`:''}
+    ${state==='open'?'<button type="button" class="primary" data-player-collection-retrieve>Récupérer et verrouiller</button>':''}
+    ${pending.length?`<div class="trainingPlayerDiscrepancies"><strong>${pending.length} écart${pending.length>1?'s':''} à traiter</strong>${discrepancies}</div>`:''}
+  </div>`;
+};
+
+app.loadTrainingPlayerCollections = async function loadTrainingPlayerCollections({syncDraft=false}={}){
+  const sessionId=app.trainingState.currentSessionId;
+  if(!sessionId){app.trainingState.playerCollectionRows=[];return []}
+  const loadToken=app.trainingState.editorLoadToken;
+  const {data,error}=await app.db.rpc('get_training_player_collection_details',{p_session_id:sessionId});
+  if(error)throw error;
+  if(app.trainingState.currentSessionId!==sessionId||app.trainingState.editorLoadToken!==loadToken)return [];
+  app.trainingState.playerCollectionRows=data||[];
+  const byOccurrence=new Map(app.trainingState.sessionExercises.map(ex=>[ex.occurrenceId,ex]));
+  app.trainingState.playerCollectionRows.forEach(row=>{
+    const ex=byOccurrence.get(row.occurrence_id);if(!ex)return;
+    const key=app.trainingDraftKey(ex.localKey,row.player_id);
+    if(row.result_id)app.trainingState.resultMeta[key]={id:row.result_id,version:row.result_version};
+    else delete app.trainingState.resultMeta[key];
+    if(syncDraft&&row.result_id){
+      app.trainingState.resultDraft[app.trainingDraftKey(ex.localKey,row.player_id)]={
+        successes:row.coach_successes==null?'':String(row.coach_successes),
+        attempts:row.coach_attempts==null?'':String(row.coach_attempts),
+        value:row.coach_numeric_value==null?'':String(row.coach_numeric_value),note:row.coach_note||''
+      };
+    }
+  });
+  return app.trainingState.playerCollectionRows;
+};
+
+app.openTrainingPlayerCollection = async function openTrainingPlayerCollection(ex){
+  if(app.trainingState.playerCollectionBusy)return;
+  app.trainingState.playerCollectionBusy=true;
+  try{
+    await app.saveTrainingSession();
+    const sessionId=app.trainingState.currentSessionId;
+    if(!sessionId||app.trainingLocalState.conflict||!app.trainingState.persistedOccurrenceIds?.has(ex.occurrenceId)||app.trainingSessionIsDirty())throw new Error('La séance doit être synchronisée avant d’ouvrir la saisie.');
+    const {error}=await app.db.rpc('open_training_player_collection',{p_session_id:sessionId,p_occurrence_id:ex.occurrenceId});
+    if(error)throw error;
+    await app.loadTrainingPlayerCollections();
+    app.renderTrainingExerciseCards();
+  }finally{app.trainingState.playerCollectionBusy=false}
+};
+
+app.retrieveTrainingPlayerCollection = async function retrieveTrainingPlayerCollection(ex){
+  if(app.trainingState.playerCollectionBusy||!app.trainingLeaseCanMutate())return;
+  const rows=app.trainingPlayerCollectionFor(ex.occurrenceId);
+  const missing=rows.filter(row=>row.account_linked&&!row.declaration_id).length;
+  const warning=missing?`${missing} joueur${missing>1?'s n’ont':' n’a'} pas encore saisi de résultat. `:'';
+  if(!confirm(`${warning}Récupérer les déclarations reçues et fermer la saisie ?`))return;
+  app.trainingState.playerCollectionBusy=true;
+  try{
+    const lease=app.trainingLeaseState;
+    const {error}=await app.db.rpc('retrieve_training_player_results',{
+      p_session_id:app.trainingState.currentSessionId,p_occurrence_id:ex.occurrenceId,p_operation_id:app.newUuid(),
+      p_editor_instance_id:lease.instanceId,p_lease_token:lease.token
+    });
+    if(error)throw error;
+    await app.loadTrainingPlayerCollections({syncDraft:true});
+    const parent=await app.fetchTrainingSessionParent(app.trainingState.currentSessionId);
+    if(parent)app.trainingLocalState.baseVersion=parent.version;
+    app.renderTrainingExerciseCards({capture:false});
+  }finally{app.trainingState.playerCollectionBusy=false}
+};
+
+app.arbitrateTrainingPlayerResult = async function arbitrateTrainingPlayerResult(ex,row,choice){
+  if(app.trainingState.playerCollectionBusy||!app.trainingLeaseCanMutate())return;
+  app.trainingState.playerCollectionBusy=true;
+  try{
+    const lease=app.trainingLeaseState;
+    const {data,error}=await app.db.rpc('arbitrate_training_player_result',{
+      p_declaration_id:row.declaration_id,p_choice:choice,p_expected_result_id:row.result_id,
+      p_expected_result_version:row.result_version,p_editor_instance_id:lease.instanceId,p_lease_token:lease.token
+    });
+    if(error)throw error;
+    if(data?.status==='conflict'){
+      await app.loadTrainingPlayerCollections({syncDraft:true});
+      app.renderTrainingExerciseCards({capture:false});
+      alert('Le résultat coach a été modifié depuis l’affichage. La valeur à jour est maintenant affichée.');
+      return;
+    }
+    await app.loadTrainingPlayerCollections({syncDraft:true});
+    const parent=await app.fetchTrainingSessionParent(app.trainingState.currentSessionId);
+    if(parent)app.trainingLocalState.baseVersion=parent.version;
+    app.renderTrainingExerciseCards({capture:false});
+  }finally{app.trainingState.playerCollectionBusy=false}
+};
+
 app.renderTrainingExerciseCards = function renderTrainingExerciseCards({capture=true}={}){
   if(capture)app.captureTrainingResultDraft();
   const box=app.$('#trainingExerciseCards');if(!box)return;box.innerHTML='';
@@ -1739,6 +1862,7 @@ app.renderTrainingExerciseCards = function renderTrainingExerciseCards({capture=
       </div>
       <div class="trainingResults${ex.expanded?'':' hidden'}">
         <div data-training-tactical-inline="${app.escapeAttr(ex.occurrenceId)}" data-training-tactical-mode="section" data-training-tactical-visible="${ex.expanded?'true':'false'}" data-training-tactical-title="${app.escapeAttr(ex.name||'Exercice')}"></div>
+        ${app.trainingPlayerCollectionHtml(ex)}
         ${app.isDualExercise(ex)?`<div class="field" style="margin-bottom:10px">
           <label>Focus de l’exercice dans cette séance</label>
           <select class="sessionExerciseFocus">
@@ -1764,7 +1888,7 @@ app.renderTrainingExerciseCards = function renderTrainingExerciseCards({capture=
     }
 
     header.onclick=(ev)=>{
-      if(ev.target.closest('[data-close]')||ev.target.closest('[data-remove]')||ev.target.closest('[data-tactical]')) return;
+      if(ev.target.closest('button')||ev.target.closest('input')||ev.target.closest('textarea')||ev.target.closest('select')) return;
       app.collapseAllTrainingExercises(ex.localKey);
     };
 
@@ -1782,12 +1906,22 @@ app.renderTrainingExerciseCards = function renderTrainingExerciseCards({capture=
       ev.stopPropagation();
       app.openTrainingTacticalDiagrams?.(ex.occurrenceId,ex.name||'Exercice');
     };
+    card.querySelector('[data-player-collection-open]')?.addEventListener('click',ev=>{ev.stopPropagation();app.openTrainingPlayerCollection(ex).catch(error=>app.handleError('open player result entry',error))});
+    card.querySelector('[data-player-collection-retrieve]')?.addEventListener('click',ev=>{ev.stopPropagation();app.retrieveTrainingPlayerCollection(ex).catch(error=>app.handleError('retrieve player results',error))});
+    card.querySelectorAll('[data-player-arbitrate]').forEach(button=>button.addEventListener('click',ev=>{
+      ev.stopPropagation();
+      const declarationId=button.closest('[data-declaration-id]')?.dataset.declarationId;
+      const row=app.trainingPlayerCollectionFor(ex.occurrenceId).find(item=>item.declaration_id===declarationId);
+      if(row)app.arbitrateTrainingPlayerResult(ex,row,button.dataset.playerArbitrate).catch(error=>app.handleError('arbitrate player result',error));
+    }));
 
     if(!present.length) rb.insertAdjacentHTML('beforeend','<div class="small">Sélectionne au moins un joueur présent.</div>');
     present.forEach(p=>{
       const row=document.createElement('div');row.className='resultRow';row.dataset.exercise=ex.localKey;row.dataset.player=p.id;
       const draft=app.getTrainingDraft(ex.localKey,p.id);
-      row.innerHTML=`<div class="name">${app.escapeHtml(p.name)}</div>${app.resultInputsHtml(ex,p)}<div class="trainingResultNoteField"><label>Note facultative</label><textarea class="tr-note" rows="2" placeholder="Observation, correction, point d’attention…">${app.escapeHtml(draft.note||'')}</textarea></div>`;
+      const collectionRow=app.trainingPlayerCollectionFor(ex.occurrenceId).find(item=>item.player_id===p.id);
+      const incomplete=collectionRow?.collection_state==='locked'&&!collectionRow.declaration_id&&!collectionRow.result_id;
+      row.innerHTML=`<div class="name">${app.escapeHtml(p.name)}${incomplete?' <span class="small">· À compléter</span>':''}</div>${app.resultInputsHtml(ex,p)}<div class="trainingResultNoteField"><label>Note facultative</label><textarea class="tr-note" rows="2" placeholder="Observation, correction, point d’attention…">${app.escapeHtml(draft.note||'')}</textarea></div>`;
       const noteEl=row.querySelector('.tr-note');
       if(noteEl){
         app.autoGrowPlanTextarea(noteEl);
@@ -2333,7 +2467,7 @@ app.editTrainingSessionById = async function editTrainingSessionById(sessionId,{
       .select('position,variant,target,focus,occurrence_id,exercise:exercises!training_session_exercises_exercise_id_fkey(id,name,category,category_id,copied_from_exercise_id,measurement_type,description,objective,attack_instruction,defense_instruction)')
       .eq('session_id',sessionId).order('position'),
     app.db.from('training_results')
-      .select('exercise_id,player_id,successes,attempts,numeric_value,note')
+      .select('id,occurrence_id,exercise_id,player_id,successes,attempts,numeric_value,note,variant,result_version')
       .eq('session_id',sessionId),
     app.db.from('training_exercise_occurrences').select('id').eq('session_id',sessionId).eq('active',true),
     app.db.from('training_tactical_diagrams').select('id,occurrence_id,document,position,version,updated_at').eq('session_id',sessionId).order('position',{ascending:true})
@@ -2349,6 +2483,7 @@ app.editTrainingSessionById = async function editTrainingSessionById(sessionId,{
   app.trainingState.sessionWorkspaceId=source.workspace_id??null;
   app.trainingState.sessionTeamId=source.team_id??null;
   app.trainingState.resultDraft={};
+  app.trainingState.resultMeta={};
   app.trainingState.planOrganizerMode=false;app.trainingState.planOrganizerSelectedId=null;
   const sourcePlan=app.unpackTrainingNotes(source.notes||'');
   app.trainingState.planBlocks=app.hydrateTrainingPlanBlocks(sourcePlan.plan);
@@ -2374,16 +2509,22 @@ app.editTrainingSessionById = async function editTrainingSessionById(sessionId,{
   const presentIds=new Set((attendance||[]).filter(a=>a.present).map(a=>a.player_id));
   app.$$('#trainingAttendance input').forEach(c=>c.checked=presentIds.has(c.value));
 
-  const exById=new Map(app.trainingState.sessionExercises.map(ex=>[ex.id,ex]));
-  (results||[]).forEach(r=>{
-    const ex=exById.get(r.exercise_id);if(!ex)return;
+  const exByOccurrence=new Map(app.trainingState.sessionExercises.map(ex=>[ex.occurrenceId,ex]));
+  const occurrencesByExercise=new Map();
+  app.trainingState.sessionExercises.forEach(ex=>{if(!occurrencesByExercise.has(ex.id))occurrencesByExercise.set(ex.id,[]);occurrencesByExercise.get(ex.id).push(ex)});
+  (results||[]).filter(r=>r.variant==null).forEach(r=>{
+    const legacy=occurrencesByExercise.get(r.exercise_id)||[];
+    const ex=(r.occurrence_id&&exByOccurrence.get(r.occurrence_id))||(legacy.length===1?legacy[0]:null);if(!ex)return;
     app.trainingState.resultDraft[app.trainingDraftKey(ex.localKey,r.player_id)]={
       successes:r.successes==null?'':String(r.successes),
       attempts:r.attempts==null?'':String(r.attempts),
       value:r.numeric_value==null?'':String(r.numeric_value),
       note:r.note||''
     };
+    app.trainingState.resultMeta[app.trainingDraftKey(ex.localKey,r.player_id)]={id:r.id,version:r.result_version};
   });
+
+  await app.loadTrainingPlayerCollections();
 
   app.renderTrainingExerciseCards({capture:false});
   app.renderTrainingPlan();
@@ -2510,8 +2651,8 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
     const withoutFocus=saveDocument.sessionExercises.find(ex=>app.isDualExercise(ex)&&!ex.focus);
     if(withoutFocus){if(autosave)app.setTrainingCloudStatus('incomplete');else app.trainingStatus(`Choisis le focus Attaque ou Défense pour « ${withoutFocus.name} ».`,true);return}
 
-    // La sauvegarde transite exclusivement par la RPC transactionnelle G2
-    // save_training_session_with_occurrences (SECURITY INVOKER) : aucune écriture directe sur les tables
+    // La sauvegarde transite exclusivement par l'enveloppe transactionnelle occurrence-aware
+    // save_training_session_player_results (SECURITY INVOKER) : aucune écriture directe sur les tables
     // enfants (training_attendance, training_session_exercices, training_results) ne
     // subsiste ici. Les autorisations sont contrôlées par les policies RLS du parent ;
     // les appels aux fonctions du schéma private ne sont pas réintroduits.
@@ -2552,20 +2693,24 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
     const results=[];
     saveDocument.sessionExercises.forEach(ex=>{
       presentIds.forEach(playerId=>{
-        const d=saveDocument.resultDraft[app.trainingDraftKey(ex.localKey,playerId)]||{successes:'',attempts:'',value:'',note:''};
+        const resultKey=app.trainingDraftKey(ex.localKey,playerId);
+        const d=saveDocument.resultDraft[resultKey]||{successes:'',attempts:'',value:'',note:''};
+        const meta=app.trainingState.resultMeta[resultKey]||null;
         const note=(d.note||'').trim()||null;
         if(ex.measurement_type==='success_attempts'){
-          if(d.successes===''&&d.attempts===''&&!note)return;
+          if(d.successes===''&&d.attempts===''&&!note){if(meta)results.push({occurrence_id:ex.occurrenceId,exercise_id:ex.id,player_id:playerId,delete_result:true,expected_result_id:meta.id,expected_result_version:meta.version});return}
           results.push({
-            exercise_id:ex.id,player_id:playerId,
+            occurrence_id:ex.occurrenceId,exercise_id:ex.id,player_id:playerId,
             successes:d.successes===''?null:Number(d.successes),
-            attempts:d.attempts===''?null:Number(d.attempts),note
+            attempts:d.attempts===''?null:Number(d.attempts),note,
+            expected_result_id:meta?.id||null,expected_result_version:meta?.version??null
           });
         }else{
-          if(d.value===''&&!note)return;
+          if(d.value===''&&!note){if(meta)results.push({occurrence_id:ex.occurrenceId,exercise_id:ex.id,player_id:playerId,delete_result:true,expected_result_id:meta.id,expected_result_version:meta.version});return}
           results.push({
-            exercise_id:ex.id,player_id:playerId,
-            numeric_value:d.value===''?null:Number(d.value),note
+            occurrence_id:ex.occurrenceId,exercise_id:ex.id,player_id:playerId,
+            numeric_value:d.value===''?null:Number(d.value),note,
+            expected_result_id:meta?.id||null,expected_result_version:meta?.version??null
           });
         }
       });
@@ -2573,7 +2718,7 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
 
     if(!sessionId)app.setTrainingLeaseStatus('pending');
 
-    const {data:rpcResult,error:rpcError}=await app.db.rpc('save_training_session_with_occurrences',{
+    const {data:rpcResult,error:rpcError}=await app.db.rpc('save_training_session_player_results',{
       p_session_id:sessionId,
       p_expected_version:sessionId?app.trainingLocalState.baseVersion:null,
       p_editor_instance_id:lease.instanceId,
@@ -2622,6 +2767,9 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
     const previousPersistedOccurrenceIds=app.trainingState.persistedOccurrenceIds;
     app.trainingState.currentSessionId=result.session_id;
     app.trainingState.persistedOccurrenceIds=new Set(occurrences.map(item=>item.id));
+    if(app.trainingState.playerCollectionRows.length){
+      await app.loadTrainingPlayerCollections().catch(error=>console.warn('[training collections] refresh after save',error));
+    }
     app.clearSavedTrainingOccurrenceCopySources(occurrences);
     app.syncTrainingTacticalReadOnly?.();
     occurrences.filter(item=>!previousPersistedOccurrenceIds?.has(item.id)).forEach(item=>app.refreshTrainingTacticalInline?.(item.id));

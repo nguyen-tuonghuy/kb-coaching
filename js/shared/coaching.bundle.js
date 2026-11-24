@@ -121,6 +121,10 @@
    <p>Ton compte est maintenant associé à ton profil joueur. Pour tes prochaines visites, accède directement à Kinball Coach. Tu n'auras plus besoin de ce lien d'invitation.</p>
    <button class="primary" type="button" id="playerClaimSuccessContinue">Accéder à mon espace joueur</button>
   </div>`,
+  "playerTrainingResults": `<section class="playerTrainingResults hidden" id="playerTrainingResults" aria-labelledby="playerTrainingResultsTitle">
+   <div class="playerTrainingResultsHead"><div><div class="analysisSubtle">Entraînement</div><h2 id="playerTrainingResultsTitle">Mes résultats à saisir</h2></div><span class="small" id="playerTrainingResultsCount"></span></div>
+   <div id="playerTrainingResultsList"></div>
+  </section>`,
   "playerPortalStatsView": `<div class="hidden" id="playerPortalStatsView">
    <div class="playerPortalStatsHeader">
     <div><div class="analysisSubtle">Matchs</div><h2 id="playerPortalTitle">Mes statistiques</h2><div class="small" id="playerPortalSubtitle"></div></div>
@@ -1310,9 +1314,9 @@
       const responses=await Promise.all([
         db.from('training_attendance').select('session_id,player_id,present').in('session_id',sessionIds),
         db.from('training_session_exercises')
-          .select('session_id,exercise_id,focus,position,exercise:exercises!training_session_exercises_exercise_id_fkey(id,name,category,category_id,copied_from_exercise_id,measurement_type)')
+          .select('session_id,occurrence_id,exercise_id,focus,position,exercise:exercises!training_session_exercises_exercise_id_fkey(id,name,category,category_id,copied_from_exercise_id,measurement_type)')
           .in('session_id',sessionIds),
-        db.from('training_results').select('id,session_id,exercise_id,player_id,successes,attempts,numeric_value,note,created_at').in('session_id',sessionIds)
+        db.from('training_results').select('id,session_id,occurrence_id,exercise_id,player_id,successes,attempts,numeric_value,note,created_at').in('session_id',sessionIds)
       ]);
       for(const response of responses)if(response.error)throw response.error;
       return {attendance:responses[0].data||[],sessionExercises:responses[1].data||[],results:responses[2].data||[]};
@@ -2662,6 +2666,92 @@ app.statsGroupMeta = function statsGroupMeta(groupId){
 
 app.playerPortalTargetPlayerId = function playerPortalTargetPlayerId(){return app.playerPortalState.staffPreview?app.playerPortalState.staffPlayerId:(app.playerPortalAccessForGroup(app.playerPortalState.groupId)?.player_id||null)};
 
+app.playerTrainingMeasurementLabel = function playerTrainingMeasurementLabel(type){
+  return ({success_attempts:'Réussites / tentatives',count:'Nombre',time_seconds:'Temps (s)',distance:'Distance',score:'Score',rating_5:'Note / 5',rating_10:'Note / 10'})[type]||type;
+};
+
+app.playerTrainingResultFieldsHtml = function playerTrainingResultFieldsHtml(task,readOnly){
+  const disabled=readOnly?' disabled':'';
+  if(task.measurement_type==='success_attempts')return `<div class="miniGrid"><div class="field"><label>Réussites</label><input data-player-result-successes type="number" min="0" inputmode="numeric" value="${app.escapeAttr(task.successes??'')}"${disabled}></div><div class="field"><label>Tentatives</label><input data-player-result-attempts type="number" min="0" inputmode="numeric" value="${app.escapeAttr(task.attempts??'')}"${disabled}></div></div>`;
+  const max=task.measurement_type==='rating_5'?' max="5"':task.measurement_type==='rating_10'?' max="10"':'';
+  return `<div class="field"><label>${app.escapeHtml(app.playerTrainingMeasurementLabel(task.measurement_type))}</label><input data-player-result-value type="number" min="0" step="any" inputmode="decimal" value="${app.escapeAttr(task.numeric_value??'')}"${max}${disabled}></div>`;
+};
+
+app.renderPlayerTrainingResults = function renderPlayerTrainingResults(){
+  const wrap=app.$('#playerTrainingResults'),box=app.$('#playerTrainingResultsList'),count=app.$('#playerTrainingResultsCount');
+  if(!wrap||!box)return;
+  if(app.playerPortalState.staffPreview){wrap.classList.add('hidden');box.innerHTML='';return}
+  const tasks=app.playerPortalState.trainingResultTasks||[];
+  wrap.classList.toggle('hidden',!tasks.length);
+  if(count){const open=tasks.filter(task=>task.collection_state==='open'&&!task.declaration_id).length;count.textContent=open?`${open} à compléter`:'Déclarations enregistrées'}
+  box.innerHTML=tasks.map(task=>{
+    const open=task.collection_state==='open';
+    const active=app.playerPortalState.activeTrainingResultOccurrence===task.occurrence_id;
+    const hasDeclaration=!!task.declaration_id;
+    const form=(active||!open)&&hasDeclaration||active?`<form class="playerTrainingResultForm" data-player-result-form="${app.escapeAttr(task.occurrence_id)}">
+      ${app.playerTrainingResultFieldsHtml(task,!open)}
+      <div class="field"><label>Note facultative</label><textarea data-player-result-note rows="2" maxlength="2000"${open?'':' disabled'}>${app.escapeHtml(task.note||'')}</textarea></div>
+      <div class="playerTrainingResultActions"><span class="small" data-player-result-status>${open?(hasDeclaration?'Tu peux encore corriger cette déclaration.':'Enregistre ta déclaration avant la fermeture.'):'Déclaration verrouillée en lecture seule.'}</span>${open?'<button type="submit" class="primary">Enregistrer mes résultats</button>':''}</div>
+    </form>`:'';
+    return `<article class="playerTrainingResultTask ${open?'open':'locked'}">
+      <div class="playerTrainingResultTaskHead"><div><strong>${app.escapeHtml(task.exercise_name)}</strong><div class="small">${app.escapeHtml(app.formatDateShort(task.trained_on))} · ${app.escapeHtml(task.session_label||'Entraînement')} · ${app.escapeHtml(app.playerTrainingMeasurementLabel(task.measurement_type))}</div></div><span class="playerTrainingResultState">${open?'Saisie ouverte':'Verrouillée'}</span></div>
+      ${open&&!active?`<button type="button" class="primary" data-player-result-open="${app.escapeAttr(task.occurrence_id)}">${hasDeclaration?'Corriger mes résultats':'Saisir mes résultats'}</button>`:''}${form}
+    </article>`;
+  }).join('');
+  box.querySelectorAll('[data-player-result-open]').forEach(button=>button.onclick=()=>{app.playerPortalState.activeTrainingResultOccurrence=button.dataset.playerResultOpen;app.renderPlayerTrainingResults();box.querySelector(`[data-player-result-form="${button.dataset.playerResultOpen}"] input`)?.focus()});
+  box.querySelectorAll('[data-player-result-form]').forEach(form=>form.onsubmit=event=>{event.preventDefault();app.submitPlayerTrainingResult(form.dataset.playerResultForm,form).catch(error=>app.handleError('submit player training result',error))});
+};
+
+app.loadPlayerTrainingResults = async function loadPlayerTrainingResults(){
+  const groupId=app.playerPortalState.groupId;
+  if(!groupId||app.playerPortalState.staffPreview){app.playerPortalState.trainingResultTasks=[];app.renderPlayerTrainingResults();return []}
+  const requestedGroup=groupId;
+  const {data,error}=await app.db.rpc('get_my_training_result_tasks',{p_group_id:groupId});
+  if(error)throw error;
+  if(app.playerPortalState.groupId!==requestedGroup)return [];
+  app.playerPortalState.trainingResultTasks=data||[];
+  if(!app.playerPortalState.trainingResultTasks.some(task=>task.occurrence_id===app.playerPortalState.activeTrainingResultOccurrence))app.playerPortalState.activeTrainingResultOccurrence=null;
+  app.renderPlayerTrainingResults();
+  return app.playerPortalState.trainingResultTasks;
+};
+
+app.submitPlayerTrainingResult = async function submitPlayerTrainingResult(occurrenceId,form){
+  if(app.playerPortalState.trainingResultBusy)return;
+  const task=(app.playerPortalState.trainingResultTasks||[]).find(item=>item.occurrence_id===occurrenceId);
+  const status=form.querySelector('[data-player-result-status]'),button=form.querySelector('button[type="submit"]');
+  if(!task||task.collection_state!=='open')return;
+  const successes=form.querySelector('[data-player-result-successes]')?.value??'';
+  const attempts=form.querySelector('[data-player-result-attempts]')?.value??'';
+  const value=form.querySelector('[data-player-result-value]')?.value??'';
+  if(task.measurement_type==='success_attempts'&&successes===''&&attempts===''){status.textContent='Saisis au moins une valeur.';return}
+  if(task.measurement_type!=='success_attempts'&&value===''){status.textContent='Saisis une valeur.';return}
+  app.playerPortalState.trainingResultBusy=true;if(button)button.disabled=true;status.textContent='Enregistrement…';
+  try{
+    const {data,error}=await app.db.rpc('submit_my_training_result',{
+      p_occurrence_id:occurrenceId,p_successes:successes===''?null:Number(successes),p_attempts:attempts===''?null:Number(attempts),
+      p_numeric_value:value===''?null:Number(value),p_note:form.querySelector('[data-player-result-note]')?.value||null,p_client_request_id:app.newUuid(),
+      p_expected_version:task.declaration_version??null
+    });
+    if(error)throw error;
+    if(data?.status==='conflict'){
+      await app.loadPlayerTrainingResults();
+      const fresh=app.$('#playerTrainingResultsList')?.querySelector(`[data-player-result-form="${occurrenceId}"] [data-player-result-status]`);
+      if(fresh)fresh.textContent='Ta déclaration a été modifiée ailleurs. La valeur à jour est affichée.';
+      return;
+    }
+    await app.loadPlayerTrainingResults();
+    const fresh=app.$('#playerTrainingResultsList')?.querySelector(`[data-player-result-form="${occurrenceId}"] [data-player-result-status]`);
+    if(fresh)fresh.textContent='Résultats enregistrés. Tu peux les corriger tant que la saisie reste ouverte.';
+  }catch(error){
+    if(/La saisie est fermée|La saisie est fermee/i.test(error?.message||'')){
+      status.textContent='La saisie est fermée';
+      await app.loadPlayerTrainingResults().catch(()=>{});
+      return;
+    }
+    status.textContent='Enregistrement impossible.';throw error;
+  }finally{app.playerPortalState.trainingResultBusy=false;if(button)button.disabled=false}
+};
+
 app.playerPortalMetricsArgs = function playerPortalMetricsArgs(groupId,matchIds,scope){
   return {p_group_id:groupId,p_match_ids:matchIds,p_scope:scope,p_player_id:app.playerPortalState.staffPreview?app.playerPortalState.staffPlayerId:null};
 };
@@ -3230,7 +3320,8 @@ app.loadPlayerPortalGroup = async function loadPlayerPortalGroup(groupId){app.pl
 const background=[
   app.refreshMessageNotifications(app.playerPortalState.staffPreview?'coach':'player').catch(e=>app.handleError('message notifications',e)),
   app.loadPlayerPortalConversation({initial:true,forceBottom:true}).catch(e=>app.handleError('player conversation',e)),
-  app.loadPlayerObjectives().catch(e=>app.handleError('player objectives',e))
+  app.loadPlayerObjectives().catch(e=>app.handleError('player objectives',e)),
+  app.loadPlayerTrainingResults().catch(e=>app.handleError('player training results',e))
 ];
 app.syncStandaloneVideoLinks();app.playerPortalRenderMatches();app.$('#playerPortalContent').innerHTML=app.playerPortalSheetHtml(data,data?.details||[]);
 await Promise.allSettled(background)};
@@ -7239,15 +7330,16 @@ app.statsBarList = function statsBarList(items){
   return items.map(x=>`<div class="statsBarRow"><div class="statsBarTop"><span>${app.statsEscape(x.label)}</span><strong>${app.statsEscape(x.display??x.value)}</strong></div><div class="statsBarTrack"><div class="statsBarFill" style="width:${Math.max(3,100*x.value/max)}%"></div></div></div>`).join('');
 };
 
-app.statsSessionExerciseFocus = function statsSessionExerciseFocus(sessionId,exerciseId){
-  return app.statsState.sessionExercises.find(x=>x.session_id===sessionId&&x.exercise_id===exerciseId)?.focus||null;
+app.statsSessionExerciseFocus = function statsSessionExerciseFocus(sessionId,exerciseId,occurrenceId=null){
+  const exact=occurrenceId?app.statsState.sessionExercises.find(x=>x.session_id===sessionId&&x.occurrence_id===occurrenceId):null;
+  return (exact||app.statsState.sessionExercises.find(x=>x.session_id===sessionId&&x.exercise_id===exerciseId))?.focus||null;
 };
 
 app.statsFilteredExerciseResults = function statsFilteredExerciseResults(exerciseId,focus=null){
   return app.statsState.results.filter(r=>{
     if(r.exercise_id!==exerciseId)return false;
     if(!focus)return true;
-    return app.statsSessionExerciseFocus(r.session_id,exerciseId)===focus;
+    return app.statsSessionExerciseFocus(r.session_id,exerciseId,r.occurrence_id)===focus;
   });
 };
 
@@ -9499,11 +9591,11 @@ app.$('#matchTypeCreateForm').onsubmit=event=>{
 };
 
 if (page === 'training') {
-app.trainingState = {players:[],selections:[],exercises:[],sessionExercises:[],planBlocks:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{},planOrganizerMode:false,planOrganizerSelectedId:null,playerLoadToken:0,editorLoadToken:0,groupTransitionToken:0};
+app.trainingState = {players:[],selections:[],exercises:[],sessionExercises:[],planBlocks:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{},resultMeta:{},playerCollectionRows:[],playerCollectionBusy:false,planOrganizerMode:false,planOrganizerSelectedId:null,playerLoadToken:0,editorLoadToken:0,groupTransitionToken:0};
 app.initTrainingLocalDrafts();
 }
 
-app.playerPortalState = {accesses:[],groupId:null,matches:[],selected:[],scope:'all',restartLocation:'all',loading:false,view:'home',hasStaffAccess:false,staffPreview:false,staffPlayerId:null,staffReturnGroupId:null,messageNotifications:[],objectives:[],videos:[],videoConfig:null,detailId:null,detailReturnFocus:null,followUp:{enabled:null,demo:null,reviewLoaded:false}};
+app.playerPortalState = {accesses:[],groupId:null,matches:[],selected:[],scope:'all',restartLocation:'all',loading:false,view:'home',hasStaffAccess:false,staffPreview:false,staffPlayerId:null,staffReturnGroupId:null,messageNotifications:[],objectives:[],trainingResultTasks:[],activeTrainingResultOccurrence:null,trainingResultBusy:false,videos:[],videoConfig:null,detailId:null,detailReturnFocus:null,followUp:{enabled:null,demo:null,reviewLoaded:false}};
 
 app.groupState = {groups:[],currentGroupId:null,currentPlayers:[],currentSelections:[],matchPlayers:[],matchSelections:[],profiles:{},messageNotifications:[]};
 

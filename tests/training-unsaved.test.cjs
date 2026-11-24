@@ -120,6 +120,7 @@ function store({writable=false}={}){
         const usage=(tables.exercise_usage||{})[req.p_exercise_id]||{used:false,has_results:false,has_history:false};
         return {data:usage,error:null};
       }
+      if(name==='get_training_player_collection_details')return {data:[],error:null};
       if(name==='save_training_tactical_diagram'){
         const validLease=tables.training_session_leases.some(lease=>lease.session_id===req.p_session_id&&lease.user_id==='u1'&&lease.instance_id===req.p_editor_instance_id&&lease.lease_token===req.p_lease_token);
         if(!validLease)return {data:null,error:{code:'55000',message:'Bail d édition absent'}};
@@ -145,7 +146,7 @@ function store({writable=false}={}){
         if(req.p_expected_version!==tables.training_tactical_diagrams[index].version)return {data:null,error:{code:'40001',message:'Conflit de version du schéma tactique'}};
         tables.training_tactical_diagrams.splice(index,1);return {data:true,error:null};
       }
-      if(name!=='save_training_session_with_occurrences')throw new Error('Unexpected rpc '+name);
+      if(name!=='save_training_session_player_results')throw new Error('Unexpected rpc '+name);
       if(!req.p_group_id)return {data:null,error:{message:'Groupe requis'}};
       if(!req.p_team_id)return {data:null,error:{message:'Équipe requise'}};
       const stamp='2026-03-04T10:00:00.'+String(nextId).padStart(3,'0')+'Z';
@@ -167,8 +168,8 @@ function store({writable=false}={}){
             variant:row.variant??null,target:row.target??null,focus:row.focus??null,
             occurrence_id:occurrencesByStatsPosition.get(row.position)||null,exercise:EXERCISE})));
         tables.training_results=(tables.training_results||[]).filter(row=>row.session_id!==id)
-          .concat((req.p_results||[]).map(row=>({session_id:id,exercise_id:row.exercise_id,player_id:row.player_id,
-            successes:row.successes??null,attempts:row.attempts??null,numeric_value:row.numeric_value??null,note:row.note??null})));
+          .concat((req.p_results||[]).map(row=>({session_id:id,occurrence_id:row.occurrence_id,exercise_id:row.exercise_id,player_id:row.player_id,
+            successes:row.successes??null,attempts:row.attempts??null,numeric_value:row.numeric_value??null,note:row.note??null,variant:null,result_version:1})));
       };
       if(!req.p_session_id){
         const teamInWorkspace=tables.teams.some(team=>team.id===req.p_team_id&&team.workspace_id===req.p_workspace_id);
@@ -547,7 +548,7 @@ test('a refused save keeps the session dirty',async t=>{
   page.$('#trainingTheme').value='Mon theme';
   await app.saveTrainingSession();
   await settle();
-  assert.ok(mutations.some(m=>m.table==='rpc'&&m.mode==='save_training_session_with_occurrences'),'the write was attempted');
+  assert.ok(mutations.some(m=>m.table==='rpc'&&m.mode==='save_training_session_player_results'),'the write was attempted');
   assert.equal(tables.training_sessions.length,0);
   assert.match(page.$('#trainingCloudStatus').textContent,/refuses rpc/);
   assert.equal(app.trainingSessionIsDirty(),true,'a refused save must not clear the baseline');
@@ -1022,7 +1023,7 @@ test('draft card uses the shared light surface, not the legacy dark theme',()=>{
 // --- Lot B: la sauvegarde passe exclusivement par la RPC G2 transactionnelle ---
 
 const CHILD_TABLES=['training_attendance','training_session_exercises','training_results'];
-const rpcCalls=ui=>ui.mutationsRef.filter(m=>m.table==='rpc'&&m.mode==='save_training_session_with_occurrences');
+const rpcCalls=ui=>ui.mutationsRef.filter(m=>m.table==='rpc'&&m.mode==='save_training_session_player_results');
 const directWrites=ui=>ui.mutationsRef.filter(m=>[...CHILD_TABLES,'training_sessions'].includes(m.table)
   && ['insert','update','delete','upsert'].includes(m.mode));
 const recoveryButton=(ui,text)=>[...ui.page.w.document.querySelectorAll('#trainingRecoveryActions button')]
@@ -1120,7 +1121,7 @@ test('an RPC failure keeps the session dirty and the local draft intact',async t
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui);
   const real=app.db.rpc;
-  app.db.rpc=async(name,params)=>(name==='save_training_session_with_occurrences'
+  app.db.rpc=async(name,params)=>(name==='save_training_session_player_results'
     ?{data:null,error:{message:'réseau indisponible'}}:real(name,params));
   ui.page.$('#trainingTheme').value='À conserver localement';
   await app.saveTrainingSession();await settle();
@@ -1313,7 +1314,7 @@ test('the online event reschedules an unsynced autosave immediately',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui,{existing:true});
   const real=app.db.rpc;
-  app.db.rpc=async(name,params)=>(name==='save_training_session_with_occurrences'
+  app.db.rpc=async(name,params)=>(name==='save_training_session_player_results'
     ?{data:null,error:{message:'réseau indisponible'}}:real(name,params));
   editTheme(ui,'Reconnexion');
   await runCloudAutosave(ui);
@@ -1352,7 +1353,7 @@ test('visibilitychange during an in-flight save preserves the latest edit',async
   const app=await open(ui,{existing:true});
   const real=app.db.rpc;
   let release;const gate=new Promise(resolve=>{release=resolve});
-  app.db.rpc=async(name,params)=>{if(name==='save_training_session_with_occurrences')await gate;return real(name,params)};
+  app.db.rpc=async(name,params)=>{if(name==='save_training_session_player_results')await gate;return real(name,params)};
   editTheme(ui,'Avant envoi');
   const saving=app.saveTrainingSession();await settle();
   editTheme(ui,'Pendant envoi');
@@ -1368,7 +1369,7 @@ test('a concurrent local revision is not forgotten when cloud save cannot remove
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui,{existing:true});
   const real=app.db.rpc;let release;const gate=new Promise(resolve=>{release=resolve});
-  app.db.rpc=async(name,params)=>{if(name==='save_training_session_with_occurrences')await gate;return real(name,params)};
+  app.db.rpc=async(name,params)=>{if(name==='save_training_session_player_results')await gate;return real(name,params)};
   editTheme(ui,'Version envoyée');
   const saving=app.saveTrainingSession();await settle();
   const identity=app.trainingDraftIdentity();
@@ -1384,7 +1385,7 @@ test('a concurrent local revision is not forgotten when cloud save cannot remove
 test('pagehide during initial creation does not invalidate the in-flight response',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui);const real=app.db.rpc;let release;
-  app.db.rpc=async(name,params)=>name==='save_training_session_with_occurrences'
+  app.db.rpc=async(name,params)=>name==='save_training_session_player_results'
     ?new Promise(resolve=>{release=()=>real(name,params).then(resolve)})
     :real(name,params);
   editTheme(ui,'Création interrompue');
@@ -1623,7 +1624,7 @@ test('finishing while the initial creation is in flight waits for the lease befo
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui);editTheme(ui,'Création en cours');
   const realRpc=app.db.rpc;let release;
-  app.db.rpc=async(name,params)=>name==='save_training_session_with_occurrences'
+  app.db.rpc=async(name,params)=>name==='save_training_session_player_results'
     ?new Promise(resolve=>{release=()=>realRpc(name,params).then(resolve)})
     :realRpc(name,params);
   const saving=app.saveTrainingSession();await settle();
@@ -1664,7 +1665,7 @@ test('finishing re-checks an edit made while the save was in flight',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui);
   const real=app.db.rpc;let release;const gate=new Promise(resolve=>{release=resolve});
-  app.db.rpc=async(name,params)=>{if(name==='save_training_session_with_occurrences')await gate;return real(name,params)};
+  app.db.rpc=async(name,params)=>{if(name==='save_training_session_player_results')await gate;return real(name,params)};
   editTheme(ui,'Première');
   const saving=app.saveTrainingSession();await settle();
   ui.page.$('#cancelTraining').click();await settle();
@@ -1679,7 +1680,7 @@ test('finishing with a failing save keeps the draft and never reports synchronis
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui);
   const real=app.db.rpc;
-  app.db.rpc=async(name,params)=>(name==='save_training_session_with_occurrences'?{data:null,error:{message:'réseau indisponible'}}:real(name,params));
+  app.db.rpc=async(name,params)=>(name==='save_training_session_player_results'?{data:null,error:{message:'réseau indisponible'}}:real(name,params));
   editTheme(ui,'À conserver');
   ui.page.$('#cancelTraining').click();await settle();await settle();
   assert.equal(ui.page.$('#trainingSession').classList.contains('hidden'),false,'the editor stays open when the save failed');

@@ -25,6 +25,9 @@ const migrationLease=fs.readFileSync(migrationLeaseFile,'utf8');
 const migrationG2File=path.join(migrationDir,'20261011120000_training_tactical_diagrams_g2.sql');
 if(!fs.existsSync(migrationG2File))throw new Error(`Missing test prerequisite: ${migrationG2File}`);
 const migrationG2=fs.readFileSync(migrationG2File,'utf8');
+const migrationPlayerResultsFile=path.join(migrationDir,'20261122120000_player_training_results.sql');
+if(!fs.existsSync(migrationPlayerResultsFile))throw new Error(`Missing test prerequisite: ${migrationPlayerResultsFile}`);
+const migrationPlayerResults=fs.readFileSync(migrationPlayerResultsFile,'utf8');
 
 const U_COACH='11111111-1111-4111-8111-111111111111';
 const U_EDITOR='22222222-2222-4222-8222-222222222222';
@@ -61,7 +64,7 @@ const fixture=`
 create role anon; create role authenticated; create role service_role;
 create schema auth;
 create table auth.users(id uuid primary key);
-insert into auth.users values ('${U_COACH}'),('${U_EDITOR}'),('${U_NONE}');
+insert into auth.users values ('${U_COACH}'),('${U_EDITOR}'),('${U_NONE}'),('${U_OTHER}');
 create function auth.uid() returns uuid language sql stable as $$
  select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid;
 $$;
@@ -89,6 +92,12 @@ create table public.coaching_group_players(
   player_id uuid references public.players(id),
   active boolean not null default true,
   primary key (group_id, player_id));
+create table public.coaching_player_accounts(
+  group_id uuid references public.coaching_groups(id),
+  player_id uuid references public.players(id),
+  user_id uuid not null,
+  primary key (group_id,player_id),
+  unique (group_id,user_id));
 create table public.exercises (
   id uuid primary key default gen_random_uuid(), name text not null,
   measurement_type text not null, active boolean not null default true,
@@ -199,7 +208,9 @@ insert into public.coaching_groups values ('${G1}','Équipe 1'),('${G2}','Équip
 insert into public.user_profiles values ('${U_COACH}','Coach'),('${U_EDITOR}','Editeur'),('${U_NONE}','Sans accès');
 insert into public.coaching_group_coaches(group_id,user_id,role) values ('${G1}','${U_COACH}','coach');
 insert into public.coaching_group_players(group_id,player_id,active) values
- ('${G1}','${P_A}',true),('${G1}','${P_B}',true),('${G1}','${P_C}',false);
+  ('${G1}','${P_A}',true),('${G1}','${P_B}',true),('${G1}','${P_C}',false);
+insert into public.coaching_player_accounts(group_id,player_id,user_id) values
+  ('${G1}','${P_A}','${U_NONE}'),('${G1}','${P_B}','${U_OTHER}');
 insert into public.exercises(id,name,measurement_type,active) values
  ('${EX1}','Attaque originale','count',true),('${EX_ARCH}','Cible','count',false);
 insert into public.training_sessions(id,workspace_id,group_id,team_id,label,trained_on)
@@ -214,7 +225,7 @@ insert into public.training_results(session_id,exercise_id,player_id,successes,a
  ('${S1}','${EX1}','${P_A}',1,2,null),('${S1}','${EX1}','${P_B}',5,5,'speed');
 `;
 
-async function makeDB(){const db=new PGlite();await db.exec(fixture);await db.exec(migration);await db.exec(migrationFix);await db.exec(migrationLease);await db.exec(migrationG2);return db}
+async function makeDB(){const db=new PGlite();await db.exec(fixture);await db.exec(migration);await db.exec(migrationFix);await db.exec(migrationLease);await db.exec(migrationG2);await db.exec(migrationPlayerResults);return db}
 async function asUser(db,id){await db.exec(`set role authenticated;set request.jwt.claim.sub='${id}'`) }
 async function rows(db,sql,params=[]){return (await db.query(sql,params)).rows}
 async function one(db,sql,params=[]){return (await rows(db,sql,params))[0]}

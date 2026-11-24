@@ -607,11 +607,11 @@ app.$('#matchTypeCreateForm').onsubmit=event=>{
 };
 
 if (page === 'training') {
-app.trainingState = {players:[],selections:[],exercises:[],sessionExercises:[],planBlocks:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{},planOrganizerMode:false,planOrganizerSelectedId:null,playerLoadToken:0,editorLoadToken:0,groupTransitionToken:0};
+app.trainingState = {players:[],selections:[],exercises:[],sessionExercises:[],planBlocks:[],exerciseCreateTarget:'library',editingExerciseId:null,editingExerciseMeasureLocked:false,recentSessions:[],currentSessionId:null,resultDraft:{},resultMeta:{},playerCollectionRows:[],playerCollectionBusy:false,planOrganizerMode:false,planOrganizerSelectedId:null,playerLoadToken:0,editorLoadToken:0,groupTransitionToken:0};
 app.initTrainingLocalDrafts();
 }
 
-app.playerPortalState = {accesses:[],groupId:null,matches:[],selected:[],scope:'all',restartLocation:'all',loading:false,view:'home',hasStaffAccess:false,staffPreview:false,staffPlayerId:null,staffReturnGroupId:null,messageNotifications:[],objectives:[],videos:[],videoConfig:null,detailId:null,detailReturnFocus:null,followUp:{enabled:null,demo:null,reviewLoaded:false}};
+app.playerPortalState = {accesses:[],groupId:null,matches:[],selected:[],scope:'all',restartLocation:'all',loading:false,view:'home',hasStaffAccess:false,staffPreview:false,staffPlayerId:null,staffReturnGroupId:null,messageNotifications:[],objectives:[],trainingResultTasks:[],activeTrainingResultOccurrence:null,trainingResultBusy:false,videos:[],videoConfig:null,detailId:null,detailReturnFocus:null,followUp:{enabled:null,demo:null,reviewLoaded:false}};
 
 app.groupState = {groups:[],currentGroupId:null,currentPlayers:[],currentSelections:[],matchPlayers:[],matchSelections:[],profiles:{},messageNotifications:[]};
 

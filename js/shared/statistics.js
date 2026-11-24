@@ -215,15 +215,16 @@ app.statsBarList = function statsBarList(items){
   return items.map(x=>`<div class="statsBarRow"><div class="statsBarTop"><span>${app.statsEscape(x.label)}</span><strong>${app.statsEscape(x.display??x.value)}</strong></div><div class="statsBarTrack"><div class="statsBarFill" style="width:${Math.max(3,100*x.value/max)}%"></div></div></div>`).join('');
 };
 
-app.statsSessionExerciseFocus = function statsSessionExerciseFocus(sessionId,exerciseId){
-  return app.statsState.sessionExercises.find(x=>x.session_id===sessionId&&x.exercise_id===exerciseId)?.focus||null;
+app.statsSessionExerciseFocus = function statsSessionExerciseFocus(sessionId,exerciseId,occurrenceId=null){
+  const exact=occurrenceId?app.statsState.sessionExercises.find(x=>x.session_id===sessionId&&x.occurrence_id===occurrenceId):null;
+  return (exact||app.statsState.sessionExercises.find(x=>x.session_id===sessionId&&x.exercise_id===exerciseId))?.focus||null;
 };
 
 app.statsFilteredExerciseResults = function statsFilteredExerciseResults(exerciseId,focus=null){
   return app.statsState.results.filter(r=>{
     if(r.exercise_id!==exerciseId)return false;
     if(!focus)return true;
-    return app.statsSessionExerciseFocus(r.session_id,exerciseId)===focus;
+    return app.statsSessionExerciseFocus(r.session_id,exerciseId,r.occurrence_id)===focus;
   });
 };
 
