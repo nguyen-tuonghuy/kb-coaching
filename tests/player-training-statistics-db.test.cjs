@@ -8,7 +8,7 @@ const vm=require('node:vm');
 const root=path.resolve(__dirname,'..');
 const migration=fs.readFileSync(path.join(root,'supabase/migrations/20261124173651_player_training_statistics.sql'),'utf8');
 const viewMigration=fs.readFileSync(path.join(root,'supabase/migrations/20261124180256_training_statistics_view_mode.sql'),'utf8');
-const occurrencesMigration=fs.readFileSync(path.join(root,'supabase/migrations/20261124230100_training_statistics_occurrences.sql'),'utf8');
+const occurrencesMigration=fs.readFileSync(path.join(root,'supabase/migrations/20261124231734_training_statistics_occurrences.sql'),'utf8');
 
 const COACH='11111111-1111-4111-8111-111111111111';
 const COACH_ONLY='17171717-1717-4717-8717-171717171717';

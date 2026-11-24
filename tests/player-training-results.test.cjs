@@ -5,9 +5,9 @@ const path=require('node:path');
 const vm=require('node:vm');
 
 const root=path.resolve(__dirname,'..');
-const sql=fs.readFileSync(path.join(root,'supabase/migrations/20261122120000_player_training_results.sql'),'utf8');
+const sql=fs.readFileSync(path.join(root,'supabase/migrations/20261124231719_player_training_results.sql'),'utf8');
 const sessions=fs.readFileSync(path.join(root,'js/training/sessions.js'),'utf8');
-const integrity=fs.readFileSync(path.join(root,'supabase/migrations/20261124230000_training_occurrence_integrity.sql'),'utf8');
+const integrity=fs.readFileSync(path.join(root,'supabase/migrations/20261124231728_training_occurrence_integrity.sql'),'utf8');
 const portal=fs.readFileSync(path.join(root,'js/shared/player-portal.js'),'utf8');
 const shell=fs.readFileSync(path.join(root,'js/shared/page-shell.js'),'utf8');
 

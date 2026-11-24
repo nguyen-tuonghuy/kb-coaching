@@ -7,11 +7,9 @@ alter table public.training_results
   add column if not exists result_version integer not null default 1,
   add column if not exists updated_at timestamptz not null default now();
 
-alter table public.training_results
-  add constraint training_results_occurrence_fk
-  foreign key (session_id, occurrence_id)
-  references public.training_exercise_occurrences(session_id, id)
-  on delete no action deferrable initially deferred;
+-- The ALTER TABLE lock keeps this historical backfill isolated from live saves.
+-- Only the row-level lease check is suspended for the backfill.
+alter table public.training_results disable trigger trg_training_results_edit_lease;
 
 -- Les anciennes lignes ne sont rattachees que lorsque la correspondance est certaine.
 with unambiguous as (
@@ -31,6 +29,14 @@ update public.training_results tr set occurrence_id=u.occurrence_id
 from unambiguous u join single_result sr
   on sr.session_id=u.session_id and sr.exercise_id=u.exercise_id
 where tr.id=sr.id;
+
+alter table public.training_results enable trigger trg_training_results_edit_lease;
+
+alter table public.training_results
+  add constraint training_results_occurrence_fk
+  foreign key (session_id, occurrence_id)
+  references public.training_exercise_occurrences(session_id, id)
+  on delete no action deferrable initially deferred;
 
 create unique index if not exists training_results_occurrence_player_uidx
   on public.training_results(session_id,occurrence_id,player_id)

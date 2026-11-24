@@ -25,10 +25,10 @@ const migrationLease=fs.readFileSync(migrationLeaseFile,'utf8');
 const migrationG2File=path.join(migrationDir,'20261011120000_training_tactical_diagrams_g2.sql');
 if(!fs.existsSync(migrationG2File))throw new Error(`Missing test prerequisite: ${migrationG2File}`);
 const migrationG2=fs.readFileSync(migrationG2File,'utf8');
-const migrationPlayerResultsFile=path.join(migrationDir,'20261122120000_player_training_results.sql');
+const migrationPlayerResultsFile=path.join(migrationDir,'20261124231719_player_training_results.sql');
 if(!fs.existsSync(migrationPlayerResultsFile))throw new Error(`Missing test prerequisite: ${migrationPlayerResultsFile}`);
 const migrationPlayerResults=fs.readFileSync(migrationPlayerResultsFile,'utf8');
-const occurrenceIntegrity=fs.readFileSync(path.join(migrationDir,'20261124230000_training_occurrence_integrity.sql'),'utf8');
+const occurrenceIntegrity=fs.readFileSync(path.join(migrationDir,'20261124231728_training_occurrence_integrity.sql'),'utf8');
 
 const U_COACH='11111111-1111-4111-8111-111111111111';
 const U_EDITOR='22222222-2222-4222-8222-222222222222';
@@ -357,6 +357,26 @@ test('browser RPCs preserve official rows, reject stale tabs and arbitrate a dec
     await assert.rejects(saveG2(db,{...options,force:true,results:[{...update,delete_result:true}]}),{code:'23514'});
     await assert.rejects(saveG2(db,{...options,force:true,results:[{...update,expected_result_version:before.result_version}]}),{code:'40001'});
     assert.equal((await one(db,'select count(*)::int n from public.training_results where session_id=$1 and occurrence_id is null',[S1])).n,2);
+  }finally{await db.close()}
+});
+
+test('migration joueur : rattache les résultats existants et rétablit la vérification du bail', async()=>{
+  const db=new PGlite();
+  try{
+    for(const sql of [fixture,migration,migrationFix,migrationLease,migrationG2])await db.exec(sql);
+    await asUser(db,U_COACH);
+    await saveG2(db,{sessionId:S1,expected:1,attendance:[{player_id:P_A,present:true}],
+      exercises:[{exercise_id:EX1,position:1}],results:[{exercise_id:EX1,player_id:P_A,numeric_value:8}],
+      occurrences:[{id:O1,kind:'manual_stat',exercise_id:EX1,position:0,stats_position:1,collects_stats:true}]});
+    await db.exec('reset role');
+    const before=await one(db,'select id,numeric_value from public.training_results where session_id=$1 and variant is null',[S1]);
+    await db.exec(migrationPlayerResults);
+    const after=await one(db,'select id,numeric_value,occurrence_id from public.training_results where session_id=$1 and variant is null',[S1]);
+    assert.deepEqual(after,{...before,occurrence_id:O1});
+    const trigger=await one(db,"select tgenabled from pg_trigger where tgrelid='public.training_results'::regclass and tgname='trg_training_results_edit_lease'");
+    assert.equal(trigger.tgenabled,'O');
+    await asUser(db,U_COACH);
+    await assert.rejects(db.query('update public.training_results set numeric_value=9 where id=$1',[before.id]),/bail/i);
   }finally{await db.close()}
 });
 
