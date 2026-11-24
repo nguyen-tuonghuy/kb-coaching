@@ -14,6 +14,7 @@ const COACH='11111111-1111-4111-8111-111111111111';
 const COACH_ONLY='17171717-1717-4717-8717-171717171717';
 const ALICE_USER='22222222-2222-4222-8222-222222222222';
 const BOB_USER='33333333-3333-4333-8333-333333333333';
+const CHARLIE_USER='44444444-4444-4444-8444-444444444444';
 const OUTSIDER='55555555-5555-4555-8555-555555555555';
 const GROUP='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const WORKSPACE='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -69,8 +70,42 @@ create table public.match_events(
 create table public.match_event_attributions(event_id uuid,player_id uuid,primary key(event_id,player_id));
 create table public.match_event_lineup(event_id uuid,player_id uuid,primary key(event_id,player_id));
 
+create function private.is_group_coach(p_group_id uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (
+    select 1 from public.coaching_group_coaches c
+    where c.group_id = p_group_id and c.user_id = auth.uid()
+  );
+$$;
+create function private.can_view_group_stats(p_group_id uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_group_coach(p_group_id) or exists (
+    select 1
+    from public.coaching_group_players gp
+    join public.coaching_player_accounts a
+      on a.group_id = gp.group_id and a.player_id = gp.player_id
+    where gp.group_id = p_group_id and gp.active = true
+      and gp.stats_access = 'group' and a.user_id = auth.uid()
+  );
+$$;
+create function private.match_group_id(p_match_id uuid)
+returns uuid language sql stable security definer set search_path = '' as $$
+  select group_id from public.matches where id = p_match_id;
+$$;
+create function private.match_event_group_id(p_event_id uuid)
+returns uuid language sql stable security definer set search_path = '' as $$
+  select m.group_id from public.match_events e
+  join public.matches m on m.id = e.match_id
+  where e.id = p_event_id;
+$$;
+
 grant usage on schema public to authenticated;
+grant usage on schema private to authenticated;
 grant select on all tables in schema public to authenticated;
+grant execute on function private.is_group_coach(uuid) to authenticated;
+grant execute on function private.can_view_group_stats(uuid) to authenticated;
+grant execute on function private.match_group_id(uuid) to authenticated;
+grant execute on function private.match_event_group_id(uuid) to authenticated;
 
 alter table public.training_sessions enable row level security;
 alter table public.training_attendance enable row level security;
@@ -89,11 +124,16 @@ create policy existing_training_exercises_read on public.training_session_exerci
 create policy existing_training_results_read on public.training_results for select to authenticated using (true);
 create policy existing_group_players_read on public.coaching_group_players for select to authenticated using (true);
 create policy existing_players_read on public.players for select to authenticated using (true);
-create policy existing_matches_read on public.matches for select to authenticated using (true);
-create policy existing_match_events_read on public.match_events for select to authenticated using (true);
-create policy existing_match_players_read on public.match_players for select to authenticated using (true);
-create policy existing_attributions_read on public.match_event_attributions for select to authenticated using (true);
-create policy existing_lineup_read on public.match_event_lineup for select to authenticated using (true);
+create policy "coaches and group stats viewers read matches" on public.matches for select to authenticated
+  using (private.can_view_group_stats(group_id));
+create policy "coaches and group stats viewers read match events" on public.match_events for select to authenticated
+  using (private.can_view_group_stats(private.match_group_id(match_id)));
+create policy "coaches and group stats viewers read match players" on public.match_players for select to authenticated
+  using (private.can_view_group_stats(private.match_group_id(match_id)));
+create policy "coaches and group stats viewers read match attributions" on public.match_event_attributions for select to authenticated
+  using (private.can_view_group_stats(private.match_event_group_id(event_id)));
+create policy "coaches and group stats viewers read match lineup" on public.match_event_lineup for select to authenticated
+  using (private.can_view_group_stats(private.match_event_group_id(event_id)));
 
 insert into public.workspaces values ('${WORKSPACE}');
 insert into public.teams values ('${TEAM}','${WORKSPACE}','Equipe');
@@ -112,6 +152,7 @@ insert into public.coaching_group_players values
 insert into public.coaching_player_accounts values
   ('${GROUP}','${ALICE}','${ALICE_USER}'),
   ('${GROUP}','${BOB}','${BOB_USER}'),
+  ('${GROUP}','${CHARLIE}','${CHARLIE_USER}'),
   ('${GROUP}','${DANA}','${COACH}');
 insert into public.exercises values ('${EXERCISE}','Passes',null,null,null,'success_attempts');
 insert into public.training_sessions values
@@ -181,10 +222,31 @@ test('the new right is false by default and an explicitly authorized player can 
   }finally{await db.close()}
 });
 
+test('a personal-only active player with the match right can read the full match analysis dataset',async()=>{
+  const db=await makeDB();
+  try{
+    const initial=(await rows(db,`select stats_access,match_stats_access,active from public.coaching_group_players where player_id='${CHARLIE}'`))[0];
+    assert.deepEqual(initial,{stats_access:'personal',match_stats_access:false,active:true});
+    assert.equal((await rows(db,`select private.can_view_group_stats('${GROUP}'::uuid) as value`))[0].value,false);
+    await setMatchAccess(db,CHARLIE,true);
+    await asUser(db,CHARLIE_USER);
+    assert.equal((await rows(db,`select private.can_view_group_stats('${GROUP}'::uuid) as value`))[0].value,false);
+    assert.equal((await rows(db,'select id from public.matches')).length,1);
+    assert.equal((await rows(db,'select id from public.match_events')).length,2);
+    assert.equal((await rows(db,'select player_id from public.match_players')).length,4);
+    assert.equal((await rows(db,'select event_id from public.match_event_attributions')).length,2);
+    assert.equal((await rows(db,'select event_id from public.match_event_lineup')).length,2);
+    assert.deepEqual((await rows(db,'select display_name from public.players order by display_name')).map(x=>x.display_name),['Alice','Bob','Charlie','Dana']);
+    assert.equal((await rows(db,'select player_id from public.coaching_group_players')).length,4);
+    assert.deepEqual((await rows(db,'select group_id,enabled from public.get_my_player_match_stats_access()')),[{group_id:GROUP,enabled:true}]);
+  }finally{await db.close()}
+});
+
 test('a player without the new right keeps training access but cannot read matches',async()=>{
   const db=await makeDB();
   try{
     await asUser(db,BOB_USER);
+    assert.equal((await rows(db,`select private.can_view_group_stats('${GROUP}'::uuid) as value`))[0].value,true);
     assert.equal((await rows(db,'select id from public.matches')).length,0);
     assert.equal((await rows(db,'select id from public.match_events')).length,0);
     assert.equal((await rows(db,'select player_id from public.match_players')).length,0);

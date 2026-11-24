@@ -172,6 +172,31 @@ alter table public.match_players enable row level security;
 alter table public.match_event_attributions enable row level security;
 alter table public.match_event_lineup enable row level security;
 
+drop policy if exists matches_match_stats_viewers_read on public.matches;
+create policy matches_match_stats_viewers_read
+on public.matches as permissive for select to authenticated
+using (private.can_read_group_match_stats_raw(group_id, workspace_id));
+
+drop policy if exists match_events_match_stats_viewers_read on public.match_events;
+create policy match_events_match_stats_viewers_read
+on public.match_events as permissive for select to authenticated
+using (private.can_read_match_stats_raw(match_id));
+
+drop policy if exists match_players_match_stats_viewers_read on public.match_players;
+create policy match_players_match_stats_viewers_read
+on public.match_players as permissive for select to authenticated
+using (private.can_read_match_stats_raw(match_id));
+
+drop policy if exists match_event_attributions_match_stats_viewers_read on public.match_event_attributions;
+create policy match_event_attributions_match_stats_viewers_read
+on public.match_event_attributions as permissive for select to authenticated
+using (private.can_read_match_event_stats_raw(event_id));
+
+drop policy if exists match_event_lineup_match_stats_viewers_read on public.match_event_lineup;
+create policy match_event_lineup_match_stats_viewers_read
+on public.match_event_lineup as permissive for select to authenticated
+using (private.can_read_match_event_stats_raw(event_id));
+
 drop policy if exists matches_group_match_stats_guard on public.matches;
 create policy matches_group_match_stats_guard
 on public.matches as restrictive for select to authenticated

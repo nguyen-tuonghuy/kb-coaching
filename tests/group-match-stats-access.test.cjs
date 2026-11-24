@@ -36,6 +36,7 @@ test('restrictive Supabase guards cover every raw match dataset',()=>{
   };
   for(const [table,expression] of Object.entries(tables)){
     assert.match(migration,new RegExp(`create policy ${table}_group_match_stats_guard[\\s\\S]*?as restrictive for select to authenticated`));
+    assert.match(migration,new RegExp(`create policy ${table}_match_stats_viewers_read[\\s\\S]*?as permissive for select to authenticated`));
     assert.ok(migration.includes(expression),`missing guard for ${table}`);
   }
   assert.match(migration,/create or replace function private\.can_read_group_player_raw[\s\S]*own\.match_stats_access = true/);
