@@ -59,6 +59,23 @@ as $$
   );
 $$;
 
+create or replace function private.can_read_match_team_raw(p_team_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.matches m
+    where (m.team_id = p_team_id
+       or m.opponent_team_1_id = p_team_id
+       or m.opponent_team_2_id = p_team_id)
+      and private.can_read_group_match_stats_raw(m.group_id, m.workspace_id)
+  );
+$$;
+
 create or replace function private.can_read_group_player_raw(p_group_id uuid, p_player_id uuid)
 returns boolean
 language sql
@@ -86,6 +103,12 @@ as $$
     where a.user_id = auth.uid()
       and own.active = true
       and own.match_stats_access = true
+      and exists (
+        select 1 from public.coaching_group_players target
+        where target.group_id = p_group_id
+          and target.player_id = p_player_id
+          and target.active = true
+      )
   );
 $$;
 
@@ -155,6 +178,7 @@ $$;
 revoke all on function private.can_read_group_match_stats_raw(uuid, uuid) from public, anon, authenticated;
 revoke all on function private.can_read_match_stats_raw(uuid) from public, anon, authenticated;
 revoke all on function private.can_read_match_event_stats_raw(uuid) from public, anon, authenticated;
+revoke all on function private.can_read_match_team_raw(uuid) from public, anon, authenticated;
 revoke all on function private.can_read_group_player_raw(uuid, uuid) from public, anon, authenticated;
 revoke all on function private.can_read_player_raw(uuid) from public, anon, authenticated;
 revoke all on function public.get_my_player_match_stats_access() from public, anon, authenticated;
@@ -162,6 +186,7 @@ revoke all on function public.get_my_player_match_stats_access() from public, an
 grant execute on function private.can_read_group_match_stats_raw(uuid, uuid) to authenticated;
 grant execute on function private.can_read_match_stats_raw(uuid) to authenticated;
 grant execute on function private.can_read_match_event_stats_raw(uuid) to authenticated;
+grant execute on function private.can_read_match_team_raw(uuid) to authenticated;
 grant execute on function private.can_read_group_player_raw(uuid, uuid) to authenticated;
 grant execute on function private.can_read_player_raw(uuid) to authenticated;
 grant execute on function public.get_my_player_match_stats_access() to authenticated;
@@ -171,6 +196,9 @@ alter table public.match_events enable row level security;
 alter table public.match_players enable row level security;
 alter table public.match_event_attributions enable row level security;
 alter table public.match_event_lineup enable row level security;
+alter table public.teams enable row level security;
+alter table public.players enable row level security;
+alter table public.coaching_group_players enable row level security;
 
 drop policy if exists matches_match_stats_viewers_read on public.matches;
 create policy matches_match_stats_viewers_read
@@ -196,6 +224,21 @@ drop policy if exists match_event_lineup_match_stats_viewers_read on public.matc
 create policy match_event_lineup_match_stats_viewers_read
 on public.match_event_lineup as permissive for select to authenticated
 using (private.can_read_match_event_stats_raw(event_id));
+
+drop policy if exists teams_match_stats_viewers_read on public.teams;
+create policy teams_match_stats_viewers_read
+on public.teams as permissive for select to authenticated
+using (private.can_read_match_team_raw(id));
+
+drop policy if exists players_match_stats_viewers_read on public.players;
+create policy players_match_stats_viewers_read
+on public.players as permissive for select to authenticated
+using (private.can_read_player_raw(id));
+
+drop policy if exists coaching_group_players_match_stats_viewers_read on public.coaching_group_players;
+create policy coaching_group_players_match_stats_viewers_read
+on public.coaching_group_players as permissive for select to authenticated
+using (private.can_read_group_player_raw(group_id, player_id));
 
 drop policy if exists matches_group_match_stats_guard on public.matches;
 create policy matches_group_match_stats_guard
