@@ -46,7 +46,7 @@ function installMock({staff,populated=false}){
       claim_coaching_player_group_invite:true};
     if(populated)Object.assign(rpcs,{
       get_my_player_access:[{group_id:'test-group',group_name:'Groupe test',player_id:'p1',player_name:'Alice',stats_access:'group'}],
-      get_coaching_group_player_access:[],get_player_conversation:[],get_player_objectives:[],
+       get_coaching_group_player_access:[],get_player_conversation:[],get_player_objectives:[],get_my_player_match_stats_access:[],get_my_training_result_tasks:[],
       get_player_portal_metrics:{group_name:'Groupe test',player_name:'Alice',matches:[],details:[],metrics:{n:0},group_average:{}}
     });
     const fixtures=kind==='table'?tables:rpcs;
@@ -103,6 +103,52 @@ async function open(t,name,width,{staff=true,populated=false}={}){
   });
   await page.goto(`https://baseline.test/${name}.html`);
   return {page,errors,requests,traces};
+}
+
+for(const [name,width] of [['index',390],['training',390],['index',820],['index',1440]]){
+  test(`player results: ${name} submits and displays the locked declaration at ${width}px`,{timeout:20000},async t=>{
+    const {page,errors}=await open(t,name,width,{staff:false,populated:true});
+    await page.waitForFunction(()=>window.baseline.subscriptions===1);
+    await page.evaluate(async()=>{
+      const app=window.KinballCoach.app;
+      const rpc=app.db.rpc;
+      const task={occurrence_id:'occ-1',session_id:'s1',trained_on:'2026-10-03',exercise_name:'Précision',measurement_type:'success_attempts',collection_state:'open'};
+      app.db.rpc=async(name,args)=>{
+        if(name==='get_my_training_result_tasks')return {data:[{...task}],error:null};
+        if(name==='submit_my_training_result'){
+          window.resultSubmitted=args;
+          Object.assign(task,{successes:args.p_successes,attempts:args.p_attempts,note:args.p_note,declaration_id:'d1',declaration_version:1});
+          return {data:{state:'saved'},error:null};
+        }
+        return rpc(name,args);
+      };
+      window.lockTrainingResult=()=>{task.collection_state='locked';return app.loadPlayerTrainingResults()};
+      app.hideMainModules();
+      app.$('#playerPortal').classList.remove('hidden');
+      app.playerPortalState.groupId='test-group';
+      await app.loadPlayerTrainingResults();
+    });
+    await page.getByRole('button',{name:'Saisir mes résultats'}).click();
+    const result=page.locator('#playerTrainingResults');
+    await result.locator('[data-player-result-successes]').fill('7');
+    await result.locator('[data-player-result-attempts]').fill('10');
+    await result.locator('[data-player-result-note]').fill('Sur téléphone');
+    await result.getByRole('button',{name:'Enregistrer mes résultats'}).click();
+    await result.getByText(/Résultats enregistrés/).waitFor();
+    const submitted=await page.evaluate(()=>window.resultSubmitted);
+    assert.equal(submitted.p_occurrence_id,'occ-1');
+    assert.equal(submitted.p_successes,7);
+    assert.equal(submitted.p_attempts,10);
+    assert.equal(submitted.p_note,'Sur téléphone');
+    assert.equal(Object.hasOwn(submitted,'p_player_id'),false);
+    await page.evaluate(()=>window.lockTrainingResult());
+    await result.getByText('Déclaration verrouillée en lecture seule.').waitFor();
+    assert.equal(await result.locator('[data-player-result-successes]').isDisabled(),true);
+    assert.equal(await result.locator('[data-player-result-successes]').inputValue(),'7');
+    assert.equal(await result.getByRole('button',{name:'Enregistrer mes résultats'}).count(),0);
+    assert.deepEqual(await page.evaluate(()=>[innerWidth,document.documentElement.scrollWidth>innerWidth]),[width,false]);
+    assert.deepEqual(errors,[]);
+  });
 }
 
 for(const name of ['index','training']){

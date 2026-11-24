@@ -123,6 +123,7 @@ app.aggregateLeaderboard = function aggregateLeaderboard({
     entries.push({
       player_id:bp.player_id,
       name:playerMap[bp.player_id]?.display_name||playerMap[bp.player_id]?.name||'Joueur',
+      rankingOrder:Number(playerMap[bp.player_id]?.ranking_order)||Number.MAX_SAFE_INTEGER,
       successes:bp.successes,
       attempts:bp.attempts,
       sessionsCount:bp.sessions.size,
@@ -133,6 +134,7 @@ app.aggregateLeaderboard = function aggregateLeaderboard({
   entries.sort((a,b)=>{
     if(b.rate!==a.rate) return b.rate-a.rate;
     if(b.attempts!==a.attempts) return b.attempts-a.attempts;
+    if(a.rankingOrder!==b.rankingOrder)return a.rankingOrder-b.rankingOrder;
     return (a.name||'').localeCompare(b.name||'','fr');
   });
 
@@ -216,8 +218,12 @@ app.statsBarList = function statsBarList(items){
 };
 
 app.statsSessionExerciseFocus = function statsSessionExerciseFocus(sessionId,exerciseId,occurrenceId=null){
-  const exact=occurrenceId?app.statsState.sessionExercises.find(x=>x.session_id===sessionId&&x.occurrence_id===occurrenceId):null;
-  return (exact||app.statsState.sessionExercises.find(x=>x.session_id===sessionId&&x.exercise_id===exerciseId))?.focus||null;
+  const candidates=app.statsState.sessionExercises.filter(x=>x.session_id===sessionId&&x.exercise_id===exerciseId);
+  if(occurrenceId)return candidates.find(x=>x.occurrence_id===occurrenceId)?.focus||null;
+  // Legacy scores count in the unfiltered view, but must not be attributed to
+  // attack or defence when the original session contains both.
+  const focus=candidates[0]?.focus||null;
+  return candidates.every(x=>(x.focus||null)===focus)?focus:null;
 };
 
 app.statsFilteredExerciseResults = function statsFilteredExerciseResults(exerciseId,focus=null){
@@ -229,28 +235,36 @@ app.statsFilteredExerciseResults = function statsFilteredExerciseResults(exercis
 };
 
 app.loadStatsData = async function loadStatsData(groupId){
-  await app.fetchExerciseCategories();
+  const loadToken=++app.statsState.loadToken;
+  const requestedView=app.statsState.readOnlyViewer?'player':'staff';
   app.statsState.groupId=groupId;
-  app.statsState.sessions=[];app.statsState.attendance=[];app.statsState.sessionExercises=[];app.statsState.results=[];app.statsState.players=[];app.statsState.exerciseMap={};app.statsState.sessionMap={};
-  if(!groupId){app.renderStatsAll();return}
+  app.statsState.viewerRole=null;app.statsState.sessions=[];app.statsState.attendance=[];app.statsState.sessionExercises=[];app.statsState.results=[];app.statsState.players=[];app.statsState.exerciseMap={};app.statsState.sessionMap={};app.statsState.leaderboardCache=null;
+  if(app.$('#statsLeaderboardSummary'))app.$('#statsLeaderboardSummary').textContent='';
+  if(app.$('#statsLeaderboardTable'))app.$('#statsLeaderboardTable').innerHTML='';
+  app.populateStatsSelectors();app.renderStatsAll();
+  if(!groupId)return;
+  if(app.statsState.readOnlyViewer&&!app.statsState.viewerCanTraining){app.$('#statsStatus').textContent='';return}
   app.$('#statsStatus').textContent='Chargement…';
-  app.statsState.sessions=await app.services.trainingSessions(groupId);
+  await app.fetchExerciseCategories();
+  if(loadToken!==app.statsState.loadToken)return;
+  const dataset=await app.services.trainingStatisticsDataset(groupId,{view:requestedView});
+  if(loadToken!==app.statsState.loadToken||app.statsState.groupId!==groupId)return;
+  if(dataset.viewer_role!==requestedView)throw new Error('La réponse des statistiques ne correspond pas à la vue demandée.');
+  app.statsState.viewerRole=dataset.viewer_role||null;
+  app.statsState.sessions=Array.isArray(dataset.sessions)?dataset.sessions:[];
+  app.statsState.players=Array.isArray(dataset.players)?dataset.players:[];
+  app.statsState.attendance=Array.isArray(dataset.attendance)?dataset.attendance:[];
+  app.statsState.sessionExercises=Array.isArray(dataset.session_exercises)?dataset.session_exercises:[];
+  app.statsState.results=Array.isArray(dataset.results)?dataset.results:[];
   app.statsState.sessions.forEach(x=>app.statsState.sessionMap[x.id]=x);
-  app.statsState.players=await app.fetchGroupPlayers(groupId);
-  const ids=app.statsState.sessions.map(x=>x.id);
-  if(ids.length){
-    const rows=await app.services.trainingResults(ids);
-    app.statsState.attendance=rows.attendance;
-    app.statsState.sessionExercises=rows.sessionExercises;
-    app.statsState.results=rows.results;
-    app.statsState.sessionExercises.forEach(x=>{if(x.exercise)app.statsState.exerciseMap[x.exercise.id]=x.exercise});
-  }
+  app.statsState.sessionExercises.forEach(x=>{if(x.exercise)app.statsState.exerciseMap[x.exercise.id]=x.exercise});
   app.$('#statsStatus').textContent=`${app.statsState.sessions.length} séance${app.statsState.sessions.length>1?'s':''} analysée${app.statsState.sessions.length>1?'s':''}`;
   app.populateStatsSelectors();
   app.renderStatsAll();
 };
 
 app.switchStatsTab = function switchStatsTab(tab){
+  if(app.statsState.readOnlyViewer&&tab==='player')tab='group';
   app.statsState.tab=tab;
   app.$$('.statsTab').forEach(b=>b.classList.toggle('active',b.dataset.statsTab===tab));
   app.$('#statsGroupView').classList.toggle('hidden',tab!=='group');
@@ -299,7 +313,7 @@ app.renderStatsGroup = function renderStatsGroup(){
 
 app.renderStatsLeaderboard = function renderStatsLeaderboard(rows,ex){
   const leader=app.$('#statsLeaderboard'),hint=app.$('#statsLeaderboardHint');
-  const playerMap=Object.fromEntries(app.statsState.players.map(p=>[p.id,p.display_name]));
+  const playerMap=Object.fromEntries(app.statsState.players.map(p=>[p.id,p]));
   const grouped={};
   rows.forEach(r=>(grouped[r.player_id]??=[]).push(r));
   let entries=[];
@@ -310,16 +324,19 @@ app.renderStatsLeaderboard = function renderStatsLeaderboard(rows,ex){
       const successes=used.reduce((a,r)=>a+(Number(r.successes)||0),0);
       const attempts=used.reduce((a,r)=>a+(Number(r.attempts)||0),0);
       if(attempts<5)return;
-      entries.push({pid,name:playerMap[pid]||'Joueur',score:100*successes/attempts,display:`${Math.round(100*successes/attempts)} % · ${successes}/${attempts}`,volume:attempts});
+      entries.push({pid,name:playerMap[pid]?.display_name||'Joueur',rankingOrder:Number(playerMap[pid]?.ranking_order)||Number.MAX_SAFE_INTEGER,score:100*successes/attempts,display:`${Math.round(100*successes/attempts)} % · ${successes}/${attempts}`,volume:attempts});
     }else{
       const vals=used.map(r=>Number(r.numeric_value)).filter(Number.isFinite);
       if(!vals.length)return;
       const avg=vals.reduce((a,b)=>a+b,0)/vals.length;
       const suffix=ex.measurement_type==='time_seconds'?' s':ex.measurement_type==='rating_5'?' /5':ex.measurement_type==='rating_10'?' /10':'';
-      entries.push({pid,name:playerMap[pid]||'Joueur',score:avg,display:`${Math.round(avg*10)/10}${suffix}`,volume:vals.length});
+      entries.push({pid,name:playerMap[pid]?.display_name||'Joueur',rankingOrder:Number(playerMap[pid]?.ranking_order)||Number.MAX_SAFE_INTEGER,score:avg,display:`${Math.round(avg*10)/10}${suffix}`,volume:vals.length});
     }
   });
-  entries.sort((a,b)=>ex.measurement_type==='time_seconds'?a.score-b.score:b.score-a.score);
+  entries.sort((a,b)=>{
+    const scoreOrder=ex.measurement_type==='time_seconds'?a.score-b.score:b.score-a.score;
+    return scoreOrder||a.rankingOrder-b.rankingOrder||(a.name||'').localeCompare(b.name||'','fr');
+  });
   hint.textContent=ex.measurement_type==='success_attempts'
     ? `${app.statsState.leaderMode==='recent'?'3 derniers résultats':'Toutes les données'} · minimum 5 tentatives`
     : `${app.statsState.leaderMode==='recent'?'Moyenne des 3 derniers résultats':'Moyenne globale'}${ex.measurement_type==='time_seconds'?' · temps le plus bas en tête':''}`;
@@ -327,7 +344,15 @@ app.renderStatsLeaderboard = function renderStatsLeaderboard(rows,ex){
   leader.innerHTML=entries.slice(0,10).map((x,i)=>`<div class="leaderRow"><div class="leaderRank">${i+1}</div><div><strong>${app.statsEscape(x.name)}</strong><div class="small">${x.volume} ${ex.measurement_type==='success_attempts'?'tentative'+(x.volume>1?'s':''):'résultat'+(x.volume>1?'s':'')}</div></div><strong>${app.statsEscape(x.display)}</strong></div>`).join('');
 };
 
+app.statsDomainAllowed = function statsDomainAllowed(domain){
+  if(!app.statsState.readOnlyViewer)return true;
+  if(domain==='training')return !!app.statsState.viewerCanTraining;
+  if(['matches','impact','reference'].includes(domain))return !!app.statsState.viewerCanMatches;
+  return false;
+};
+
 app.switchStatsDomain = function switchStatsDomain(domain){
+  if(!app.statsDomainAllowed(domain))domain=app.statsState.viewerCanTraining?'training':(app.statsState.viewerCanMatches?'matches':'training');
   app.statsState.domain=domain;
   app.$$('.statsDomainTab').forEach(b=>b.classList.toggle('active',b.dataset.statsDomain===domain));
   app.$('#statsTrainingDomain').classList.toggle('hidden',domain!=='training');
@@ -1279,19 +1304,40 @@ app.statsImpactSaveCoachMessage = async function statsImpactSaveCoachMessage(gro
   }finally{if(save)save.disabled=false;}
 };
 
-app.prepareStatsModuleForGroup = async function prepareStatsModuleForGroup(groupId,{readOnly=false}={}){
-  app.hideMainModules();app.setMatchHeaderMode(false);
-  app.$('#statsHome').classList.remove('hidden');
+app.applyGroupStatsViewerRights = function applyGroupStatsViewerRights(groupId,{readOnly=false}={}){
+  const rights=readOnly?app.playerPortalGroupStatsRights(groupId):{training:true,matches:true};
+  const viewerTitle=rights.training&&rights.matches?'Statistiques du groupe':rights.matches?'Statistiques de match':'Statistiques d’entraînement';
+  const viewerHint=rights.training&&rights.matches?'(entraînements et matchs)':rights.matches?'(matchs)':'(entraînements)';
+  const viewerSubtitle=rights.training&&rights.matches?'Résultats, évolutions et analyses de match du groupe':rights.matches?'Analyses de match du groupe':'Résultats, évolutions et classements du groupe';
   app.statsState.readOnlyViewer=!!readOnly;
-  app.statsState.viewerReturnGroupId=readOnly?groupId:null;
+  app.statsState.viewerCanTraining=!!rights.training;
+  app.statsState.viewerCanMatches=!!rights.matches;
+  app.$('#statsHome')?.classList.toggle('playerTrainingStatsViewer',!!readOnly);
+  app.$('#statsHome')?.classList.toggle('playerMatchStatsViewer',!!readOnly&&!!rights.matches);
   app.$('#statsReadOnlyBadge')?.classList.toggle('hidden',!readOnly);
+  if(app.$('#statsTitle'))app.$('#statsTitle').textContent=readOnly?`📊 ${viewerTitle}`:'📊 Statistiques';
+  if(app.$('#statsSubtitle'))app.$('#statsSubtitle').textContent=readOnly?viewerSubtitle:'Centre d’analyse : entraînements, matchs, performance offensive et face-à-face';
+  if(app.$('#statsGroupHint'))app.$('#statsGroupHint').textContent=readOnly?viewerHint:'(utilisé pour entraînements, matchs et joueurs)';
+  app.$$('.statsDomainTab[data-stats-domain]').forEach(button=>button.classList.toggle('hidden',!!readOnly&&!app.statsDomainAllowed(button.dataset.statsDomain)));
+  app.$('#openFaceToFaceFromStats')?.classList.toggle('hidden',!!readOnly&&!rights.matches);
+  app.$('.statsTab[data-stats-tab="player"]')?.classList.toggle('hidden',!!readOnly);
+  app.$('#statsHelpBtn')?.classList.toggle('hidden',!!readOnly);
   if(app.$('#statsBackHome'))app.$('#statsBackHome').textContent=readOnly?'← Espace joueur':'← Accueil';
   app.$('#openQuickCollectionFromReference')?.classList.toggle('hidden',!!readOnly);
   if(readOnly)app.$('#statsReferenceManager')?.classList.add('hidden');
-  app.statsState.tab='group';app.statsState.domain='training';app.statsState.leaderMode='recent';
+  return rights;
+};
+
+app.prepareStatsModuleForGroup = async function prepareStatsModuleForGroup(groupId,{readOnly=false}={}){
+  app.hideMainModules();app.setMatchHeaderMode(false);
+  app.$('#statsHome').classList.remove('hidden');
+  app.statsState.viewerReturnGroupId=readOnly?groupId:null;
+  const rights=app.applyGroupStatsViewerRights(groupId,{readOnly});
+  const initialDomain=rights.training?'training':'matches';
+  app.statsState.tab='group';app.statsState.domain=initialDomain;app.statsState.leaderMode='recent';
   app.$$('.statsLeaderboardMode').forEach(b=>b.classList.toggle('active',b.dataset.leaderMode==='recent'));
   app.switchStatsTab('group');
-  app.switchStatsDomain('training');
+  app.switchStatsDomain(initialDomain);
   await app.loadStatsData(groupId);
   const group=app.statsGroupMeta(groupId);
   const pop=app.groupPopulationFromName(group?.name)||'H';
@@ -1316,8 +1362,8 @@ app.openStatsModule = async function openStatsModule(){
 
 app.openGroupStatsViewer = async function openGroupStatsViewer(access){
   try{
-    if(!access||access.stats_access!=='group')throw new Error('Cet accès aux statistiques du groupe n’est pas autorisé.');
-    const allowed=(app.playerPortalState.accesses||[]).filter(a=>a.stats_access==='group');
+    if(!access||!app.playerPortalCanOpenGroupStats(access))throw new Error('Cet accès aux statistiques du groupe n’est pas autorisé.');
+    const allowed=(app.playerPortalState.accesses||[]).filter(a=>app.playerPortalCanOpenGroupStats(a));
     const sel=app.$('#statsGroup');
     if(sel){
       sel.innerHTML=allowed.map(a=>`<option value="${app.escapeHtml(a.group_id)}">${app.escapeHtml(a.group_name)}</option>`).join('');
@@ -1427,7 +1473,7 @@ app.renderStatsExercise = function renderStatsExercise(){
   const focus=dual?(app.$('#statsExerciseFocus')?.value||'attaque'):null;
   const sx=app.statsState.sessionExercises.filter(x=>x.exercise_id===exId&&(!focus||x.focus===focus));
   const sessionIds=new Set(sx.map(x=>x.session_id));
-  const rows=app.statsState.results.filter(r=>r.exercise_id===exId&&sessionIds.has(r.session_id));
+  const rows=app.statsFilteredExerciseResults(exId,focus).filter(r=>sessionIds.has(r.session_id));
   const evaluated=new Set(rows.map(r=>r.player_id)).size;
   const best=app.statsBestRow(rows,ex.measurement_type);
   metrics.innerHTML=app.statsMetric('Utilisé',`${sessionIds.size} séance${sessionIds.size>1?'s':''}`)+
@@ -1726,8 +1772,14 @@ app.bindStatsControls = function bindStatsControls(){
   const statsGroup=app.$('#statsGroup');
   if(statsGroup)statsGroup.onchange=async()=>{
     try{
+      const access=(app.playerPortalState.accesses||[]).find(a=>a.group_id===statsGroup.value);
+      if(app.statsState.readOnlyViewer&&!app.playerPortalCanOpenGroupStats(access))throw new Error('Cet accès aux statistiques du groupe n’est pas autorisé.');
+      if(app.statsState.readOnlyViewer){
+        const rights=app.applyGroupStatsViewerRights(statsGroup.value,{readOnly:true});
+        if(!app.statsDomainAllowed(app.statsState.domain))app.switchStatsDomain(rights.training?'training':'matches');
+      }
       await app.loadStatsData(statsGroup.value);
-      if(app.statsState.readOnlyViewer&&!((app.playerPortalState.accesses||[]).some(a=>a.group_id===statsGroup.value&&a.stats_access==='group')))return;
+      if(app.statsState.readOnlyViewer)app.statsState.viewerReturnGroupId=statsGroup.value;
       const group=app.statsGroupMeta(statsGroup.value);
       const pop=app.groupPopulationFromName(group?.name)||'H';
       if(app.$('#statsReferencePopulation'))if(app.$('#statsReferencePopulation'))app.$('#statsReferencePopulation').value=pop;

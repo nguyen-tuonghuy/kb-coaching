@@ -471,7 +471,13 @@ button:active{transform:scale(.985)}
 
 @media(max-width:520px){.moduleGrid{grid-template-columns:1fr}.miniGrid{grid-template-columns:1fr}.trainingPlanFields{grid-template-columns:1fr}.trainingPlanFields .planTitleField,.trainingPlanFields .planTrackField{grid-column:auto}}
 
-.statsTabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+.statsTabs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+
+.playerTrainingStatsViewer .statsTabs{grid-template-columns:repeat(3,1fr)}
+
+.playerTrainingStatsViewer .statsDomainTabs{grid-template-columns:1fr}
+
+.playerTrainingStatsViewer.playerMatchStatsViewer .statsDomainTabs{grid-template-columns:repeat(2,minmax(0,1fr))}
 
 .statsTabs button{border:1px solid var(--line);min-height:44px;background:#fff}
 
@@ -857,7 +863,7 @@ button:active{transform:scale(.985)}
 
 .statsEmpty{padding:14px;background:var(--panel2);border-radius:12px;color:var(--muted);font-size:13px}
 
-@media(max-width:520px){.statsMetrics{grid-template-columns:1fr}.statsTabs{grid-template-columns:1fr}}
+@media(max-width:520px){.statsMetrics{grid-template-columns:1fr}.statsTabs,.playerTrainingStatsViewer .statsTabs{grid-template-columns:1fr}}
 
 .exerciseLibraryCard{background:var(--panel2);border-radius:12px;padding:10px 11px;margin-bottom:7px}
 

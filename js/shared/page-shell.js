@@ -231,12 +231,19 @@
    </select>
   </div>
   <div class="field" style="margin-top:12px">
-   <label for="groupPlayerFollowupStatsAccess">Accès aux statistiques</label>
+   <label for="groupPlayerFollowupStatsAccess">Statistiques d’entraînement</label>
    <select id="groupPlayerFollowupStatsAccess">
     <option value="personal">Statistiques personnelles uniquement</option>
-    <option value="group">Statistiques complètes du groupe · lecture seule</option>
+    <option value="group">Classement d’entraînement du groupe · lecture seule</option>
    </select>
-   <div class="small" style="margin-top:5px">À réserver aux joueurs auxquels le staff souhaite donner une vision complète du groupe (par exemple un capitaine).</div>
+   <div class="small" style="margin-top:5px">Donne accès au classement pseudonymisé des entraînements.</div>
+  </div>
+  <div class="field" style="margin-top:12px">
+   <label for="groupPlayerFollowupMatchStatsAccess" style="display:flex;gap:8px;align-items:flex-start">
+    <input type="checkbox" id="groupPlayerFollowupMatchStatsAccess" style="margin-top:3px">
+    <span>Statistiques de match du groupe · lecture seule</span>
+   </label>
+   <div class="small" style="margin-top:5px">Désactivé par défaut. Donne accès aux analyses de match du groupe, sans édition.</div>
   </div>
   <div class="historyItem" style="margin-top:12px">
    <div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
@@ -281,7 +288,7 @@
   </div>`,
   "statsHome": `<section class="panel hidden" id="statsHome">
    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
-    <div><div class="row" style="gap:8px;align-items:center"><h2 style="font-size:20px">📊 Statistiques</h2><span class="statsReadOnlyBadge hidden" id="statsReadOnlyBadge">Lecture seule</span></div><div class="small">Centre d’analyse : entraînements, matchs, performance offensive et face-à-face</div></div>
+     <div><div class="row" style="gap:8px;align-items:center"><h2 id="statsTitle" style="font-size:20px">📊 Statistiques</h2><span class="statsReadOnlyBadge hidden" id="statsReadOnlyBadge">Lecture seule</span></div><div class="small" id="statsSubtitle">Centre d’analyse : entraînements, matchs, performance offensive et face-à-face</div></div>
     <div class="row" style="gap:8px">
       <button class="statsHelpBtn" id="statsHelpBtn" type="button" title="Aide sur les statistiques" aria-label="Aide sur les statistiques">?</button>
       <button class="ghost backNav" id="statsBackHome">← Accueil</button>
@@ -289,7 +296,7 @@
    </div>
 
    <div class="field">
-    <label>Groupe <span class="small">(utilisé pour entraînements, matchs et joueurs)</span></label>
+     <label>Groupe <span class="small" id="statsGroupHint">(utilisé pour entraînements, matchs et joueurs)</span></label>
     <select id="statsGroup"><option value="">— Choisir un groupe —</option></select>
    </div>
 

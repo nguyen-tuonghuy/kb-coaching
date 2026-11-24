@@ -28,6 +28,7 @@ const migrationG2=fs.readFileSync(migrationG2File,'utf8');
 const migrationPlayerResultsFile=path.join(migrationDir,'20261122120000_player_training_results.sql');
 if(!fs.existsSync(migrationPlayerResultsFile))throw new Error(`Missing test prerequisite: ${migrationPlayerResultsFile}`);
 const migrationPlayerResults=fs.readFileSync(migrationPlayerResultsFile,'utf8');
+const occurrenceIntegrity=fs.readFileSync(path.join(migrationDir,'20261124230000_training_occurrence_integrity.sql'),'utf8');
 
 const U_COACH='11111111-1111-4111-8111-111111111111';
 const U_EDITOR='22222222-2222-4222-8222-222222222222';
@@ -225,7 +226,7 @@ insert into public.training_results(session_id,exercise_id,player_id,successes,a
  ('${S1}','${EX1}','${P_A}',1,2,null),('${S1}','${EX1}','${P_B}',5,5,'speed');
 `;
 
-async function makeDB(){const db=new PGlite();await db.exec(fixture);await db.exec(migration);await db.exec(migrationFix);await db.exec(migrationLease);await db.exec(migrationG2);await db.exec(migrationPlayerResults);return db}
+async function makeDB({beforeFix=false}={}){const db=new PGlite();await db.exec(fixture);await db.exec(migration);await db.exec(migrationFix);await db.exec(migrationLease);await db.exec(migrationG2);await db.exec(migrationPlayerResults);if(!beforeFix)await db.exec(occurrenceIntegrity);return db}
 async function asUser(db,id){await db.exec(`set role authenticated;set request.jwt.claim.sub='${id}'`) }
 async function rows(db,sql,params=[]){return (await db.query(sql,params)).rows}
 async function one(db,sql,params=[]){return (await rows(db,sql,params))[0]}
@@ -260,7 +261,7 @@ async function saveRPC(db,{sessionId=null,expected=null,workspace=WS_A,group=G1,
   return result;
 }
 
-async function saveG2(db,{occurrences=[],...options}={}){
+async function saveG2(db,{occurrences=[],playerResults=false,...options}={}){
   const args={sessionId:null,expected:null,workspace:WS_A,group:G1,team:TEAM_A,trainedOn:null,
     label:'Entraînement',theme:null,duration:null,notes:null,attendance:[],exercises:[],results:[],force:false,
     instance:INSTANCE_A,token:undefined,...options};
@@ -271,7 +272,7 @@ async function saveG2(db,{occurrences=[],...options}={}){
     leaseToken=cache.get(key);
     if(!leaseToken){const lease=await acquireLease(db,args.sessionId,args.instance);if(lease.status!=='acquired')throw new Error('lease not acquired');leaseToken=lease.lease_token;cache.set(key,leaseToken)}
   }
-  const result=await one(db,`select * from public.save_training_session_with_occurrences(
+  const result=await one(db,`select * from public.${playerResults?'save_training_session_player_results':'save_training_session_with_occurrences'}(
     p_session_id=>$1::uuid,p_expected_version=>$2::integer,p_editor_instance_id=>$3::uuid,p_lease_token=>$4::uuid,
     p_workspace_id=>$5::uuid,p_group_id=>$6::uuid,p_team_id=>$7::uuid,p_trained_on=>$8::date,
     p_label=>$9::text,p_theme=>$10::text,p_duration_minutes=>$11::integer,p_notes=>$12::text,
@@ -282,6 +283,82 @@ async function saveG2(db,{occurrences=[],...options}={}){
   if(!args.sessionId&&result?.lease_token)cache.set(`${result.session_id}:${args.instance}`,result.lease_token);
   return result;
 }
+
+test('the coach saves an existing session through the browser RPC without a collection',async()=>{
+  const db=await makeDB({beforeFix:true});
+  try{
+    await asUser(db,U_COACH);
+    const args={playerResults:true,sessionId:S1,expected:1,label:'Brouillon coach',attendance:[{player_id:P_A,present:true}]};
+    await assert.rejects(saveG2(db,args),{code:'42501',message:/training_player_collections/});
+    await db.exec('reset role');
+    await db.exec(occurrenceIntegrity);
+    await asUser(db,U_COACH);
+    const result=await saveG2(db,args);
+    assert.equal(result.status,'saved');
+    assert.equal((await one(db,'select label from public.training_sessions where id=$1',[S1])).label,'Brouillon coach');
+    assert.equal((await saveG2(db,args)).status,'conflict');
+    await assert.rejects(saveG2(db,{...args,expected:result.version,token:O2}),{code:'55000'});
+    await assert.rejects(saveG2(db,{...args,sessionId:S2,group:G2,team:TEAM_B,token:result.lease_token}),{code:'55000'});
+    await assert.rejects(rows(db,'select * from public.training_player_collections'),{code:'42501'});
+    assert.deepEqual((await rows(db,'select variant from public.training_results where session_id=$1 order by variant nulls first',[S1])).map(r=>r.variant),[null,'speed']);
+  }finally{await db.close()}
+});
+
+test('browser RPCs preserve official rows, reject stale tabs and arbitrate a declaration once',async()=>{
+  const db=await makeDB();
+  const rpc=async(name,params)=> (await one(db,`select public.${name}(${params.map((_,i)=>`$${i+1}`).join(',')}) value`,params)).value;
+  const manifest=[{id:O1,kind:'manual_stat',exercise_id:EX1,collects_stats:true,position:1,stats_position:1}];
+  const options={playerResults:true,sessionId:S1,expected:1,occurrences:manifest,
+    attendance:[{player_id:P_A,present:true},{player_id:P_B,present:true}],exercises:[{exercise_id:EX1,position:1,focus:'attack'}]};
+  try{
+    await asUser(db,U_COACH);
+    const initial=await saveG2(db,{...options,results:[{occurrence_id:O1,exercise_id:EX1,player_id:P_A,numeric_value:4}]});
+    const token=initial.lease_token;
+    const getOfficial=()=>rows(db,'select id,player_id,result_version,numeric_value from public.training_results where session_id=$1 and occurrence_id=$2 order by player_id',[S1,O1]);
+    const [before]=await getOfficial();
+    const old={...options,playerResults:false,expected:initial.version,force:true};
+    await assert.rejects(saveG2(db,old),{code:'55000'});
+    await assert.rejects(saveRPC(db,old),{code:'55000'});
+    assert.deepEqual(await getOfficial(),[before]);
+    await rpc('open_training_player_collection',[S1,O1]);
+    await asUser(db,U_NONE);
+    assert.deepEqual((await rows(db,'select occurrence_id,declaration_id from public.get_my_training_result_tasks($1)',[G1])),[{occurrence_id:O1,declaration_id:null}]);
+    await rpc('submit_my_training_result',[O1,null,null,7,'joueur',O2,null]);
+    await assert.rejects(rpc('open_training_player_collection',[S1,O1]),{code:'42501'});
+    await asUser(db,U_OTHER);
+    assert.equal((await rows(db,'select declaration_id from public.get_my_training_result_tasks($1)',[G1]))[0].declaration_id,null);
+    await rpc('submit_my_training_result',[O1,null,null,9,null,O3,null]);
+    await asUser(db,U_COACH);
+    const retrieve=op=>rpc('retrieve_training_player_results',[S1,O1,op,INSTANCE_A,token]);
+    const retrieved=await retrieve(O2);
+    assert.equal(retrieved.discrepancy_count,1);
+    const official=await getOfficial();
+    assert.deepEqual(official.map(r=>Number(r.numeric_value)),[4,9]);
+    assert.deepEqual(await retrieve(O3),retrieved);
+    assert.deepEqual(await getOfficial(),official);
+    await asUser(db,U_NONE);
+    await assert.rejects(rpc('submit_my_training_result',[O1,null,null,8,null,O3,1]),/saisie est fermée/);
+    await asUser(db,U_COACH);
+    const [pending]=await rows(db,"select * from public.get_training_player_collection_details($1) where resolution_state='pending'",[S1]);
+    assert.equal(pending.player_id,P_A);
+    assert.equal(Number(pending.coach_numeric_value),4);
+    assert.equal(Number(pending.player_numeric_value),7);
+    const arbitrate=version=>rpc('arbitrate_training_player_result',[pending.declaration_id,'player',pending.result_id,version,INSTANCE_A,token]);
+    assert.equal((await arbitrate(pending.result_version+1)).status,'conflict');
+    assert.equal((await arbitrate(pending.result_version)).status,'saved');
+    const after=await getOfficial();
+    assert.equal(after[0].id,before.id);
+    assert.deepEqual(after.map(r=>Number(r.numeric_value)),[7,9]);
+    assert.deepEqual((await saveG2(db,{...options,force:true,results:[]})).status,'saved');
+    assert.deepEqual(await getOfficial(),after,'omitting results leaves official rows unchanged');
+    const update={occurrence_id:O1,exercise_id:EX1,player_id:P_A,numeric_value:7,expected_result_id:after[0].id,expected_result_version:after[0].result_version};
+    await saveG2(db,{...options,force:true,results:[{...update,note:'joueur'}]});
+    assert.deepEqual(await getOfficial(),after,'unchanged results keep IDs and versions');
+    await assert.rejects(saveG2(db,{...options,force:true,results:[{...update,delete_result:true}]}),{code:'23514'});
+    await assert.rejects(saveG2(db,{...options,force:true,results:[{...update,expected_result_version:before.result_version}]}),{code:'40001'});
+    assert.equal((await one(db,'select count(*)::int n from public.training_results where session_id=$1 and occurrence_id is null',[S1])).n,2);
+  }finally{await db.close()}
+});
 
 function diagram(id='diagram-test'){
   const stamp='2026-10-11T12:00:00.000Z';

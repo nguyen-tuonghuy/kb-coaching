@@ -340,10 +340,15 @@ app.claimPlayerInviteIfPresent = (user=app.currentUser) => {
 
 app.fetchMyPlayerAccesses = async function fetchMyPlayerAccesses(){
   const id=app.currentUser?.id;
-  const accesses=await app.services.playerAccess();
+  const [accesses,matchGroups]=await Promise.all([
+    app.services.playerAccess(),
+    Promise.resolve().then(()=>app.services.playerMatchStatsGroups?.()||[]).catch(error=>{console.warn('[player match stats]',error);return []})
+  ]);
   if(app.currentUser?.id!==id)return [];
-  app.playerPortalState.accesses=accesses;
-  return accesses;
+  const allowed=new Set((matchGroups||[]).filter(x=>x.enabled).map(x=>x.group_id));
+  const merged=accesses.map(access=>({...access,match_stats_access:allowed.has(access.group_id)}));
+  app.playerPortalState.accesses=merged;
+  return merged;
 };
 
 app.initAuth = async function initAuth(){
