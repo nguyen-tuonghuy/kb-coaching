@@ -6,7 +6,7 @@ const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const read=file=>fs.readFileSync(path.join(root,file),'utf8');
 
-const migration=read('supabase/migrations/20261124191500_group_match_stats_access.sql');
+const migration=read('supabase/migrations/20261124222614_group_match_stats_access.sql');
 const data=read('js/shared/data.js');
 const auth=read('js/shared/auth.js');
 const bootstrap=read('js/shared/bootstrap.js');

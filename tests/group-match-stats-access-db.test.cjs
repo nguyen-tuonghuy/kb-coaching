@@ -8,7 +8,7 @@ const root=path.resolve(__dirname,'..');
 const readMigration=file=>fs.readFileSync(path.join(root,'supabase/migrations',file),'utf8');
 const trainingMigration=readMigration('20261124173651_player_training_statistics.sql');
 const viewMigration=readMigration('20261124180256_training_statistics_view_mode.sql');
-const matchMigration=readMigration('20261124191500_group_match_stats_access.sql');
+const matchMigration=readMigration('20261124222614_group_match_stats_access.sql');
 
 const COACH='11111111-1111-4111-8111-111111111111';
 const COACH_ONLY='17171717-1717-4717-8717-171717171717';
