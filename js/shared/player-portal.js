@@ -75,9 +75,18 @@ app.playerPortalAccessForGroup = function playerPortalAccessForGroup(groupId){re
 
 app.playerPortalCanViewGroupStats = function playerPortalCanViewGroupStats(access=app.playerPortalAccessForGroup(app.playerPortalState.groupId)){return access?.stats_access==='group'};
 
+app.playerPortalCanViewGroupMatchStats = function playerPortalCanViewGroupMatchStats(access=app.playerPortalAccessForGroup(app.playerPortalState.groupId)){return access?.match_stats_access===true};
+
+app.playerPortalCanOpenGroupStats = function playerPortalCanOpenGroupStats(access=app.playerPortalAccessForGroup(app.playerPortalState.groupId)){return app.playerPortalCanViewGroupStats(access)||app.playerPortalCanViewGroupMatchStats(access)};
+
+app.playerPortalGroupStatsRights = function playerPortalGroupStatsRights(groupId){
+  const access=app.playerPortalAccessForGroup(groupId);
+  return {training:app.playerPortalCanViewGroupStats(access),matches:app.playerPortalCanViewGroupMatchStats(access)};
+};
+
 app.syncPlayerPortalGroupStatsAccess = function syncPlayerPortalGroupStatsAccess(){
   const access=app.playerPortalAccessForGroup(app.playerPortalState.groupId)||app.playerPortalState.accesses?.[0];
-  const allowed=app.playerPortalCanViewGroupStats(access);
+  const allowed=app.playerPortalCanOpenGroupStats(access);
   app.$('#playerPortalNavGroupStats')?.classList.toggle('hidden',!allowed);
   app.$('#playerPortalHomeGroupStatsCard')?.classList.toggle('hidden',!allowed);
 };
@@ -690,7 +699,7 @@ app.openPlayerPortal = async function openPlayerPortal(accesses,preferredGroupId
   if(app.page==='index')app.syncPlayerPortalMessagePolling();
   if(location.hash==='#team-stats'){
     const access=app.playerPortalAccessForGroup(app.playerPortalState.groupId)||app.playerPortalState.accesses?.[0];
-    if(app.playerPortalCanViewGroupStats(access))return await app.openGroupStatsViewer(access);
+    if(app.playerPortalCanOpenGroupStats(access))return await app.openGroupStatsViewer(access);
   }
   const wanted=location.hash==='#player-profile'?'profile':location.hash==='#player-messages'?'messages':'home';
   app.playerPortalSetView(wanted);app.syncStandaloneVideoLinks();app.setCloud('Synchronisé',true);window.scrollTo({top:0,behavior:'instant'});return true

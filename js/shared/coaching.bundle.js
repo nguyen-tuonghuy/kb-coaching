@@ -230,12 +230,19 @@
    </select>
   </div>
   <div class="field" style="margin-top:12px">
-   <label for="groupPlayerFollowupStatsAccess">Accès aux statistiques</label>
+   <label for="groupPlayerFollowupStatsAccess">Statistiques d’entraînement</label>
    <select id="groupPlayerFollowupStatsAccess">
     <option value="personal">Statistiques personnelles uniquement</option>
-    <option value="group">Statistiques complètes du groupe · lecture seule</option>
+    <option value="group">Classement d’entraînement du groupe · lecture seule</option>
    </select>
-   <div class="small" style="margin-top:5px">À réserver aux joueurs auxquels le staff souhaite donner une vision complète du groupe (par exemple un capitaine).</div>
+   <div class="small" style="margin-top:5px">Donne accès au classement pseudonymisé des entraînements.</div>
+  </div>
+  <div class="field" style="margin-top:12px">
+   <label for="groupPlayerFollowupMatchStatsAccess" style="display:flex;gap:8px;align-items:flex-start">
+    <input type="checkbox" id="groupPlayerFollowupMatchStatsAccess" style="margin-top:3px">
+    <span>Statistiques de match du groupe · lecture seule</span>
+   </label>
+   <div class="small" style="margin-top:5px">Désactivé par défaut. Donne accès aux analyses de match du groupe, sans édition.</div>
   </div>
   <div class="historyItem" style="margin-top:12px">
    <div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
@@ -1274,13 +1281,18 @@
     async groupPlayers(groupId){
       if(!groupId)return [];
       const {data,error}=await db.from('coaching_group_players')
-        .select('player_id,active,preferred_role,stats_access,player:players!coaching_group_players_player_id_fkey(id,display_name)')
+        .select('player_id,active,preferred_role,stats_access,match_stats_access,player:players!coaching_group_players_player_id_fkey(id,display_name)')
         .eq('group_id',groupId).eq('active',true);
       if(error)throw error;
-      return (data||[]).filter(x=>x.player).map(x=>({...x.player,preferred_role:x.preferred_role||'AP',stats_access:x.stats_access||'personal'})).sort((a,b)=>a.display_name.localeCompare(b.display_name,'fr'));
+      return (data||[]).filter(x=>x.player).map(x=>({...x.player,preferred_role:x.preferred_role||'AP',stats_access:x.stats_access||'personal',match_stats_access:!!x.match_stats_access})).sort((a,b)=>a.display_name.localeCompare(b.display_name,'fr'));
     },
     async playerAccess(){
       const {data,error}=await db.rpc('get_my_player_access');
+      if(error)throw error;
+      return data||[];
+    },
+    async playerMatchStatsGroups(){
+      const {data,error}=await db.rpc('get_my_player_match_stats_access');
       if(error)throw error;
       return data||[];
     },
@@ -2331,10 +2343,15 @@ app.claimPlayerInviteIfPresent = (user=app.currentUser) => {
 
 app.fetchMyPlayerAccesses = async function fetchMyPlayerAccesses(){
   const id=app.currentUser?.id;
-  const accesses=await app.services.playerAccess();
+  const [accesses,matchGroups]=await Promise.all([
+    app.services.playerAccess(),
+    Promise.resolve().then(()=>app.services.playerMatchStatsGroups?.()||[]).catch(error=>{console.warn('[player match stats]',error);return []})
+  ]);
   if(app.currentUser?.id!==id)return [];
-  app.playerPortalState.accesses=accesses;
-  return accesses;
+  const allowed=new Set((matchGroups||[]).filter(x=>x.enabled).map(x=>x.group_id));
+  const merged=accesses.map(access=>({...access,match_stats_access:allowed.has(access.group_id)}));
+  app.playerPortalState.accesses=merged;
+  return merged;
 };
 
 app.initAuth = async function initAuth(){
@@ -2653,9 +2670,18 @@ app.playerPortalAccessForGroup = function playerPortalAccessForGroup(groupId){re
 
 app.playerPortalCanViewGroupStats = function playerPortalCanViewGroupStats(access=app.playerPortalAccessForGroup(app.playerPortalState.groupId)){return access?.stats_access==='group'};
 
+app.playerPortalCanViewGroupMatchStats = function playerPortalCanViewGroupMatchStats(access=app.playerPortalAccessForGroup(app.playerPortalState.groupId)){return access?.match_stats_access===true};
+
+app.playerPortalCanOpenGroupStats = function playerPortalCanOpenGroupStats(access=app.playerPortalAccessForGroup(app.playerPortalState.groupId)){return app.playerPortalCanViewGroupStats(access)||app.playerPortalCanViewGroupMatchStats(access)};
+
+app.playerPortalGroupStatsRights = function playerPortalGroupStatsRights(groupId){
+  const access=app.playerPortalAccessForGroup(groupId);
+  return {training:app.playerPortalCanViewGroupStats(access),matches:app.playerPortalCanViewGroupMatchStats(access)};
+};
+
 app.syncPlayerPortalGroupStatsAccess = function syncPlayerPortalGroupStatsAccess(){
   const access=app.playerPortalAccessForGroup(app.playerPortalState.groupId)||app.playerPortalState.accesses?.[0];
-  const allowed=app.playerPortalCanViewGroupStats(access);
+  const allowed=app.playerPortalCanOpenGroupStats(access);
   app.$('#playerPortalNavGroupStats')?.classList.toggle('hidden',!allowed);
   app.$('#playerPortalHomeGroupStatsCard')?.classList.toggle('hidden',!allowed);
 };
@@ -3268,7 +3294,7 @@ app.openPlayerPortal = async function openPlayerPortal(accesses,preferredGroupId
   if(app.page==='index')app.syncPlayerPortalMessagePolling();
   if(location.hash==='#team-stats'){
     const access=app.playerPortalAccessForGroup(app.playerPortalState.groupId)||app.playerPortalState.accesses?.[0];
-    if(app.playerPortalCanViewGroupStats(access))return await app.openGroupStatsViewer(access);
+    if(app.playerPortalCanOpenGroupStats(access))return await app.openGroupStatsViewer(access);
   }
   const wanted=location.hash==='#player-profile'?'profile':location.hash==='#player-messages'?'messages':'home';
   app.playerPortalSetView(wanted);app.syncStandaloneVideoLinks();app.setCloud('Synchronisé',true);window.scrollTo({top:0,behavior:'instant'});return true
@@ -5491,10 +5517,14 @@ app.renderGroupPlayers = function renderGroupPlayers(){
     const row=document.createElement('div');row.className='row';row.style.alignItems='center';row.style.gap='8px';
     const notif=app.messageNotificationFor(app.groupState.currentGroupId,p.id);const unread=Number(notif?.unread_count||0);
     const videoUnread=app.videoNotificationCountFor(app.groupState.currentGroupId,p.id);
-    const statsAccessLabel=p.stats_access==='group'?' · Stats groupe en lecture seule':'';
+    const statsAccessLabel=[
+      p.stats_access==='group'?'Stats entraînement en lecture seule':null,
+      p.match_stats_access===true?'Stats match du groupe':null
+    ].filter(Boolean).join(' · ');
+    const accessSummary=statsAccessLabel?` · ${statsAccessLabel}`:'';
     const open=document.createElement('button');open.type='button';open.className='ghost groupPlayerOpen';
     open.style.cssText='flex:1;min-width:140px;text-align:left;white-space:normal;padding:7px 10px';
-    open.innerHTML=`<strong>${app.escapeHtml(p.display_name)}${unread?`<span class="groupPlayerUnread">💬 ${unread} nouveau${unread>1?'x':''}</span>`:''}${videoUnread?`<span class="videoUnreadBadge">📹 ${videoUnread}</span>`:''}</strong><div class="small">${app.escapeHtml(roleLabel[p.preferred_role||'AP'])} · ${app.groupState.playerAccess?.[p.id]?'Compte joueur lié':'Accès joueur non encore activé'}${statsAccessLabel}</div>`;
+    open.innerHTML=`<strong>${app.escapeHtml(p.display_name)}${unread?`<span class="groupPlayerUnread">💬 ${unread} nouveau${unread>1?'x':''}</span>`:''}${videoUnread?`<span class="videoUnreadBadge">📹 ${videoUnread}</span>`:''}</strong><div class="small">${app.escapeHtml(roleLabel[p.preferred_role||'AP'])} · ${app.groupState.playerAccess?.[p.id]?'Compte joueur lié':'Accès joueur non encore activé'}${accessSummary}</div>`;
     open.setAttribute('aria-label',`Ouvrir le suivi de ${p.display_name}`);
     open.onclick=()=>app.openGroupPlayerFollowup(p.id).catch(e=>app.handleError('open player followup',e));
     row.append(open);
@@ -5715,7 +5745,7 @@ app.openStaffPlayerPortal = async function openStaffPlayerPortal(playerId){
   app.playerPortalState.staffPreview=true;
   app.playerPortalState.staffPlayerId=playerId;
   app.playerPortalState.staffReturnGroupId=groupId;
-  const previewAccess=[{group_id:groupId,group_name:g.name,player_id:p.id,player_name:p.display_name,preferred_role:p.preferred_role||'AP',stats_access:p.stats_access||'personal'}];
+  const previewAccess=[{group_id:groupId,group_name:g.name,player_id:p.id,player_name:p.display_name,preferred_role:p.preferred_role||'AP',stats_access:p.stats_access||'personal',match_stats_access:p.match_stats_access===true}];
   await app.openPlayerPortal(previewAccess);
 };
 
@@ -5923,6 +5953,7 @@ app.openGroupPlayerFollowup = async function openGroupPlayerFollowup(playerId,op
   if(groupLabel)groupLabel.textContent=g.name||'';
   app.$('#groupPlayerFollowupRole').value=p.preferred_role||'AP';
   app.$('#groupPlayerFollowupStatsAccess').value=p.stats_access||'personal';
+  app.$('#groupPlayerFollowupMatchStatsAccess').checked=p.match_stats_access===true;
   const linked=!!app.groupState.playerAccess?.[playerId];
   app.$('#groupPlayerFollowupAccessStatus').textContent=linked?'Compte joueur lié':'Accès joueur non encore activé';
   app.$('#groupPlayerFollowupUnlink').classList.toggle('hidden',!linked);
@@ -5970,13 +6001,14 @@ app.saveGroupPlayerFollowup = async function saveGroupPlayerFollowup(){
   if(!groupId||!playerId)return;
   const role=app.$('#groupPlayerFollowupRole').value||'AP';
   const statsAccess=app.$('#groupPlayerFollowupStatsAccess').value==='group'?'group':'personal';
+  const matchStatsAccess=app.$('#groupPlayerFollowupMatchStatsAccess')?.checked===true;
   const status=app.$('#groupPlayerFollowupAccessSaveStatus');
   const save=app.$('#saveGroupPlayerFollowup');
   if(save)save.disabled=true;if(status)status.textContent='Enregistrement…';
   try{
-    const {error}=await app.db.from('coaching_group_players').update({preferred_role:role,stats_access:statsAccess}).eq('group_id',groupId).eq('player_id',playerId);
+    const {error}=await app.db.from('coaching_group_players').update({preferred_role:role,stats_access:statsAccess,match_stats_access:matchStatsAccess}).eq('group_id',groupId).eq('player_id',playerId);
     if(error)throw error;
-    const p=app.groupState.currentPlayers.find(x=>x.id===playerId);if(p){p.preferred_role=role;p.stats_access=statsAccess}
+    const p=app.groupState.currentPlayers.find(x=>x.id===playerId);if(p){p.preferred_role=role;p.stats_access=statsAccess;p.match_stats_access=matchStatsAccess}
     if(status)status.textContent='Droits joueur enregistrés ✓';
     app.renderGroupPlayers();
     app.setCloud('Synchronisé',true);
@@ -7269,6 +7301,7 @@ app.loadStatsData = async function loadStatsData(groupId){
   if(app.$('#statsLeaderboardTable'))app.$('#statsLeaderboardTable').innerHTML='';
   app.populateStatsSelectors();app.renderStatsAll();
   if(!groupId)return;
+  if(app.statsState.readOnlyViewer&&!app.statsState.viewerCanTraining){app.$('#statsStatus').textContent='';return}
   app.$('#statsStatus').textContent='Chargement…';
   await app.fetchExerciseCategories();
   if(loadToken!==app.statsState.loadToken)return;
@@ -7369,8 +7402,15 @@ app.renderStatsLeaderboard = function renderStatsLeaderboard(rows,ex){
   leader.innerHTML=entries.slice(0,10).map((x,i)=>`<div class="leaderRow"><div class="leaderRank">${i+1}</div><div><strong>${app.statsEscape(x.name)}</strong><div class="small">${x.volume} ${ex.measurement_type==='success_attempts'?'tentative'+(x.volume>1?'s':''):'résultat'+(x.volume>1?'s':'')}</div></div><strong>${app.statsEscape(x.display)}</strong></div>`).join('');
 };
 
+app.statsDomainAllowed = function statsDomainAllowed(domain){
+  if(!app.statsState.readOnlyViewer)return true;
+  if(domain==='training')return !!app.statsState.viewerCanTraining;
+  if(['matches','impact','reference'].includes(domain))return !!app.statsState.viewerCanMatches;
+  return false;
+};
+
 app.switchStatsDomain = function switchStatsDomain(domain){
-  if(app.statsState.readOnlyViewer&&domain!=='training')domain='training';
+  if(!app.statsDomainAllowed(domain))domain=app.statsState.viewerCanTraining?'training':(app.statsState.viewerCanMatches?'matches':'training');
   app.statsState.domain=domain;
   app.$$('.statsDomainTab').forEach(b=>b.classList.toggle('active',b.dataset.statsDomain===domain));
   app.$('#statsTrainingDomain').classList.toggle('hidden',domain!=='training');
@@ -8322,27 +8362,40 @@ app.statsImpactSaveCoachMessage = async function statsImpactSaveCoachMessage(gro
   }finally{if(save)save.disabled=false;}
 };
 
-app.prepareStatsModuleForGroup = async function prepareStatsModuleForGroup(groupId,{readOnly=false}={}){
-  app.hideMainModules();app.setMatchHeaderMode(false);
-  app.$('#statsHome').classList.remove('hidden');
+app.applyGroupStatsViewerRights = function applyGroupStatsViewerRights(groupId,{readOnly=false}={}){
+  const rights=readOnly?app.playerPortalGroupStatsRights(groupId):{training:true,matches:true};
+  const viewerTitle=rights.training&&rights.matches?'Statistiques du groupe':rights.matches?'Statistiques de match':'Statistiques d’entraînement';
+  const viewerHint=rights.training&&rights.matches?'(entraînements et matchs)':rights.matches?'(matchs)':'(entraînements)';
+  const viewerSubtitle=rights.training&&rights.matches?'Résultats, évolutions et analyses de match du groupe':rights.matches?'Analyses de match du groupe':'Résultats, évolutions et classements du groupe';
   app.statsState.readOnlyViewer=!!readOnly;
-  app.statsState.viewerReturnGroupId=readOnly?groupId:null;
+  app.statsState.viewerCanTraining=!!rights.training;
+  app.statsState.viewerCanMatches=!!rights.matches;
   app.$('#statsHome')?.classList.toggle('playerTrainingStatsViewer',!!readOnly);
+  app.$('#statsHome')?.classList.toggle('playerMatchStatsViewer',!!readOnly&&!!rights.matches);
   app.$('#statsReadOnlyBadge')?.classList.toggle('hidden',!readOnly);
-  if(app.$('#statsTitle'))app.$('#statsTitle').textContent=readOnly?'📊 Statistiques d’entraînement':'📊 Statistiques';
-  if(app.$('#statsSubtitle'))app.$('#statsSubtitle').textContent=readOnly?'Résultats, évolutions et classements du groupe':'Centre d’analyse : entraînements, matchs, performance offensive et face-à-face';
-  if(app.$('#statsGroupHint'))app.$('#statsGroupHint').textContent=readOnly?'(entraînements)':'(utilisé pour entraînements, matchs et joueurs)';
-  app.$$('.statsDomainTab').forEach(button=>button.classList.toggle('hidden',!!readOnly&&button.dataset.statsDomain!=='training'));
-  app.$('#openFaceToFaceFromStats')?.classList.toggle('hidden',!!readOnly);
+  if(app.$('#statsTitle'))app.$('#statsTitle').textContent=readOnly?`📊 ${viewerTitle}`:'📊 Statistiques';
+  if(app.$('#statsSubtitle'))app.$('#statsSubtitle').textContent=readOnly?viewerSubtitle:'Centre d’analyse : entraînements, matchs, performance offensive et face-à-face';
+  if(app.$('#statsGroupHint'))app.$('#statsGroupHint').textContent=readOnly?viewerHint:'(utilisé pour entraînements, matchs et joueurs)';
+  app.$$('.statsDomainTab[data-stats-domain]').forEach(button=>button.classList.toggle('hidden',!!readOnly&&!app.statsDomainAllowed(button.dataset.statsDomain)));
+  app.$('#openFaceToFaceFromStats')?.classList.toggle('hidden',!!readOnly&&!rights.matches);
   app.$('.statsTab[data-stats-tab="player"]')?.classList.toggle('hidden',!!readOnly);
   app.$('#statsHelpBtn')?.classList.toggle('hidden',!!readOnly);
   if(app.$('#statsBackHome'))app.$('#statsBackHome').textContent=readOnly?'← Espace joueur':'← Accueil';
   app.$('#openQuickCollectionFromReference')?.classList.toggle('hidden',!!readOnly);
   if(readOnly)app.$('#statsReferenceManager')?.classList.add('hidden');
-  app.statsState.tab='group';app.statsState.domain='training';app.statsState.leaderMode='recent';
+  return rights;
+};
+
+app.prepareStatsModuleForGroup = async function prepareStatsModuleForGroup(groupId,{readOnly=false}={}){
+  app.hideMainModules();app.setMatchHeaderMode(false);
+  app.$('#statsHome').classList.remove('hidden');
+  app.statsState.viewerReturnGroupId=readOnly?groupId:null;
+  const rights=app.applyGroupStatsViewerRights(groupId,{readOnly});
+  const initialDomain=rights.training?'training':'matches';
+  app.statsState.tab='group';app.statsState.domain=initialDomain;app.statsState.leaderMode='recent';
   app.$$('.statsLeaderboardMode').forEach(b=>b.classList.toggle('active',b.dataset.leaderMode==='recent'));
   app.switchStatsTab('group');
-  app.switchStatsDomain('training');
+  app.switchStatsDomain(initialDomain);
   await app.loadStatsData(groupId);
   const group=app.statsGroupMeta(groupId);
   const pop=app.groupPopulationFromName(group?.name)||'H';
@@ -8367,8 +8420,8 @@ app.openStatsModule = async function openStatsModule(){
 
 app.openGroupStatsViewer = async function openGroupStatsViewer(access){
   try{
-    if(!access||access.stats_access!=='group')throw new Error('Cet accès aux statistiques du groupe n’est pas autorisé.');
-    const allowed=(app.playerPortalState.accesses||[]).filter(a=>a.stats_access==='group');
+    if(!access||!app.playerPortalCanOpenGroupStats(access))throw new Error('Cet accès aux statistiques du groupe n’est pas autorisé.');
+    const allowed=(app.playerPortalState.accesses||[]).filter(a=>app.playerPortalCanOpenGroupStats(a));
     const sel=app.$('#statsGroup');
     if(sel){
       sel.innerHTML=allowed.map(a=>`<option value="${app.escapeHtml(a.group_id)}">${app.escapeHtml(a.group_name)}</option>`).join('');
@@ -8777,7 +8830,12 @@ app.bindStatsControls = function bindStatsControls(){
   const statsGroup=app.$('#statsGroup');
   if(statsGroup)statsGroup.onchange=async()=>{
     try{
-      if(app.statsState.readOnlyViewer&&!((app.playerPortalState.accesses||[]).some(a=>a.group_id===statsGroup.value&&a.stats_access==='group')))throw new Error('Cet accès aux statistiques du groupe n’est pas autorisé.');
+      const access=(app.playerPortalState.accesses||[]).find(a=>a.group_id===statsGroup.value);
+      if(app.statsState.readOnlyViewer&&!app.playerPortalCanOpenGroupStats(access))throw new Error('Cet accès aux statistiques du groupe n’est pas autorisé.');
+      if(app.statsState.readOnlyViewer){
+        const rights=app.applyGroupStatsViewerRights(statsGroup.value,{readOnly:true});
+        if(!app.statsDomainAllowed(app.statsState.domain))app.switchStatsDomain(rights.training?'training':'matches');
+      }
       await app.loadStatsData(statsGroup.value);
       if(app.statsState.readOnlyViewer)app.statsState.viewerReturnGroupId=statsGroup.value;
       const group=app.statsGroupMeta(statsGroup.value);
@@ -9021,7 +9079,7 @@ window.addEventListener('hashchange',()=>{
   if(app.$('#playerPortal')?.classList.contains('hidden'))return;
   if(location.hash==='#team-stats'){
     const access=app.playerPortalAccessForGroup(app.playerPortalState.groupId)||app.playerPortalState.accesses?.[0];
-    if(app.playerPortalCanViewGroupStats(access))app.openGroupStatsViewer(access).catch(e=>app.handleError('team stats hash',e));
+    if(app.playerPortalCanOpenGroupStats(access))app.openGroupStatsViewer(access).catch(e=>app.handleError('team stats hash',e));
     return;
   }
   const wanted=location.hash==='#player-profile'?'profile':location.hash==='#player-home'?'home':location.hash==='#player-messages'?'messages':null;
@@ -9048,7 +9106,7 @@ document.addEventListener('click',e=>{
   if(teamStatsLink){
     e.preventDefault();
     const access=app.playerPortalAccessForGroup(app.playerPortalState.groupId)||app.playerPortalState.accesses?.[0];
-    if(app.playerPortalCanViewGroupStats(access))app.openGroupStatsViewer(access).catch(err=>app.handleError('open team stats',err));
+    if(app.playerPortalCanOpenGroupStats(access))app.openGroupStatsViewer(access).catch(err=>app.handleError('open team stats',err));
     return;
   }
   const link=e.target.closest?.('#playerPortalNavHome,#playerPortalNavStats,#playerPortalNavMessages,#playerPortalNavProfile,#playerPortalHomeStatsCard,#playerPortalHomeProfileCard');
@@ -9538,7 +9596,7 @@ app.groupState = {groups:[],currentGroupId:null,currentPlayers:[],currentSelecti
 
 app.adminState = {isAdmin:false,groups:[]};
 
-app.statsState = {groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',viewerRole:null,loadToken:0,matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',impactRestartLocation:'all',impactView:'staff',impactSortField:'impact100',impactSortDirection:'desc',impactPlayerName:'',impactMatchManualOrder:[],statsMatchView:'summary',reference:null,referenceMeta:null,referenceSources:[],referenceVersions:[],impactReference:null,readOnlyViewer:false,viewerReturnGroupId:null};
+app.statsState = {groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',viewerRole:null,loadToken:0,matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',impactRestartLocation:'all',impactView:'staff',impactSortField:'impact100',impactSortDirection:'desc',impactPlayerName:'',impactMatchManualOrder:[],statsMatchView:'summary',reference:null,referenceMeta:null,referenceSources:[],referenceVersions:[],impactReference:null,readOnlyViewer:false,viewerCanTraining:false,viewerCanMatches:false,viewerReturnGroupId:null};
 
 app.groupPlayerFollowupState = {groupId:null,playerId:null,objectives:[],activeView:'followup',loadToken:0,returnContext:null};
 

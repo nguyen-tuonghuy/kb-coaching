@@ -422,10 +422,14 @@ app.renderGroupPlayers = function renderGroupPlayers(){
     const row=document.createElement('div');row.className='row';row.style.alignItems='center';row.style.gap='8px';
     const notif=app.messageNotificationFor(app.groupState.currentGroupId,p.id);const unread=Number(notif?.unread_count||0);
     const videoUnread=app.videoNotificationCountFor(app.groupState.currentGroupId,p.id);
-    const statsAccessLabel=p.stats_access==='group'?' · Stats groupe en lecture seule':'';
+    const statsAccessLabel=[
+      p.stats_access==='group'?'Stats entraînement en lecture seule':null,
+      p.match_stats_access===true?'Stats match du groupe':null
+    ].filter(Boolean).join(' · ');
+    const accessSummary=statsAccessLabel?` · ${statsAccessLabel}`:'';
     const open=document.createElement('button');open.type='button';open.className='ghost groupPlayerOpen';
     open.style.cssText='flex:1;min-width:140px;text-align:left;white-space:normal;padding:7px 10px';
-    open.innerHTML=`<strong>${app.escapeHtml(p.display_name)}${unread?`<span class="groupPlayerUnread">💬 ${unread} nouveau${unread>1?'x':''}</span>`:''}${videoUnread?`<span class="videoUnreadBadge">📹 ${videoUnread}</span>`:''}</strong><div class="small">${app.escapeHtml(roleLabel[p.preferred_role||'AP'])} · ${app.groupState.playerAccess?.[p.id]?'Compte joueur lié':'Accès joueur non encore activé'}${statsAccessLabel}</div>`;
+    open.innerHTML=`<strong>${app.escapeHtml(p.display_name)}${unread?`<span class="groupPlayerUnread">💬 ${unread} nouveau${unread>1?'x':''}</span>`:''}${videoUnread?`<span class="videoUnreadBadge">📹 ${videoUnread}</span>`:''}</strong><div class="small">${app.escapeHtml(roleLabel[p.preferred_role||'AP'])} · ${app.groupState.playerAccess?.[p.id]?'Compte joueur lié':'Accès joueur non encore activé'}${accessSummary}</div>`;
     open.setAttribute('aria-label',`Ouvrir le suivi de ${p.display_name}`);
     open.onclick=()=>app.openGroupPlayerFollowup(p.id).catch(e=>app.handleError('open player followup',e));
     row.append(open);
@@ -646,7 +650,7 @@ app.openStaffPlayerPortal = async function openStaffPlayerPortal(playerId){
   app.playerPortalState.staffPreview=true;
   app.playerPortalState.staffPlayerId=playerId;
   app.playerPortalState.staffReturnGroupId=groupId;
-  const previewAccess=[{group_id:groupId,group_name:g.name,player_id:p.id,player_name:p.display_name,preferred_role:p.preferred_role||'AP',stats_access:p.stats_access||'personal'}];
+  const previewAccess=[{group_id:groupId,group_name:g.name,player_id:p.id,player_name:p.display_name,preferred_role:p.preferred_role||'AP',stats_access:p.stats_access||'personal',match_stats_access:p.match_stats_access===true}];
   await app.openPlayerPortal(previewAccess);
 };
 
@@ -854,6 +858,7 @@ app.openGroupPlayerFollowup = async function openGroupPlayerFollowup(playerId,op
   if(groupLabel)groupLabel.textContent=g.name||'';
   app.$('#groupPlayerFollowupRole').value=p.preferred_role||'AP';
   app.$('#groupPlayerFollowupStatsAccess').value=p.stats_access||'personal';
+  app.$('#groupPlayerFollowupMatchStatsAccess').checked=p.match_stats_access===true;
   const linked=!!app.groupState.playerAccess?.[playerId];
   app.$('#groupPlayerFollowupAccessStatus').textContent=linked?'Compte joueur lié':'Accès joueur non encore activé';
   app.$('#groupPlayerFollowupUnlink').classList.toggle('hidden',!linked);
@@ -901,13 +906,14 @@ app.saveGroupPlayerFollowup = async function saveGroupPlayerFollowup(){
   if(!groupId||!playerId)return;
   const role=app.$('#groupPlayerFollowupRole').value||'AP';
   const statsAccess=app.$('#groupPlayerFollowupStatsAccess').value==='group'?'group':'personal';
+  const matchStatsAccess=app.$('#groupPlayerFollowupMatchStatsAccess')?.checked===true;
   const status=app.$('#groupPlayerFollowupAccessSaveStatus');
   const save=app.$('#saveGroupPlayerFollowup');
   if(save)save.disabled=true;if(status)status.textContent='Enregistrement…';
   try{
-    const {error}=await app.db.from('coaching_group_players').update({preferred_role:role,stats_access:statsAccess}).eq('group_id',groupId).eq('player_id',playerId);
+    const {error}=await app.db.from('coaching_group_players').update({preferred_role:role,stats_access:statsAccess,match_stats_access:matchStatsAccess}).eq('group_id',groupId).eq('player_id',playerId);
     if(error)throw error;
-    const p=app.groupState.currentPlayers.find(x=>x.id===playerId);if(p){p.preferred_role=role;p.stats_access=statsAccess}
+    const p=app.groupState.currentPlayers.find(x=>x.id===playerId);if(p){p.preferred_role=role;p.stats_access=statsAccess;p.match_stats_access=matchStatsAccess}
     if(status)status.textContent='Droits joueur enregistrés ✓';
     app.renderGroupPlayers();
     app.setCloud('Synchronisé',true);

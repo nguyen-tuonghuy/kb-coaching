@@ -88,7 +88,7 @@ test('the shared player view uses only the training RPC and hides non-training d
   assert.doesNotMatch(loader,/services\.trainingSessions/);
   assert.doesNotMatch(loader,/fetchGroupPlayers/);
   assert.doesNotMatch(loader,/services\.trainingResults/);
-  assert.match(statistics,/readOnlyViewer&&domain!=='training'/);
+  assert.match(statistics,/statsDomainAllowed[\s\S]*viewerCanTraining[\s\S]*viewerCanMatches/);
   assert.match(statistics,/readOnlyViewer&&tab==='player'/);
   assert.match(shell,/id="statsTitle"/);
   assert.match(shell,/id="statsGroupHint"/);
@@ -127,7 +127,7 @@ test('player loading never republishes stale staff names on a rejected response'
   const categories=new Promise(resolve=>{releaseCategories=resolve});
   let rpcCalls=0;
   app.$=selector=>elements[selector]||null;
-  app.statsState={readOnlyViewer:true,loadToken:0,players:[{display_name:'Alice'}],sessions:[],attendance:[],sessionExercises:[],results:[],exerciseMap:{},sessionMap:{},leaderboardCache:[{name:'Alice'}]};
+  app.statsState={readOnlyViewer:true,viewerCanTraining:true,loadToken:0,players:[{display_name:'Alice'}],sessions:[],attendance:[],sessionExercises:[],results:[],exerciseMap:{},sessionMap:{},leaderboardCache:[{name:'Alice'}]};
   app.populateStatsSelectors=()=>{};
   app.renderStatsAll=()=>{};
   app.fetchExerciseCategories=()=>categories;

@@ -28,13 +28,18 @@
     async groupPlayers(groupId){
       if(!groupId)return [];
       const {data,error}=await db.from('coaching_group_players')
-        .select('player_id,active,preferred_role,stats_access,player:players!coaching_group_players_player_id_fkey(id,display_name)')
+        .select('player_id,active,preferred_role,stats_access,match_stats_access,player:players!coaching_group_players_player_id_fkey(id,display_name)')
         .eq('group_id',groupId).eq('active',true);
       if(error)throw error;
-      return (data||[]).filter(x=>x.player).map(x=>({...x.player,preferred_role:x.preferred_role||'AP',stats_access:x.stats_access||'personal'})).sort((a,b)=>a.display_name.localeCompare(b.display_name,'fr'));
+      return (data||[]).filter(x=>x.player).map(x=>({...x.player,preferred_role:x.preferred_role||'AP',stats_access:x.stats_access||'personal',match_stats_access:!!x.match_stats_access})).sort((a,b)=>a.display_name.localeCompare(b.display_name,'fr'));
     },
     async playerAccess(){
       const {data,error}=await db.rpc('get_my_player_access');
+      if(error)throw error;
+      return data||[];
+    },
+    async playerMatchStatsGroups(){
+      const {data,error}=await db.rpc('get_my_player_match_stats_access');
       if(error)throw error;
       return data||[];
     },

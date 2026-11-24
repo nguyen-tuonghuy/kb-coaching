@@ -120,14 +120,17 @@ function perfDisplay(value,n){
   return n<=15?`${valueHtml}<br><span class="sampleWarn">Échantillon limité</span>`:valueHtml;
 }
 async function fetchGroups(){
-  const [{data:coachRows,error:coachError},{data:playerRows,error:playerError}]=await Promise.all([
+  const [{data:coachRows,error:coachError},{data:playerRows,error:playerError},{data:matchRows,error:matchError}]=await Promise.all([
     db.from('coaching_group_coaches').select('group:coaching_groups!coaching_group_coaches_group_id_fkey(id,name)').eq('user_id',currentUser.id),
-    db.rpc('get_my_player_access')
+    db.rpc('get_my_player_access'),
+    db.rpc('get_my_player_match_stats_access').catch(error=>{console.warn('[player match stats]',error);return {data:[]}})
   ]);
   if(coachError)throw coachError;if(playerError)throw playerError;
+  if(matchError)console.warn('[player match stats]',matchError);
+  const allowedMatchGroups=new Set((matchError?[]:matchRows||[]).filter(x=>x.enabled).map(x=>x.group_id));
   const map=new Map();
   (coachRows||[]).map(x=>x.group).filter(Boolean).forEach(g=>map.set(g.id,g));
-  (playerRows||[]).filter(x=>x.stats_access==='group').forEach(x=>map.set(x.group_id,{id:x.group_id,name:x.group_name}));
+  (playerRows||[]).filter(x=>x.stats_access==='group'||allowedMatchGroups.has(x.group_id)).forEach(x=>map.set(x.group_id,{id:x.group_id,name:x.group_name}));
   groups=[...map.values()];
   $('#groupSelect').innerHTML='<option value="">— Choisir un groupe —</option>'+groups.map(g=>`<option value="${g.id}">${escapeHtml(g.name)}</option>`).join('');
 }

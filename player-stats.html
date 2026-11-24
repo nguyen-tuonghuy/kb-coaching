@@ -27,7 +27,7 @@
     <nav class="nav" id="nav">
       <a href="index.html#player-home" id="statsHomeLink">Accueil</a>
       <a href="player-stats.html" class="active">Mes statistiques</a>
-      <a href="index.html#team-stats" id="teamStatsLink" class="hidden">Stats entraînement</a>
+      <a href="index.html#team-stats" id="teamStatsLink" class="hidden">Stats du groupe</a>
       <a href="videos.html" id="videosLink">Mes vidéos</a>
       <a href="index.html#player-profile">Mon profil</a>
     </nav>
@@ -96,7 +96,7 @@ function returnToIndexWithoutReload(){
 }
 
 
-const state={user:null,accesses:[],groupId:null,playerId:null,playerName:'',groupName:'',isCoach:false,matches:[],selected:[],scope:'all',restartLocation:'all',loading:false};
+const state={user:null,accesses:[],matchStatsGroups:[],groupId:null,playerId:null,playerName:'',groupName:'',isCoach:false,matches:[],selected:[],scope:'all',restartLocation:'all',loading:false};
 
 function err(e){return e?.message||String(e)||'Erreur'}
 function formatDateShort(v){if(!v)return'';try{return new Date(v+'T12:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'})}catch{return String(v)}}
@@ -226,7 +226,7 @@ function showError(e){console.error(e);$('#content').innerHTML=`<div class="stat
 
 async function loadGroup(groupId){
   state.groupId=groupId;state.scope='all';state.restartLocation='all';
-  const access=(state.accesses||[]).find(a=>a.group_id===groupId);const teamStatsLink=$('#teamStatsLink');if(teamStatsLink)teamStatsLink.classList.toggle('hidden',state.isCoach||access?.stats_access!=='group');
+  const access=(state.accesses||[]).find(a=>a.group_id===groupId);const canGroupStats=access?.stats_access==='group'||access?.match_stats_access===true;const teamStatsLink=$('#teamStatsLink');if(teamStatsLink)teamStatsLink.classList.toggle('hidden',state.isCoach||!canGroupStats);
   $$('[data-scope]').forEach(b=>b.classList.toggle('active',b.dataset.scope==='all'));
   $('#restartField').classList.add('hidden');$('#restart').value='all';
 
@@ -256,7 +256,16 @@ async function init(){
     if(!error&&data?.player_id){state.isCoach=true;state.groupId=requestedGroup;state.playerId=requestedPlayer;state.playerName=data.player_name||'Joueur';state.groupName=data.group_name||'';$('#modeLabel').textContent='Vue entraîneur'}
   }
   if(!state.groupId){
-    const {data,error}=await db.rpc('get_my_player_access');if(error)throw error;state.accesses=data||[];if(!state.accesses.length)throw new Error("Aucun espace joueur n'est lié à ce compte.");
+    const [accessRes,matchRes]=await Promise.all([
+      db.rpc('get_my_player_access'),
+      db.rpc('get_my_player_match_stats_access').catch(error=>{console.warn('[player match stats]',error);return {data:[]}})
+    ]);
+    if(accessRes.error)throw accessRes.error;
+    if(matchRes.error)console.warn('[player match stats]',matchRes.error);
+    state.matchStatsGroups=(matchRes.error?[]:matchRes.data)||[];
+    const allowedGroups=new Set(state.matchStatsGroups.filter(x=>x.enabled).map(x=>x.group_id));
+    state.accesses=(accessRes.data||[]).map(a=>({...a,match_stats_access:allowedGroups.has(a.group_id)}));
+    if(!state.accesses.length)throw new Error("Aucun espace joueur n'est lié à ce compte.");
     const chosen=(requestedGroup&&state.accesses.find(a=>a.group_id===requestedGroup))||state.accesses[0];state.groupId=chosen.group_id;state.playerId=chosen.player_id;state.playerName=chosen.player_name||'';state.groupName=chosen.group_name||'';
     if(state.accesses.length>1){$('#groupField').classList.remove('hidden');$('#groupSelect').innerHTML=state.accesses.map(a=>`<option value="${esc(a.group_id)}">${esc(a.group_name)} · ${esc(a.player_name)}</option>`).join('');$('#groupSelect').value=state.groupId;$('#groupSelect').onchange=()=>loadGroup($('#groupSelect').value).catch(showError)}
   }

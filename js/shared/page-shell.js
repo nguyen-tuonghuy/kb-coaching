@@ -227,12 +227,19 @@
    </select>
   </div>
   <div class="field" style="margin-top:12px">
-   <label for="groupPlayerFollowupStatsAccess">Accès aux statistiques</label>
+   <label for="groupPlayerFollowupStatsAccess">Statistiques d’entraînement</label>
    <select id="groupPlayerFollowupStatsAccess">
     <option value="personal">Statistiques personnelles uniquement</option>
-    <option value="group">Statistiques complètes du groupe · lecture seule</option>
+    <option value="group">Classement d’entraînement du groupe · lecture seule</option>
    </select>
-   <div class="small" style="margin-top:5px">À réserver aux joueurs auxquels le staff souhaite donner une vision complète du groupe (par exemple un capitaine).</div>
+   <div class="small" style="margin-top:5px">Donne accès au classement pseudonymisé des entraînements.</div>
+  </div>
+  <div class="field" style="margin-top:12px">
+   <label for="groupPlayerFollowupMatchStatsAccess" style="display:flex;gap:8px;align-items:flex-start">
+    <input type="checkbox" id="groupPlayerFollowupMatchStatsAccess" style="margin-top:3px">
+    <span>Statistiques de match du groupe · lecture seule</span>
+   </label>
+   <div class="small" style="margin-top:5px">Désactivé par défaut. Donne accès aux analyses de match du groupe, sans édition.</div>
   </div>
   <div class="historyItem" style="margin-top:12px">
    <div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">

@@ -238,6 +238,7 @@ app.loadStatsData = async function loadStatsData(groupId){
   if(app.$('#statsLeaderboardTable'))app.$('#statsLeaderboardTable').innerHTML='';
   app.populateStatsSelectors();app.renderStatsAll();
   if(!groupId)return;
+  if(app.statsState.readOnlyViewer&&!app.statsState.viewerCanTraining){app.$('#statsStatus').textContent='';return}
   app.$('#statsStatus').textContent='Chargement…';
   await app.fetchExerciseCategories();
   if(loadToken!==app.statsState.loadToken)return;
@@ -338,8 +339,15 @@ app.renderStatsLeaderboard = function renderStatsLeaderboard(rows,ex){
   leader.innerHTML=entries.slice(0,10).map((x,i)=>`<div class="leaderRow"><div class="leaderRank">${i+1}</div><div><strong>${app.statsEscape(x.name)}</strong><div class="small">${x.volume} ${ex.measurement_type==='success_attempts'?'tentative'+(x.volume>1?'s':''):'résultat'+(x.volume>1?'s':'')}</div></div><strong>${app.statsEscape(x.display)}</strong></div>`).join('');
 };
 
+app.statsDomainAllowed = function statsDomainAllowed(domain){
+  if(!app.statsState.readOnlyViewer)return true;
+  if(domain==='training')return !!app.statsState.viewerCanTraining;
+  if(['matches','impact','reference'].includes(domain))return !!app.statsState.viewerCanMatches;
+  return false;
+};
+
 app.switchStatsDomain = function switchStatsDomain(domain){
-  if(app.statsState.readOnlyViewer&&domain!=='training')domain='training';
+  if(!app.statsDomainAllowed(domain))domain=app.statsState.viewerCanTraining?'training':(app.statsState.viewerCanMatches?'matches':'training');
   app.statsState.domain=domain;
   app.$$('.statsDomainTab').forEach(b=>b.classList.toggle('active',b.dataset.statsDomain===domain));
   app.$('#statsTrainingDomain').classList.toggle('hidden',domain!=='training');
@@ -1291,27 +1299,40 @@ app.statsImpactSaveCoachMessage = async function statsImpactSaveCoachMessage(gro
   }finally{if(save)save.disabled=false;}
 };
 
-app.prepareStatsModuleForGroup = async function prepareStatsModuleForGroup(groupId,{readOnly=false}={}){
-  app.hideMainModules();app.setMatchHeaderMode(false);
-  app.$('#statsHome').classList.remove('hidden');
+app.applyGroupStatsViewerRights = function applyGroupStatsViewerRights(groupId,{readOnly=false}={}){
+  const rights=readOnly?app.playerPortalGroupStatsRights(groupId):{training:true,matches:true};
+  const viewerTitle=rights.training&&rights.matches?'Statistiques du groupe':rights.matches?'Statistiques de match':'Statistiques d’entraînement';
+  const viewerHint=rights.training&&rights.matches?'(entraînements et matchs)':rights.matches?'(matchs)':'(entraînements)';
+  const viewerSubtitle=rights.training&&rights.matches?'Résultats, évolutions et analyses de match du groupe':rights.matches?'Analyses de match du groupe':'Résultats, évolutions et classements du groupe';
   app.statsState.readOnlyViewer=!!readOnly;
-  app.statsState.viewerReturnGroupId=readOnly?groupId:null;
+  app.statsState.viewerCanTraining=!!rights.training;
+  app.statsState.viewerCanMatches=!!rights.matches;
   app.$('#statsHome')?.classList.toggle('playerTrainingStatsViewer',!!readOnly);
+  app.$('#statsHome')?.classList.toggle('playerMatchStatsViewer',!!readOnly&&!!rights.matches);
   app.$('#statsReadOnlyBadge')?.classList.toggle('hidden',!readOnly);
-  if(app.$('#statsTitle'))app.$('#statsTitle').textContent=readOnly?'📊 Statistiques d’entraînement':'📊 Statistiques';
-  if(app.$('#statsSubtitle'))app.$('#statsSubtitle').textContent=readOnly?'Résultats, évolutions et classements du groupe':'Centre d’analyse : entraînements, matchs, performance offensive et face-à-face';
-  if(app.$('#statsGroupHint'))app.$('#statsGroupHint').textContent=readOnly?'(entraînements)':'(utilisé pour entraînements, matchs et joueurs)';
-  app.$$('.statsDomainTab').forEach(button=>button.classList.toggle('hidden',!!readOnly&&button.dataset.statsDomain!=='training'));
-  app.$('#openFaceToFaceFromStats')?.classList.toggle('hidden',!!readOnly);
+  if(app.$('#statsTitle'))app.$('#statsTitle').textContent=readOnly?`📊 ${viewerTitle}`:'📊 Statistiques';
+  if(app.$('#statsSubtitle'))app.$('#statsSubtitle').textContent=readOnly?viewerSubtitle:'Centre d’analyse : entraînements, matchs, performance offensive et face-à-face';
+  if(app.$('#statsGroupHint'))app.$('#statsGroupHint').textContent=readOnly?viewerHint:'(utilisé pour entraînements, matchs et joueurs)';
+  app.$$('.statsDomainTab[data-stats-domain]').forEach(button=>button.classList.toggle('hidden',!!readOnly&&!app.statsDomainAllowed(button.dataset.statsDomain)));
+  app.$('#openFaceToFaceFromStats')?.classList.toggle('hidden',!!readOnly&&!rights.matches);
   app.$('.statsTab[data-stats-tab="player"]')?.classList.toggle('hidden',!!readOnly);
   app.$('#statsHelpBtn')?.classList.toggle('hidden',!!readOnly);
   if(app.$('#statsBackHome'))app.$('#statsBackHome').textContent=readOnly?'← Espace joueur':'← Accueil';
   app.$('#openQuickCollectionFromReference')?.classList.toggle('hidden',!!readOnly);
   if(readOnly)app.$('#statsReferenceManager')?.classList.add('hidden');
-  app.statsState.tab='group';app.statsState.domain='training';app.statsState.leaderMode='recent';
+  return rights;
+};
+
+app.prepareStatsModuleForGroup = async function prepareStatsModuleForGroup(groupId,{readOnly=false}={}){
+  app.hideMainModules();app.setMatchHeaderMode(false);
+  app.$('#statsHome').classList.remove('hidden');
+  app.statsState.viewerReturnGroupId=readOnly?groupId:null;
+  const rights=app.applyGroupStatsViewerRights(groupId,{readOnly});
+  const initialDomain=rights.training?'training':'matches';
+  app.statsState.tab='group';app.statsState.domain=initialDomain;app.statsState.leaderMode='recent';
   app.$$('.statsLeaderboardMode').forEach(b=>b.classList.toggle('active',b.dataset.leaderMode==='recent'));
   app.switchStatsTab('group');
-  app.switchStatsDomain('training');
+  app.switchStatsDomain(initialDomain);
   await app.loadStatsData(groupId);
   const group=app.statsGroupMeta(groupId);
   const pop=app.groupPopulationFromName(group?.name)||'H';
@@ -1336,8 +1357,8 @@ app.openStatsModule = async function openStatsModule(){
 
 app.openGroupStatsViewer = async function openGroupStatsViewer(access){
   try{
-    if(!access||access.stats_access!=='group')throw new Error('Cet accès aux statistiques du groupe n’est pas autorisé.');
-    const allowed=(app.playerPortalState.accesses||[]).filter(a=>a.stats_access==='group');
+    if(!access||!app.playerPortalCanOpenGroupStats(access))throw new Error('Cet accès aux statistiques du groupe n’est pas autorisé.');
+    const allowed=(app.playerPortalState.accesses||[]).filter(a=>app.playerPortalCanOpenGroupStats(a));
     const sel=app.$('#statsGroup');
     if(sel){
       sel.innerHTML=allowed.map(a=>`<option value="${app.escapeHtml(a.group_id)}">${app.escapeHtml(a.group_name)}</option>`).join('');
@@ -1746,7 +1767,12 @@ app.bindStatsControls = function bindStatsControls(){
   const statsGroup=app.$('#statsGroup');
   if(statsGroup)statsGroup.onchange=async()=>{
     try{
-      if(app.statsState.readOnlyViewer&&!((app.playerPortalState.accesses||[]).some(a=>a.group_id===statsGroup.value&&a.stats_access==='group')))throw new Error('Cet accès aux statistiques du groupe n’est pas autorisé.');
+      const access=(app.playerPortalState.accesses||[]).find(a=>a.group_id===statsGroup.value);
+      if(app.statsState.readOnlyViewer&&!app.playerPortalCanOpenGroupStats(access))throw new Error('Cet accès aux statistiques du groupe n’est pas autorisé.');
+      if(app.statsState.readOnlyViewer){
+        const rights=app.applyGroupStatsViewerRights(statsGroup.value,{readOnly:true});
+        if(!app.statsDomainAllowed(app.statsState.domain))app.switchStatsDomain(rights.training?'training':'matches');
+      }
       await app.loadStatsData(statsGroup.value);
       if(app.statsState.readOnlyViewer)app.statsState.viewerReturnGroupId=statsGroup.value;
       const group=app.statsGroupMeta(statsGroup.value);
