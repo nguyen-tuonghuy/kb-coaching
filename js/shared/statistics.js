@@ -123,6 +123,7 @@ app.aggregateLeaderboard = function aggregateLeaderboard({
     entries.push({
       player_id:bp.player_id,
       name:playerMap[bp.player_id]?.display_name||playerMap[bp.player_id]?.name||'Joueur',
+      rankingOrder:Number(playerMap[bp.player_id]?.ranking_order)||Number.MAX_SAFE_INTEGER,
       successes:bp.successes,
       attempts:bp.attempts,
       sessionsCount:bp.sessions.size,
@@ -133,6 +134,7 @@ app.aggregateLeaderboard = function aggregateLeaderboard({
   entries.sort((a,b)=>{
     if(b.rate!==a.rate) return b.rate-a.rate;
     if(b.attempts!==a.attempts) return b.attempts-a.attempts;
+    if(a.rankingOrder!==b.rankingOrder)return a.rankingOrder-b.rankingOrder;
     return (a.name||'').localeCompare(b.name||'','fr');
   });
 
@@ -228,28 +230,30 @@ app.statsFilteredExerciseResults = function statsFilteredExerciseResults(exercis
 };
 
 app.loadStatsData = async function loadStatsData(groupId){
+  const loadToken=++app.statsState.loadToken;
   await app.fetchExerciseCategories();
+  if(loadToken!==app.statsState.loadToken)return;
   app.statsState.groupId=groupId;
   app.statsState.sessions=[];app.statsState.attendance=[];app.statsState.sessionExercises=[];app.statsState.results=[];app.statsState.players=[];app.statsState.exerciseMap={};app.statsState.sessionMap={};
   if(!groupId){app.renderStatsAll();return}
   app.$('#statsStatus').textContent='Chargement…';
-  app.statsState.sessions=await app.services.trainingSessions(groupId);
+  const dataset=await app.services.trainingStatisticsDataset(groupId);
+  if(loadToken!==app.statsState.loadToken||app.statsState.groupId!==groupId)return;
+  app.statsState.viewerRole=dataset.viewer_role||null;
+  app.statsState.sessions=Array.isArray(dataset.sessions)?dataset.sessions:[];
+  app.statsState.players=Array.isArray(dataset.players)?dataset.players:[];
+  app.statsState.attendance=Array.isArray(dataset.attendance)?dataset.attendance:[];
+  app.statsState.sessionExercises=Array.isArray(dataset.session_exercises)?dataset.session_exercises:[];
+  app.statsState.results=Array.isArray(dataset.results)?dataset.results:[];
   app.statsState.sessions.forEach(x=>app.statsState.sessionMap[x.id]=x);
-  app.statsState.players=await app.fetchGroupPlayers(groupId);
-  const ids=app.statsState.sessions.map(x=>x.id);
-  if(ids.length){
-    const rows=await app.services.trainingResults(ids);
-    app.statsState.attendance=rows.attendance;
-    app.statsState.sessionExercises=rows.sessionExercises;
-    app.statsState.results=rows.results;
-    app.statsState.sessionExercises.forEach(x=>{if(x.exercise)app.statsState.exerciseMap[x.exercise.id]=x.exercise});
-  }
+  app.statsState.sessionExercises.forEach(x=>{if(x.exercise)app.statsState.exerciseMap[x.exercise.id]=x.exercise});
   app.$('#statsStatus').textContent=`${app.statsState.sessions.length} séance${app.statsState.sessions.length>1?'s':''} analysée${app.statsState.sessions.length>1?'s':''}`;
   app.populateStatsSelectors();
   app.renderStatsAll();
 };
 
 app.switchStatsTab = function switchStatsTab(tab){
+  if(app.statsState.readOnlyViewer&&tab==='player')tab='group';
   app.statsState.tab=tab;
   app.$$('.statsTab').forEach(b=>b.classList.toggle('active',b.dataset.statsTab===tab));
   app.$('#statsGroupView').classList.toggle('hidden',tab!=='group');
@@ -298,7 +302,7 @@ app.renderStatsGroup = function renderStatsGroup(){
 
 app.renderStatsLeaderboard = function renderStatsLeaderboard(rows,ex){
   const leader=app.$('#statsLeaderboard'),hint=app.$('#statsLeaderboardHint');
-  const playerMap=Object.fromEntries(app.statsState.players.map(p=>[p.id,p.display_name]));
+  const playerMap=Object.fromEntries(app.statsState.players.map(p=>[p.id,p]));
   const grouped={};
   rows.forEach(r=>(grouped[r.player_id]??=[]).push(r));
   let entries=[];
@@ -309,16 +313,19 @@ app.renderStatsLeaderboard = function renderStatsLeaderboard(rows,ex){
       const successes=used.reduce((a,r)=>a+(Number(r.successes)||0),0);
       const attempts=used.reduce((a,r)=>a+(Number(r.attempts)||0),0);
       if(attempts<5)return;
-      entries.push({pid,name:playerMap[pid]||'Joueur',score:100*successes/attempts,display:`${Math.round(100*successes/attempts)} % · ${successes}/${attempts}`,volume:attempts});
+      entries.push({pid,name:playerMap[pid]?.display_name||'Joueur',rankingOrder:Number(playerMap[pid]?.ranking_order)||Number.MAX_SAFE_INTEGER,score:100*successes/attempts,display:`${Math.round(100*successes/attempts)} % · ${successes}/${attempts}`,volume:attempts});
     }else{
       const vals=used.map(r=>Number(r.numeric_value)).filter(Number.isFinite);
       if(!vals.length)return;
       const avg=vals.reduce((a,b)=>a+b,0)/vals.length;
       const suffix=ex.measurement_type==='time_seconds'?' s':ex.measurement_type==='rating_5'?' /5':ex.measurement_type==='rating_10'?' /10':'';
-      entries.push({pid,name:playerMap[pid]||'Joueur',score:avg,display:`${Math.round(avg*10)/10}${suffix}`,volume:vals.length});
+      entries.push({pid,name:playerMap[pid]?.display_name||'Joueur',rankingOrder:Number(playerMap[pid]?.ranking_order)||Number.MAX_SAFE_INTEGER,score:avg,display:`${Math.round(avg*10)/10}${suffix}`,volume:vals.length});
     }
   });
-  entries.sort((a,b)=>ex.measurement_type==='time_seconds'?a.score-b.score:b.score-a.score);
+  entries.sort((a,b)=>{
+    const scoreOrder=ex.measurement_type==='time_seconds'?a.score-b.score:b.score-a.score;
+    return scoreOrder||a.rankingOrder-b.rankingOrder||(a.name||'').localeCompare(b.name||'','fr');
+  });
   hint.textContent=ex.measurement_type==='success_attempts'
     ? `${app.statsState.leaderMode==='recent'?'3 derniers résultats':'Toutes les données'} · minimum 5 tentatives`
     : `${app.statsState.leaderMode==='recent'?'Moyenne des 3 derniers résultats':'Moyenne globale'}${ex.measurement_type==='time_seconds'?' · temps le plus bas en tête':''}`;
@@ -327,6 +334,7 @@ app.renderStatsLeaderboard = function renderStatsLeaderboard(rows,ex){
 };
 
 app.switchStatsDomain = function switchStatsDomain(domain){
+  if(app.statsState.readOnlyViewer&&domain!=='training')domain='training';
   app.statsState.domain=domain;
   app.$$('.statsDomainTab').forEach(b=>b.classList.toggle('active',b.dataset.statsDomain===domain));
   app.$('#statsTrainingDomain').classList.toggle('hidden',domain!=='training');
@@ -1283,7 +1291,15 @@ app.prepareStatsModuleForGroup = async function prepareStatsModuleForGroup(group
   app.$('#statsHome').classList.remove('hidden');
   app.statsState.readOnlyViewer=!!readOnly;
   app.statsState.viewerReturnGroupId=readOnly?groupId:null;
+  app.$('#statsHome')?.classList.toggle('playerTrainingStatsViewer',!!readOnly);
   app.$('#statsReadOnlyBadge')?.classList.toggle('hidden',!readOnly);
+  if(app.$('#statsTitle'))app.$('#statsTitle').textContent=readOnly?'📊 Statistiques d’entraînement':'📊 Statistiques';
+  if(app.$('#statsSubtitle'))app.$('#statsSubtitle').textContent=readOnly?'Résultats, évolutions et classements du groupe':'Centre d’analyse : entraînements, matchs, performance offensive et face-à-face';
+  if(app.$('#statsGroupHint'))app.$('#statsGroupHint').textContent=readOnly?'(entraînements)':'(utilisé pour entraînements, matchs et joueurs)';
+  app.$$('.statsDomainTab').forEach(button=>button.classList.toggle('hidden',!!readOnly&&button.dataset.statsDomain!=='training'));
+  app.$('#openFaceToFaceFromStats')?.classList.toggle('hidden',!!readOnly);
+  app.$('.statsTab[data-stats-tab="player"]')?.classList.toggle('hidden',!!readOnly);
+  app.$('#statsHelpBtn')?.classList.toggle('hidden',!!readOnly);
   if(app.$('#statsBackHome'))app.$('#statsBackHome').textContent=readOnly?'← Espace joueur':'← Accueil';
   app.$('#openQuickCollectionFromReference')?.classList.toggle('hidden',!!readOnly);
   if(readOnly)app.$('#statsReferenceManager')?.classList.add('hidden');
@@ -1725,8 +1741,9 @@ app.bindStatsControls = function bindStatsControls(){
   const statsGroup=app.$('#statsGroup');
   if(statsGroup)statsGroup.onchange=async()=>{
     try{
+      if(app.statsState.readOnlyViewer&&!((app.playerPortalState.accesses||[]).some(a=>a.group_id===statsGroup.value&&a.stats_access==='group')))throw new Error('Cet accès aux statistiques du groupe n’est pas autorisé.');
       await app.loadStatsData(statsGroup.value);
-      if(app.statsState.readOnlyViewer&&!((app.playerPortalState.accesses||[]).some(a=>a.group_id===statsGroup.value&&a.stats_access==='group')))return;
+      if(app.statsState.readOnlyViewer)app.statsState.viewerReturnGroupId=statsGroup.value;
       const group=app.statsGroupMeta(statsGroup.value);
       const pop=app.groupPopulationFromName(group?.name)||'H';
       if(app.$('#statsReferencePopulation'))if(app.$('#statsReferencePopulation'))app.$('#statsReferencePopulation').value=pop;

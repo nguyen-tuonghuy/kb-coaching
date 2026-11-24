@@ -617,7 +617,7 @@ app.groupState = {groups:[],currentGroupId:null,currentPlayers:[],currentSelecti
 
 app.adminState = {isAdmin:false,groups:[]};
 
-app.statsState = {groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',impactRestartLocation:'all',impactView:'staff',impactSortField:'impact100',impactSortDirection:'desc',impactPlayerName:'',impactMatchManualOrder:[],statsMatchView:'summary',reference:null,referenceMeta:null,referenceSources:[],referenceVersions:[],impactReference:null,readOnlyViewer:false,viewerReturnGroupId:null};
+app.statsState = {groupId:null,sessions:[],attendance:[],sessionExercises:[],results:[],players:[],exerciseMap:{},sessionMap:{},tab:'group',domain:'training',leaderMode:'recent',viewerRole:null,loadToken:0,matchDataset:null,matchList:[],matchSelection:[],matchSelectionGroupId:null,matchSearch:'',matchTypeFilter:'',impactMatchList:[],impactMatchSelection:[],impactMatchSelectionGroupId:null,impactMatchSearch:'',impactMatchTypeFilter:'',impactScope:'all',impactRestartLocation:'all',impactView:'staff',impactSortField:'impact100',impactSortDirection:'desc',impactPlayerName:'',impactMatchManualOrder:[],statsMatchView:'summary',reference:null,referenceMeta:null,referenceSources:[],referenceVersions:[],impactReference:null,readOnlyViewer:false,viewerReturnGroupId:null};
 
 app.groupPlayerFollowupState = {groupId:null,playerId:null,objectives:[],activeView:'followup',loadToken:0,returnContext:null};
 
@@ -949,7 +949,7 @@ if(app.$('#openFaceToFaceFromStats'))app.$('#openFaceToFaceFromStats').onclick=(
   window.location.href=`face-a-face.html${params.toString()?'?'+params.toString():''}`;
 };
 
-app.$('#statsBackHome').onclick=()=>{if(app.statsState.readOnlyViewer){history.replaceState(null,'',location.pathname+'#player-home');app.enterMyPlayerPortal().catch(e=>app.handleError('return player portal',e));}else app.showAppHome()};
+app.$('#statsBackHome').onclick=()=>{if(app.statsState.readOnlyViewer){history.replaceState(null,'',location.pathname+'#player-home');app.enterMyPlayerPortal(app.statsState.viewerReturnGroupId||app.statsState.groupId||'').catch(e=>app.handleError('return player portal',e));}else app.showAppHome()};
 
 if(app.$('#statsMatchLatest'))app.$('#statsMatchLatest').onclick=()=>{
   const list=app.statsState.matchList||[];

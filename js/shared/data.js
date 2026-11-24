@@ -71,6 +71,12 @@
       for(const response of responses)if(response.error)throw response.error;
       return {attendance:responses[0].data||[],sessionExercises:responses[1].data||[],results:responses[2].data||[]};
     },
+    async trainingStatisticsDataset(groupId){
+      if(!groupId)return {viewer_role:null,sessions:[],players:[],attendance:[],session_exercises:[],results:[]};
+      const {data,error}=await db.rpc('get_training_statistics_dataset',{p_group_id:groupId});
+      if(error)throw error;
+      return data||{viewer_role:null,sessions:[],players:[],attendance:[],session_exercises:[],results:[]};
+    },
     async groupSelections(groupId,{includeArchived=false}={}){
       if(!groupId)return [];
       let query=db.from('coaching_group_selections')

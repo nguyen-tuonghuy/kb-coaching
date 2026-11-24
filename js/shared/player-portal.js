@@ -1,6 +1,6 @@
 /* player-portal. Shared explicit application context; no startup side effects. */
 ((app) => {
-app.enterMyPlayerPortal = async function enterMyPlayerPortal(){
+app.enterMyPlayerPortal = async function enterMyPlayerPortal(preferredGroupId=''){
   // Toujours relire les accès réellement liés au compte courant.
   // Une consultation staff d'une fiche joueur utilise un accès temporaire et ne doit jamais
   // devenir l'espace joueur personnel de l'entraîneur.
@@ -10,7 +10,7 @@ app.enterMyPlayerPortal = async function enterMyPlayerPortal(){
   app.playerPortalState.staffPlayerId=null;
   app.playerPortalState.staffReturnGroupId=null;
   app.playerPortalState.hasStaffAccess=app.groupState.groups.length>0;
-  await app.openPlayerPortal(accesses);
+  await app.openPlayerPortal(accesses,preferredGroupId);
   return true;
 };
 

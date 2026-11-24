@@ -277,7 +277,7 @@
   </div>`,
   "statsHome": `<section class="panel hidden" id="statsHome">
    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
-    <div><div class="row" style="gap:8px;align-items:center"><h2 style="font-size:20px">📊 Statistiques</h2><span class="statsReadOnlyBadge hidden" id="statsReadOnlyBadge">Lecture seule</span></div><div class="small">Centre d’analyse : entraînements, matchs, performance offensive et face-à-face</div></div>
+     <div><div class="row" style="gap:8px;align-items:center"><h2 id="statsTitle" style="font-size:20px">📊 Statistiques</h2><span class="statsReadOnlyBadge hidden" id="statsReadOnlyBadge">Lecture seule</span></div><div class="small" id="statsSubtitle">Centre d’analyse : entraînements, matchs, performance offensive et face-à-face</div></div>
     <div class="row" style="gap:8px">
       <button class="statsHelpBtn" id="statsHelpBtn" type="button" title="Aide sur les statistiques" aria-label="Aide sur les statistiques">?</button>
       <button class="ghost backNav" id="statsBackHome">← Accueil</button>
@@ -285,7 +285,7 @@
    </div>
 
    <div class="field">
-    <label>Groupe <span class="small">(utilisé pour entraînements, matchs et joueurs)</span></label>
+     <label>Groupe <span class="small" id="statsGroupHint">(utilisé pour entraînements, matchs et joueurs)</span></label>
     <select id="statsGroup"><option value="">— Choisir un groupe —</option></select>
    </div>
 
