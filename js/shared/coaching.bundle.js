@@ -284,7 +284,7 @@
     <div class="playerPortalProfileCard" id="playerPortalAccountCard">
      <h3>Mon compte joueur</h3>
      <div class="accountText"><span class="small">Adresse de connexion</span><strong id="playerPortalAccountEmail"></strong></div>
-     <div style="margin-top:12px"><button type="button" class="ghost" id="playerPortalChangePassword">Changer mon mot de passe</button></div>
+     <div style="margin-top:12px"><button type="button" class="ghost" id="playerPortalChangePassword">Changer mon mot de passe</button> <button type="button" class="ghost" data-open-web-push>Notifications</button></div>
      <div class="playerPortalPrivacyNote">Ton espace n’affiche que tes données personnelles. Les résultats individuels des autres joueurs ne sont pas transmis à cette vue ; seuls les repères collectifs anonymisés sont utilisés.</div>
     </div>
    </div>
@@ -1023,6 +1023,25 @@
    <div class="timeline" id="timeline"></div>
   </section>
  </div>`,
+  "webPushSettings": `<dialog id="webPushDialog" class="webPushDialog" aria-labelledby="webPushTitle">
+   <h2 id="webPushTitle">Notifications</h2>
+   <p role="status" aria-live="polite"></p>
+   <div class="row">
+    <button type="button" class="primary" data-push-action="enable">Activer sur cet appareil</button>
+    <button type="button" class="ghost" data-push-action="disable">Désactiver</button>
+    <button type="button" class="ghost" data-push-action="test">Envoyer un test</button>
+   </div>
+   <fieldset class="webPushCategories">
+    <legend>Catégories pour mon compte</legend>
+    <label><input type="checkbox" name="videos"> Vidéos et annotations</label>
+    <label><input type="checkbox" name="messages"> Messages</label>
+    <label><input type="checkbox" name="training"> Collectes d’entraînement</label>
+   </fieldset>
+   <form method="dialog" class="row">
+    <button type="button" class="primary" data-push-action="save">Enregistrer les catégories</button>
+    <button type="submit" class="ghost">Fermer</button>
+   </form>
+  </dialog>`,
   "profilePopup": `<div class="popupBackdrop hidden" id="profilePopup">
  <div class="sheet">
   <div class="sheetTop">
@@ -1035,6 +1054,7 @@
   <div class="field"><label>Prénom</label><input id="profileFirstName" autocomplete="given-name" placeholder="ex. Tuong-Huy"></div>
   <div class="authStatus" id="profileStatus"></div>
   <button class="ghost" type="button" id="openChangePassword" style="width:100%;margin-top:12px">Changer mon mot de passe</button>
+  <button class="ghost" type="button" data-open-web-push>Notifications</button>
   <div class="row" style="margin-top:14px">
    <button class="ghost" style="flex:1" id="cancelProfile">Annuler</button>
    <button class="primary" style="flex:2" id="saveProfile">Enregistrer</button>
@@ -2465,6 +2485,8 @@ app.closeResetPasswordPopup = function closeResetPasswordPopup(){
     app.authenticationUserId=null;
   };
   app.showSignedOut = () => {
+    window.KinballWebPush?.reconcile(null);
+    app.$('#webPushDialog')?.close?.();
     app.invalidateSession();
     app.currentUser=null;
     app.resetAccountCaches();
@@ -2494,12 +2516,15 @@ app.closeResetPasswordPopup = function closeResetPasswordPopup(){
     if(app.lastAccountId&&app.lastAccountId!==user.id)app.resetAccountCaches();
     app.lastAccountId=user.id;
     app.currentUser=user;
+    window.KinballWebPush?.reconcile(user.id);
     const version=app.sessionVersion=(app.sessionVersion||0)+1;
     const active=()=>app.sessionVersion===version&&app.currentUser?.id===user.id;
     const pending=app.pendingPlayerInviteFromUser(user);
     const groupInviteToken=app.playerGroupInviteToken()||pending.group;
     const invited=!!(groupInviteToken||app.playerInviteToken()||pending.direct);
     let accessesPromise=null;
+    const requestedGroup=new URLSearchParams(location.search).get('player_group');
+    const pushRoute=['#player-videos','#player-messages','#player-results'].includes(location.hash) && requestedGroup;
     let preferredPlayerGroupId='';
     const loadAccesses=()=>accessesPromise||(accessesPromise=app.fetchMyPlayerAccesses().catch(error=>{
       if(!active())return [];
@@ -2554,7 +2579,14 @@ app.closeResetPasswordPopup = function closeResetPasswordPopup(){
       await app.fetchMyGroups();
       if(!active())return;
       app.startupTiming('groupes entraîneur chargés');
-      if(app.groupState.groups.length&&!invited){
+      const notificationAccess=pushRoute&&!invited
+        ? (await accessesPromise).find(access=>access.group_id===requestedGroup) : null;
+      if(!active())return;
+      if(notificationAccess && location.hash==='#player-videos'){
+        location.replace('videos.html?group='+encodeURIComponent(notificationAccess.group_id));
+        return;
+      }
+      if(app.groupState.groups.length&&!invited&&!notificationAccess){
         app.displayStaffLanding();
         app.setCloud('Synchronisé',true);
         clearTimeout(splashGuard);
@@ -2565,8 +2597,8 @@ app.closeResetPasswordPopup = function closeResetPasswordPopup(){
       }
       const accesses=await accessesPromise;
       if(!active())return;
-      if(accesses.length&&(invited||!app.groupState.groups.length)){
-        const portalPromise=app.openPlayerPortal(accesses,preferredPlayerGroupId);
+      if(accesses.length&&(invited||notificationAccess||!app.groupState.groups.length)){
+        const portalPromise=app.openPlayerPortal(accesses,notificationAccess?.group_id||preferredPlayerGroupId);
         clearTimeout(splashGuard);
         app.hideStartupScreen();
         app.startSecondaryStartupTasks();
@@ -3388,7 +3420,9 @@ app.openPlayerPortal = async function openPlayerPortal(accesses,preferredGroupId
     if(app.playerPortalCanOpenGroupStats(access))return await app.openGroupStatsViewer(access);
   }
   const wanted=location.hash==='#player-profile'?'profile':location.hash==='#player-messages'?'messages':'home';
-  app.playerPortalSetView(wanted);app.syncStandaloneVideoLinks();app.setCloud('Synchronisé',true);window.scrollTo({top:0,behavior:'instant'});return true
+  app.playerPortalSetView(wanted);app.syncStandaloneVideoLinks();app.setCloud('Synchronisé',true);window.scrollTo({top:0,behavior:'instant'});
+  if(location.hash==='#player-results'&&!app.$('#playerTrainingResults')?.classList.contains('hidden'))app.$('#playerTrainingResults')?.scrollIntoView?.();
+  return true
 };
 
 app.groupFollowUpObjectivesHtml = function groupFollowUpObjectivesHtml(rows){
@@ -9368,6 +9402,7 @@ app.$('#saveProfile').onclick=(ev)=>{
 
 app.$('#logout').onclick=async()=>{
   if(!confirm('Voulez-vous vraiment vous déconnecter ?'))return;
+  await window.KinballWebPush?.disconnect(app.db,app.currentUser?.id);
   app.showSignedOut();
   await app.db.auth.signOut();
 };

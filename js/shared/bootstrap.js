@@ -293,6 +293,7 @@ app.$('#saveProfile').onclick=(ev)=>{
 
 app.$('#logout').onclick=async()=>{
   if(!confirm('Voulez-vous vraiment vous déconnecter ?'))return;
+  await window.KinballWebPush?.disconnect(app.db,app.currentUser?.id);
   app.showSignedOut();
   await app.db.auth.signOut();
 };
