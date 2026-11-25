@@ -7,11 +7,11 @@
   const android = /Android/i.test(ua);
   const mode = window.matchMedia('(display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui)');
   const key = 'kc-install-dismissed:' + new URL('.', location.href).pathname;
-  let deferredPrompt = null, installedHere = false, prompting = false;
+  let deferredPrompt = null, nativeAvailable = false, installedHere = false, prompting = false;
   let dismissed = false, cards = [], profileButtons = [], dialog = null;
   try { dismissed = localStorage.getItem(key) === '1'; } catch {}
   const installed = () => installedHere || navigator.standalone === true || mode.matches;
-  const available = () => !installed() && (ios || android || Boolean(deferredPrompt));
+  const available = () => !installed() && (ios || android || nativeAvailable);
   function render() {
     const show = available();
     for (const card of cards) card.hidden = !show || dismissed;
@@ -67,6 +67,7 @@
     if (ios || installed()) return;
     event.preventDefault();
     deferredPrompt = event;
+    nativeAvailable = true;
     render();
   });
   window.addEventListener('appinstalled', () => {
