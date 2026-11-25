@@ -604,4 +604,32 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
 }
-.webPushCategories label { display: flex; align-items: center; gap: .5rem; }
+.webPushDialog h2 { margin: 0 0 .5rem; }
+.webPushDialog [role="status"] { margin: 0 0 .75rem; }
+.webPushCategories {
+  min-width: 0;
+  padding: .5rem .75rem .75rem;
+}
+.webPushCategories legend { padding: 0 .25rem; }
+.webPushCategories label {
+  display: grid;
+  grid-template-columns: 1.125rem minmax(0, 1fr);
+  align-items: center;
+  justify-content: start;
+  gap: .625rem;
+  min-height: 2.75rem;
+  margin: 0;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+}
+.webPushCategories input[type="checkbox"] {
+  width: 1.125rem;
+  min-width: 1.125rem;
+  max-width: 1.125rem;
+  height: 1.125rem;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--primary);
+}
+.webPushDialog .row > button { max-width: 100%; white-space: normal; }

@@ -55,6 +55,7 @@ test('Web Push reuses business access, isolates devices and leases delivery', as
     actualTrainingMigration.indexOf('create or replace function public.get_training_player_collection_details(')
   ));
   await db.exec(migration('20261125131535_web_push.sql'));
+  await db.exec(migration('20261125153000_web_push_video_coaches.sql'));
   const key = 'B' + 'a'.repeat(86), auth = 'a'.repeat(22);
   await db.query('insert into private.web_push_configuration(vapid_public_key) values ($1)', [key]);
 
@@ -102,7 +103,7 @@ test('Web Push reuses business access, isolates devices and leases delivery', as
   await as(absent);
   await register(absent, 4);
   await as(coach);
-  await register(coach, 5);
+  const coachDevice = (await register(coach, 5)).rows[0].id;
   await assert.rejects(db.query('select public.open_training_player_collection($1,$2)', [session, uuid(90)]), /introuvable/);
   await as(outsider);
   await assert.rejects(db.query('select public.open_training_player_collection($1,$2)', [session, occurrence]), /entraineur/);
@@ -121,10 +122,14 @@ test('Web Push reuses business access, isolates devices and leases delivery', as
   `);
   await capture(player, `
     insert into coaching_player_videos values ('${uuid(66)}','${group}','${athlete}','new','${player}',null);
+    insert into coaching_player_videos values ('${uuid(68)}','${otherGroup}','${unrelated}','new','${player}',null);
+    insert into coaching_player_videos values ('${uuid(69)}','${group}','${unrelated}','new','${outsider}',null);
   `);
   jobs = await claim();
-  assert.equal(jobs.length, 2);
-  assert.ok(jobs.every(job => job.kind === 'video' && job.send));
+  assert.equal(jobs.length, 3);
+  assert.ok(jobs.every(job => job.kind === 'video' && job.send && job.group === group && job.player === athlete));
+  assert.deepEqual(jobs.filter(job => job.staff).map(job => job.device), [coachDevice]);
+  assert.deepEqual(jobs.filter(job => !job.staff).map(job => job.device).sort(), [first, second].sort());
   await finish(jobs, 'sent');
   await capture(coach, `
     update coaching_player_videos set status='reviewed',reviewed_by='${coach}' where id='${uuid(60)}';
