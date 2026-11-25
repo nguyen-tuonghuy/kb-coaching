@@ -319,7 +319,7 @@ button:active{transform:scale(.985)}
 
 .moduleCard strong{display:block;font-size:20px;margin-bottom:7px}
 
-.moduleCard span{font-size:13px;color:var(--muted);font-weight:500}
+.moduleCard span{font-size:13px;font-weight:500}
 
 .trainingList{display:flex;flex-direction:column;gap:9px}
 
@@ -2734,8 +2734,6 @@ button.playerPortalHomeCard:hover,a.playerPortalHomeCard:hover{border-color:var(
 
 .playerVideoHint{color:var(--muted);font-size:11px;line-height:1.4}
 
-.videoUnreadBadge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#7557d9;color:#fff;font-size:11px;font-weight:800;line-height:1;margin-left:5px}
-
 @media(max-width:620px){
   .playerVideoUploadGrid{grid-template-columns:1fr}
 }
@@ -2927,7 +2925,7 @@ button.primary,.primary,.on,.tab.active{background:var(--accent)!important;color
 
 /* Lisibilité des statuts / cartes */
 
-.messageUnreadBadge,.videoUnreadBadge{color:#fff!important}
+.messageUnreadBadge{color:#fff!important}
 
 .statsEmpty{color:var(--muted)}
 
@@ -2973,7 +2971,7 @@ button.primary,.primary,.on,.tab.active{background:var(--accent)!important;color
 
 .moduleCard{background:#FFFFFF!important;color:var(--text)!important}
 
-.moduleCard span{color:var(--muted)!important}
+.moduleCard span:where(:not(.videoUnreadBadge)){color:var(--muted)!important}
 
 .moduleCard:hover{background:#F8FAFC!important;border-color:var(--control-border-hover)!important;box-shadow:0 2px 7px rgba(15,23,42,.06)}
 
