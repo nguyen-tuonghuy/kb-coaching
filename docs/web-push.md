@@ -8,7 +8,7 @@ Les événements viennent des écritures existantes dans Supabase. L’audit en 
 
 | Événement | Source existante | Destinataires |
 | --- | --- | --- |
-| Nouvelle vidéo | Insertion du dépôt vidéo | Compte joueur actif associé à la vidéo, hors auteur |
+| Nouvelle vidéo | Insertion du dépôt vidéo | Entraîneurs du groupe du joueur actif déposant la vidéo, hors auteur ; compte joueur actif si le dépôt provient d’un entraîneur autorisé |
 | Nouvelle annotation | Insertion d’un repère sur une vidéo partagée ou première transition vers une analyse partagée avec repères | Compte joueur actif de la vidéo, hors auteur |
 | Nouveau message | Insertion dans l’historique de conversation | Joueur actif pour un envoi du staff, entraîneurs du groupe pour un envoi du joueur, hors auteur et hors messages déjà lus |
 | Collecte ouverte | Première insertion de la collecte d’une occurrence | Comptes de l’instantané des participants, toujours liés au bon groupe, actifs, présents et autorisés à saisir pour cette occurrence ouverte |

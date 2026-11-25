@@ -1,4 +1,4 @@
-const VERSION = 'kinball-coach-pwa-v2';
+const VERSION = 'kinball-coach-pwa-v3';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -45,6 +45,11 @@ function pushDestination(data) {
     query.set('staff_player', player);
     return 'index.html?' + query + '#player-follow-up-messages';
   }
+  if (data.kind === 'video' && data.staff && group && player) {
+    query.set('group', group);
+    query.set('player', player);
+    return 'videos.html?' + query;
+  }
   if (group) query.set('player_group', group);
   const hashes = { message: '#player-messages', collection: '#player-results',
     video: '#player-videos', annotation: '#player-videos', analysis: '#player-videos' };
@@ -59,7 +64,9 @@ self.addEventListener('push', event => {
     try { payload = event.data?.json(); } catch { return; }
     if (!payload || !Object.hasOwn(PUSH_COPY, payload.kind) || !WEB_PUSH_UUID.test(payload.id)
       || !WEB_PUSH_UUID.test(payload.device) || payload.device !== await pushBinding()) return;
-    const [title, body] = PUSH_COPY[payload.kind];
+    const [title, body] = payload.kind === 'video' && payload.staff === true
+      ? ['Nouvelle vidéo d’un joueur', 'Consulte la vidéo dans Kinball Coach.']
+      : PUSH_COPY[payload.kind];
     await self.registration.showNotification(title, {
       body,
       icon: new URL('kinball-brand/logo-symbol.png', self.registration.scope).href,

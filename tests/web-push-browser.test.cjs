@@ -51,9 +51,14 @@ test('service worker preserves activation, filters device and safely routes clic
   await invoke('notificationclick', { notification: { ...shown[1], close() {} } });
   const collectionTarget = scope + 'index.html?player_group=' + group + '#player-results';
   assert.deepEqual(focused, [target, collectionTarget]);
+  await invoke('push', { data: { json: () => ({ ...payload, kind: 'video', staff: true, player: otherUser }) } });
+  assert.equal(shown[2].title, 'Nouvelle vidéo d’un joueur');
+  await invoke('notificationclick', { notification: { ...shown[2], close() {} } });
+  const coachVideoTarget = scope + 'videos.html?group=' + group + '&player=' + otherUser;
+  assert.deepEqual(focused, [target, collectionTarget, coachVideoTarget]);
   binding = otherUser;
   await invoke('notificationclick', { notification: { ...shown[0], close() {} } });
-  assert.deepEqual(focused, [target, collectionTarget]);
+  assert.deepEqual(focused, [target, collectionTarget, coachVideoTarget]);
 });
 
 test('settings request permission only on enable and remove the previous account binding', async t => {
