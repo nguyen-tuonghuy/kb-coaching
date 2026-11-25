@@ -13,7 +13,7 @@
 </head>
 <body>
   <h1>Clés Web Push</h1>
-  <p>Ouvre ce fichier depuis le disque. Copie les valeurs directement dans les champs secrets Supabase, puis ferme la page.</p>
+  <p>Ouvre cette page dans un navigateur récent. Sur mobile, ouvre-la en HTTPS. Tu peux activer le mode avion avant de générer les clés : tout le calcul reste dans ton navigateur. Copie les valeurs directement dans les champs secrets Supabase, puis ferme la page.</p>
   <button type="button" id="generate">Générer une paire VAPID et un secret Cron</button>
   <p id="status" role="status"></p>
   <label>VAPID_PUBLIC_KEY <input id="public" readonly autocomplete="off"></label>
@@ -27,8 +27,8 @@
       .replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
 
     field('generate').onclick = async () => {
-      if (location.protocol !== 'file:' || !crypto.subtle) {
-        status.textContent = 'Télécharge ce fichier et ouvre-le depuis le disque avec un navigateur récent.';
+      if (!window.isSecureContext || !globalThis.crypto?.subtle) {
+        status.textContent = 'Ce contexte ne permet pas la cryptographie sécurisée. Ouvre la page HTTPS dans Chrome ou Firefox, ou le fichier local sur ordinateur.';
         return;
       }
       try {
@@ -40,7 +40,7 @@
         field('private').value = privateJwk.d;
         field('dispatch').value = Array.from(random, byte => byte.toString(16).padStart(2, '0')).join('');
         field('generate').disabled = true;
-        status.textContent = 'Clés prêtes. La page ne les enregistre pas.';
+        status.textContent = 'Clés prêtes. La page ne les enregistre pas et ne les transmet pas.';
       } catch {
         status.textContent = 'Génération impossible dans ce navigateur.';
       }
