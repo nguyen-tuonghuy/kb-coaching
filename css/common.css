@@ -633,3 +633,46 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   accent-color: var(--primary);
 }
 .webPushDialog .row > button { max-width: 100%; white-space: normal; }
+
+/* Invitation à installer la PWA : composant commun, sans fenêtre imposée. */
+.kcInstallCard[hidden], .kcInstallProfile[hidden] { display: none !important; }
+.kcInstallCard {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .75rem;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface-muted);
+  color: var(--text);
+  box-shadow: none;
+}
+.kcInstallCopy { flex: 1 1 210px; min-width: 0; }
+.kcInstallCopy strong { display: block; }
+.kcInstallCopy p { margin: .25rem 0 0; color: var(--muted); font-size: .875rem; }
+.kcInstallActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.kcInstallActions button, .kcInstallProfile { min-height: 44px; max-width: 100%; white-space: normal; }
+.kcInstallProfile { margin: 4px 0; }
+.kcInstallDialog {
+  width: min(30rem, calc(100% - 2rem));
+  max-height: calc(100% - 2rem);
+  box-sizing: border-box;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: none;
+  overflow: auto;
+}
+.kcInstallDialog::backdrop { background: rgb(11 49 91 / 45%); }
+.kcInstallDialog h2 { margin: 0 0 .75rem; font-size: 1.2rem; }
+.kcInstallDialog ol { padding-left: 1.5rem; margin: .5rem 0 1rem; }
+.kcInstallDialog li { margin: .5rem 0; line-height: 1.45; }
+.kcInstallDialog form { display: flex; justify-content: flex-end; }
+@media (max-width: 480px) {
+  .kcInstallActions { width: 100%; }
+  .kcInstallActions button { flex: 1 1 auto; }
+}
