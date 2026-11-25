@@ -585,3 +585,23 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .groupSelectionCreate .field,.groupSelectionEditFields .field{flex:1 1 100%!important}
 }
 @media(max-width:420px){.groupSelectionRoster{grid-template-columns:1fr}}
+
+.webPushDialog {
+  width: min(34rem, calc(100% - 2rem));
+  max-height: calc(100% - 2rem);
+  padding: 1rem;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+}
+.webPushDialog::backdrop { background: rgb(11 49 91 / 45%); }
+.webPushDialog .row { flex-wrap: wrap; gap: .5rem; }
+.webPushCategories {
+  display: grid;
+  gap: .5rem;
+  margin: 1rem 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+}
+.webPushCategories label { display: flex; align-items: center; gap: .5rem; }

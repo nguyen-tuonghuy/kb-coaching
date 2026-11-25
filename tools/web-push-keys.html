@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+  <title>Clés Web Push Kinball Coach</title>
+  <style>
+    body { font: 1rem/1.5 system-ui, sans-serif; max-width: 44rem; padding: 1.25rem; margin: auto; }
+    input { box-sizing: border-box; display: block; width: 100%; margin-bottom: .75rem; }
+    button { padding: .45rem .75rem; }
+  </style>
+</head>
+<body>
+  <h1>Clés Web Push</h1>
+  <p>Ouvre ce fichier depuis le disque. Copie les valeurs directement dans les champs secrets Supabase, puis ferme la page.</p>
+  <button type="button" id="generate">Générer une paire VAPID et un secret Cron</button>
+  <p id="status" role="status"></p>
+  <label>VAPID_PUBLIC_KEY <input id="public" readonly autocomplete="off"></label>
+  <label>VAPID_PRIVATE_KEY <input id="private" type="password" readonly autocomplete="off"></label>
+  <label>WEB_PUSH_DISPATCH_SECRET <input id="dispatch" type="password" readonly autocomplete="off"></label>
+  <button type="button" id="reveal" aria-pressed="false">Afficher les secrets pour les copier</button>
+  <script>
+    const field = id => document.getElementById(id);
+    const status = field('status');
+    const toBase64Url = bytes => btoa(String.fromCharCode(...bytes))
+      .replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+
+    field('generate').onclick = async () => {
+      if (location.protocol !== 'file:' || !crypto.subtle) {
+        status.textContent = 'Télécharge ce fichier et ouvre-le depuis le disque avec un navigateur récent.';
+        return;
+      }
+      try {
+        const keys = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+        const publicBytes = new Uint8Array(await crypto.subtle.exportKey('raw', keys.publicKey));
+        const privateJwk = await crypto.subtle.exportKey('jwk', keys.privateKey);
+        const random = crypto.getRandomValues(new Uint8Array(32));
+        field('public').value = toBase64Url(publicBytes);
+        field('private').value = privateJwk.d;
+        field('dispatch').value = Array.from(random, byte => byte.toString(16).padStart(2, '0')).join('');
+        field('generate').disabled = true;
+        status.textContent = 'Clés prêtes. La page ne les enregistre pas.';
+      } catch {
+        status.textContent = 'Génération impossible dans ce navigateur.';
+      }
+    };
+    field('reveal').onclick = event => {
+      const visible = event.currentTarget.getAttribute('aria-pressed') === 'false';
+      event.currentTarget.setAttribute('aria-pressed', String(visible));
+      event.currentTarget.textContent = visible ? 'Masquer les secrets' : 'Afficher les secrets pour les copier';
+      for (const id of ['private', 'dispatch']) field(id).type = visible ? 'text' : 'password';
+    };
+  </script>
+</body>
+</html>

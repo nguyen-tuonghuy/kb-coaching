@@ -113,7 +113,7 @@ async function init(){
   await loadDashboard();
 }
 $('#refreshBtn').onclick=()=>loadDashboard();
-$('#logout').onclick=async()=>{if(!confirm('Voulez-vous vraiment vous déconnecter ?'))return;await db.auth.signOut();location.href='index.html'};
+$('#logout').onclick=async()=>{if(!confirm('Voulez-vous vraiment vous déconnecter ?'))return;await window.KinballWebPush?.disconnect(db);await db.auth.signOut();location.href='index.html'};
 init().catch(e=>{setCloud('Erreur',false);setStatus(e.message||String(e),true)}).finally(()=>document.getElementById('startupScreen')?.remove());
 </script>
 <script src="js/pwa.js"></script>

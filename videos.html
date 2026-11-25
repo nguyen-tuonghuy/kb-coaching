@@ -819,7 +819,7 @@ $('#videosBackLink').onclick=e=>{
   returnFromVideoToHome();
 };
 $('#logout').onclick=()=>{
-  const signOut=async()=>{await db.auth.signOut();location.href='index.html'};
+  const signOut=async()=>{await window.KinballWebPush?.disconnect(db,state.user?.id);await db.auth.signOut();location.href='index.html'};
   if(hasUnsharedSavedAnalysis()){guardAnalysisExit(signOut);return}
   if(confirm('Voulez-vous vraiment vous déconnecter ?'))signOut();
 };

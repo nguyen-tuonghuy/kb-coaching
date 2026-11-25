@@ -281,7 +281,7 @@
     <div class="playerPortalProfileCard" id="playerPortalAccountCard">
      <h3>Mon compte joueur</h3>
      <div class="accountText"><span class="small">Adresse de connexion</span><strong id="playerPortalAccountEmail"></strong></div>
-     <div style="margin-top:12px"><button type="button" class="ghost" id="playerPortalChangePassword">Changer mon mot de passe</button></div>
+     <div style="margin-top:12px"><button type="button" class="ghost" id="playerPortalChangePassword">Changer mon mot de passe</button> <button type="button" class="ghost" data-open-web-push>Notifications</button></div>
      <div class="playerPortalPrivacyNote">Ton espace n’affiche que tes données personnelles. Les résultats individuels des autres joueurs ne sont pas transmis à cette vue ; seuls les repères collectifs anonymisés sont utilisés.</div>
     </div>
    </div>
@@ -1020,6 +1020,25 @@
    <div class="timeline" id="timeline"></div>
   </section>
  </div>`,
+  "webPushSettings": `<dialog id="webPushDialog" class="webPushDialog" aria-labelledby="webPushTitle">
+   <h2 id="webPushTitle">Notifications</h2>
+   <p role="status" aria-live="polite"></p>
+   <div class="row">
+    <button type="button" class="primary" data-push-action="enable">Activer sur cet appareil</button>
+    <button type="button" class="ghost" data-push-action="disable">Désactiver</button>
+    <button type="button" class="ghost" data-push-action="test">Envoyer un test</button>
+   </div>
+   <fieldset class="webPushCategories">
+    <legend>Catégories pour mon compte</legend>
+    <label><input type="checkbox" name="videos"> Vidéos et annotations</label>
+    <label><input type="checkbox" name="messages"> Messages</label>
+    <label><input type="checkbox" name="training"> Collectes d’entraînement</label>
+   </fieldset>
+   <form method="dialog" class="row">
+    <button type="button" class="primary" data-push-action="save">Enregistrer les catégories</button>
+    <button type="submit" class="ghost">Fermer</button>
+   </form>
+  </dialog>`,
   "profilePopup": `<div class="popupBackdrop hidden" id="profilePopup">
  <div class="sheet">
   <div class="sheetTop">
@@ -1032,6 +1051,7 @@
   <div class="field"><label>Prénom</label><input id="profileFirstName" autocomplete="given-name" placeholder="ex. Tuong-Huy"></div>
   <div class="authStatus" id="profileStatus"></div>
   <button class="ghost" type="button" id="openChangePassword" style="width:100%;margin-top:12px">Changer mon mot de passe</button>
+  <button class="ghost" type="button" data-open-web-push>Notifications</button>
   <div class="row" style="margin-top:14px">
    <button class="ghost" style="flex:1" id="cancelProfile">Annuler</button>
    <button class="primary" style="flex:2" id="saveProfile">Enregistrer</button>

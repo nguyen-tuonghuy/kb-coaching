@@ -17,6 +17,8 @@
     app.authenticationUserId=null;
   };
   app.showSignedOut = () => {
+    window.KinballWebPush?.reconcile(null);
+    app.$('#webPushDialog')?.close?.();
     app.invalidateSession();
     app.currentUser=null;
     app.resetAccountCaches();
@@ -46,12 +48,15 @@
     if(app.lastAccountId&&app.lastAccountId!==user.id)app.resetAccountCaches();
     app.lastAccountId=user.id;
     app.currentUser=user;
+    window.KinballWebPush?.reconcile(user.id);
     const version=app.sessionVersion=(app.sessionVersion||0)+1;
     const active=()=>app.sessionVersion===version&&app.currentUser?.id===user.id;
     const pending=app.pendingPlayerInviteFromUser(user);
     const groupInviteToken=app.playerGroupInviteToken()||pending.group;
     const invited=!!(groupInviteToken||app.playerInviteToken()||pending.direct);
     let accessesPromise=null;
+    const requestedGroup=new URLSearchParams(location.search).get('player_group');
+    const pushRoute=['#player-videos','#player-messages','#player-results'].includes(location.hash) && requestedGroup;
     let preferredPlayerGroupId='';
     const loadAccesses=()=>accessesPromise||(accessesPromise=app.fetchMyPlayerAccesses().catch(error=>{
       if(!active())return [];
@@ -106,7 +111,14 @@
       await app.fetchMyGroups();
       if(!active())return;
       app.startupTiming('groupes entraîneur chargés');
-      if(app.groupState.groups.length&&!invited){
+      const notificationAccess=pushRoute&&!invited
+        ? (await accessesPromise).find(access=>access.group_id===requestedGroup) : null;
+      if(!active())return;
+      if(notificationAccess && location.hash==='#player-videos'){
+        location.replace('videos.html?group='+encodeURIComponent(notificationAccess.group_id));
+        return;
+      }
+      if(app.groupState.groups.length&&!invited&&!notificationAccess){
         app.displayStaffLanding();
         app.setCloud('Synchronisé',true);
         clearTimeout(splashGuard);
@@ -117,8 +129,8 @@
       }
       const accesses=await accessesPromise;
       if(!active())return;
-      if(accesses.length&&(invited||!app.groupState.groups.length)){
-        const portalPromise=app.openPlayerPortal(accesses,preferredPlayerGroupId);
+      if(accesses.length&&(invited||notificationAccess||!app.groupState.groups.length)){
+        const portalPromise=app.openPlayerPortal(accesses,notificationAccess?.group_id||preferredPlayerGroupId);
         clearTimeout(splashGuard);
         app.hideStartupScreen();
         app.startSecondaryStartupTasks();

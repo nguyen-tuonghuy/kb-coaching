@@ -789,7 +789,9 @@ app.openPlayerPortal = async function openPlayerPortal(accesses,preferredGroupId
     if(app.playerPortalCanOpenGroupStats(access))return await app.openGroupStatsViewer(access);
   }
   const wanted=location.hash==='#player-profile'?'profile':location.hash==='#player-messages'?'messages':'home';
-  app.playerPortalSetView(wanted);app.syncStandaloneVideoLinks();app.setCloud('Synchronisé',true);window.scrollTo({top:0,behavior:'instant'});return true
+  app.playerPortalSetView(wanted);app.syncStandaloneVideoLinks();app.setCloud('Synchronisé',true);window.scrollTo({top:0,behavior:'instant'});
+  if(location.hash==='#player-results'&&!app.$('#playerTrainingResults')?.classList.contains('hidden'))app.$('#playerTrainingResults')?.scrollIntoView?.();
+  return true
 };
 
 app.groupFollowUpObjectivesHtml = function groupFollowUpObjectivesHtml(rows){

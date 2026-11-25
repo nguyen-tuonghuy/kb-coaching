@@ -276,7 +276,7 @@ $('#selectAll').onclick=()=>{state.selected=state.matches.map(m=>m.id);renderMat
 $('#latest').onclick=()=>{state.selected=state.matches[0]?.id?[state.matches[0].id]:[];renderMatches();render().catch(showError)};
 $$('[data-scope]').forEach(b=>b.onclick=()=>{state.scope=b.dataset.scope;$$('[data-scope]').forEach(x=>x.classList.toggle('active',x===b));$('#restartField').classList.toggle('hidden',state.scope!=='restart');render().catch(showError)});
 $('#restart').onchange=e=>{state.restartLocation=e.target.value;render().catch(showError)};
-$('#logout').onclick=async()=>{if(!confirm('Voulez-vous vraiment vous déconnecter ?'))return;await db.auth.signOut();location.href='index.html'};
+$('#logout').onclick=async()=>{if(!confirm('Voulez-vous vraiment vous déconnecter ?'))return;await window.KinballWebPush?.disconnect(db,state.user?.id);await db.auth.signOut();location.href='index.html'};
 document.addEventListener('click',e=>{
   const link=e.target.closest?.('#statsHomeLink');
   if(!link)return;
