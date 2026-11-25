@@ -72,3 +72,19 @@ test('appinstalled masque toutes les propositions sans toucher aux notifications
   assert.ok(cards.every(card => card.hidden));
   assert.ok(profile.every(button => button.hidden));
 });
+
+test('annuler la fenêtre native conserve l’aide manuelle dans le profil', async t => {
+  const { w, cards, profile, dialog } = setup(t);
+  const event = new w.Event('beforeinstallprompt', { cancelable: true });
+  let calls = 0;
+  event.prompt = async () => { calls++; };
+  event.userChoice = Promise.resolve({ outcome: 'dismissed' });
+  w.dispatchEvent(event);
+  cards[0].querySelector('[data-kc-install]').click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(calls, 1);
+  assert.ok(profile.every(button => !button.hidden));
+  profile[0].click();
+  assert.equal(dialog.open, true);
+  assert.equal(calls, 1);
+});
