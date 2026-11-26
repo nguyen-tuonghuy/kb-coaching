@@ -134,4 +134,3 @@ begin
     'present',coalesce((select jsonb_agg(a.player_id) from public.training_attendance a
       where a.session_id=p_session and a.present),'[]'::jsonb));
 end $$;
-

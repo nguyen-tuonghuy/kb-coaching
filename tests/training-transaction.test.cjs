@@ -1278,7 +1278,24 @@ test('issue 5 tracks explicit choices across planned and ordinary saves and pres
     const explicit=await save([{player_id:P_A,present:true,coach_choice:true},{player_id:P_B,present:true}]);
     await manage(explicit.session_id,true);
     await answer(explicit.session_id,'absent',P_A);
-    assert.deepEqual((await start(explicit)).present,[P_A],'keep the coach choice, clear the non-response');
+    const activated=await start(explicit);
+    assert.deepEqual(activated.present,[P_A],'keep the coach choice, clear the non-response');
+    const corrected=await save([{player_id:P_A,present:false},{player_id:P_B,present:true}],false,
+      {...explicit,version:activated.version});
+    const replay=await start(corrected);
+    assert.deepEqual(replay.present,[P_B]);
+    assert.equal(replay.version,corrected.version);
+    assert.equal(replay.started_at,activated.started_at);
+    await assert.rejects(answer(explicit.session_id,'present',P_A),{code:'55000'});
+
+    const live=await save(ordinary);
+    await db.exec('begin');
+    await db.query('select activate_training_session_lease($1,$2,$3)',[live.session_id,INSTANCE_A,live.lease_token]);
+    await db.query("insert into training_live_periods(session_id,group_id,period_number,label) values($1,$2,1,'Collecte')",[live.session_id,G1]);
+    await db.exec('commit');
+    await manage(live.session_id,true);
+    await answer(live.session_id,'absent',P_A);
+    assert.deepEqual([...(await start(live)).present].sort(),[P_A,P_B]);
 
     const historical=await acquireLease(db,S1);
     await manage(S1,true);
