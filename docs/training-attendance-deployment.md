@@ -2,11 +2,26 @@
 
 ## Validation et mise en service
 
-1. Sur une base Supabase de test compatible avec la production, comparer l’historique des migrations et appliquer la migration `20261126073554_training_attendance_polls.sql`. L’historique SQL versionné du projet est partiel. Vérifier le plan d’application pour éviter de rejouer des migrations existantes.
+1. Sur une base Supabase de test compatible avec la production, comparer l’historique des migrations et appliquer les migrations `20261126073554_training_attendance_polls.sql` et `20261126080225_training_attendance_review.sql` dans cet ordre. L’historique SQL versionné du projet est partiel. Vérifier le plan d’application pour éviter de rejouer des migrations existantes.
 2. Déployer la fonction Edge `training-attendance-discord` sur le projet de test. Elle vérifie le jeton utilisateur avec Supabase Auth et l’appartenance du coach au groupe dans la RPC de réservation. Si le projet utilise des jetons que la passerelle Edge ne sait pas vérifier, désactiver la vérification de la passerelle pour cette fonction uniquement. La vérification intégrée reste obligatoire.
 3. Configurer le frontend de test avec l’URL et la clé publique du projet de test ainsi que son URL de retour d’authentification. Renseigner `TRAINING_ATTENDANCE_APP_URL` sur la fonction Edge si le site de test utilise une autre URL que celle de GitHub Pages. Vérifier la connexion depuis un lien de sondage et les URL de redirection autorisées dans Supabase Auth.
-4. Tester avec un groupe et un canal Discord dédiés. Créer une séance via **Planifier sans présences**, l’enregistrer et ouvrir un sondage. Répondre avec deux comptes joueurs, fermer, rouvrir, initialiser la liste, corriger les présences et confirmer un écart tardif. Vérifier aussi un compte sans accès. Contrôler les résultats statistiques d’une séance existante avant et après.
-5. Après validation explicite de la mise en production, appliquer la migration additive puis déployer la fonction Edge et ses secrets sur le projet de production. Publier ensuite le frontend via la PR sur `main`. La base de production est aussi utilisée par le frontend local par défaut.
+4. Tester avec un groupe et un canal Discord dédiés. Créer une séance via **Planifier sans présences**, l’enregistrer et ouvrir un sondage. Répondre avec deux comptes joueurs, fermer, rouvrir, choisir **Démarrer la séance** le jour prévu, corriger les présences, puis intégrer ou ignorer un écart tardif. Vérifier aussi un compte sans accès. Contrôler les résultats statistiques d’une séance existante avant et après.
+5. Après validation explicite de la mise en production, appliquer les deux migrations additives puis déployer la fonction Edge et ses secrets sur le projet de production. Publier ensuite le frontend via la PR sur `main`. La base de production est aussi utilisée par le frontend local par défaut.
+
+## Démarrage et assiduité
+
+Le bouton **Démarrer la séance** dans le panneau **Sondage de présence** fixe une seule fois les présences prévisionnelles positives, sauf pour les joueurs dont la présence a été corrigée. Il est disponible à partir de la date de séance en heure de Paris. Jusqu’au démarrage, une séance planifiée est hors historique et hors dénominateur d’assiduité. Les séances futures sont également exclues. Les séances historiques ordinaires suivent le calcul existant. Une séance planifiée doit être démarrée dans son éditeur avant de lancer une collecte en direct ou d’ouvrir la saisie individuelle.
+
+Une correction effective est conservée même si une réponse tardive indique le contraire. La proposition **Ignorer** concerne la réponse affichée. Une nouvelle réponse peut faire apparaître un nouvel écart. La même case de présence reste modifiable manuellement.
+
+## Vérification sur un environnement isolé
+
+Un projet Supabase distinct et un canal Discord de test avec webhook sont nécessaires pour la validation de bout en bout. Ils ne sont pas disponibles dans le contexte de développement de la PR #4.
+
+- Vérifier le nom et la référence du projet de test dans le tableau de bord. Utiliser cette référence pour chaque commande. Vérifier l’historique et appliquer seulement les deux migrations de la PR sur la base de test, dans l’ordre de leurs timestamps. Déployer avec `supabase functions deploy training-attendance-discord --project-ref <ref-test>`.
+- Charger les secrets propres au canal et au frontend de test comme indiqué ci-dessous. Créer deux groupes de test, un coach du groupe cible et un compte joueur dans chacun des groupes. Depuis le groupe cible, publier le sondage, ouvrir le lien et enregistrer une réponse. Vérifier le refus quand le joueur ou le coach de l’autre groupe utilise le même identifiant de séance.
+- Ouvrir deux onglets coach et lancer simultanément la publication. Vérifier qu’un seul message arrive dans le canal de test. Vérifier le conflit fermeture/réponse dans les deux ordres, puis une relance manuelle après la publication. Le cas de réponse tardive se vérifie en gardant le sondage ouvert après le démarrage.
+- Révoquer le webhook de test puis tenter une relance. Vérifier le message d’erreur, la possibilité de copier le lien et la persistance des réponses. Configurer un nouveau webhook de test et vérifier le réessai après le refus. Pour un résultat ambigu, suivre la procédure de rapprochement des envois ci-dessous.
 
 ## Configurer Discord
 

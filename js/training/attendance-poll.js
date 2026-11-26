@@ -20,8 +20,9 @@
     for(const event of ['change','input'])panel().addEventListener(event,e=>e.stopPropagation());
     controls().addEventListener('click',e=>{
       const button=e.target.closest('button[data-poll-action]');
-      if(button)void act(button.dataset.pollAction);
+      if(button)void act(button.dataset.pollAction,button.dataset.player);
     });
+    app.$('#trainingAttendance')?.addEventListener('change',()=>{renderDifferences();app.applyTrainingLeaseControls()});
     controls().addEventListener('change',e=>{
       const select=e.target.closest('select[data-poll-player]');
       if(select)void changeResponse(select);
@@ -50,7 +51,8 @@
       status().textContent=message;
     }catch(error){
       if(serial!==request||id!==session())return;
-      status().textContent=error.message||'Impossible de charger le sondage.';
+      poll=null;
+      status().textContent=error?.message||'Impossible de charger le sondage.';
       controls().innerHTML=button('refresh','Réessayer');
     }
   };
@@ -67,7 +69,6 @@
       controls().innerHTML='<p class="small">Enregistre la séance pour ouvrir un sondage.</p>'+button('save','Enregistrer la séance','primary');
       return;
     }
-    const late=lateDifferences();
     const state=poll?(poll.is_open?'Sondage ouvert':'Sondage fermé'):'Aucun sondage';
     controls().innerHTML=`<p><strong>${state}</strong></p>
       <div class="trainingPollActions">
@@ -75,32 +76,49 @@
         ${button('open',poll?.is_open?'Mettre à jour l’échéance':poll?'Rouvrir le sondage':'Ouvrir le sondage','primary')}
         ${poll?.is_open?button('close','Fermer'):''}
       </div>
+      ${(poll||app.trainingState.planWithoutAttendance)&&!app.trainingState.attendanceStartedAt?
+        '<div class="trainingPollActions">'+button('start','Démarrer la séance','primary')+'</div>':''}
+      ${app.trainingState.attendanceStartedAt?'<p class="small">Séance démarrée.</p>':''}
       ${poll?`<div class="trainingPollActions">
         ${button('copy','Copier le lien')}
         ${poll.is_open?button('publish','Publier sur Discord')+button('remind','Relancer sur Discord'):''}
         ${button('refresh','Actualiser les réponses')}
       </div>
+      <div class="trainingPollResponses">${Object.entries(labels).map(([value,label])=>{
+        const players=poll.players.filter(player=>(player.availability||'')===value);
+        return `<section><h4>${label} (${players.length})</h4><ul>${players.map(player=>`<li>${app.escapeHtml(player.name)}</li>`).join('')}</ul></section>`;
+      }).join('')}</div>
       <div class="trainingPollResponses">${poll.players.map(player=>`
-        <label class="field">${app.escapeHtml(player.name)}${player.late?' · Réponse tardive':''}
+        <label class="field">${app.escapeHtml(player.name)}${player.late?' · Réponse tardive':''}${player.manual?' · Présence corrigée par le coach':''}
           <select data-poll-player="${app.escapeAttr(player.id)}">${Object.entries(labels).map(([value,label])=>
             `<option value="${value}"${value===(player.availability||'')?' selected':''}>${label}</option>`).join('')}
           </select>
         </label>`).join('')}</div>
-      <div class="trainingPollActions">
-        ${poll.initialized_at?'':button('initialize','Initialiser les présences depuis le sondage')}
-        ${late.length?button('late',`Intégrer les écarts tardifs (${late.length})`):''}
-      </div>
-      ${late.length?`<p class="small">${app.escapeHtml(late.map(({player,want})=>player.name+' · '+(want?'à ajouter':'à retirer')).join(' / '))}</p>`:''}`:''}`;
+      <div data-poll-differences></div>`:''}`;
+    renderDifferences();
     app.applyTrainingLeaseControls();
   }
 
   function lateDifferences(){
     const inputs=new Map(app.$$('#trainingAttendance input').map(input=>[input.value,input]));
     return (poll?.players||[]).flatMap(player=>{
-      if(!player.late||!['present','absent'].includes(player.availability))return [];
+      if(!player.late||player.dismissed||!['present','absent'].includes(player.availability))return [];
       const input=inputs.get(player.id),want=player.availability==='present';
       return input&&input.checked!==want?[{input,want,player}]:[];
     });
+  }
+
+  function renderDifferences(){
+    const wrap=controls().querySelector('[data-poll-differences]');
+    if(!wrap)return;
+    const changes=lateDifferences();
+    const proposed=changes.filter(({player})=>!player.manual);
+    wrap.innerHTML=changes.length?`<h4>Écarts de présence</h4><ul>${changes.map(({player,want})=>
+      `<li>${app.escapeHtml(player.name)} · ${want?'déclare être présent':'déclare être absent'} ·
+        ${player.manual?'correction du coach conservée':want?'à ajouter':'à retirer'}
+        <button type="button" class="ghost" data-poll-action="dismiss" data-player="${app.escapeAttr(player.id)}"
+          aria-label="Ignorer l’écart de ${app.escapeAttr(player.name)}">Ignorer</button></li>`).join('')}</ul>
+      ${proposed.length?button('late',`Intégrer les écarts proposés (${proposed.length})`):''}`:'';
   }
 
   async function busy(task){
@@ -123,13 +141,14 @@
     }
   }
 
-  async function initialize(current,id){
+  async function startSession(current,id){
     requireSyncedSession();
     const lease=app.trainingLeaseState;
-    const {present,version,updated_at}=await rpc('initialize_training_attendance_poll',{
+    const {present,version,updated_at,started_at}=await rpc('start_training_attendance_session',{
       p_session:id,p_instance:lease.instanceId,p_token:lease.token,p_expected_version:app.trainingLocalState.baseVersion
     });
     if(!current())return;
+    app.trainingState.attendanceStartedAt=started_at;
     if(app.trainingSessionIsDirty()||app.trainingLocalState.conflict||app.trainingCloudState.conflict){
       app.registerTrainingCloudConflict(updated_at);
       throw new Error('Des modifications locales ont été conservées. Résous le conflit avant de reprendre.');
@@ -140,10 +159,10 @@
     app.markTrainingSessionBaseline();
     app.trainingLocalState.baseVersion=version;
     app.trainingLocalState.baseUpdatedAt=updated_at;
-    await app.refreshTrainingAttendancePoll('Présences initialisées.');
+    await app.refreshTrainingAttendancePoll('Séance démarrée.');
   }
 
-  function act(action){
+  function act(action,playerId){
     if(action==='refresh')return app.refreshTrainingAttendancePoll();
     return busy(async current=>{
       const id=session(),group=app.$('#trainingGroup').value;
@@ -160,14 +179,25 @@
         if(current())await app.refreshTrainingAttendancePoll(action==='close'?'Sondage fermé.':'Sondage ouvert.');
         return;
       }
-      if(action==='initialize'){
-        app.trainingAttendanceInitializing=initialize(current,id).finally(()=>{app.trainingAttendanceInitializing=null});
+      if(action==='start'){
+        app.trainingAttendanceInitializing=startSession(current,id).finally(()=>{app.trainingAttendanceInitializing=null});
         await app.trainingAttendanceInitializing;
+        return;
+      }
+      if(action==='dismiss'){
+        const player=poll.players.find(item=>item.id===playerId);
+        await rpc('dismiss_training_attendance_change',{p_session:id,p_player:player.id,p_revision:player.revision});
+        if(current())await app.refreshTrainingAttendancePoll('Écart ignoré pour cette réponse.');
         return;
       }
       if(action==='late'){
         requireSyncedSession();
-        const changes=lateDifferences();
+        const fresh=await rpc('get_training_attendance_poll',{p_session:id});
+        if(!current())return;
+        requireSyncedSession();
+        poll=fresh;
+        render();
+        const changes=lateDifferences().filter(({player})=>!player.manual);
         if(!changes.length||!confirm('Appliquer aux présences effectives ?\n'+changes.map(({player,want})=>
           (want?'Ajouter ':'Retirer ')+player.name).join('\n'))){
           status().textContent='';

@@ -202,6 +202,7 @@ app.trainingLocalState={
 // Réinitialisé à chaque nouvelle séance, duplication ou changement de séance pour ne
 // jamais réutiliser un contexte périmé.
 app.resetTrainingSessionContext=function resetTrainingSessionContext(){
+  app.trainingState.attendanceStartedAt=null;
   app.trainingState.sessionWorkspaceId=null;
   app.trainingState.sessionTeamId=null;
   app.trainingState.playerCollectionRows=[];
@@ -379,7 +380,8 @@ app.trainingEditorDocument = function trainingEditorDocument({capture=true}={}){
     fields:{
       date:app.$('#trainingDate')?.value||'',groupId:app.$('#trainingGroup')?.value||'',
       theme:app.$('#trainingTheme')?.value||'',duration:app.$('#trainingDuration')?.value||'',
-      notes:app.$('#trainingNotes')?.value||'',planStart:app.$('#trainingPlanStart')?.value||''
+      notes:app.$('#trainingNotes')?.value||'',planStart:app.$('#trainingPlanStart')?.value||'',
+      ...(!app.trainingState.currentSessionId&&app.trainingState.planWithoutAttendance?{attendancePlanned:true}:{})
     },
     planBlocks:JSON.parse(JSON.stringify((app.trainingState.planBlocks||[]).map(({expanded,...block})=>block))),
     sessionExercises:JSON.parse(JSON.stringify((app.trainingState.sessionExercises||[]).map(({expanded,...exercise})=>exercise))),
@@ -716,6 +718,7 @@ app.initTrainingCloudAutosave=function initTrainingCloudAutosave(){
 app.applyTrainingEditorDocument = async function applyTrainingEditorDocument(document,{loadPlayers=true}={}){
   if(!app.trainingLocalState.store.validDocument(document))throw new Error('Ce brouillon local est incompatible.');
   const fields=document.fields;
+  if(!app.trainingState.currentSessionId)app.trainingState.planWithoutAttendance=!!fields.attendancePlanned;
   app.$('#trainingDate').value=fields.date||'';app.$('#trainingGroup').value=fields.groupId||'';
   app.$('#trainingTheme').value=fields.theme||'';app.$('#trainingDuration').value=fields.duration||'';
   app.$('#trainingNotes').value=fields.notes||'';app.$('#trainingPlanStart').value=fields.planStart||'13:30';
@@ -757,7 +760,7 @@ app.openTrainingRecoveryDialog = function openTrainingRecoveryDialog(title,hint)
 };
 
 app.fetchTrainingSessionParent = async function fetchTrainingSessionParent(sessionId){
-  const {data,error}=await app.db.from('training_sessions').select('id,trained_on,label,theme,duration_minutes,notes,created_at,updated_at,created_by,updated_by,group_id,version,workspace_id,team_id').eq('id',sessionId).maybeSingle();
+  const {data,error}=await app.db.from('training_sessions').select('id,trained_on,label,theme,duration_minutes,notes,created_at,updated_at,created_by,updated_by,group_id,version,attendance_planned,attendance_started_at,workspace_id,team_id').eq('id',sessionId).maybeSingle();
   if(error)throw error;if(!data)return null;
   const previous=app.trainingState.recentSessions.find(session=>session.id===sessionId)||{};
   const source={...previous,...data};
@@ -1796,6 +1799,9 @@ app.openTrainingPlayerCollection = async function openTrainingPlayerCollection(e
   app.trainingState.playerCollectionBusy=true;
   try{
     await app.saveTrainingSession();
+    if(app.trainingState.planWithoutAttendance&&!app.trainingState.attendanceStartedAt){
+      throw new Error('Démarre la séance depuis le panneau Sondage de présence avant d’ouvrir la saisie.');
+    }
     const sessionId=app.trainingState.currentSessionId;
     if(!sessionId||app.trainingLocalState.conflict||!app.trainingState.persistedOccurrenceIds?.has(ex.occurrenceId)||app.trainingSessionIsDirty())throw new Error('La séance doit être synchronisée avant d’ouvrir la saisie.');
     const {error}=await app.db.rpc('open_training_player_collection',{p_session_id:sessionId,p_occurrence_id:ex.occurrenceId});
@@ -2287,7 +2293,7 @@ app.fetchRecentTrainingSessions = async function fetchRecentTrainingSessions({wi
   const ids=app.groupState.groups.map(g=>g.id);
   if(!ids.length){app.trainingState.recentSessions=[];return}
   const {data,error}=await app.db.from('training_sessions')
-    .select('id,trained_on,label,theme,duration_minutes,notes,created_at,updated_at,created_by,updated_by,group_id,version,workspace_id,team_id,group:coaching_groups!training_sessions_group_id_fkey(name),team:teams!training_sessions_team_id_fkey(name)')
+    .select('id,trained_on,label,theme,duration_minutes,notes,created_at,updated_at,created_by,updated_by,group_id,version,attendance_planned,attendance_started_at,workspace_id,team_id,group:coaching_groups!training_sessions_group_id_fkey(name),team:teams!training_sessions_team_id_fkey(name)')
     .in('group_id',ids)
     .order('trained_on',{ascending:false})
     .limit(200);
@@ -2433,6 +2439,7 @@ app.duplicateTrainingSessionById = async function duplicateTrainingSessionById(s
   await app.releaseTrainingSessionLease();
   if(loadToken!==app.trainingState.editorLoadToken)return;
   app.trainingState.currentSessionId=null;
+  app.trainingState.planWithoutAttendance=!!source.attendance_planned&&!source.attendance_started_at;
   app.resetTrainingTacticalSessionCache?.();
   app.resetTrainingSessionContext();
   app.trainingState.resultDraft={};
@@ -2517,7 +2524,8 @@ app.editTrainingSessionById = async function editTrainingSessionById(sessionId,{
   if(ae)throw ae;if(xe)throw xe;if(re)throw re;if(oe)throw oe;
 
   app.trainingState.currentSessionId=sessionId;
-  app.trainingState.planWithoutAttendance=false;
+  app.trainingState.planWithoutAttendance=!!source.attendance_planned;
+  app.trainingState.attendanceStartedAt=source.attendance_started_at||null;
   app.trainingState.persistedOccurrenceIds=new Set((occurrences||[]).map(item=>item.id));
   if(te){
     const tactical=app.trainingTacticalState;if(tactical){++tactical.cacheToken;tactical.cacheSessionId=sessionId;tactical.cacheStatus='error';tactical.cacheError=te.message||String(te);tactical.cachePromise=null;tactical.diagramsByOccurrence=new Map()}
@@ -2770,7 +2778,7 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
 
     if(!sessionId)app.setTrainingLeaseStatus('pending');
 
-    const {data:rpcResult,error:rpcError}=await app.db.rpc('save_training_session_player_results',{
+    const saveArgs={
       p_session_id:sessionId,
       p_expected_version:sessionId?app.trainingLocalState.baseVersion:null,
       p_editor_instance_id:lease.instanceId,
@@ -2788,7 +2796,11 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
       p_results:results,
       p_occurrences:occurrences,
       p_force:!!forceOverwrite
-    });
+    };
+    const planned=!sessionId&&(saveDocument.fields.attendancePlanned||!presentIds.size||date>app.today());
+    const {data:rpcResult,error:rpcError}=planned
+      ?await app.db.rpc('save_planned_training_session',{p_save:saveArgs})
+      :await app.db.rpc('save_training_session_player_results',saveArgs);
     if(operationEpoch!==lease.epoch){
       app.persistTrainingLocalDraft({checkpointReason:'Réponse de sauvegarde ignorée',scheduleCloud:false});
       return;
@@ -2810,6 +2822,7 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
     }
 
     if(!sessionId){
+      app.trainingState.planWithoutAttendance=planned;
       if(!result.lease_token)throw new Error('La séance a été créée sans bail d’édition. Recharge la page avant de continuer.');
       lease.sessionId=result.session_id;lease.token=result.lease_token;lease.expiresAt=result.lease_expires_at||null;lease.lost=false;
       app.setTrainingLeaseStatus('owned',{expiresAt:lease.expiresAt});
@@ -2860,7 +2873,7 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
       app.setTrainingCloudStatus('pending');
       app.scheduleTrainingCloudSave();
     }
-    if(!sessionId)app.refreshTrainingAttendancePoll?.();
+    if(!sessionId||app.$('#trainingPoll')?.open)app.refreshTrainingAttendancePoll?.();
     return result;
   }catch(e){
     app.persistTrainingLocalDraft({scheduleCloud:false});

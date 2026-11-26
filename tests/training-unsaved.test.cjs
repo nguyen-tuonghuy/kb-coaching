@@ -89,7 +89,7 @@ function store({writable=false}={}){
     rpc:async(name,params)=>{
       mutations.push({table:'rpc',mode:name,values:clone(params??null)});
       if(!writable)return {data:null,error:{message:'store refuses rpc '+name}};
-      const req=params||{};
+      const req=(name==='save_planned_training_session'?params.p_save:params)||{};
       if(name==='acquire_training_session_lease'){
         const current=tables.training_session_leases.find(row=>row.session_id===req.p_session_id);
         if(current)return {data:[{status:'held',holder_user_id:current.user_id,holder_name:'Lucas',lease_token:null,expires_at:current.expires_at}],error:null};
@@ -146,7 +146,7 @@ function store({writable=false}={}){
         if(req.p_expected_version!==tables.training_tactical_diagrams[index].version)return {data:null,error:{code:'40001',message:'Conflit de version du schéma tactique'}};
         tables.training_tactical_diagrams.splice(index,1);return {data:true,error:null};
       }
-      if(name!=='save_training_session_player_results')throw new Error('Unexpected rpc '+name);
+      if(!['save_training_session_player_results','save_planned_training_session'].includes(name))throw new Error('Unexpected rpc '+name);
       if(!req.p_group_id)return {data:null,error:{message:'Groupe requis'}};
       if(!req.p_team_id)return {data:null,error:{message:'Équipe requise'}};
       const stamp='2026-03-04T10:00:00.'+String(nextId).padStart(3,'0')+'Z';
@@ -1023,7 +1023,8 @@ test('draft card uses the shared light surface, not the legacy dark theme',()=>{
 // --- Lot B: la sauvegarde passe exclusivement par la RPC G2 transactionnelle ---
 
 const CHILD_TABLES=['training_attendance','training_session_exercises','training_results'];
-const rpcCalls=ui=>ui.mutationsRef.filter(m=>m.table==='rpc'&&m.mode==='save_training_session_player_results');
+const rpcCalls=ui=>ui.mutationsRef.filter(m=>m.table==='rpc'&&['save_training_session_player_results','save_planned_training_session'].includes(m.mode))
+  .map(m=>m.mode==='save_planned_training_session'?{...m,values:m.values.p_save}:m);
 const directWrites=ui=>ui.mutationsRef.filter(m=>[...CHILD_TABLES,'training_sessions'].includes(m.table)
   && ['insert','update','delete','upsert'].includes(m.mode));
 const recoveryButton=(ui,text)=>[...ui.page.w.document.querySelectorAll('#trainingRecoveryActions button')]
@@ -2157,4 +2158,58 @@ test('late poll integration requires confirmation and leaves local work and offi
   const {p_attendance,p_results}=rpcCalls(ui).at(-1).values;
   assert.deepEqual(p_attendance.map(row=>[row.player_id,row.present]),[['p1',false],['p2',true]]);
   assert.equal(p_results.some(row=>row.player_id==='p1'),false,'absent player’s official result is not rewritten');
+});
+
+test('the poll summary shows four named counts and starts only from the explicit action',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  const original=app.db.rpc.bind(app.db);
+  const calls=[];
+  app.db.rpc=async(name,args)=>{
+    calls.push(name);
+    if(name==='get_training_attendance_poll')return {data:{is_open:true,players:[
+      {id:'p1',name:'Ana Ruiz',availability:'present'}, {id:'p2',name:'Bo Martin',availability:'absent'},
+      {id:'p3',name:'Camille',availability:'unsure'}, {id:'p4',name:'Dana',availability:null}
+    ]},error:null};
+    if(name==='start_training_attendance_session')return {data:{present:['p1'],version:2,started_at:'2026-03-04T10:00:00Z',updated_at:'2026-03-04T10:00:00Z'},error:null};
+    return original(name,args);
+  };
+  const panel=ui.page.$('#trainingPoll');
+  const toggled=new Promise(resolve=>panel.addEventListener('toggle',resolve,{once:true}));
+  panel.open=true;await toggled;await settle();
+  const summary=Array.from(panel.querySelectorAll('section'),section=>section.textContent);
+  for(const [index,expected] of [/Présent \(1\).*Ana Ruiz/,/Absent \(1\).*Bo Martin/,/Incertain \(1\).*Camille/,/Sans réponse \(1\).*Dana/].entries())assert.match(summary[index],expected);
+  assert.deepEqual(calls,['get_training_attendance_poll']);
+  panel.querySelector('[data-poll-action="start"]').click();await settle();
+  assert.equal(calls.filter(name=>name==='start_training_attendance_session').length,1);
+  assert.equal(app.trainingLocalState.baseVersion,2);
+  assert.equal(panel.querySelector('[data-poll-action="start"]'),null);
+  assert.equal(app.trainingSessionIsDirty(),false);
+});
+
+test('a coach override is shown but excluded from proposed edits, and can be dismissed by revision',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  const original=app.db.rpc.bind(app.db);
+  const revision='2026-03-04T10:00:00.000001Z';
+  const alice={id:'p1',name:'Ana Ruiz',availability:'absent',late:true,manual:true,revision};
+  const bob={id:'p2',name:'Bo Martin',availability:'present',late:true};
+  let dismissal;
+  app.db.rpc=async(name,args)=>{
+    if(name==='get_training_attendance_poll')return {data:{is_open:true,players:[alice,bob]},error:null};
+    if(name==='dismiss_training_attendance_change'){dismissal=args;alice.dismissed=true;return {error:null}}
+    return original(name,args);
+  };
+  const panel=ui.page.$('#trainingPoll');
+  const toggled=new Promise(resolve=>panel.addEventListener('toggle',resolve,{once:true}));
+  panel.open=true;await toggled;await settle();
+  assert.match(panel.querySelector('[data-poll-differences]').textContent,/correction du coach conservée/);
+  assert.match(panel.querySelector('[data-poll-action="late"]').textContent,/\(1\)/);
+  panel.querySelector('[data-player="p1"]').click();await settle();
+  assert.deepEqual({...dismissal},{p_session:'s1',p_player:'p1',p_revision:revision});
+  assert.doesNotMatch(panel.querySelector('[data-poll-differences]').textContent,/Ana Ruiz/);
+  ui.page.w.confirm=message=>{assert.doesNotMatch(message,/Ana Ruiz/);return true};
+  panel.querySelector('[data-poll-action="late"]').click();await settle();
+  assert.equal(ui.page.$('#trainingAttendance input[value="p1"]').checked,true);
+  assert.equal(ui.page.$('#trainingAttendance input[value="p2"]').checked,true);
 });

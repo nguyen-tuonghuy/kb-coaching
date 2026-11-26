@@ -56,6 +56,9 @@ function installMock({staff,populated=false,attendance=null}){
       rpcs.get_my_player_access=[{group_id:attendance.group,group_name:'Groupe test',player_id:'p1',player_name:'Alice'}];
       rpcs.list_my_training_attendance_polls=[{session_id:attendance.session,label:'Séance de test',trained_on:'2026-12-12',is_open:true,availability:null}];
       rpcs.answer_training_attendance_poll=null;
+      if(attendance.networkError&&name==='answer_training_attendance_poll'&&args.p_availability==='absent'){
+        return {data:null,error:{message:'Réseau indisponible'}};
+      }
     }
     const fixtures=kind==='table'?tables:rpcs;
     if(!Object.hasOwn(fixtures,name))throw new Error(`Unexpected mock ${kind}: ${name}`);
@@ -355,3 +358,16 @@ for(const width of [390,820,1440]){
     assert.deepEqual(errors,[]);
   });
 }
+
+test('attendance: a mobile network failure leaves the previous response selected and retry available',{timeout:20000},async t=>{
+  const attendance={group:'20000000-0000-4000-8000-000000000001',session:'40000000-0000-4000-8000-000000000001',networkError:true};
+  const {page,errors}=await open(t,'index',390,{populated:true,attendance});
+  const poll=page.locator('#attendance-'+attendance.session);
+  await poll.getByRole('button',{name:'Présent',exact:true}).click();
+  await poll.locator('button[aria-pressed="true"]:text-is("Présent")').waitFor();
+  await poll.getByRole('button',{name:'Absent',exact:true}).click();
+  await poll.getByText('Réseau indisponible',{exact:true}).waitFor();
+  assert.equal(await poll.getByRole('button',{name:'Présent',exact:true}).getAttribute('aria-pressed'),'true');
+  assert.equal(await poll.getByRole('button',{name:'Absent',exact:true}).isEnabled(),true);
+  assert.deepEqual(errors,[]);
+});

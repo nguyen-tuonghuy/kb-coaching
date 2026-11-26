@@ -59,8 +59,10 @@
     },
     async trainingSessions(groupId){
       const {data,error}=await db.from('training_sessions')
-        .select('id,trained_on,label,theme')
-        .eq('group_id',groupId).order('trained_on',{ascending:true});
+        .select('id,trained_on,label,theme,attendance_planned,attendance_started_at')
+        .eq('group_id',groupId)
+        .lte('trained_on',new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Paris'}).format(new Date()))
+        .or('attendance_planned.eq.false,attendance_started_at.not.is.null').order('trained_on',{ascending:true});
       if(error)throw error;
       return data||[];
     },

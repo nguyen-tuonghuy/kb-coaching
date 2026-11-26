@@ -161,7 +161,12 @@ function renderTeamSetup(){
 }
 function nextPeriodNumber(){return Math.max(0,...state.periods.map(p=>Number(p.period_number)||0))+1}
 function suggestedPeriodLabel(){const ex=exerciseById($('#exerciseSelect').value);const n=nextPeriodNumber();return ex?`${ex.name} ${n}`:`Collecte ${n}`}
-function updateStartState(){const ready=!!state.selectedGroupId && state.attendance.size>0 && !state.saving && liveCanMutate();$('#startCollection').disabled=!ready}
+function awaitingTrainingStart(session){return session?.attendance_planned&&!session.attendance_started_at}
+function updateStartState(){
+  const ready=!!state.selectedGroupId&&!awaitingTrainingStart(sessionById(state.selectedSessionId))
+    &&state.attendance.size>0&&!state.saving&&liveCanMutate();
+  $('#startCollection').disabled=!ready;
+}
 function closeFieldTools(){
   document.body.classList.remove('fieldToolsOpen');
   const drawer=$('#fieldToolsDrawer'),toggle=$('#fieldToolsToggle');
@@ -237,7 +242,7 @@ async function loadPlayers(groupId,epoch=state.loadEpoch){
 }
 async function loadSessions(groupId,epoch=state.loadEpoch){
   const {data,error}=await db.from('training_sessions')
-    .select('id,group_id,trained_on,label,theme,created_at')
+    .select('id,group_id,trained_on,label,theme,created_at,attendance_planned,attendance_started_at')
     .eq('group_id',groupId).order('trained_on',{ascending:false}).order('created_at',{ascending:false}).limit(80);
   if(error)throw error;if(epoch!==state.loadEpoch||groupId!==state.selectedGroupId)return false;state.sessions=data||[];
   const sel=$('#sessionSelect');sel.disabled=false;sel.innerHTML='<option value="__new__">＋ Nouvelle séance aujourd’hui</option>';
@@ -253,7 +258,11 @@ async function loadAttendance(sessionId,epoch=state.loadEpoch){
   }
   const {data,error}=await db.from('training_attendance').select('player_id,present').eq('session_id',sessionId);
   if(error)throw error;if(epoch!==state.loadEpoch||sessionId!==state.selectedSessionId)return false;
-  if((data||[]).length){
+  const session=sessionById(sessionId);
+  if(awaitingTrainingStart(session)){
+    state.attendance=new Set();
+    $('#attendanceHint').textContent='Démarre d’abord cette séance planifiée depuis son éditeur, dans le panneau Sondage de présence.';
+  }else if((data||[]).length||session?.attendance_started_at){
     state.attendance=new Set(data.filter(x=>x.present).map(x=>x.player_id));
     state.teamByPlayer=new Map();
     $('#attendanceHint').textContent='Présences enregistrées pour cette séance. Le terrain repart vide : constitue les équipes pour cette nouvelle prise de note.';
@@ -435,7 +444,9 @@ async function startCollection(){
   state.saving=true;updateStartState();setCloud('Enregistrement…',null);setStatus($('#setupStatus'),'Préparation de la période…');
   try{
     let session=state.selectedSessionId==='__new__'?await createQuickTrainingSession():sessionById(state.selectedSessionId);
-    if(!session)throw new Error('Séance introuvable.');state.currentSession=session;
+    if(!session)throw new Error('Séance introuvable.');
+    if(awaitingTrainingStart(session))throw new Error('Démarre cette séance planifiée dans son éditeur.');
+    state.currentSession=session;
     if(!requireLiveLease())throw new Error('Cette séance est en lecture seule.');
     await saveAttendance(session.id);
     await loadPeriods(session.id);
