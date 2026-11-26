@@ -358,3 +358,16 @@ Avant livraison :
 5. vérifier que les fichiers annoncés correspondent aux changements réels.
 
 Le bilan final reste court : **changements effectués, vérifications réellement réalisées, limites ou blocages restants**, et état commit/push si pertinent. Ne pas annoncer une validation visuelle, mobile, Supabase ou de non-régression qui n'a pas été effectuée. Si un contrôle manque, le travail est partiel sur ce point : le dire clairement.
+
+## 12. Collaboration ChatGPT / Codex via GitHub
+
+GitHub est la source de vérité commune. Les issues portent les besoins, critères d'acceptation et arbitrages ; les PR portent les modifications, revues et résultats de validation ; `docs/` conserve les décisions durables et procédures. Ne pas dupliquer inutilement ces informations.
+
+- Avant chaque reprise, lire AGENTS.md, l'issue liée, la PR et ses commentaires récents ; vérifier la branche et les derniers commits. Préserver les modifications locales et distantes.
+- ChatGPT assure principalement la conception, la spécification et la revue indépendante ; Codex assure principalement l'implémentation et les tests. L'utilisateur arbitre et valide. Ne pas modifier simultanément la même branche ; transmettre explicitement la main.
+- Développer sur une branche dédiée et ouvrir une PR brouillon. Respecter les autorisations de commit et de push de la section 10 : une demande explicite de mise à jour du dépôt sur une branche de travail autorise les commits et push nécessaires à cette demande, pas la fusion.
+- Traiter les demandes de revue dans la PR et répondre point par point avec les commits, tests réellement exécutés, résultats, écarts et limitations. Ne pas déclarer une demande résolue sans preuve pertinente.
+- La revue indépendante examine le diff et les tests, distingue les anomalies bloquantes des améliorations facultatives et documente les décisions dans la PR.
+- Toute fusion dans main, publication ou modification de la production Supabase nécessite une validation explicite de l'utilisateur. Un test simulé ne remplace pas une validation réelle sur un environnement isolé.
+- Ne jamais publier de secrets, données personnelles de joueurs ou données de production dans les issues, PR, logs ou documentation. Le dépôt peut être public.
+- Pour une évolution durable, actualiser la documentation pertinente ; éviter de créer un second backlog parallèle aux issues.
