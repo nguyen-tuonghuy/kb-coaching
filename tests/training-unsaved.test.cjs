@@ -2344,3 +2344,17 @@ test('issue 7 locks the selector with the server reason and keeps unsaved source
   assert.equal(app.trainingState.resultDraft.unrecorded.note,'À conserver');
   assert.match(ui.page.$('#trainingCloudStatus').textContent,/groupe d’origine/);
 });
+
+test('issue 7 keeps the original group and attendance visible for an ordinary session',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await prepareGroupTransferEditor(ui,'Le groupe est verrouillé : cette séance n’est pas enregistrée comme une préparation.');
+  const select=ui.page.$('#trainingGroup');
+  const present=()=>Array.from(ui.page.w.document.querySelectorAll('#trainingAttendance input:checked'),item=>item.value);
+  const original=present();
+  assert.ok(original.length>0);
+  assert.equal(select.disabled,true);
+  assert.match(ui.page.$('#trainingGroupStatus').textContent,/pas enregistrée comme une préparation/);
+  select.value='g2';await app.changeTrainingEditorGroup();
+  assert.equal(select.value,'g1');
+  assert.deepEqual(present(),original);
+});

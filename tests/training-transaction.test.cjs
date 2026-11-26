@@ -1323,6 +1323,76 @@ const transferArgs=(session,{group=G2,notes='Plan modifié',occurrences=[],exerc
 ];
 const transfer=(db,session,options)=>one(db,'select * from save_training_preparation_group_transfer($1,$2)',transferArgs(session,options));
 
+function saveTransferPreparation(db,options={}){
+  return one(db,'select * from save_training_session_with_attendance_choices($1,true)',[json({
+    p_editor_instance_id:INSTANCE_A,p_workspace_id:WS_A,p_group_id:G1,p_team_id:TEAM_A,
+    p_exercises:[],p_occurrences:[],p_results:[],p_attendance:[],...options
+  })]);
+}
+
+test('issue 7 keeps past sessions saved with attendance only in their original group',async()=>{
+  const db=await makeDB();
+  try{
+    await installGroupTransfer(db);
+    await db.exec(groupTransferMigration);
+    await db.query('insert into coaching_group_coaches(group_id,user_id,role) values($1,$2,$3)',[G2,U_COACH,'coach']);
+    await asUser(db,U_COACH);
+    const date='2026-01-19';
+    const attendance=[{player_id:P_A,present:true}];
+    const legacy=await saveRPC(db,{trainedOn:date,attendance});
+    const current=await one(db,'select * from save_training_session_with_attendance_choices($1,false)',[json({
+      p_editor_instance_id:INSTANCE_A,p_workspace_id:WS_A,p_group_id:G1,p_team_id:TEAM_A,
+      p_trained_on:date,p_exercises:[],p_occurrences:[],p_results:[],p_attendance:attendance,p_force:false
+    })]);
+    for(const saved of [legacy,current]){
+      assert.equal(saved.status,'saved');
+      const id=saved.session_id;
+      const parent=()=>one(db,'select group_id,team_id,version,attendance_planned,attendance_started_at from training_sessions where id=$1',[id]);
+      const original=await parent();
+      assert.deepEqual(original,{group_id:G1,team_id:TEAM_A,version:saved.version,attendance_planned:false,attendance_started_at:null});
+      assert.match((await one(db,'select get_training_group_transfer_blocker($1) reason',[id])).reason,/pas enregistrée comme une préparation/);
+      await assert.rejects(transfer(db,saved),{code:'23514',message:/pas enregistrée comme une préparation/});
+      assert.deepEqual(await parent(),original);
+      assert.deepEqual(await rows(db,'select player_id,present from training_attendance where session_id=$1',[id]),attendance);
+    }
+  }finally{await db.close()}
+});
+
+test('issue 7 keeps an earlier planned session transferable and carries its tactical diagrams',async()=>{
+  const db=await makeDB();
+  try{
+    await installGroupTransfer(db);
+    await db.query('insert into coaching_group_coaches(group_id,user_id,role) values($1,$2,$3)',[G2,U_COACH,'coach']);
+    await asUser(db,U_COACH);
+    const plan={id:O1,kind:'plan_block',position:0,exercise_id:EX1,collects_stats:false};
+    const planned=await saveTransferPreparation(db,{p_trained_on:'2099-12-20',p_occurrences:[plan]});
+    const id=planned.session_id;
+    const model=require('../js/tactical-editor-model.js');
+    const document=diagram();
+    document.objects.push(model.createObject('player',{label:'Passeur',team:'pink'}));
+    assert.equal(model.validateDocument(document).ok,true);
+    const source=await one(db,'select * from save_training_tactical_diagram($1,$2,null,null,$3,0,$4,$5)',
+      [id,O1,json(document),INSTANCE_A,planned.lease_token]);
+    assert.equal(source.status,'saved');
+    await db.exec('reset role');
+    await db.exec(groupTransferMigration);
+    await asUser(db,U_COACH);
+    assert.equal((await one(db,'select get_training_group_transfer_blocker($1) reason',[id])).reason,null);
+    const copy={...plan,id:O2,position:1,copy_diagrams_from_session_id:id,copy_diagrams_from_occurrence_id:O1};
+    const moved=await transfer(db,planned,{occurrences:[plan,copy]});
+    assert.equal(moved.status,'saved');
+    assert.deepEqual(await one(db,'select group_id,attendance_planned from training_sessions where id=$1',[id]),
+      {group_id:G2,attendance_planned:true});
+    const diagrams=await rows(db,'select id,occurrence_id,document from training_tactical_diagrams where session_id=$1',[id]);
+    assert.equal(diagrams.length,2);
+    assert.deepEqual(diagrams.find(row=>row.occurrence_id===O1),{id:source.diagram_id,occurrence_id:O1,document});
+    const copied=diagrams.find(row=>row.occurrence_id===O2).document;
+    assert.equal(model.validateDocument(copied).ok,true);
+    assert.notEqual(copied.id,document.id);
+    assert.deepEqual(copied.objects,document.objects);
+  }finally{await db.close()}
+});
+
 test('issue 7 reproduces the old group rejection and atomically transfers the plan, team and roster',async()=>{
   const db=await makeDB();
   try{
@@ -1339,12 +1409,9 @@ test('issue 7 reproduces the old group rejection and atomically transfers the pl
     await db.exec(groupTransferMigration);
     await asUser(db,U_COACH);
     const blocker=id=>one(db,'select get_training_group_transfer_blocker($1) reason',[id]);
-    assert.match((await blocker(original.session_id)).reason,/historique/);
-    const planned=(await one(db,'select * from save_planned_training_session($1)',[json({
-      p_editor_instance_id:INSTANCE_A,p_workspace_id:WS_A,p_group_id:G1,p_team_id:TEAM_A,
-      p_notes:'Plan conservé',p_exercises:[],p_occurrences:[plan],p_results:[],
-      p_attendance:[{player_id:P_A,present:true}]
-    })]));
+    assert.match((await blocker(original.session_id)).reason,/pas enregistrée comme une préparation/);
+    const planned=await saveTransferPreparation(db,{p_notes:'Plan conservé',p_occurrences:[plan],
+      p_attendance:[{player_id:P_A,present:true}]});
     assert.equal((await blocker(planned.session_id)).reason,null);
     const id=planned.session_id;
     const conflict=await transfer(db,{...planned,version:planned.version-1},{occurrences:[plan],force:true});
@@ -1372,7 +1439,7 @@ test('issue 7 blocks transfers for attempts outside either group or after poll, 
     await installGroupTransfer(db);
     await db.exec(groupTransferMigration);
     await asUser(db,U_COACH);
-    const newSession=options=>saveG2(db,{playerResults:true,...options});
+    const newSession=options=>saveTransferPreparation(db,options);
     const missingTarget=await newSession();
     await assert.rejects(transfer(db,missingTarget),{code:'42501'});
     await db.exec('reset role');
@@ -1387,7 +1454,7 @@ test('issue 7 blocks transfers for attempts outside either group or after poll, 
       assert.match(await blocker(poll.session_id),/sondage/);
       await assert.rejects(transfer(db,poll),{code:'23514',message:/sondage/});
     }
-    const started=await newSession({trainedOn:'2026-01-01'});
+    const started=await newSession({p_trained_on:'2026-01-01'});
     const startedRow=(await one(db,'select start_training_attendance_session($1,$2,$3,$4) as result',
       [started.session_id,INSTANCE_A,started.lease_token,started.version])).result;
     await assert.rejects(transfer(db,{...started,version:startedRow.version}),{code:'23514',message:/démarré/});
@@ -1396,7 +1463,7 @@ test('issue 7 blocks transfers for attempts outside either group or after poll, 
     await assert.rejects(transfer(db,{session_id:S1,version:1,lease_token:historyLease.lease_token}),{code:'23514',message:/résultats/});
 
     const plan={id:O1,kind:'manual_stat',position:0,exercise_id:EX1,collects_stats:true,stats_position:1};
-    const collection=await newSession({occurrences:[plan],exercises:[{exercise_id:EX1,position:1}]});
+    const collection=await newSession({p_occurrences:[plan],p_exercises:[{exercise_id:EX1,position:1}]});
     await db.query('select open_training_player_collection($1,$2)',[collection.session_id,O1]);
     assert.match(await blocker(collection.session_id),/collecte/);
     await assert.rejects(transfer(db,collection),{code:'23514',message:/collecte/});

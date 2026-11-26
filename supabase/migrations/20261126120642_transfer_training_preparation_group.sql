@@ -1,8 +1,5 @@
--- Existing rows are not inferred to be drafts. Previously planned sessions
--- already carry their own marker. New rows can be moved while still untouched.
-alter table public.training_sessions add column group_transfer_preparation boolean not null default false;
-alter table public.training_sessions alter column group_transfer_preparation set default true;
-
+-- Only the planned save path marks a preparation. Ordinary saves can record
+-- a completed session with attendance alone, even without a start timestamp.
 create function private.training_group_transfer_blocker(p_session public.training_sessions)
 returns text language plpgsql stable set search_path='' as $$
 begin
@@ -20,8 +17,8 @@ begin
     or exists (select 1 from public.training_live_events e where e.session_id=p_session.id) then
     return 'Le groupe est verrouillé : une collecte existe pour cette séance.';
   end if;
-  if not (p_session.group_transfer_preparation or p_session.attendance_planned) then
-    return 'Le groupe est verrouillé : cette séance historique n’est pas identifiée comme une préparation.';
+  if not p_session.attendance_planned then
+    return 'Le groupe est verrouillé : cette séance n’est pas enregistrée comme une préparation.';
   end if;
   return null;
 end $$;
