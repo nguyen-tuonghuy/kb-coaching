@@ -40,7 +40,7 @@ app.applyTrainingAttendancePreset = function applyTrainingAttendancePreset(){
   const selectionId=select.value||'';
   const selection=selectionId?(app.trainingState.selections||[]).find(s=>s.id===selectionId):null;
   const allowed=selection?new Set(selection.player_ids||[]):null;
-  app.$$('#trainingAttendance input').forEach(c=>{c.checked=allowed?allowed.has(c.value):true});
+  app.$$('#trainingAttendance input').forEach(c=>{c.checked=allowed?allowed.has(c.value):true;delete c.dataset.attendanceDefault});
   if(status)status.textContent=selection?`${selection.name} · ${selection.player_ids.length} joueur${selection.player_ids.length>1?'s':''} précoché${selection.player_ids.length>1?'s':''}.`:'Tout le groupe est précoché.';
   app.renderTrainingExerciseCards();
 };
@@ -97,15 +97,39 @@ app.openTrainingModule = async function openTrainingModule(){
   }catch(e){app.handleError('openTrainingModule',e)}
 };
 
+const trainingDateInParis=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Paris'});
+function trainingDateIsFuture(date){
+  return date>trainingDateInParis.format(new Date());
+}
+
+function updateTrainingAttendanceDefaults(){
+  if(app.trainingState.currentSessionId||app.trainingState.planWithoutAttendance)return;
+  let checked;
+  try{checked=!trainingDateIsFuture(app.frInputToIso(app.$('#trainingDate').value))}
+  catch{return}
+  let changed=false;
+  app.$$('#trainingAttendance input[data-attendance-default]').forEach(input=>{
+    const previous=input.dataset.attendanceDefault==='true';
+    if(input.checked!==previous){delete input.dataset.attendanceDefault;return}
+    if(previous===checked)return;
+    input.checked=checked;
+    input.dataset.attendanceDefault=String(checked);
+    changed=true;
+  });
+  if(changed)app.renderTrainingExerciseCards();
+}
+
 app.renderTrainingAttendance = function renderTrainingAttendance(){
   const box=app.$('#trainingAttendance'); if(!box)return; box.innerHTML='';
   if(!app.trainingState.players.length){box.innerHTML='<div class="small">Aucun joueur enregistré pour le moment.</div>';app.applyTrainingLeaseControls?.();return}
   app.trainingState.players.forEach(p=>{
     const l=document.createElement('label');l.className='check';
     const c=document.createElement('input');c.type='checkbox';c.value=p.id;c.dataset.name=p.display_name;c.checked=!app.trainingState.planWithoutAttendance;
-    c.onchange=app.renderTrainingExerciseCards;
+    if(!app.trainingState.currentSessionId&&!app.trainingState.planWithoutAttendance)c.dataset.attendanceDefault='true';
+    c.onchange=()=>{delete c.dataset.attendanceDefault;app.renderTrainingExerciseCards()};
     l.append(c,document.createTextNode(p.display_name));box.append(l);
   });
+  updateTrainingAttendanceDefaults();
   app.applyTrainingLeaseControls?.();
 };
 
@@ -385,7 +409,10 @@ app.trainingEditorDocument = function trainingEditorDocument({capture=true}={}){
     },
     planBlocks:JSON.parse(JSON.stringify((app.trainingState.planBlocks||[]).map(({expanded,...block})=>block))),
     sessionExercises:JSON.parse(JSON.stringify((app.trainingState.sessionExercises||[]).map(({expanded,...exercise})=>exercise))),
-    attendance:app.$$('#trainingAttendance input').map(input=>({playerId:input.value,present:!!input.checked})),
+    attendance:app.$$('#trainingAttendance input').map(input=>({
+      playerId:input.value,present:!!input.checked,
+      ...(!app.trainingState.currentSessionId&&input.dataset.attendanceDefault===String(input.checked)?{usesDefault:true}:{})
+    })),
     resultDraft:JSON.parse(JSON.stringify(app.trainingState.resultDraft||{}))
   };
 };
@@ -729,8 +756,13 @@ app.applyTrainingEditorDocument = async function applyTrainingEditorDocument(doc
   app.trainingState.resultDraft=JSON.parse(JSON.stringify(document.resultDraft));
   // Un brouillon local ne porte pas les versions cloud des resultats verrouilles.
   app.trainingState.resultMeta={};
-  const attendance=new Map(document.attendance.map(item=>[String(item.playerId),!!item.present]));
-  app.$$('#trainingAttendance input').forEach(input=>{input.checked=attendance.get(String(input.value))??false});
+  const attendance=new Map(document.attendance.map(item=>[String(item.playerId),item]));
+  app.$$('#trainingAttendance input').forEach(input=>{
+    const item=attendance.get(String(input.value));
+    input.checked=!!item?.present;
+    if(!app.trainingState.currentSessionId&&item?.usesDefault)input.dataset.attendanceDefault=String(input.checked);
+    else delete input.dataset.attendanceDefault;
+  });
   app.syncPlanStatExercises();app.renderTrainingExerciseCards({capture:false});app.renderTrainingPlan();app.autoGrowPlanTextarea(app.$('#trainingNotes'));
 };
 
@@ -994,6 +1026,7 @@ app.initTrainingLocalDrafts = function initTrainingLocalDrafts(){
     if(!app.trainingSaveInFlight)void app.releaseTrainingSessionLease();
     return originalShowSignedOut.apply(this,arguments);
   };
+  app.$('#trainingDate')?.addEventListener('change',updateTrainingAttendanceDefaults);
   app.$('#trainingSession')?.addEventListener('input',app.markTrainingEdited);
   app.$('#trainingSession')?.addEventListener('change',app.markTrainingEdited);
   const groupSelect=app.$('#trainingGroup');
@@ -2489,7 +2522,7 @@ app.duplicateTrainingSessionById = async function duplicateTrainingSessionById(s
   app.clearTrainingStatus();
 
   const presentIds=new Set((attendance||[]).filter(a=>a.present).map(a=>a.player_id));
-  app.$$('#trainingAttendance input').forEach(c=>c.checked=presentIds.has(c.value));
+  app.$$('#trainingAttendance input').forEach(c=>{c.checked=presentIds.has(c.value);delete c.dataset.attendanceDefault});
   app.renderTrainingExerciseCards({capture:false});
   app.renderTrainingPlan();
 
@@ -2557,7 +2590,7 @@ app.editTrainingSessionById = async function editTrainingSessionById(sessionId,{
   app.syncTrainingFinishButton();
 
   const presentIds=new Set((attendance||[]).filter(a=>a.present).map(a=>a.player_id));
-  app.$$('#trainingAttendance input').forEach(c=>c.checked=presentIds.has(c.value));
+  app.$$('#trainingAttendance input').forEach(c=>{c.checked=presentIds.has(c.value);delete c.dataset.attendanceDefault});
 
   const exByOccurrence=new Map(app.trainingState.sessionExercises.map(ex=>[ex.occurrenceId,ex]));
   const occurrencesByExercise=new Map();
@@ -2599,11 +2632,16 @@ app.editTrainingSessionById = async function editTrainingSessionById(sessionId,{
 app.addTrainingPlayers = async function addTrainingPlayers(){
   const names=app.$('#trainingAddPlayers').value.split(',').map(x=>x.trim()).filter(Boolean);
   if(!names.length)return;
-  const previous=new Map(app.$$('#trainingAttendance input').map(input=>[input.value,input.checked]));
+  const previous=new Map(app.$$('#trainingAttendance input').map(input=>[input.value,{checked:input.checked,defaultValue:input.dataset.attendanceDefault}]));
   await app.ensurePlayers(names);
   await app.fetchTrainingPlayers();
   const wanted=new Set(names.map(x=>x.toLowerCase()));
-  app.$$('#trainingAttendance input').forEach(c=>{c.checked=wanted.has(c.dataset.name.toLowerCase())||(previous.get(c.value)??false)});
+  app.$$('#trainingAttendance input').forEach(c=>{
+    const old=previous.get(c.value),added=wanted.has(c.dataset.name.toLowerCase());
+    c.checked=added||!!old?.checked;
+    if(!added&&old?.defaultValue!==undefined)c.dataset.attendanceDefault=old.defaultValue;
+    else delete c.dataset.attendanceDefault;
+  });
   app.renderTrainingExerciseCards();
 };
 
@@ -2694,6 +2732,7 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
   app.trainingSaveInFlight=true;
   app.stopTrainingCloudTimers();
   try{
+    updateTrainingAttendanceDefaults();
     app.captureTrainingResultDraft();
     app.captureTrainingPlan();
     app.syncPlanStatExercises();
@@ -2797,7 +2836,7 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
       p_occurrences:occurrences,
       p_force:!!forceOverwrite
     };
-    const planned=!sessionId&&(saveDocument.fields.attendancePlanned||!presentIds.size||date>app.today());
+    const planned=!sessionId&&(saveDocument.fields.attendancePlanned||!presentIds.size||trainingDateIsFuture(date));
     const {data:rpcResult,error:rpcError}=planned
       ?await app.db.rpc('save_planned_training_session',{p_save:saveArgs})
       :await app.db.rpc('save_training_session_player_results',saveArgs);

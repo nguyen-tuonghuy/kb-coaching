@@ -2122,56 +2122,22 @@ test('training-live sends instance and token headers and PostgreSQL guards all l
   assert.match(migrationSource,/trg_training_live_events_edit_lease/);
 });
 
-test('late poll integration requires confirmation and leaves local work and official statistics intact',async t=>{
-  const ui={};t.after(()=>ui.page?.close());
-  const app=await open(ui,{existing:true});
-  const original=app.db.rpc.bind(app.db);
-  app.db.rpc=(name,args)=>name==='get_training_attendance_poll'?Promise.resolve({data:{
-    is_open:true,initialized_at:'2026-03-04T10:00:00Z',deadline:null,
-    players:[{id:'p1',name:'Ana Ruiz',availability:'absent',late:true},
-      {id:'p2',name:'Bo Martin',availability:'present',late:true}]
-  },error:null}):original(name,args);
-  const panel=ui.page.$('#trainingPoll');
-  const opened=new Promise(resolve=>panel.addEventListener('toggle',resolve,{once:true}));
-  panel.open=true;
-  await opened;
-  await settle();
-  const checked=()=>Array.from(ui.page.w.document.querySelectorAll('#trainingAttendance input:checked'),input=>input.value);
-  const integrate=()=>ui.page.$('[data-poll-action="late"]').click();
-  assert.deepEqual(checked(),['p1']);
-  const initialTheme=ui.page.$('#trainingTheme').value;
-  ui.page.$('#trainingTheme').value='Brouillon à conserver';
-  integrate();
-  await settle();
-  assert.match(ui.page.$('#trainingPollStatus').textContent,/Synchronise la séance/);
-  assert.deepEqual(checked(),['p1']);
-  assert.equal(ui.page.$('#trainingTheme').value,'Brouillon à conserver');
-  ui.page.$('#trainingTheme').value=initialTheme;
-  integrate();
-  await settle();
-  assert.deepEqual(checked(),['p1'],'cancelling leaves the roster intact');
-  ui.page.w.confirm=()=>true;
-  integrate();
-  await settle();
-  assert.deepEqual(checked(),['p2']);
-  await runCloudAutosave(ui);
-  const {p_attendance,p_results}=rpcCalls(ui).at(-1).values;
-  assert.deepEqual(p_attendance.map(row=>[row.player_id,row.present]),[['p1',false],['p2',true]]);
-  assert.equal(p_results.some(row=>row.player_id==='p1'),false,'absent player’s official result is not rewritten');
-});
-
 test('the poll summary shows four named counts and starts only from the explicit action',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui,{existing:true});
   const original=app.db.rpc.bind(app.db);
   const calls=[];
+  let startedAt=null;
   app.db.rpc=async(name,args)=>{
     calls.push(name);
-    if(name==='get_training_attendance_poll')return {data:{is_open:true,players:[
+    if(name==='get_training_attendance_poll')return {data:{is_open:!startedAt,started_at:startedAt,players:[
       {id:'p1',name:'Ana Ruiz',availability:'present'}, {id:'p2',name:'Bo Martin',availability:'absent'},
       {id:'p3',name:'Camille',availability:'unsure'}, {id:'p4',name:'Dana',availability:null}
     ]},error:null};
-    if(name==='start_training_attendance_session')return {data:{present:['p1'],version:2,started_at:'2026-03-04T10:00:00Z',updated_at:'2026-03-04T10:00:00Z'},error:null};
+    if(name==='start_training_attendance_session'){
+      startedAt='2026-03-04T10:00:00Z';
+      return {data:{present:['p1'],version:2,started_at:startedAt,updated_at:startedAt},error:null};
+    }
     return original(name,args);
   };
   const panel=ui.page.$('#trainingPoll');
@@ -2183,33 +2149,88 @@ test('the poll summary shows four named counts and starts only from the explicit
   panel.querySelector('[data-poll-action="start"]').click();await settle();
   assert.equal(calls.filter(name=>name==='start_training_attendance_session').length,1);
   assert.equal(app.trainingLocalState.baseVersion,2);
-  assert.equal(panel.querySelector('[data-poll-action="start"]'),null);
+  for(const action of ['start','trigger','open','publish','remind']){
+    assert.equal(panel.querySelector(`[data-poll-action="${action}"]`),null);
+  }
+  assert.equal(panel.querySelector('[data-poll-player]'),null);
+  assert.equal(panel.querySelectorAll('section').length,4);
+  ui.page.$('#trainingAttendance input[value="p2"]').click();
+  assert.equal(ui.page.$('#trainingAttendance input[value="p2"]').checked,true);
+  assert.equal(calls.includes('answer_training_attendance_poll'),false);
+  ui.page.$('#trainingAttendance input[value="p2"]').click();
   assert.equal(app.trainingSessionIsDirty(),false);
 });
 
-test('a coach override is shown but excluded from proposed edits, and can be dismissed by revision',async t=>{
+test('future date clears only automatic roster defaults in the ordinary new-session path',async t=>{
   const ui={};t.after(()=>ui.page?.close());
-  const app=await open(ui,{existing:true});
-  const original=app.db.rpc.bind(app.db);
-  const revision='2026-03-04T10:00:00.000001Z';
-  const alice={id:'p1',name:'Ana Ruiz',availability:'absent',late:true,manual:true,revision};
-  const bob={id:'p2',name:'Bo Martin',availability:'present',late:true};
-  let dismissal;
-  app.db.rpc=async(name,args)=>{
-    if(name==='get_training_attendance_poll')return {data:{is_open:true,players:[alice,bob]},error:null};
-    if(name==='dismiss_training_attendance_change'){dismissal=args;alice.dismissed=true;return {error:null}}
-    return original(name,args);
-  };
-  const panel=ui.page.$('#trainingPoll');
-  const toggled=new Promise(resolve=>panel.addEventListener('toggle',resolve,{once:true}));
-  panel.open=true;await toggled;await settle();
-  assert.match(panel.querySelector('[data-poll-differences]').textContent,/correction du coach conservée/);
-  assert.match(panel.querySelector('[data-poll-action="late"]').textContent,/\(1\)/);
-  panel.querySelector('[data-player="p1"]').click();await settle();
-  assert.deepEqual({...dismissal},{p_session:'s1',p_player:'p1',p_revision:revision});
-  assert.doesNotMatch(panel.querySelector('[data-poll-differences]').textContent,/Ana Ruiz/);
-  ui.page.w.confirm=message=>{assert.doesNotMatch(message,/Ana Ruiz/);return true};
-  panel.querySelector('[data-poll-action="late"]').click();await settle();
-  assert.equal(ui.page.$('#trainingAttendance input[value="p1"]').checked,true);
-  assert.equal(ui.page.$('#trainingAttendance input[value="p2"]').checked,true);
+  const app=await open(ui);
+  const input=id=>ui.page.$(`#trainingAttendance input[value="${id}"]`);
+  assert.equal(input('p1').checked,true);
+  assert.equal(input('p2').checked,true);
+  const date=ui.page.$('#trainingDate'),initialDate=date.value;
+  const setDate=value=>{date.value=value;date.dispatchEvent(new ui.page.w.Event('change',{bubbles:true}))};
+  setDate('16/01/2099');
+  assert.equal(input('p1').checked,false);
+  assert.equal(input('p2').checked,false);
+  input('p2').click();
+  setDate(initialDate);
+  assert.equal(input('p1').checked,true);
+  setDate('17/01/2099');
+  assert.equal(input('p1').checked,false);
+  assert.equal(input('p2').checked,true);
+  const draft=app.trainingEditorDocument();
+  await app.applyTrainingEditorDocument(draft,{loadPlayers:false});
+  setDate(initialDate);
+  assert.equal(input('p1').checked,true,'restored draft retains automatic provenance');
+  setDate('17/01/2099');
+  await app.saveTrainingSession();
+  const save=rpcCalls(ui).at(-1);
+  assert.equal(save.mode,'save_planned_training_session');
+  assert.deepEqual(save.values.p_attendance.map(row=>[row.player_id,row.present]),[['p1',false],['p2',true]]);
 });
+
+for(const confirmPublish of [false,true]){
+  test(`preparation and edits keep polling voluntary with Discord ${confirmPublish?'failure':'declined'}`,async t=>{
+    const ui={};t.after(()=>ui.page?.close());
+    const app=await open(ui,{duplicated:true});
+    const original=app.db.rpc.bind(app.db),mutations=[];
+    let poll=null,confirmations=0;
+    app.db.rpc=async(name,args)=>{
+      if(name==='get_training_attendance_poll')return {data:poll,error:null};
+      if(name==='manage_training_attendance_poll'){
+        mutations.push('open');
+        poll={is_open:args.p_open,players:[]};
+        return {error:null};
+      }
+      return original(name,args);
+    };
+    app.db.functions={invoke:async()=>{
+      mutations.push('discord');
+      return {error:{context:new Response(JSON.stringify({error:'Discord indisponible'}))}};
+    }};
+    ui.page.w.confirm=()=>{confirmations++;assert.equal(poll.is_open,true);return confirmPublish};
+    const date=ui.page.$('#trainingDate');
+    for(const [day,theme] of [['21/12/2098','Première préparation'],['22/12/2098','Préparation affinée']]){
+      date.value=day;
+      editTheme(ui,theme);
+      await runCloudAutosave(ui);
+    }
+    assert.equal(rpcCalls(ui).length,2);
+    assert.deepEqual(mutations,[]);
+    assert.equal(confirmations,0);
+    const panel=ui.page.$('#trainingPoll');
+    const toggled=new Promise(resolve=>panel.addEventListener('toggle',resolve,{once:true}));
+    panel.open=true;await toggled;await settle();
+    assert.match(panel.querySelector('[data-poll-action="trigger"]').textContent,/Déclencher le sondage/);
+    panel.querySelector('[data-poll-action="trigger"]').click();await settle();
+    assert.deepEqual(mutations,confirmPublish?['open','discord']:['open']);
+    assert.equal(confirmations,1);
+    assert.equal(poll.is_open,true);
+    if(confirmPublish)assert.match(ui.page.$('#trainingPollStatus').textContent,/Discord indisponible.*reste ouvert/);
+    poll.players=[{id:'p1',name:'Ana Ruiz',availability:'present'}];
+    editTheme(ui,'Modification après ouverture');
+    await runCloudAutosave(ui);await settle();
+    assert.deepEqual(mutations,confirmPublish?['open','discord']:['open']);
+    assert.match(panel.textContent,/Présent \(1\).*Ana Ruiz/s);
+  });
+}
