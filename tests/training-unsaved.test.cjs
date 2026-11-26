@@ -89,7 +89,7 @@ function store({writable=false}={}){
     rpc:async(name,params)=>{
       mutations.push({table:'rpc',mode:name,values:clone(params??null)});
       if(!writable)return {data:null,error:{message:'store refuses rpc '+name}};
-      const req=(name==='save_planned_training_session'?params.p_save:params)||{};
+      const req=(name==='save_training_session_with_attendance_choices'?params.p_save:params)||{};
       if(name==='acquire_training_session_lease'){
         const current=tables.training_session_leases.find(row=>row.session_id===req.p_session_id);
         if(current)return {data:[{status:'held',holder_user_id:current.user_id,holder_name:'Lucas',lease_token:null,expires_at:current.expires_at}],error:null};
@@ -146,7 +146,7 @@ function store({writable=false}={}){
         if(req.p_expected_version!==tables.training_tactical_diagrams[index].version)return {data:null,error:{code:'40001',message:'Conflit de version du schéma tactique'}};
         tables.training_tactical_diagrams.splice(index,1);return {data:true,error:null};
       }
-      if(!['save_training_session_player_results','save_planned_training_session'].includes(name))throw new Error('Unexpected rpc '+name);
+      if(name!=='save_training_session_with_attendance_choices')throw new Error('Unexpected rpc '+name);
       if(!req.p_group_id)return {data:null,error:{message:'Groupe requis'}};
       if(!req.p_team_id)return {data:null,error:{message:'Équipe requise'}};
       const stamp='2026-03-04T10:00:00.'+String(nextId).padStart(3,'0')+'Z';
@@ -548,7 +548,7 @@ test('a refused save keeps the session dirty',async t=>{
   page.$('#trainingTheme').value='Mon theme';
   await app.saveTrainingSession();
   await settle();
-  assert.ok(mutations.some(m=>m.table==='rpc'&&m.mode==='save_training_session_player_results'),'the write was attempted');
+  assert.ok(mutations.some(m=>m.table==='rpc'&&m.mode==='save_training_session_with_attendance_choices'),'the write was attempted');
   assert.equal(tables.training_sessions.length,0);
   assert.match(page.$('#trainingCloudStatus').textContent,/refuses rpc/);
   assert.equal(app.trainingSessionIsDirty(),true,'a refused save must not clear the baseline');
@@ -1023,8 +1023,8 @@ test('draft card uses the shared light surface, not the legacy dark theme',()=>{
 // --- Lot B: la sauvegarde passe exclusivement par la RPC G2 transactionnelle ---
 
 const CHILD_TABLES=['training_attendance','training_session_exercises','training_results'];
-const rpcCalls=ui=>ui.mutationsRef.filter(m=>m.table==='rpc'&&['save_training_session_player_results','save_planned_training_session'].includes(m.mode))
-  .map(m=>m.mode==='save_planned_training_session'?{...m,values:m.values.p_save}:m);
+const rpcCalls=ui=>ui.mutationsRef.filter(m=>m.table==='rpc'&&m.mode==='save_training_session_with_attendance_choices')
+  .map(m=>({...m,planned:m.values.p_planned,values:m.values.p_save}));
 const directWrites=ui=>ui.mutationsRef.filter(m=>[...CHILD_TABLES,'training_sessions'].includes(m.table)
   && ['insert','update','delete','upsert'].includes(m.mode));
 const recoveryButton=(ui,text)=>[...ui.page.w.document.querySelectorAll('#trainingRecoveryActions button')]
@@ -1122,7 +1122,7 @@ test('an RPC failure keeps the session dirty and the local draft intact',async t
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui);
   const real=app.db.rpc;
-  app.db.rpc=async(name,params)=>(name==='save_training_session_player_results'
+  app.db.rpc=async(name,params)=>(name==='save_training_session_with_attendance_choices'
     ?{data:null,error:{message:'réseau indisponible'}}:real(name,params));
   ui.page.$('#trainingTheme').value='À conserver localement';
   await app.saveTrainingSession();await settle();
@@ -1316,7 +1316,7 @@ test('the online event reschedules an unsynced autosave immediately',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui,{existing:true});
   const real=app.db.rpc;
-  app.db.rpc=async(name,params)=>(name==='save_training_session_player_results'
+  app.db.rpc=async(name,params)=>(name==='save_training_session_with_attendance_choices'
     ?{data:null,error:{message:'réseau indisponible'}}:real(name,params));
   editTheme(ui,'Reconnexion');
   await runCloudAutosave(ui);
@@ -1355,7 +1355,7 @@ test('visibilitychange during an in-flight save preserves the latest edit',async
   const app=await open(ui,{existing:true});
   const real=app.db.rpc;
   let release;const gate=new Promise(resolve=>{release=resolve});
-  app.db.rpc=async(name,params)=>{if(name==='save_training_session_player_results')await gate;return real(name,params)};
+  app.db.rpc=async(name,params)=>{if(name==='save_training_session_with_attendance_choices')await gate;return real(name,params)};
   editTheme(ui,'Avant envoi');
   const saving=app.saveTrainingSession();await settle();
   editTheme(ui,'Pendant envoi');
@@ -1371,7 +1371,7 @@ test('a concurrent local revision is not forgotten when cloud save cannot remove
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui,{existing:true});
   const real=app.db.rpc;let release;const gate=new Promise(resolve=>{release=resolve});
-  app.db.rpc=async(name,params)=>{if(name==='save_training_session_player_results')await gate;return real(name,params)};
+  app.db.rpc=async(name,params)=>{if(name==='save_training_session_with_attendance_choices')await gate;return real(name,params)};
   editTheme(ui,'Version envoyée');
   const saving=app.saveTrainingSession();await settle();
   const identity=app.trainingDraftIdentity();
@@ -1387,7 +1387,7 @@ test('a concurrent local revision is not forgotten when cloud save cannot remove
 test('pagehide during initial creation does not invalidate the in-flight response',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui);const real=app.db.rpc;let release;
-  app.db.rpc=async(name,params)=>name==='save_training_session_player_results'
+  app.db.rpc=async(name,params)=>name==='save_training_session_with_attendance_choices'
     ?new Promise(resolve=>{release=()=>real(name,params).then(resolve)})
     :real(name,params);
   editTheme(ui,'Création interrompue');
@@ -1626,7 +1626,7 @@ test('finishing while the initial creation is in flight waits for the lease befo
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui);editTheme(ui,'Création en cours');
   const realRpc=app.db.rpc;let release;
-  app.db.rpc=async(name,params)=>name==='save_training_session_player_results'
+  app.db.rpc=async(name,params)=>name==='save_training_session_with_attendance_choices'
     ?new Promise(resolve=>{release=()=>realRpc(name,params).then(resolve)})
     :realRpc(name,params);
   const saving=app.saveTrainingSession();await settle();
@@ -1667,7 +1667,7 @@ test('finishing re-checks an edit made while the save was in flight',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui);
   const real=app.db.rpc;let release;const gate=new Promise(resolve=>{release=resolve});
-  app.db.rpc=async(name,params)=>{if(name==='save_training_session_player_results')await gate;return real(name,params)};
+  app.db.rpc=async(name,params)=>{if(name==='save_training_session_with_attendance_choices')await gate;return real(name,params)};
   editTheme(ui,'Première');
   const saving=app.saveTrainingSession();await settle();
   ui.page.$('#cancelTraining').click();await settle();
@@ -1682,7 +1682,7 @@ test('finishing with a failing save keeps the draft and never reports synchronis
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui);
   const real=app.db.rpc;
-  app.db.rpc=async(name,params)=>(name==='save_training_session_player_results'?{data:null,error:{message:'réseau indisponible'}}:real(name,params));
+  app.db.rpc=async(name,params)=>(name==='save_training_session_with_attendance_choices'?{data:null,error:{message:'réseau indisponible'}}:real(name,params));
   editTheme(ui,'À conserver');
   ui.page.$('#cancelTraining').click();await settle();await settle();
   assert.equal(ui.page.$('#trainingSession').classList.contains('hidden'),false,'the editor stays open when the save failed');
@@ -2185,8 +2185,10 @@ test('future date clears only automatic roster defaults in the ordinary new-sess
   setDate('17/01/2099');
   await app.saveTrainingSession();
   const save=rpcCalls(ui).at(-1);
-  assert.equal(save.mode,'save_planned_training_session');
+  assert.equal(save.planned,true);
   assert.deepEqual(save.values.p_attendance.map(row=>[row.player_id,row.present]),[['p1',false],['p2',true]]);
+  assert.equal(save.values.p_attendance[0].coach_choice,undefined);
+  assert.equal(save.values.p_attendance[1].coach_choice,true);
 });
 
 for(const confirmPublish of [false,true]){
@@ -2240,3 +2242,29 @@ for(const confirmPublish of [false,true]){
     assert.match(panel.textContent,/Présent \(1\).*Ana Ruiz/s);
   });
 }
+
+test('issue 5 dates and draft restoration never turn a default into a coach choice',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui);
+  const date=ui.page.$('#trainingDate'),today=date.value;
+  const move=value=>{date.value=value;date.dispatchEvent(new ui.page.w.Event('change',{bubbles:true}))};
+  move('20/12/2099');
+  assert.equal(ui.page.w.document.querySelectorAll('#trainingAttendance input:checked').length,0);
+  move(today);
+  assert.equal(ui.page.w.document.querySelectorAll('#trainingAttendance input:checked').length,2);
+  const first=ui.page.$('#trainingAttendance input[value="p1"]');
+  first.click();first.click();
+  assert.equal(app.trainingSessionIsDirty(),true,'reaffirming a default value is an explicit choice');
+  const draft=app.trainingEditorDocument();
+  await app.applyTrainingEditorDocument(draft,{loadPlayers:false});
+  await app.saveTrainingSession();
+  const saved=rpcCalls(ui).at(-1);
+  assert.equal(saved.planned,false);
+  assert.deepEqual(saved.values.p_attendance,[{player_id:'p1',present:true,coach_choice:true},{player_id:'p2',present:true}]);
+
+  await app.startNewTraining({withoutAttendance:true});
+  assert.equal(ui.page.w.document.querySelectorAll('#trainingAttendance input:checked').length,0);
+  await app.saveTrainingSession();
+  assert.equal(rpcCalls(ui).at(-1).planned,true);
+  assert.ok(rpcCalls(ui).at(-1).values.p_attendance.every(row=>!row.present&&!row.coach_choice));
+});

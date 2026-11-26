@@ -40,7 +40,7 @@ app.applyTrainingAttendancePreset = function applyTrainingAttendancePreset(){
   const selectionId=select.value||'';
   const selection=selectionId?(app.trainingState.selections||[]).find(s=>s.id===selectionId):null;
   const allowed=selection?new Set(selection.player_ids||[]):null;
-  app.$$('#trainingAttendance input').forEach(c=>{c.checked=allowed?allowed.has(c.value):true;delete c.dataset.attendanceDefault});
+  app.$$('#trainingAttendance input').forEach(c=>{c.checked=allowed?allowed.has(c.value):true;markTrainingAttendanceChoice(c)});
   if(status)status.textContent=selection?`${selection.name} · ${selection.player_ids.length} joueur${selection.player_ids.length>1?'s':''} précoché${selection.player_ids.length>1?'s':''}.`:'Tout le groupe est précoché.';
   app.renderTrainingExerciseCards();
 };
@@ -102,6 +102,11 @@ function trainingDateIsFuture(date){
   return date>trainingDateInParis.format(new Date());
 }
 
+function markTrainingAttendanceChoice(input){
+  delete input.dataset.attendanceDefault;
+  if(!app.trainingState.attendanceStartedAt)input.dataset.coachChoice='true';
+}
+
 function updateTrainingAttendanceDefaults(){
   if(app.trainingState.currentSessionId||app.trainingState.planWithoutAttendance)return;
   let checked;
@@ -126,7 +131,7 @@ app.renderTrainingAttendance = function renderTrainingAttendance(){
     const l=document.createElement('label');l.className='check';
     const c=document.createElement('input');c.type='checkbox';c.value=p.id;c.dataset.name=p.display_name;c.checked=!app.trainingState.planWithoutAttendance;
     if(!app.trainingState.currentSessionId&&!app.trainingState.planWithoutAttendance)c.dataset.attendanceDefault='true';
-    c.onchange=()=>{delete c.dataset.attendanceDefault;app.renderTrainingExerciseCards()};
+    c.onchange=()=>{markTrainingAttendanceChoice(c);app.renderTrainingExerciseCards()};
     l.append(c,document.createTextNode(p.display_name));box.append(l);
   });
   updateTrainingAttendanceDefaults();
@@ -197,6 +202,8 @@ const exercises=[...app.trainingState.sessionExercises]
     planStart:app.normalizePlanTime(app.$('#trainingPlanStart')?.value||''),
     plan:blocks,
     present,
+    attendanceChoices:app.trainingState.attendanceStartedAt?[]:
+      app.$$('#trainingAttendance input[data-coach-choice]').map(input=>input.value).sort(),
     exercises,
     results
   });
@@ -411,7 +418,8 @@ app.trainingEditorDocument = function trainingEditorDocument({capture=true}={}){
     sessionExercises:JSON.parse(JSON.stringify((app.trainingState.sessionExercises||[]).map(({expanded,...exercise})=>exercise))),
     attendance:app.$$('#trainingAttendance input').map(input=>({
       playerId:input.value,present:!!input.checked,
-      ...(!app.trainingState.currentSessionId&&input.dataset.attendanceDefault===String(input.checked)?{usesDefault:true}:{})
+      ...(!app.trainingState.currentSessionId&&input.dataset.attendanceDefault===String(input.checked)?{usesDefault:true}:{}),
+      ...(!app.trainingState.attendanceStartedAt&&input.dataset.coachChoice?{coachChoice:true}:{})
     })),
     resultDraft:JSON.parse(JSON.stringify(app.trainingState.resultDraft||{}))
   };
@@ -762,6 +770,8 @@ app.applyTrainingEditorDocument = async function applyTrainingEditorDocument(doc
     input.checked=!!item?.present;
     if(!app.trainingState.currentSessionId&&item?.usesDefault)input.dataset.attendanceDefault=String(input.checked);
     else delete input.dataset.attendanceDefault;
+    if(item?.coachChoice&&!app.trainingState.attendanceStartedAt)input.dataset.coachChoice='true';
+    else delete input.dataset.coachChoice;
   });
   app.syncPlanStatExercises();app.renderTrainingExerciseCards({capture:false});app.renderTrainingPlan();app.autoGrowPlanTextarea(app.$('#trainingNotes'));
 };
@@ -2632,15 +2642,19 @@ app.editTrainingSessionById = async function editTrainingSessionById(sessionId,{
 app.addTrainingPlayers = async function addTrainingPlayers(){
   const names=app.$('#trainingAddPlayers').value.split(',').map(x=>x.trim()).filter(Boolean);
   if(!names.length)return;
-  const previous=new Map(app.$$('#trainingAttendance input').map(input=>[input.value,{checked:input.checked,defaultValue:input.dataset.attendanceDefault}]));
+  const previous=new Map(app.$$('#trainingAttendance input').map(input=>[input.value,{checked:input.checked,defaultValue:input.dataset.attendanceDefault,coachChoice:input.dataset.coachChoice}]));
   await app.ensurePlayers(names);
   await app.fetchTrainingPlayers();
   const wanted=new Set(names.map(x=>x.toLowerCase()));
   app.$$('#trainingAttendance input').forEach(c=>{
     const old=previous.get(c.value),added=wanted.has(c.dataset.name.toLowerCase());
     c.checked=added||!!old?.checked;
-    if(!added&&old?.defaultValue!==undefined)c.dataset.attendanceDefault=old.defaultValue;
-    else delete c.dataset.attendanceDefault;
+    if(added)markTrainingAttendanceChoice(c);
+    else{
+      if(old?.defaultValue!==undefined)c.dataset.attendanceDefault=old.defaultValue;
+      else delete c.dataset.attendanceDefault;
+      if(old?.coachChoice)c.dataset.coachChoice=old.coachChoice;
+    }
   });
   app.renderTrainingExerciseCards();
 };
@@ -2751,7 +2765,7 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
     if(withoutFocus){if(autosave)app.setTrainingCloudStatus('incomplete');else app.trainingStatus(`Choisis le focus Attaque ou Défense pour « ${withoutFocus.name} ».`,true);return}
 
     // La sauvegarde transite exclusivement par l'enveloppe transactionnelle occurrence-aware
-    // save_training_session_player_results (SECURITY INVOKER) : aucune écriture directe sur les tables
+    // qui délègue à save_training_session_player_results : aucune écriture directe sur les tables
     // enfants (training_attendance, training_session_exercices, training_results) ne
     // subsiste ici. Les autorisations sont contrôlées par les policies RLS du parent ;
     // les appels aux fonctions du schéma private ne sont pas réintroduits.
@@ -2784,7 +2798,8 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
     }
     const duration=saveDocument.fields.duration?Number(saveDocument.fields.duration):null;
 
-    const attendance=saveDocument.attendance.map(item=>({player_id:item.playerId,present:!!item.present}));
+    const attendance=saveDocument.attendance.map(item=>({player_id:item.playerId,present:!!item.present,
+      ...(item.coachChoice?{coach_choice:true}:{})}));
     const sessionExercises=saveDocument.sessionExercises.map((ex,i)=>({
       exercise_id:ex.id,position:i+1,variant:ex.variant||null,target:ex.target||null,focus:app.isDualExercise(ex)?ex.focus:null
     }));
@@ -2837,9 +2852,9 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
       p_force:!!forceOverwrite
     };
     const planned=!sessionId&&(saveDocument.fields.attendancePlanned||!presentIds.size||trainingDateIsFuture(date));
-    const {data:rpcResult,error:rpcError}=planned
-      ?await app.db.rpc('save_planned_training_session',{p_save:saveArgs})
-      :await app.db.rpc('save_training_session_player_results',saveArgs);
+    const {data:rpcResult,error:rpcError}=await app.db.rpc('save_training_session_with_attendance_choices',{
+      p_save:saveArgs,p_planned:planned
+    });
     if(operationEpoch!==lease.epoch){
       app.persistTrainingLocalDraft({checkpointReason:'Réponse de sauvegarde ignorée',scheduleCloud:false});
       return;

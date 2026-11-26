@@ -6,7 +6,7 @@ Le prochain entraînement réel est prévu le **dimanche 20 décembre 2026**. R�
 
 ### 1. Préparer la sauvegarde et le retour arrière
 
-- Relever le commit actuellement servi par GitHub Pages, la référence exacte du projet Supabase, les trois versions à appliquer et l’état du déploiement de la fonction. Garder la liste des comptes et groupes de test dans un espace privé.
+- Relever le commit actuellement servi par GitHub Pages, la référence exacte du projet Supabase, les versions encore à appliquer et l’état du déploiement de la fonction. Garder la liste des comptes et groupes de test dans un espace privé.
 - Vérifier dans **Database → Backups** la disponibilité et la fraîcheur du point de restauration. Juste avant la fenêtre, disposer d’une sauvegarde ou d’un point PITR vérifié et relever son horodatage. Si le point disponible laisse un intervalle de perte inacceptable, faire réaliser une sauvegarde logique vérifiée, avec le schéma, les données et les éléments Auth et rôles nécessaires à une restauration. Garder les exports chiffrés et hors du dépôt. Distinguer la sauvegarde de base des fichiers Storage et des secrets Edge, gérés séparément.
 - Identifier la personne habilitée à restaurer, les opérations susceptibles de se produire après le point de sauvegarde et le temps de remise en service. Capturer aussi la définition et les privilèges de la RPC de statistiques en vigueur pour un éventuel correctif ciblé. Reporter l’intervention si le point de retour ou sa procédure manque.
 
@@ -17,8 +17,9 @@ Après accord, comparer `supabase_migrations.schema_migrations` au dépôt et ex
 1. `20261126073554_training_attendance_polls.sql`
 2. `20261126080225_training_attendance_review.sql`
 3. `20261126085216_finalize_training_attendance_poll.sql`
+4. `20261126110321_correct_training_poll_initialization.sql`
 
-Les colonnes de séance ajoutées ont des valeurs compatibles avec les écritures de l’ancien client. Les contrats de sauvegarde, de bail et de collecte existants gardent leurs signatures. La RPC de statistiques conserve sa signature et sa structure, avec un filtre qui exclut déjà les séances futures et les préparations non démarrées dès l’application SQL. Comparer les résultats du passé et les dénominateurs attendus séparément. Le frontend de la branche attend les trois migrations.
+Les colonnes de séance ajoutées ont des valeurs compatibles avec les écritures de l’ancien client. Les contrats de sauvegarde, de bail et de collecte existants gardent leurs signatures. La RPC de statistiques conserve sa signature et sa structure, avec un filtre qui exclut déjà les séances futures et les préparations non démarrées dès l’application SQL. Comparer les résultats du passé et les dénominateurs attendus séparément. Le frontend de la correction attend la quatrième migration. Appliquer celle-ci avant la publication du frontend. Les anciens appels de sauvegarde restent accessibles aux clients déjà chargés.
 
 Tant que GitHub Pages sert encore l’ancien frontend, vérifier avec les comptes et les séances du groupe fictif la connexion, la consultation de l’historique, le chargement des statistiques et l’enregistrement d’une séance ordinaire avec bail. Vérifier qu’une collecte existante et ses résultats restent lisibles. Arrêter la procédure dès qu’un de ces contrôles échoue.
 
@@ -36,6 +37,12 @@ L’enregistrement, l’autosauvegarde et la duplication laissent la préparatio
 Le bouton **Démarrer la séance** dans le panneau **Sondage de présence** applique une seule fois les réponses positives, en respectant les corrections de présence déjà enregistrées, puis ferme le sondage dans la même transaction, même avec zéro présent. Il est disponible à partir de la date de séance en heure de Paris. À partir du démarrage, les réponses du sondage restent consultables et leur édition, sa réouverture et sa relance sont désactivées. Les ajustements se font directement dans les présences effectives.
 
 Une nouvelle séance future du parcours ordinaire ne garde que les choix de présence explicites. Les présélections automatiques se décochent dès que la date devient future. Les séances ordinaires du jour gardent leur présélection habituelle. Jusqu’au démarrage, une séance planifiée est hors historique et hors dénominateur d’assiduité. Les séances futures sont également exclues. Les séances historiques ordinaires suivent le calcul existant. Une séance planifiée doit être démarrée dans son éditeur avant de lancer une collecte en direct ou d’ouvrir la saisie individuelle.
+
+## Correction du préremplissage (issue #5)
+
+Le marqueur `initialized_at` est désormais fixé à la première action **Démarrer la séance**, y compris pour un sondage fermé manuellement. La migration ne réécrit aucune séance ni marqueur. Un ancien marqueur anticipé est remplacé uniquement quand la séance concernée démarre effectivement. Les présences construites à partir d’un sondage combinent les réponses positives du groupe actif et les choix de présence explicites du coach. Les anciennes séances déjà démarrées et les listes associées à des résultats ou à une collecte sont protégées. Le démarrage sans sondage conserve la liste enregistrée.
+
+Pour une séance déjà démarrée avec une liste incorrecte, ne pas relancer le démarrage. Après validation du coach, comparer dans le groupe concerné les réponses affichées, les présences réelles confirmées et les collectes ou résultats déjà saisis. Corriger seulement les cases nécessaires dans l’éditeur de cette séance, avec son bail et son contrôle de version, puis vérifier les résultats et l’historique. Conserver le sondage et les marqueurs comme trace. Les anciens marqueurs de correction manuelle ne permettent pas toujours de déterminer si une case avait été cochée par défaut. En cas de doute, faire confirmer la liste par le coach. Toute correction sur des données réelles nécessite une validation préalable.
 
 ## Scénarios du groupe de recette
 

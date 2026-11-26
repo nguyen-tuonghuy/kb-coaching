@@ -46,7 +46,7 @@ test('arbitration is optimistic and general saves are occurrence-aware',()=>{
   assert.match(sql,/v_r\.result_version is distinct from p_expected_result_version/);
   assert.match(sql,/jsonb_build_object\('status','conflict'/);
   assert.match(integrity,/create or replace function public\.save_training_session_player_results/);
-  assert.match(sessions,/rpc\('save_training_session_player_results'/);
+  assert.match(sessions,/rpc\('save_training_session_with_attendance_choices'/);
 });
 
 test('coach input is saved before locking; failed saves and unrelated edits stay in the draft',async()=>{
