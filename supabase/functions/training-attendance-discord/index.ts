@@ -4,6 +4,35 @@ const rejectedStatus = new Set([400, 401, 403, 404, 405, 429]);
 
 type Delivery = { id: string; trained_on: string; label: string | null; deadline: string | null };
 
+const trainingDate = new Intl.DateTimeFormat("fr-FR", { dateStyle: "full", timeZone: "UTC" });
+const responseDeadline = new Intl.DateTimeFormat("fr-FR", {
+  dateStyle: "full",
+  timeStyle: "short",
+  timeZone: "Europe/Paris",
+});
+
+function attendanceEmbed(delivery: Delivery, reminder: boolean, link: URL) {
+  const label = delivery.label?.trim().replace(/\s+/g, " ") || "Entraînement";
+  const name = Array.from(label).slice(0, 256).join("").replace(/[\\`*_~|<>[\]()#!]/g, "\\$&");
+  const date = trainingDate.format(new Date(delivery.trained_on + "T00:00:00Z"));
+  const lines = [`**Séance** · ${name}`, `**Date** · ${date}`];
+  if (delivery.deadline) {
+    const deadline = responseDeadline.format(new Date(delivery.deadline));
+    lines.push(`**Échéance de réponse** · ${deadline} (heure de Paris)`);
+  }
+  const target = link.href.replaceAll("(", "%28").replaceAll(")", "%29");
+  lines.push(
+    "",
+    "Merci d'indiquer votre disponibilité pour cet entraînement : présent, absent ou incertain.",
+    `[Répondre au sondage sur Kinball Coach](${target})`,
+  );
+  return {
+    title: reminder ? "Rappel — Sondage de présence" : "📋 Sondage de présence",
+    description: lines.join("\n"),
+    footer: { text: "Kinball Coach · Gestion des entraînements" },
+  };
+}
+
 Deno.serve(async (request) => {
   const publicUrl = Deno.env.get("TRAINING_ATTENDANCE_APP_URL") ??
     "https://nguyen-tuonghuy.github.io/kb-coaching/";
@@ -77,9 +106,6 @@ Deno.serve(async (request) => {
     const link = new URL(appUrl);
     link.searchParams.set("player_group", group);
     link.searchParams.set("training_poll", input.session_id);
-    const prefix = input.reminder ? "Relance · Sondage de présence" : "Sondage de présence";
-    const [year, month, day] = delivery.trained_on.split("-");
-    const deadline = delivery.deadline ? "\nÉchéance <t:" + Math.floor(Date.parse(delivery.deadline) / 1000) + ":f>" : "";
     let state = "unknown";
     try {
       const result = await fetch(url + "?wait=true", {
@@ -87,8 +113,7 @@ Deno.serve(async (request) => {
         redirect: "error",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          content: prefix + " · " + day + "/" + month + "/" + year + deadline + "\nRépondre sur Kinball Coach\n" + link.href,
-          embeds: delivery.label ? [{ title: delivery.label.slice(0, 256) }] : [],
+          embeds: [attendanceEmbed(delivery, input.reminder, link)],
           allowed_mentions: { parse: [] },
         }),
         signal: AbortSignal.timeout(8000),
