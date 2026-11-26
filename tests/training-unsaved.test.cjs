@@ -89,7 +89,7 @@ function store({writable=false}={}){
     rpc:async(name,params)=>{
       mutations.push({table:'rpc',mode:name,values:clone(params??null)});
       if(!writable)return {data:null,error:{message:'store refuses rpc '+name}};
-      const req=params||{};
+      const req=(name==='save_planned_training_session'?params.p_save:params)||{};
       if(name==='acquire_training_session_lease'){
         const current=tables.training_session_leases.find(row=>row.session_id===req.p_session_id);
         if(current)return {data:[{status:'held',holder_user_id:current.user_id,holder_name:'Lucas',lease_token:null,expires_at:current.expires_at}],error:null};
@@ -146,7 +146,7 @@ function store({writable=false}={}){
         if(req.p_expected_version!==tables.training_tactical_diagrams[index].version)return {data:null,error:{code:'40001',message:'Conflit de version du schéma tactique'}};
         tables.training_tactical_diagrams.splice(index,1);return {data:true,error:null};
       }
-      if(name!=='save_training_session_player_results')throw new Error('Unexpected rpc '+name);
+      if(!['save_training_session_player_results','save_planned_training_session'].includes(name))throw new Error('Unexpected rpc '+name);
       if(!req.p_group_id)return {data:null,error:{message:'Groupe requis'}};
       if(!req.p_team_id)return {data:null,error:{message:'Équipe requise'}};
       const stamp='2026-03-04T10:00:00.'+String(nextId).padStart(3,'0')+'Z';
@@ -427,7 +427,7 @@ test('choosing stay keeps the session and its edits',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui);
   // Unsyncable session: leaving asks the coach, so « Rester » can be exercised.
-  ui.page.w.document.querySelectorAll('#trainingAttendance input').forEach(input=>{input.checked=false});
+  ui.page.$('#trainingGroup').value='';
   ui.page.$('#trainingTheme').value='Mon theme';
   ui.page.$('#cancelTraining').click();
   await settle();
@@ -445,7 +445,7 @@ test('choosing to quit discards the edits and leaves the editor',async t=>{
   const app=await open(ui);
   // An incomplete session cannot be synchronised: leaving must ask explicitly
   // instead of silently saving.
-  ui.page.w.document.querySelectorAll('#trainingAttendance input').forEach(input=>{input.checked=false});
+  ui.page.$('#trainingGroup').value='';
   ui.page.$('#trainingTheme').value='Mon theme';
   ui.page.$('#cancelTraining').click();
   await settle();
@@ -462,7 +462,7 @@ test('choosing to quit discards the edits and leaves the editor',async t=>{
 
 test('leaving an unsyncable session can preserve the local draft without marking it as cloud-saved',async t=>{
   const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
-  ui.page.w.document.querySelectorAll('#trainingAttendance input').forEach(input=>{input.checked=false});
+  ui.page.$('#trainingGroup').value='';
   ui.page.$('#trainingTheme').value='À reprendre';
   ui.page.$('#trainingTheme').dispatchEvent(new ui.page.w.Event('input',{bubbles:true}));
   ui.page.$('#cancelTraining').click();await settle();
@@ -945,7 +945,7 @@ test('local drafts stay visible even when a Supabase query errors',async t=>{
 
 test('leaving an unsyncable dirty session lists its draft on the home without manual refresh',async t=>{
   const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
-  ui.page.w.document.querySelectorAll('#trainingAttendance input').forEach(input=>{input.checked=false});
+  ui.page.$('#trainingGroup').value='';
   ui.page.$('#trainingTheme').value='Séance en cours';
   ui.page.$('#trainingTheme').dispatchEvent(new ui.page.w.Event('input',{bubbles:true}));
   await runAutosave(ui);
@@ -1023,7 +1023,8 @@ test('draft card uses the shared light surface, not the legacy dark theme',()=>{
 // --- Lot B: la sauvegarde passe exclusivement par la RPC G2 transactionnelle ---
 
 const CHILD_TABLES=['training_attendance','training_session_exercises','training_results'];
-const rpcCalls=ui=>ui.mutationsRef.filter(m=>m.table==='rpc'&&m.mode==='save_training_session_player_results');
+const rpcCalls=ui=>ui.mutationsRef.filter(m=>m.table==='rpc'&&['save_training_session_player_results','save_planned_training_session'].includes(m.mode))
+  .map(m=>m.mode==='save_planned_training_session'?{...m,values:m.values.p_save}:m);
 const directWrites=ui=>ui.mutationsRef.filter(m=>[...CHILD_TABLES,'training_sessions'].includes(m.table)
   && ['insert','update','delete','upsert'].includes(m.mode));
 const recoveryButton=(ui,text)=>[...ui.page.w.document.querySelectorAll('#trainingRecoveryActions button')]
@@ -1274,7 +1275,7 @@ test('reverting an edit prevents any cloud save',async t=>{
     'the local debounce also removes the reverted document');
 });
 
-test('an incomplete session stays "À compléter" without RPC nor dialog',async t=>{
+test('autosave accepts a planned session without attendance or exercises',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui);
   ui.page.w.document.querySelectorAll('#trainingAttendance input').forEach(input=>{
@@ -1282,9 +1283,10 @@ test('an incomplete session stays "À compléter" without RPC nor dialog',async 
   });
   editTheme(ui,'Incomplète');
   await runCloudAutosave(ui);
-  assert.equal(rpcCalls(ui).length,0);
-  assert.equal(cloudStatus(ui),'incomplete');
-  assert.equal(ui.page.$('#trainingRecoveryPopup').classList.contains('hidden'),true,'no dialog for an incomplete session');
+  assert.equal(rpcCalls(ui).length,1);
+  assert.ok(rpcCalls(ui)[0].values.p_attendance.every(item=>!item.present));
+  assert.equal(rpcCalls(ui)[0].values.p_exercises.length,0);
+  assert.equal(ui.page.$('#trainingRecoveryPopup').classList.contains('hidden'),true);
 });
 
 test('a failed autosave keeps the draft, reports the error and reschedules once',async t=>{
@@ -1462,7 +1464,7 @@ test('leaving the editor with unsynced changes preserves the draft',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui,{existing:true});
   // Force the unsyncable path so leaving asks the coach instead of auto-saving.
-  ui.page.$('#trainingAttendance input[value="p1"]').checked=false;
+  ui.page.$('#trainingGroup').value='';
   editTheme(ui,'Non synchronisé');
   ui.page.$('#cancelTraining').click();
   await settle();
@@ -2119,3 +2121,122 @@ test('training-live sends instance and token headers and PostgreSQL guards all l
   assert.match(migrationSource,/trg_training_live_periods_edit_lease/);
   assert.match(migrationSource,/trg_training_live_events_edit_lease/);
 });
+
+test('the poll summary shows four named counts and starts only from the explicit action',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  const original=app.db.rpc.bind(app.db);
+  const calls=[];
+  let startedAt=null;
+  app.db.rpc=async(name,args)=>{
+    calls.push(name);
+    if(name==='get_training_attendance_poll')return {data:{is_open:!startedAt,started_at:startedAt,players:[
+      {id:'p1',name:'Ana Ruiz',availability:'present'}, {id:'p2',name:'Bo Martin',availability:'absent'},
+      {id:'p3',name:'Camille',availability:'unsure'}, {id:'p4',name:'Dana',availability:null}
+    ]},error:null};
+    if(name==='start_training_attendance_session'){
+      startedAt='2026-03-04T10:00:00Z';
+      return {data:{present:['p1'],version:2,started_at:startedAt,updated_at:startedAt},error:null};
+    }
+    return original(name,args);
+  };
+  const panel=ui.page.$('#trainingPoll');
+  const toggled=new Promise(resolve=>panel.addEventListener('toggle',resolve,{once:true}));
+  panel.open=true;await toggled;await settle();
+  const summary=Array.from(panel.querySelectorAll('section'),section=>section.textContent);
+  for(const [index,expected] of [/Présent \(1\).*Ana Ruiz/,/Absent \(1\).*Bo Martin/,/Incertain \(1\).*Camille/,/Sans réponse \(1\).*Dana/].entries())assert.match(summary[index],expected);
+  assert.deepEqual(calls,['get_training_attendance_poll']);
+  panel.querySelector('[data-poll-action="start"]').click();await settle();
+  assert.equal(calls.filter(name=>name==='start_training_attendance_session').length,1);
+  assert.equal(app.trainingLocalState.baseVersion,2);
+  for(const action of ['start','trigger','open','publish','remind']){
+    assert.equal(panel.querySelector(`[data-poll-action="${action}"]`),null);
+  }
+  assert.equal(panel.querySelector('[data-poll-player]'),null);
+  assert.equal(panel.querySelectorAll('section').length,4);
+  ui.page.$('#trainingAttendance input[value="p2"]').click();
+  assert.equal(ui.page.$('#trainingAttendance input[value="p2"]').checked,true);
+  assert.equal(calls.includes('answer_training_attendance_poll'),false);
+  ui.page.$('#trainingAttendance input[value="p2"]').click();
+  assert.equal(app.trainingSessionIsDirty(),false);
+});
+
+test('future date clears only automatic roster defaults in the ordinary new-session path',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui);
+  const input=id=>ui.page.$(`#trainingAttendance input[value="${id}"]`);
+  assert.equal(input('p1').checked,true);
+  assert.equal(input('p2').checked,true);
+  const date=ui.page.$('#trainingDate'),initialDate=date.value;
+  const setDate=value=>{date.value=value;date.dispatchEvent(new ui.page.w.Event('change',{bubbles:true}))};
+  setDate('16/01/2099');
+  assert.equal(input('p1').checked,false);
+  assert.equal(input('p2').checked,false);
+  input('p2').click();
+  setDate(initialDate);
+  assert.equal(input('p1').checked,true);
+  setDate('17/01/2099');
+  assert.equal(input('p1').checked,false);
+  assert.equal(input('p2').checked,true);
+  const draft=app.trainingEditorDocument();
+  await app.applyTrainingEditorDocument(draft,{loadPlayers:false});
+  setDate(initialDate);
+  assert.equal(input('p1').checked,true,'restored draft retains automatic provenance');
+  setDate('17/01/2099');
+  await app.saveTrainingSession();
+  const save=rpcCalls(ui).at(-1);
+  assert.equal(save.mode,'save_planned_training_session');
+  assert.deepEqual(save.values.p_attendance.map(row=>[row.player_id,row.present]),[['p1',false],['p2',true]]);
+});
+
+for(const confirmPublish of [false,true]){
+  test(`preparation and edits keep polling voluntary with Discord ${confirmPublish?'failure':'declined'}`,async t=>{
+    const ui={};t.after(()=>ui.page?.close());
+    const app=await open(ui,{duplicated:true});
+    const original=app.db.rpc.bind(app.db),mutations=[];
+    let poll=null,confirmations=0;
+    app.db.rpc=async(name,args)=>{
+      if(name==='get_training_attendance_poll')return {data:poll,error:null};
+      if(name==='manage_training_attendance_poll'){
+        mutations.push('open');
+        poll={is_open:args.p_open,players:[]};
+        return {error:null};
+      }
+      return original(name,args);
+    };
+    app.db.functions={invoke:async()=>{
+      mutations.push('discord');
+      return {error:{context:new Response(JSON.stringify({error:'Discord indisponible'}))}};
+    }};
+    ui.page.w.confirm=()=>{confirmations++;assert.equal(poll.is_open,true);return confirmPublish};
+    const date=ui.page.$('#trainingDate');
+    for(const [day,theme] of [['21/12/2098','Première préparation'],['22/12/2098','Préparation affinée']]){
+      date.value=day;
+      editTheme(ui,theme);
+      await runCloudAutosave(ui);
+    }
+    assert.equal(rpcCalls(ui).length,2);
+    assert.deepEqual(mutations,[]);
+    assert.equal(confirmations,0);
+    const panel=ui.page.$('#trainingPoll');
+    const toggled=new Promise(resolve=>panel.addEventListener('toggle',resolve,{once:true}));
+    panel.open=true;await toggled;await settle();
+    assert.match(panel.querySelector('[data-poll-action="trigger"]').textContent,/Déclencher le sondage/);
+    ui.page.$('#trainingPollDeadline').value='2098-12-22T19:00';
+    editTheme(ui,'Dernière préparation');
+    await runCloudAutosave(ui);
+    assert.equal(ui.page.$('#trainingPollDeadline').value,'2098-12-22T19:00');
+    assert.deepEqual(mutations,[]);
+    panel.querySelector('[data-poll-action="trigger"]').click();await settle();
+    assert.deepEqual(mutations,confirmPublish?['open','discord']:['open']);
+    assert.equal(confirmations,1);
+    assert.equal(poll.is_open,true);
+    if(confirmPublish)assert.match(ui.page.$('#trainingPollStatus').textContent,/Discord indisponible.*reste ouvert/);
+    poll.players=[{id:'p1',name:'Ana Ruiz',availability:'present'}];
+    panel.querySelector('[data-poll-action="refresh"]').click();await settle();
+    editTheme(ui,'Modification après ouverture');
+    await runCloudAutosave(ui);await settle();
+    assert.deepEqual(mutations,confirmPublish?['open','discord']:['open']);
+    assert.match(panel.textContent,/Présent \(1\).*Ana Ruiz/s);
+  });
+}

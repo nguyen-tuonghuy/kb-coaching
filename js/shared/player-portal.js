@@ -748,7 +748,7 @@ app.sendPlayerPortalMessage = async function sendPlayerPortalMessage(){
   }finally{button.disabled=false}
 };
 
-app.loadPlayerPortalGroup = async function loadPlayerPortalGroup(groupId){app.playerPortalState.groupId=groupId;app.syncPlayerPortalRole(groupId);app.refreshPlayerPortalIdentity();app.syncPlayerPortalGroupStatsAccess();app.playerPortalState.scope='all';app.playerPortalState.restartLocation='all';app.playerPortalState.followUp.reviewLoaded=false;document.querySelectorAll('#playerPortalScopeTabs [data-player-scope]').forEach(b=>b.classList.toggle('active',b.dataset.playerScope==='all'));app.$('#playerPortalRestartField')?.classList.add('hidden');if(app.$('#playerPortalRestart'))app.$('#playerPortalRestart').value='all';const {data,error}=await app.db.rpc('get_player_portal_metrics',app.playerPortalMetricsArgs(groupId,null,'all'));if(error)throw error;app.playerPortalState.matches=data?.matches||[];app.playerPortalState.selected=app.playerPortalState.matches.map(m=>m.id);app.$('#playerPortalTitle').textContent=data?.player_name?`Mes statistiques · ${data.player_name}`:'Mes statistiques';app.$('#playerPortalSubtitle').textContent=data?.group_name||'';
+app.loadPlayerPortalGroup = async function loadPlayerPortalGroup(groupId){app.playerPortalState.groupId=groupId;app.syncPlayerPortalRole(groupId);app.refreshPlayerPortalIdentity();void app.loadPlayerAttendancePolls(groupId);app.syncPlayerPortalGroupStatsAccess();app.playerPortalState.scope='all';app.playerPortalState.restartLocation='all';app.playerPortalState.followUp.reviewLoaded=false;document.querySelectorAll('#playerPortalScopeTabs [data-player-scope]').forEach(b=>b.classList.toggle('active',b.dataset.playerScope==='all'));app.$('#playerPortalRestartField')?.classList.add('hidden');if(app.$('#playerPortalRestart'))app.$('#playerPortalRestart').value='all';const {data,error}=await app.db.rpc('get_player_portal_metrics',app.playerPortalMetricsArgs(groupId,null,'all'));if(error)throw error;app.playerPortalState.matches=data?.matches||[];app.playerPortalState.selected=app.playerPortalState.matches.map(m=>m.id);app.$('#playerPortalTitle').textContent=data?.player_name?`Mes statistiques · ${data.player_name}`:'Mes statistiques';app.$('#playerPortalSubtitle').textContent=data?.group_name||'';
 // Notifications, conversation et objectifs ne dépendent pas les uns des autres : une
 // erreur de revue ne doit pas masquer la conversation, et inversement.
 const background=[
@@ -790,6 +790,7 @@ app.openPlayerPortal = async function openPlayerPortal(accesses,preferredGroupId
   }
   const wanted=location.hash==='#player-profile'?'profile':location.hash==='#player-messages'?'messages':'home';
   app.playerPortalSetView(wanted);app.syncStandaloneVideoLinks();app.setCloud('Synchronisé',true);window.scrollTo({top:0,behavior:'instant'});
+  app.scrollToTrainingAttendancePoll();
   if(location.hash==='#player-results'&&!app.$('#playerTrainingResults')?.classList.contains('hidden'))app.$('#playerTrainingResults')?.scrollIntoView?.();
   return true
 };
@@ -909,6 +910,109 @@ app.addGroupPlayerFollowupObjective = async function addGroupPlayerFollowupObjec
     if(status)status.textContent=e?.message?.includes('Maximum de 3')?'Maximum de 3 objectifs coach actifs.':'Impossible d’ajouter l’objectif.';
     app.handleError('add group player followup objective',e);
   }finally{if(button)button.disabled=false}
+};
+
+
+app.trainingAttendanceRoute = function trainingAttendanceRoute(){
+  const params=new URLSearchParams(location.search);
+  const group=params.get('player_group'),session=params.get('training_poll');
+  const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+  return uuid.test(group)&&uuid.test(session)?{group:group.toLowerCase(),session:session.toLowerCase()}:null;
+};
+
+app.scrollToTrainingAttendancePoll = function scrollToTrainingAttendancePoll(){
+  const route=app.trainingAttendanceRoute();
+  const box=app.$('#playerTrainingAttendance');
+  if(route?.group===app.playerPortalState.groupId&&!box?.classList.contains('hidden')){
+    app.$('#attendance-'+route.session)?.scrollIntoView?.({block:'start'});
+  }
+};
+
+app.loadPlayerAttendancePolls = async function loadPlayerAttendancePolls(groupId){
+  const box=app.$('#playerTrainingAttendance');
+  if(!box)return;
+  const serial=app.playerAttendanceRequest=(app.playerAttendanceRequest||0)+1;
+  const userId=app.currentUser?.id;
+  const active=()=>serial===app.playerAttendanceRequest&&userId===app.currentUser?.id
+    &&groupId===app.playerPortalState.groupId&&!app.playerPortalState.staffPreview;
+  box.classList.add('hidden');
+  if(!active())return;
+  const list=app.$('#playerTrainingAttendanceList'),status=app.$('#playerTrainingAttendanceStatus');
+  list.replaceChildren();
+  const route=app.trainingAttendanceRoute();
+  const target=route?.group===groupId?route.session:null;
+  if(target){
+    box.classList.remove('hidden');
+    status.textContent='Chargement du sondage…';
+  }else status.textContent='';
+  try{
+    const {data,error}=await app.db.rpc('list_my_training_attendance_polls',{p_group:groupId,p_session:target});
+    if(error)throw error;
+    if(!active())return;
+    const polls=data||[];
+    if(!polls.length&&!route)return;
+    box.classList.remove('hidden');
+    status.textContent=route&&!polls.some(poll=>poll.session_id===route.session)?'Ce sondage n’est pas accessible dans ce groupe.':'';
+    for(const poll of polls){
+      const card=document.createElement('article');
+      card.id='attendance-'+poll.session_id;
+      const title=document.createElement('h3');
+      title.textContent=(poll.label||'Entraînement')+' · '+app.isoToFrInput(poll.trained_on);
+      const info=document.createElement('p');
+      info.className='small';
+      info.textContent=(poll.is_open?'Sondage ouvert':'Sondage fermé')+
+        (poll.deadline?' · Échéance '+new Date(poll.deadline).toLocaleString('fr-FR'):'');
+      const controls=document.createElement('div');
+      controls.className='playerAttendanceChoices';
+      controls.setAttribute('role','group');
+      controls.setAttribute('aria-label','Disponibilité pour '+title.textContent);
+      const response=document.createElement('p');
+      response.className='small';
+      response.setAttribute('role','status');
+      const options={present:'Présent',absent:'Absent',unsure:'Incertain'};
+      const renderResponse=()=>{
+        response.textContent=poll.availability?'Ta réponse · '+options[poll.availability]:'Sans réponse';
+        for(const button of controls.children){
+          const selected=poll.availability===button.value;
+          button.setAttribute('aria-pressed',String(selected));
+          button.className=selected?'primary':'ghost';
+          button.disabled=!poll.is_open;
+        }
+      };
+      for(const [value,label] of Object.entries(options)){
+        const button=document.createElement('button');
+        button.type='button';button.value=value;button.textContent=label;
+        button.onclick=async()=>{
+          if(!active()||!poll.is_open)return;
+          for(const choice of controls.children)choice.disabled=true;
+          try{
+            const {error}=await app.db.rpc('answer_training_attendance_poll',{p_session:poll.session_id,p_availability:value});
+            if(error)throw error;
+            poll.availability=value;
+            renderResponse();
+            button.focus();
+          }catch(error){
+            if(error.code==='55000'){poll.is_open=false;info.textContent='Sondage fermé'}
+            renderResponse();
+            response.textContent=error.message||'Impossible d’enregistrer la réponse.';
+          }
+        };
+        controls.append(button);
+      }
+      card.append(title,info,controls,response);list.append(card);
+      renderResponse();
+    }
+    if(target&&app.playerPortalState.view==='home')app.scrollToTrainingAttendancePoll();
+  }catch(error){
+    if(!active())return;
+    if(!target&&['PGRST202','42883'].includes(error.code))return;
+    box.classList.remove('hidden');
+    status.textContent='Impossible de charger les sondages.';
+    const retry=document.createElement('button');
+    retry.type='button';retry.className='ghost';retry.textContent='Réessayer';
+    retry.onclick=()=>app.loadPlayerAttendancePolls(groupId);
+    list.append(retry);
+  }
 };
 
 })(window.KinballCoach.app);

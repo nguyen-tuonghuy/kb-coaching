@@ -121,6 +121,11 @@
    <p>Ton compte est maintenant associé à ton profil joueur. Pour tes prochaines visites, accède directement à Kinball Coach. Tu n'auras plus besoin de ce lien d'invitation.</p>
    <button class="primary" type="button" id="playerClaimSuccessContinue">Accéder à mon espace joueur</button>
   </div>`,
+  "playerTrainingAttendance": `<section class="panel hidden" id="playerTrainingAttendance" aria-labelledby="playerTrainingAttendanceTitle">
+     <h2 id="playerTrainingAttendanceTitle">Disponibilités aux entraînements</h2>
+     <p class="small" id="playerTrainingAttendanceStatus" role="status"></p>
+     <div id="playerTrainingAttendanceList"></div>
+    </section>`,
   "playerTrainingResults": `<section class="playerTrainingResults hidden" id="playerTrainingResults" aria-labelledby="playerTrainingResultsTitle">
    <div class="playerTrainingResultsHead"><div><div class="analysisSubtle">Entraînement</div><h2 id="playerTrainingResultsTitle">Mes résultats à saisir</h2></div><span class="small" id="playerTrainingResultsCount"></span></div>
    <div id="playerTrainingResultsList"></div>
@@ -1336,8 +1341,10 @@
     },
     async trainingSessions(groupId){
       const {data,error}=await db.from('training_sessions')
-        .select('id,trained_on,label,theme')
-        .eq('group_id',groupId).order('trained_on',{ascending:true});
+        .select('id,trained_on,label,theme,attendance_planned,attendance_started_at')
+        .eq('group_id',groupId)
+        .lte('trained_on',new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Paris'}).format(new Date()))
+        .or('attendance_planned.eq.false,attendance_started_at.not.is.null').order('trained_on',{ascending:true});
       if(error)throw error;
       return data||[];
     },
@@ -2168,7 +2175,20 @@ app.setPlayerGroupInvitePlayerId = function setPlayerGroupInvitePlayerId(playerI
 
 app.clearPlayerInviteToken = function clearPlayerInviteToken(){try{const u=new URL(location.href);u.searchParams.delete('player_invite');u.searchParams.delete('player_group_invite');u.searchParams.delete('player_id');localStorage.removeItem('kinball_player_invite_player');history.replaceState({},'',u.pathname+(u.search||'')+(u.hash||''))}catch{}};
 
-app.authRedirectWithPlayerInvite = function authRedirectWithPlayerInvite(){const direct=app.playerInviteToken(),group=app.playerGroupInviteToken(),playerId=app.playerGroupInvitePlayerId();if(!direct&&!group)return app.AUTH_REDIRECT_URL;const u=new URL(app.AUTH_REDIRECT_URL);if(direct)u.searchParams.set('player_invite',direct);if(group)u.searchParams.set('player_group_invite',group);if(group&&playerId)u.searchParams.set('player_id',playerId);return u.toString()};
+app.authRedirectWithPlayerInvite = function authRedirectWithPlayerInvite(){
+  const direct=app.playerInviteToken(),group=app.playerGroupInviteToken(),playerId=app.playerGroupInvitePlayerId();
+  const attendance=app.trainingAttendanceRoute();
+  if(!direct&&!group&&!attendance)return app.AUTH_REDIRECT_URL;
+  const url=new URL(app.AUTH_REDIRECT_URL);
+  if(direct)url.searchParams.set('player_invite',direct);
+  if(group)url.searchParams.set('player_group_invite',group);
+  if(group&&playerId)url.searchParams.set('player_id',playerId);
+  if(attendance){
+    url.searchParams.set('player_group',attendance.group);
+    url.searchParams.set('training_poll',attendance.session);
+  }
+  return url.href;
+};
 
 app.normalizeSharedInviteState = function normalizeSharedInviteState(token,data){
   const players=data?.players||[];
@@ -2523,8 +2543,9 @@ app.closeResetPasswordPopup = function closeResetPasswordPopup(){
     const groupInviteToken=app.playerGroupInviteToken()||pending.group;
     const invited=!!(groupInviteToken||app.playerInviteToken()||pending.direct);
     let accessesPromise=null;
-    const requestedGroup=new URLSearchParams(location.search).get('player_group');
-    const pushRoute=['#player-videos','#player-messages','#player-results'].includes(location.hash) && requestedGroup;
+    const attendanceRoute=app.trainingAttendanceRoute();
+    const requestedGroup=attendanceRoute?.group||new URLSearchParams(location.search).get('player_group');
+    const pushRoute=(attendanceRoute||['#player-videos','#player-messages','#player-results'].includes(location.hash)) && requestedGroup;
     let preferredPlayerGroupId='';
     const loadAccesses=()=>accessesPromise||(accessesPromise=app.fetchMyPlayerAccesses().catch(error=>{
       if(!active())return [];
@@ -2586,7 +2607,7 @@ app.closeResetPasswordPopup = function closeResetPasswordPopup(){
         location.replace('videos.html?group='+encodeURIComponent(notificationAccess.group_id));
         return;
       }
-      if(app.groupState.groups.length&&!invited&&!notificationAccess){
+      if(app.groupState.groups.length&&!invited&&!notificationAccess&&!attendanceRoute){
         app.displayStaffLanding();
         app.setCloud('Synchronisé',true);
         clearTimeout(splashGuard);
@@ -2597,7 +2618,7 @@ app.closeResetPasswordPopup = function closeResetPasswordPopup(){
       }
       const accesses=await accessesPromise;
       if(!active())return;
-      if(accesses.length&&(invited||notificationAccess||!app.groupState.groups.length)){
+      if(accesses.length&&(invited||notificationAccess||attendanceRoute||!app.groupState.groups.length)){
         const portalPromise=app.openPlayerPortal(accesses,notificationAccess?.group_id||preferredPlayerGroupId);
         clearTimeout(splashGuard);
         app.hideStartupScreen();
@@ -2606,7 +2627,7 @@ app.closeResetPasswordPopup = function closeResetPasswordPopup(){
         return;
       }
       app.displayStaffLanding(accesses);
-      app.setCloud('Synchronisé',true);
+      app.setCloud(attendanceRoute?'Sondage inaccessible avec ce compte':'Synchronisé',!attendanceRoute);
       clearTimeout(splashGuard);
       app.hideStartupScreen();
       await app.afterStaffLanding(false);
@@ -3379,7 +3400,7 @@ app.sendPlayerPortalMessage = async function sendPlayerPortalMessage(){
   }finally{button.disabled=false}
 };
 
-app.loadPlayerPortalGroup = async function loadPlayerPortalGroup(groupId){app.playerPortalState.groupId=groupId;app.syncPlayerPortalRole(groupId);app.refreshPlayerPortalIdentity();app.syncPlayerPortalGroupStatsAccess();app.playerPortalState.scope='all';app.playerPortalState.restartLocation='all';app.playerPortalState.followUp.reviewLoaded=false;document.querySelectorAll('#playerPortalScopeTabs [data-player-scope]').forEach(b=>b.classList.toggle('active',b.dataset.playerScope==='all'));app.$('#playerPortalRestartField')?.classList.add('hidden');if(app.$('#playerPortalRestart'))app.$('#playerPortalRestart').value='all';const {data,error}=await app.db.rpc('get_player_portal_metrics',app.playerPortalMetricsArgs(groupId,null,'all'));if(error)throw error;app.playerPortalState.matches=data?.matches||[];app.playerPortalState.selected=app.playerPortalState.matches.map(m=>m.id);app.$('#playerPortalTitle').textContent=data?.player_name?`Mes statistiques · ${data.player_name}`:'Mes statistiques';app.$('#playerPortalSubtitle').textContent=data?.group_name||'';
+app.loadPlayerPortalGroup = async function loadPlayerPortalGroup(groupId){app.playerPortalState.groupId=groupId;app.syncPlayerPortalRole(groupId);app.refreshPlayerPortalIdentity();void app.loadPlayerAttendancePolls(groupId);app.syncPlayerPortalGroupStatsAccess();app.playerPortalState.scope='all';app.playerPortalState.restartLocation='all';app.playerPortalState.followUp.reviewLoaded=false;document.querySelectorAll('#playerPortalScopeTabs [data-player-scope]').forEach(b=>b.classList.toggle('active',b.dataset.playerScope==='all'));app.$('#playerPortalRestartField')?.classList.add('hidden');if(app.$('#playerPortalRestart'))app.$('#playerPortalRestart').value='all';const {data,error}=await app.db.rpc('get_player_portal_metrics',app.playerPortalMetricsArgs(groupId,null,'all'));if(error)throw error;app.playerPortalState.matches=data?.matches||[];app.playerPortalState.selected=app.playerPortalState.matches.map(m=>m.id);app.$('#playerPortalTitle').textContent=data?.player_name?`Mes statistiques · ${data.player_name}`:'Mes statistiques';app.$('#playerPortalSubtitle').textContent=data?.group_name||'';
 // Notifications, conversation et objectifs ne dépendent pas les uns des autres : une
 // erreur de revue ne doit pas masquer la conversation, et inversement.
 const background=[
@@ -3421,6 +3442,7 @@ app.openPlayerPortal = async function openPlayerPortal(accesses,preferredGroupId
   }
   const wanted=location.hash==='#player-profile'?'profile':location.hash==='#player-messages'?'messages':'home';
   app.playerPortalSetView(wanted);app.syncStandaloneVideoLinks();app.setCloud('Synchronisé',true);window.scrollTo({top:0,behavior:'instant'});
+  app.scrollToTrainingAttendancePoll();
   if(location.hash==='#player-results'&&!app.$('#playerTrainingResults')?.classList.contains('hidden'))app.$('#playerTrainingResults')?.scrollIntoView?.();
   return true
 };
@@ -3540,6 +3562,109 @@ app.addGroupPlayerFollowupObjective = async function addGroupPlayerFollowupObjec
     if(status)status.textContent=e?.message?.includes('Maximum de 3')?'Maximum de 3 objectifs coach actifs.':'Impossible d’ajouter l’objectif.';
     app.handleError('add group player followup objective',e);
   }finally{if(button)button.disabled=false}
+};
+
+
+app.trainingAttendanceRoute = function trainingAttendanceRoute(){
+  const params=new URLSearchParams(location.search);
+  const group=params.get('player_group'),session=params.get('training_poll');
+  const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+  return uuid.test(group)&&uuid.test(session)?{group:group.toLowerCase(),session:session.toLowerCase()}:null;
+};
+
+app.scrollToTrainingAttendancePoll = function scrollToTrainingAttendancePoll(){
+  const route=app.trainingAttendanceRoute();
+  const box=app.$('#playerTrainingAttendance');
+  if(route?.group===app.playerPortalState.groupId&&!box?.classList.contains('hidden')){
+    app.$('#attendance-'+route.session)?.scrollIntoView?.({block:'start'});
+  }
+};
+
+app.loadPlayerAttendancePolls = async function loadPlayerAttendancePolls(groupId){
+  const box=app.$('#playerTrainingAttendance');
+  if(!box)return;
+  const serial=app.playerAttendanceRequest=(app.playerAttendanceRequest||0)+1;
+  const userId=app.currentUser?.id;
+  const active=()=>serial===app.playerAttendanceRequest&&userId===app.currentUser?.id
+    &&groupId===app.playerPortalState.groupId&&!app.playerPortalState.staffPreview;
+  box.classList.add('hidden');
+  if(!active())return;
+  const list=app.$('#playerTrainingAttendanceList'),status=app.$('#playerTrainingAttendanceStatus');
+  list.replaceChildren();
+  const route=app.trainingAttendanceRoute();
+  const target=route?.group===groupId?route.session:null;
+  if(target){
+    box.classList.remove('hidden');
+    status.textContent='Chargement du sondage…';
+  }else status.textContent='';
+  try{
+    const {data,error}=await app.db.rpc('list_my_training_attendance_polls',{p_group:groupId,p_session:target});
+    if(error)throw error;
+    if(!active())return;
+    const polls=data||[];
+    if(!polls.length&&!route)return;
+    box.classList.remove('hidden');
+    status.textContent=route&&!polls.some(poll=>poll.session_id===route.session)?'Ce sondage n’est pas accessible dans ce groupe.':'';
+    for(const poll of polls){
+      const card=document.createElement('article');
+      card.id='attendance-'+poll.session_id;
+      const title=document.createElement('h3');
+      title.textContent=(poll.label||'Entraînement')+' · '+app.isoToFrInput(poll.trained_on);
+      const info=document.createElement('p');
+      info.className='small';
+      info.textContent=(poll.is_open?'Sondage ouvert':'Sondage fermé')+
+        (poll.deadline?' · Échéance '+new Date(poll.deadline).toLocaleString('fr-FR'):'');
+      const controls=document.createElement('div');
+      controls.className='playerAttendanceChoices';
+      controls.setAttribute('role','group');
+      controls.setAttribute('aria-label','Disponibilité pour '+title.textContent);
+      const response=document.createElement('p');
+      response.className='small';
+      response.setAttribute('role','status');
+      const options={present:'Présent',absent:'Absent',unsure:'Incertain'};
+      const renderResponse=()=>{
+        response.textContent=poll.availability?'Ta réponse · '+options[poll.availability]:'Sans réponse';
+        for(const button of controls.children){
+          const selected=poll.availability===button.value;
+          button.setAttribute('aria-pressed',String(selected));
+          button.className=selected?'primary':'ghost';
+          button.disabled=!poll.is_open;
+        }
+      };
+      for(const [value,label] of Object.entries(options)){
+        const button=document.createElement('button');
+        button.type='button';button.value=value;button.textContent=label;
+        button.onclick=async()=>{
+          if(!active()||!poll.is_open)return;
+          for(const choice of controls.children)choice.disabled=true;
+          try{
+            const {error}=await app.db.rpc('answer_training_attendance_poll',{p_session:poll.session_id,p_availability:value});
+            if(error)throw error;
+            poll.availability=value;
+            renderResponse();
+            button.focus();
+          }catch(error){
+            if(error.code==='55000'){poll.is_open=false;info.textContent='Sondage fermé'}
+            renderResponse();
+            response.textContent=error.message||'Impossible d’enregistrer la réponse.';
+          }
+        };
+        controls.append(button);
+      }
+      card.append(title,info,controls,response);list.append(card);
+      renderResponse();
+    }
+    if(target&&app.playerPortalState.view==='home')app.scrollToTrainingAttendancePoll();
+  }catch(error){
+    if(!active())return;
+    if(!target&&['PGRST202','42883'].includes(error.code))return;
+    box.classList.remove('hidden');
+    status.textContent='Impossible de charger les sondages.';
+    const retry=document.createElement('button');
+    retry.type='button';retry.className='ghost';retry.textContent='Réessayer';
+    retry.onclick=()=>app.loadPlayerAttendancePolls(groupId);
+    list.append(retry);
+  }
 };
 
 })(window.KinballCoach.app);
@@ -9337,7 +9462,7 @@ app.$('#sendResetPassword').onclick=async()=>{
   const email=app.$('#forgotPasswordEmail').value.trim();
   if(!email){app.forgotPasswordMessage('Saisis ton adresse e-mail.',true);return}
   app.forgotPasswordMessage('Envoi du lien…');
-  const {error}=await app.db.auth.resetPasswordForEmail(email,{redirectTo:app.AUTH_REDIRECT_URL});
+  const {error}=await app.db.auth.resetPasswordForEmail(email,{redirectTo:app.authRedirectWithPlayerInvite()});
   if(error){app.forgotPasswordMessage(error.message,true);return}
   app.forgotPasswordMessage('Si cette adresse correspond à un compte, un e-mail de réinitialisation vient d’être envoyé.');
 };
@@ -9369,7 +9494,7 @@ app.$('#saveNewPassword').onclick=async()=>{
   if(error){app.resetPasswordMessage(error.message,true);return}
   app.resetPasswordMessage('Mot de passe modifié ✓');
   if(app.resetPasswordFromRecovery){
-    history.replaceState(null,'',app.AUTH_REDIRECT_URL);
+    history.replaceState(null,'',app.authRedirectWithPlayerInvite());
   }
   setTimeout(app.closeResetPasswordPopup,900);
 };
@@ -9989,6 +10114,10 @@ app.$('#trainingGroup').onchange=()=>{const select=app.$('#trainingGroup'),next=
 if(app.$('#applyTrainingAttendancePreset'))app.$('#applyTrainingAttendancePreset').onclick=app.applyTrainingAttendancePreset;
 app.$('#historyGroup').onchange=()=>app.fetchTrainingPlayers(app.$('#historyGroup').value).catch(e=>app.handleError('history group',e));
 app.$('#newTraining').onclick=()=>app.startNewTraining().catch(e=>app.handleError('new training',e));
+app.$('#planTraining').onclick=()=>app.startNewTraining({withoutAttendance:true}).then(()=>{
+  const poll=app.$('#trainingPoll');
+  if(!app.$('#trainingSession').classList.contains('hidden'))poll.open=true;
+}).catch(e=>app.handleError('plan training',e));
 app.$('#addTrainingPlanBlock').onclick=()=>app.addTrainingPlanBlock();
 app.$('#organizeTrainingPlan').onclick=()=>app.setTrainingPlanOrganizerMode(!app.trainingState.planOrganizerMode);
 app.trainingPlanStartEl = app.$('#trainingPlanStart');

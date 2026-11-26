@@ -676,3 +676,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .kcInstallActions { width: 100%; }
   .kcInstallActions button { flex: 1 1 auto; }
 }
+
+#playerTrainingAttendance { margin-block: 12px; }
+#playerTrainingAttendanceList article + article { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; }
+.playerAttendanceChoices { display: flex; flex-wrap: wrap; gap: 8px; }
+.playerAttendanceChoices button { min-height: 44px; }
+.playerAttendanceChoices button[aria-pressed="true"] { font-weight: 700; }

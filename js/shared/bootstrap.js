@@ -228,7 +228,7 @@ app.$('#sendResetPassword').onclick=async()=>{
   const email=app.$('#forgotPasswordEmail').value.trim();
   if(!email){app.forgotPasswordMessage('Saisis ton adresse e-mail.',true);return}
   app.forgotPasswordMessage('Envoi du lien…');
-  const {error}=await app.db.auth.resetPasswordForEmail(email,{redirectTo:app.AUTH_REDIRECT_URL});
+  const {error}=await app.db.auth.resetPasswordForEmail(email,{redirectTo:app.authRedirectWithPlayerInvite()});
   if(error){app.forgotPasswordMessage(error.message,true);return}
   app.forgotPasswordMessage('Si cette adresse correspond à un compte, un e-mail de réinitialisation vient d’être envoyé.');
 };
@@ -260,7 +260,7 @@ app.$('#saveNewPassword').onclick=async()=>{
   if(error){app.resetPasswordMessage(error.message,true);return}
   app.resetPasswordMessage('Mot de passe modifié ✓');
   if(app.resetPasswordFromRecovery){
-    history.replaceState(null,'',app.AUTH_REDIRECT_URL);
+    history.replaceState(null,'',app.authRedirectWithPlayerInvite());
   }
   setTimeout(app.closeResetPasswordPopup,900);
 };
@@ -880,6 +880,10 @@ app.$('#trainingGroup').onchange=()=>{const select=app.$('#trainingGroup'),next=
 if(app.$('#applyTrainingAttendancePreset'))app.$('#applyTrainingAttendancePreset').onclick=app.applyTrainingAttendancePreset;
 app.$('#historyGroup').onchange=()=>app.fetchTrainingPlayers(app.$('#historyGroup').value).catch(e=>app.handleError('history group',e));
 app.$('#newTraining').onclick=()=>app.startNewTraining().catch(e=>app.handleError('new training',e));
+app.$('#planTraining').onclick=()=>app.startNewTraining({withoutAttendance:true}).then(()=>{
+  const poll=app.$('#trainingPoll');
+  if(!app.$('#trainingSession').classList.contains('hidden'))poll.open=true;
+}).catch(e=>app.handleError('plan training',e));
 app.$('#addTrainingPlanBlock').onclick=()=>app.addTrainingPlanBlock();
 app.$('#organizeTrainingPlan').onclick=()=>app.setTrainingPlanOrganizerMode(!app.trainingState.planOrganizerMode);
 app.trainingPlanStartEl = app.$('#trainingPlanStart');
