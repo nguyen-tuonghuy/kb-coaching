@@ -2222,12 +2222,18 @@ for(const confirmPublish of [false,true]){
     const toggled=new Promise(resolve=>panel.addEventListener('toggle',resolve,{once:true}));
     panel.open=true;await toggled;await settle();
     assert.match(panel.querySelector('[data-poll-action="trigger"]').textContent,/Déclencher le sondage/);
+    ui.page.$('#trainingPollDeadline').value='2098-12-22T19:00';
+    editTheme(ui,'Dernière préparation');
+    await runCloudAutosave(ui);
+    assert.equal(ui.page.$('#trainingPollDeadline').value,'2098-12-22T19:00');
+    assert.deepEqual(mutations,[]);
     panel.querySelector('[data-poll-action="trigger"]').click();await settle();
     assert.deepEqual(mutations,confirmPublish?['open','discord']:['open']);
     assert.equal(confirmations,1);
     assert.equal(poll.is_open,true);
     if(confirmPublish)assert.match(ui.page.$('#trainingPollStatus').textContent,/Discord indisponible.*reste ouvert/);
     poll.players=[{id:'p1',name:'Ana Ruiz',availability:'present'}];
+    panel.querySelector('[data-poll-action="refresh"]').click();await settle();
     editTheme(ui,'Modification après ouverture');
     await runCloudAutosave(ui);await settle();
     assert.deepEqual(mutations,confirmPublish?['open','discord']:['open']);

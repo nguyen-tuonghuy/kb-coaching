@@ -2912,7 +2912,7 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
       app.setTrainingCloudStatus('pending');
       app.scheduleTrainingCloudSave();
     }
-    if(!sessionId||app.$('#trainingPoll')?.open)app.refreshTrainingAttendancePoll?.();
+    if(!sessionId)app.refreshTrainingAttendancePoll?.();
     return result;
   }catch(e){
     app.persistTrainingLocalDraft({scheduleCloud:false});

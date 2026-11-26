@@ -1121,10 +1121,14 @@ test('attendance review: planning stays outside statistics until start, with his
     assert.equal((await stats('player')).sessions.length,1);
     await asUser(db,U_COACH);
     await db.query('select manage_training_attendance_poll($1,true,null)',[planned.session_id]);
+    for(const [availability,player] of [['unsure',P_A],['absent',P_B]]){
+      await db.query('select answer_training_attendance_poll($1,$2,$3)',[planned.session_id,availability,player]);
+    }
     const {started}=await one(db,'select start_training_attendance_session($1,$2,$3,$4) as started',[planned.session_id,INSTANCE_A,planned.lease_token,planned.version]);
     assert.ok(started.started_at);assert.deepEqual(started.present,[]);
     const zero=(await one(db,'select get_training_attendance_poll($1) as poll',[planned.session_id])).poll;
     assert.equal(zero.is_open,false);assert.equal(zero.initialized_at,zero.started_at);
+    assert.deepEqual(zero.players.map(player=>player.availability),['unsure','absent']);
     const result=await stats();
     assert.deepEqual(result.sessions.map(row=>row.trained_on),['2026-01-15','2026-09-30']);
     assert.equal(result.attendance.length,4);assert.equal(result.results.length,2);
