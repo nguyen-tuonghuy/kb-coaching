@@ -1182,3 +1182,128 @@ test('attendance final: first start copies forecasts, closes the poll and preser
     assert.deepEqual(await poll(),frozen,'official corrections do not change published forecasts');
   }finally{await db.close()}
 });
+
+const attendanceCorrectionMigration=fs.readFileSync(path.join(migrationDir,
+  '20261126110321_correct_training_poll_initialization.sql'),'utf8');
+
+test('issue 5 reproduces the old prefill and fixes pending polls without rewriting migration-time data',async()=>{
+  const db=await makeDB();
+  try{
+    await installAttendanceReview(db);
+    const others=[P_B,'20000000-0000-4000-8000-000000000005','20000000-0000-4000-8000-000000000006','20000000-0000-4000-8000-000000000007'];
+    for(const id of others.slice(1)){
+      await db.query('insert into players(id,display_name,workspace_id) values($1,$2,$3)',[id,'Synthetic',WS_A]);
+      await db.query('insert into coaching_group_players(group_id,player_id,active) values($1,$2,true)',[G1,id]);
+    }
+    await asUser(db,U_COACH);
+    const roster=[{player_id:P_A,present:false},...others.map(player_id=>({player_id,present:true}))];
+    const state=async id=>(await one(db,'select get_training_attendance_poll($1) as poll',[id])).poll;
+    const manage=(id,open)=>db.query('select manage_training_attendance_poll($1,$2,null)',[id,open]);
+    const start=async saved=>(await one(db,'select start_training_attendance_session($1,$2,$3,$4) as result',
+      [saved.session_id,INSTANCE_A,saved.lease_token,saved.version])).result;
+    async function prepare(){
+      await asUser(db,U_COACH);
+      const saved=await saveG2(db,{playerResults:true,trainedOn:'2026-01-10',attendance:roster});
+      await manage(saved.session_id,true);
+      await asUser(db,U_NONE);
+      await db.query("select answer_training_attendance_poll($1,'present')",[saved.session_id]);
+      await asUser(db,U_COACH);
+      await manage(saved.session_id,false);
+      return saved;
+    }
+    const old=await prepare();
+    const pending=await prepare();
+    const pendingBefore=await state(pending.session_id);
+    assert.ok(pendingBefore.initialized_at);
+    assert.equal(pendingBefore.started_at,null);
+    const wrong=await start(old);
+    assert.deepEqual([...wrong.present].sort(),others);
+    const oldBefore=await state(old.session_id);
+    assert.equal(oldBefore.is_open,false);
+
+    await db.exec('reset role');
+    await db.exec(attendanceCorrectionMigration);
+    await asUser(db,U_COACH);
+    assert.deepEqual(await state(pending.session_id),pendingBefore);
+    assert.deepEqual(await state(old.session_id),oldBefore);
+    const fixed=await start(pending);
+    assert.deepEqual(fixed.present,[P_A]);
+    const corrected=await state(pending.session_id);
+    assert.equal(corrected.is_open,false);
+    assert.equal(corrected.initialized_at,corrected.started_at);
+    assert.deepEqual(corrected.players,pendingBefore.players);
+    assert.equal((await rows(db,'select * from training_attendance where session_id=$1',[pending.session_id])).length,5);
+
+    const fresh=await prepare();
+    assert.equal((await state(fresh.session_id)).initialized_at,null);
+    assert.deepEqual((await start(fresh)).present,[P_A]);
+  }finally{await db.close()}
+});
+
+test('issue 5 tracks explicit choices across planned and ordinary saves and preserves historical and poll-free rosters',async()=>{
+  const db=await makeDB();
+  try{
+    await installAttendanceReview(db);
+    await db.exec(attendanceCorrectionMigration);
+    await asUser(db,U_COACH);
+    const args={p_editor_instance_id:INSTANCE_A,p_workspace_id:WS_A,p_group_id:G1,p_team_id:TEAM_A,
+      p_trained_on:'2026-01-19',p_exercises:[],p_results:[],p_occurrences:[]};
+    const save=(attendance,planned=false,source=null)=>one(db,'select * from save_training_session_with_attendance_choices($1,$2)',
+      [json({...args,p_attendance:attendance,...(source?{p_session_id:source.session_id,p_expected_version:source.version,p_lease_token:source.lease_token}:{})}),planned]);
+    const start=async saved=>(await one(db,'select start_training_attendance_session($1,$2,$3,$4) result',
+      [saved.session_id,INSTANCE_A,saved.lease_token,saved.version])).result;
+    const poll=async id=>(await one(db,'select get_training_attendance_poll($1) poll',[id])).poll;
+    const manage=(id,open)=>db.query('select manage_training_attendance_poll($1,$2,null)',[id,open]);
+    const answer=(id,availability,player)=>db.query('select answer_training_attendance_poll($1,$2,$3)',[id,availability,player]);
+    const ordinary=[{player_id:P_A,present:true},{player_id:P_B,present:true}];
+    const noPoll=await save(ordinary);
+    assert.deepEqual([...(await start(noPoll)).present].sort(),[P_A,P_B]);
+    assert.equal(await poll(noPoll.session_id),null);
+
+    const roster=[{player_id:P_A,present:false,coach_choice:true},{player_id:P_B,present:true}];
+    let planned=await save(roster,true);
+    const id=planned.session_id;
+    planned=await save(roster,false,planned);
+    await manage(id,true);
+    await answer(id,'present',P_A);
+    await answer(id,'unsure',P_B);
+    assert.equal((await poll(id)).initialized_at,null);
+    await asUser(db,U_OTHER);
+    await assert.rejects(db.query('select manage_training_attendance_poll($1,true,null)',[id]),{code:'42501'});
+    await assert.rejects(db.query('select answer_training_attendance_poll($1,$2,$3)',[id,'present',P_A]),{code:'42501'});
+    await asUser(db,U_COACH);
+    const zero=await start(planned);
+    assert.deepEqual(zero.present,[],'explicit absence and uncertain forecast stay absent');
+
+    const explicit=await save([{player_id:P_A,present:true,coach_choice:true},{player_id:P_B,present:true}]);
+    await manage(explicit.session_id,true);
+    await answer(explicit.session_id,'absent',P_A);
+    const activated=await start(explicit);
+    assert.deepEqual(activated.present,[P_A],'keep the coach choice, clear the non-response');
+    const corrected=await save([{player_id:P_A,present:false},{player_id:P_B,present:true}],false,
+      {...explicit,version:activated.version});
+    const replay=await start(corrected);
+    assert.deepEqual(replay.present,[P_B]);
+    assert.equal(replay.version,corrected.version);
+    assert.equal(replay.started_at,activated.started_at);
+    await assert.rejects(answer(explicit.session_id,'present',P_A),{code:'55000'});
+
+    const live=await save(ordinary);
+    await db.exec('begin');
+    await db.query('select activate_training_session_lease($1,$2,$3)',[live.session_id,INSTANCE_A,live.lease_token]);
+    await db.query("insert into training_live_periods(session_id,group_id,period_number,label) values($1,$2,1,'Collecte')",[live.session_id,G1]);
+    await db.exec('commit');
+    await manage(live.session_id,true);
+    await answer(live.session_id,'absent',P_A);
+    assert.deepEqual([...(await start(live)).present].sort(),[P_A,P_B]);
+
+    const historical=await acquireLease(db,S1);
+    await manage(S1,true);
+    await answer(S1,'absent',P_A);
+    const rosterBefore=await rows(db,'select player_id,present from training_attendance where session_id=$1 order by player_id',[S1]);
+    const resultsBefore=await rows(db,'select * from training_results where session_id=$1 order by id',[S1]);
+    await start({session_id:S1,version:1,lease_token:historical.lease_token});
+    assert.deepEqual(await rows(db,'select player_id,present from training_attendance where session_id=$1 order by player_id',[S1]),rosterBefore);
+    assert.deepEqual(await rows(db,'select * from training_results where session_id=$1 order by id',[S1]),resultsBefore);
+  }finally{await db.close()}
+});
