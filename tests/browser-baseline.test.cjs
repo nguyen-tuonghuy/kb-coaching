@@ -14,7 +14,7 @@ before(async()=>{
 });
 after(async()=>{await browser?.close()});
 
-function installMock({staff,populated=false}){
+function installMock({staff,populated=false,attendance=null}){
   const user={id:'test-user',email:'lucas@example.test',user_metadata:{}};
   const calls=[];
   window.baseline={calls,subscriptions:0};
@@ -46,9 +46,17 @@ function installMock({staff,populated=false}){
       claim_coaching_player_group_invite:true};
     if(populated)Object.assign(rpcs,{
       get_my_player_access:[{group_id:'test-group',group_name:'Groupe test',player_id:'p1',player_name:'Alice',stats_access:'group'}],
-       get_coaching_group_player_access:[],get_player_conversation:[],get_player_objectives:[],get_my_player_match_stats_access:[],get_my_training_result_tasks:[],
+       get_coaching_group_player_access:[],get_player_conversation:[],get_player_objectives:[],get_player_follow_up_objectives:[],get_player_videos:[],get_my_player_match_stats_access:[],get_my_training_result_tasks:[],list_my_training_attendance_polls:[],
+      get_training_statistics_dataset:{viewer_role:args?.p_view,sessions:tables.training_sessions,
+        players:tables.coaching_group_players.map(row=>row.player),attendance:tables.training_attendance,
+        session_exercises:tables.training_session_exercises,results:tables.training_results},
       get_player_portal_metrics:{group_name:'Groupe test',player_name:'Alice',matches:[],details:[],metrics:{n:0},group_average:{}}
     });
+    if(attendance){
+      rpcs.get_my_player_access=[{group_id:attendance.group,group_name:'Groupe test',player_id:'p1',player_name:'Alice'}];
+      rpcs.list_my_training_attendance_polls=[{session_id:attendance.session,label:'Séance de test',trained_on:'2026-12-12',is_open:true,availability:null}];
+      rpcs.answer_training_attendance_poll=null;
+    }
     const fixtures=kind==='table'?tables:rpcs;
     if(!Object.hasOwn(fixtures,name))throw new Error(`Unexpected mock ${kind}: ${name}`);
     if(kind==='table'&&args.some(op=>['insert','update','delete','upsert'].includes(op.method)))throw new Error('Unexpected mutation');
@@ -68,6 +76,7 @@ function installMock({staff,populated=false}){
     },
     rpc:(name,args)=>respond('rpc',name,args),
     auth:{getSession:async()=>({data:{session:staff?{user}:null}}),
+      signInWithPassword:async()=>({data:{user},error:null}),
       onAuthStateChange:()=>{window.baseline.subscriptions++;return {data:{subscription:{unsubscribe(){}}}}},
       updateUser:async args=>{calls.push({kind:'auth',name:'updateUser',args});return {error:null}}}
   };
@@ -75,10 +84,10 @@ function installMock({staff,populated=false}){
   window.alert=message=>{throw new Error(`Unexpected alert: ${message}`)};
 }
 
-async function open(t,name,width,{staff=true,populated=false}={}){
+async function open(t,name,width,{staff=true,populated=false,attendance=null}={}){
   const context=await browser.newContext({viewport:{width,height:900},serviceWorkers:'block'});
   t.after(()=>context.close());
-  await context.addInitScript(installMock,{staff,populated});
+  await context.addInitScript(installMock,{staff,populated,attendance});
   const errors=[],requests=[],traces=[];
   const page=await context.newPage();
   page.on('pageerror',error=>errors.push(error.message));
@@ -101,7 +110,7 @@ async function open(t,name,width,{staff=true,populated=false}={}){
     const type={'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.webmanifest':'application/manifest+json'}[path.extname(file)]||'application/octet-stream';
     await route.fulfill({contentType:type,body:fs.readFileSync(file)});
   });
-  await page.goto(`https://baseline.test/${name}.html`);
+  await page.goto(`https://baseline.test/${name}.html`+(attendance?`?player_group=${attendance.group}&training_poll=${attendance.session}`:''));
   return {page,errors,requests,traces};
 }
 
@@ -307,5 +316,42 @@ for(const width of [1440,820,390,320]){
     assert.equal(layout.clipped,false);
     assert.equal(layout.overflow,false);
     assert.deepEqual(ui.errors,[]);
+  });
+}
+
+for(const width of [390,820,1440]){
+  test(`attendance: Discord link survives login and accepts a revised answer at ${width}px`,{timeout:20000},async t=>{
+    const attendance={group:'20000000-0000-4000-8000-000000000001',session:'40000000-0000-4000-8000-000000000001'};
+    const {page,errors}=await open(t,'index',width,{staff:false,populated:true,attendance});
+    await page.locator('#authEmail').fill('alice@example.test');
+    await page.locator('#authPassword').fill('test-password');
+    await page.locator('#login').click();
+    const poll=page.locator('#attendance-'+attendance.session);
+    await poll.waitFor({state:'visible'});
+    assert.match(page.url(),/training_poll=/);
+    await poll.getByRole('button',{name:'Présent',exact:true}).click();
+    await poll.locator('button[aria-pressed="true"]:text-is("Présent")').waitFor();
+    await poll.getByRole('button',{name:'Incertain',exact:true}).click();
+    await poll.locator('button[aria-pressed="true"]:text-is("Incertain")').waitFor();
+    assert.equal(await page.evaluate(()=>innerWidth),width);
+    assert.ok(await poll.evaluate(el=>el.scrollWidth<=el.clientWidth));
+    assert.ok(await poll.getByRole('button',{name:'Présent',exact:true}).evaluate(el=>el.getBoundingClientRect().height>=44));
+    const answers=await page.evaluate(()=>window.baseline.calls.filter(call=>call.name==='answer_training_attendance_poll').map(call=>call.args));
+    assert.deepEqual(answers,['present','unsure'].map(value=>({p_session:attendance.session,p_availability:value})));
+    assert.deepEqual(errors,[]);
+  });
+}
+
+for(const width of [390,820,1440]){
+  test(`attendance: coach can plan a session with nobody checked at ${width}px`,{timeout:20000},async t=>{
+    const {page,errors}=await open(t,'training',width,{populated:true});
+    await page.locator('#planTraining').click();
+    const poll=page.locator('#trainingPoll');
+    await poll.getByRole('button',{name:'Enregistrer la séance',exact:true}).waitFor();
+    assert.ok(await poll.evaluate(el=>el.open&&el.scrollWidth<=el.clientWidth));
+    assert.equal(await page.evaluate(()=>innerWidth),width);
+    assert.equal(await page.locator('#trainingAttendance input').count(),4);
+    assert.equal(await page.locator('#trainingAttendance input:checked').count(),0);
+    assert.deepEqual(errors,[]);
   });
 }

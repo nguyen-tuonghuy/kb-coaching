@@ -342,3 +342,9 @@
   .trainingTimelineTracks{grid-template-columns:1fr!important}
   .trainingPlanBlock[data-track="court1"],.trainingPlanBlock[data-track="court2"],.trainingPlanBlock[data-track="both"],.trainingPlanBlock[data-track="other"]{grid-column:1!important}
 }
+
+.trainingPoll { margin-block: 14px; }
+.trainingPoll summary { cursor: pointer; padding-block: 8px; font-weight: 700; }
+.trainingPollActions { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; margin-block: 10px; }
+.trainingPollActions button, .trainingPollResponses select { min-height: 44px; }
+.trainingPollResponses { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); }

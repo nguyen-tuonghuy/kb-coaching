@@ -102,7 +102,7 @@ app.renderTrainingAttendance = function renderTrainingAttendance(){
   if(!app.trainingState.players.length){box.innerHTML='<div class="small">Aucun joueur enregistré pour le moment.</div>';app.applyTrainingLeaseControls?.();return}
   app.trainingState.players.forEach(p=>{
     const l=document.createElement('label');l.className='check';
-    const c=document.createElement('input');c.type='checkbox';c.value=p.id;c.dataset.name=p.display_name;c.checked=true;
+    const c=document.createElement('input');c.type='checkbox';c.value=p.id;c.dataset.name=p.display_name;c.checked=!app.trainingState.planWithoutAttendance;
     c.onchange=app.renderTrainingExerciseCards;
     l.append(c,document.createTextNode(p.display_name));box.append(l);
   });
@@ -622,7 +622,6 @@ app.trainingSessionIsSavable=function trainingSessionIsSavable(){
   const document=app.trainingEditorDocument();
   if(!document.fields.groupId)return false;
   if(!app.groupState.groups.some(group=>group.id===document.fields.groupId))return false;
-  if(!document.attendance.some(item=>item.present))return false;
   if(document.sessionExercises.some(ex=>app.isDualExercise(ex)&&!ex.focus))return false;
   return true;
 };
@@ -1005,6 +1004,7 @@ app.initTrainingLocalDrafts = function initTrainingLocalDrafts(){
     if(sessionId)app.acquireTrainingSessionLease(sessionId).catch(error=>app.handleError('training lease acquire',error));
   };
   app.initTrainingCloudAutosave();
+  app.initTrainingAttendancePoll?.();
   app.$('#closeTrainingRecovery').onclick=app.closeTrainingRecoveryDialog;
   app.$('#trainingRecoveryPopup').onclick=event=>{if(event.target===app.$('#trainingRecoveryPopup'))app.closeTrainingRecoveryDialog()};
   document.addEventListener('visibilitychange',()=>{
@@ -1594,7 +1594,7 @@ app.syncTrainingFinishButton = function syncTrainingFinishButton(){
   button.classList.toggle('backNav',readOnly);
 };
 
-app.startNewTraining = async function startNewTraining({skipRecovery=false,draftId=null}={}){
+app.startNewTraining = async function startNewTraining({skipRecovery=false,draftId=null,withoutAttendance=false}={}){
   const loadToken=++app.trainingState.editorLoadToken;
   await app.releaseTrainingSessionLease();
   if(loadToken!==app.trainingState.editorLoadToken)return;
@@ -1603,6 +1603,7 @@ app.startNewTraining = async function startNewTraining({skipRecovery=false,draft
   app.trainingState.sessionExercises=[];
   app.trainingState.planBlocks=[];
   app.trainingState.currentSessionId=null;
+  app.trainingState.planWithoutAttendance=withoutAttendance;
   app.trainingState.persistedOccurrenceIds=new Set();
   app.resetTrainingTacticalSessionCache?.();
   app.resetTrainingSessionContext();
@@ -1629,13 +1630,13 @@ app.startNewTraining = async function startNewTraining({skipRecovery=false,draft
   if(loadToken!==app.trainingState.editorLoadToken)return;
   if(app.$('#trainingAttendancePreset'))app.$('#trainingAttendancePreset').value='';
   if(app.$('#trainingAttendancePresetStatus'))app.$('#trainingAttendancePresetStatus').textContent='';
-  app.$$('#trainingAttendance input').forEach(c=>c.checked=true);
   app.renderTrainingExerciseCards({capture:false});
   app.renderTrainingPlan();
   app.hideMainModules();app.setMatchHeaderMode(false);app.$('#trainingSession').classList.remove('hidden');window.scrollTo({top:0,behavior:'instant'});
   app.setTrainingLeaseStatus('idle');
   app.markTrainingSessionBaseline();
   app.beginTrainingLocalDraft({draftId});
+  app.resetTrainingAttendancePoll?.();
 };
 
 app.focusLabel = function focusLabel(f){return f==='attaque'?'Attaque':f==='defense'?'Défense':''};
@@ -2491,6 +2492,7 @@ app.duplicateTrainingSessionById = async function duplicateTrainingSessionById(s
   window.scrollTo({top:0,behavior:'instant'});
   app.markTrainingSessionBaseline();
   app.beginTrainingLocalDraft({sourceSessionId:sessionId,baseUpdatedAt:source.updated_at||null,baseVersion:null});
+  app.resetTrainingAttendancePoll?.();
 };
 
 app.editTrainingSessionById = async function editTrainingSessionById(sessionId,{skipRecovery=false}={}){
@@ -2515,6 +2517,7 @@ app.editTrainingSessionById = async function editTrainingSessionById(sessionId,{
   if(ae)throw ae;if(xe)throw xe;if(re)throw re;if(oe)throw oe;
 
   app.trainingState.currentSessionId=sessionId;
+  app.trainingState.planWithoutAttendance=false;
   app.trainingState.persistedOccurrenceIds=new Set((occurrences||[]).map(item=>item.id));
   if(te){
     const tactical=app.trainingTacticalState;if(tactical){++tactical.cacheToken;tactical.cacheSessionId=sessionId;tactical.cacheStatus='error';tactical.cacheError=te.message||String(te);tactical.cachePromise=null;tactical.diagramsByOccurrence=new Map()}
@@ -2582,15 +2585,17 @@ app.editTrainingSessionById = async function editTrainingSessionById(sessionId,{
   app.beginTrainingLocalDraft({baseVersion:source.version??null,baseUpdatedAt:source.updated_at||null});
   if(!app.trainingLeaseCanMutate())await app.acquireTrainingSessionLease(sessionId);
   if(!skipRecovery)app.offerTrainingDraftRecovery({sessionId});
+  app.resetTrainingAttendancePoll?.();
 };
 
 app.addTrainingPlayers = async function addTrainingPlayers(){
   const names=app.$('#trainingAddPlayers').value.split(',').map(x=>x.trim()).filter(Boolean);
   if(!names.length)return;
+  const previous=new Map(app.$$('#trainingAttendance input').map(input=>[input.value,input.checked]));
   await app.ensurePlayers(names);
   await app.fetchTrainingPlayers();
   const wanted=new Set(names.map(x=>x.toLowerCase()));
-  app.$$('#trainingAttendance input').forEach(c=>{if(wanted.has(c.dataset.name.toLowerCase()))c.checked=true});
+  app.$$('#trainingAttendance input').forEach(c=>{c.checked=wanted.has(c.dataset.name.toLowerCase())||(previous.get(c.value)??false)});
   app.renderTrainingExerciseCards();
 };
 
@@ -2665,6 +2670,7 @@ app.clearSavedTrainingOccurrenceCopySources = function clearSavedTrainingOccurre
 // de pouvoir attendre la fin d'une sauvegarde déjà en cours (« Terminer l'édition »).
 app.saveTrainingSession = function saveTrainingSession(options={}){
   if(app.trainingSavePromise)return app.trainingSavePromise;
+  if(app.trainingAttendanceInitializing)return app.trainingAttendanceInitializing.catch(()=>{}).then(()=>app.saveTrainingSession(options));
   app.trainingSavePromise=app.runTrainingSessionSave(options).finally(()=>{app.trainingSavePromise=null});
   return app.trainingSavePromise;
 };
@@ -2694,7 +2700,6 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
     const date=app.frInputToIso(saveDocument.fields.date||app.isoToFrInput(app.today()));
     const presentIds=new Set(saveDocument.attendance.filter(item=>item.present).map(item=>String(item.playerId)));
     if(!groupId||!group){if(autosave)app.setTrainingCloudStatus('incomplete');else app.trainingStatus('Choisis un groupe.',true);return}
-    if(!presentIds.size){if(autosave)app.setTrainingCloudStatus('incomplete');else app.trainingStatus('Sélectionne au moins un joueur présent.',true);return}
     const withoutFocus=saveDocument.sessionExercises.find(ex=>app.isDualExercise(ex)&&!ex.focus);
     if(withoutFocus){if(autosave)app.setTrainingCloudStatus('incomplete');else app.trainingStatus(`Choisis le focus Attaque ou Défense pour « ${withoutFocus.name} ».`,true);return}
 
@@ -2855,6 +2860,7 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
       app.setTrainingCloudStatus('pending');
       app.scheduleTrainingCloudSave();
     }
+    if(!sessionId)app.refreshTrainingAttendancePoll?.();
     return result;
   }catch(e){
     app.persistTrainingLocalDraft({scheduleCloud:false});
@@ -2884,6 +2890,7 @@ app.finishTrainingEditing = async function finishTrainingEditing(){
   // Annule la minuterie de debounce : toute sauvegarde attendue part sans délai.
   app.stopTrainingCloudTimers();
   try{
+    if(app.trainingAttendanceInitializing)await app.trainingAttendanceInitializing;
     if(app.trainingSaveInFlight){
       // Une sauvegarde est déjà en cours : on attend sa fin sans en lancer une autre.
       await app.trainingSavePromise;

@@ -427,7 +427,7 @@ test('choosing stay keeps the session and its edits',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui);
   // Unsyncable session: leaving asks the coach, so « Rester » can be exercised.
-  ui.page.w.document.querySelectorAll('#trainingAttendance input').forEach(input=>{input.checked=false});
+  ui.page.$('#trainingGroup').value='';
   ui.page.$('#trainingTheme').value='Mon theme';
   ui.page.$('#cancelTraining').click();
   await settle();
@@ -445,7 +445,7 @@ test('choosing to quit discards the edits and leaves the editor',async t=>{
   const app=await open(ui);
   // An incomplete session cannot be synchronised: leaving must ask explicitly
   // instead of silently saving.
-  ui.page.w.document.querySelectorAll('#trainingAttendance input').forEach(input=>{input.checked=false});
+  ui.page.$('#trainingGroup').value='';
   ui.page.$('#trainingTheme').value='Mon theme';
   ui.page.$('#cancelTraining').click();
   await settle();
@@ -462,7 +462,7 @@ test('choosing to quit discards the edits and leaves the editor',async t=>{
 
 test('leaving an unsyncable session can preserve the local draft without marking it as cloud-saved',async t=>{
   const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
-  ui.page.w.document.querySelectorAll('#trainingAttendance input').forEach(input=>{input.checked=false});
+  ui.page.$('#trainingGroup').value='';
   ui.page.$('#trainingTheme').value='À reprendre';
   ui.page.$('#trainingTheme').dispatchEvent(new ui.page.w.Event('input',{bubbles:true}));
   ui.page.$('#cancelTraining').click();await settle();
@@ -945,7 +945,7 @@ test('local drafts stay visible even when a Supabase query errors',async t=>{
 
 test('leaving an unsyncable dirty session lists its draft on the home without manual refresh',async t=>{
   const ui={};t.after(()=>ui.page?.close());const app=await open(ui);
-  ui.page.w.document.querySelectorAll('#trainingAttendance input').forEach(input=>{input.checked=false});
+  ui.page.$('#trainingGroup').value='';
   ui.page.$('#trainingTheme').value='Séance en cours';
   ui.page.$('#trainingTheme').dispatchEvent(new ui.page.w.Event('input',{bubbles:true}));
   await runAutosave(ui);
@@ -1274,7 +1274,7 @@ test('reverting an edit prevents any cloud save',async t=>{
     'the local debounce also removes the reverted document');
 });
 
-test('an incomplete session stays "À compléter" without RPC nor dialog',async t=>{
+test('autosave accepts a planned session without attendance or exercises',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui);
   ui.page.w.document.querySelectorAll('#trainingAttendance input').forEach(input=>{
@@ -1282,9 +1282,10 @@ test('an incomplete session stays "À compléter" without RPC nor dialog',async 
   });
   editTheme(ui,'Incomplète');
   await runCloudAutosave(ui);
-  assert.equal(rpcCalls(ui).length,0);
-  assert.equal(cloudStatus(ui),'incomplete');
-  assert.equal(ui.page.$('#trainingRecoveryPopup').classList.contains('hidden'),true,'no dialog for an incomplete session');
+  assert.equal(rpcCalls(ui).length,1);
+  assert.ok(rpcCalls(ui)[0].values.p_attendance.every(item=>!item.present));
+  assert.equal(rpcCalls(ui)[0].values.p_exercises.length,0);
+  assert.equal(ui.page.$('#trainingRecoveryPopup').classList.contains('hidden'),true);
 });
 
 test('a failed autosave keeps the draft, reports the error and reschedules once',async t=>{
@@ -1462,7 +1463,7 @@ test('leaving the editor with unsynced changes preserves the draft',async t=>{
   const ui={};t.after(()=>ui.page?.close());
   const app=await open(ui,{existing:true});
   // Force the unsyncable path so leaving asks the coach instead of auto-saving.
-  ui.page.$('#trainingAttendance input[value="p1"]').checked=false;
+  ui.page.$('#trainingGroup').value='';
   editTheme(ui,'Non synchronisé');
   ui.page.$('#cancelTraining').click();
   await settle();
@@ -2118,4 +2119,42 @@ test('training-live sends instance and token headers and PostgreSQL guards all l
   assert.match(migrationSource,/trg_training_results_edit_lease/);
   assert.match(migrationSource,/trg_training_live_periods_edit_lease/);
   assert.match(migrationSource,/trg_training_live_events_edit_lease/);
+});
+
+test('late poll integration requires confirmation and leaves local work and official statistics intact',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await open(ui,{existing:true});
+  const original=app.db.rpc.bind(app.db);
+  app.db.rpc=(name,args)=>name==='get_training_attendance_poll'?Promise.resolve({data:{
+    is_open:true,initialized_at:'2026-03-04T10:00:00Z',deadline:null,
+    players:[{id:'p1',name:'Ana Ruiz',availability:'absent',late:true},
+      {id:'p2',name:'Bo Martin',availability:'present',late:true}]
+  },error:null}):original(name,args);
+  const panel=ui.page.$('#trainingPoll');
+  const opened=new Promise(resolve=>panel.addEventListener('toggle',resolve,{once:true}));
+  panel.open=true;
+  await opened;
+  await settle();
+  const checked=()=>Array.from(ui.page.w.document.querySelectorAll('#trainingAttendance input:checked'),input=>input.value);
+  const integrate=()=>ui.page.$('[data-poll-action="late"]').click();
+  assert.deepEqual(checked(),['p1']);
+  const initialTheme=ui.page.$('#trainingTheme').value;
+  ui.page.$('#trainingTheme').value='Brouillon à conserver';
+  integrate();
+  await settle();
+  assert.match(ui.page.$('#trainingPollStatus').textContent,/Synchronise la séance/);
+  assert.deepEqual(checked(),['p1']);
+  assert.equal(ui.page.$('#trainingTheme').value,'Brouillon à conserver');
+  ui.page.$('#trainingTheme').value=initialTheme;
+  integrate();
+  await settle();
+  assert.deepEqual(checked(),['p1'],'cancelling leaves the roster intact');
+  ui.page.w.confirm=()=>true;
+  integrate();
+  await settle();
+  assert.deepEqual(checked(),['p2']);
+  await runCloudAutosave(ui);
+  const {p_attendance,p_results}=rpcCalls(ui).at(-1).values;
+  assert.deepEqual(p_attendance.map(row=>[row.player_id,row.present]),[['p1',false],['p2',true]]);
+  assert.equal(p_results.some(row=>row.player_id==='p1'),false,'absent player’s official result is not rewritten');
 });

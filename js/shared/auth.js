@@ -141,7 +141,20 @@ app.setPlayerGroupInvitePlayerId = function setPlayerGroupInvitePlayerId(playerI
 
 app.clearPlayerInviteToken = function clearPlayerInviteToken(){try{const u=new URL(location.href);u.searchParams.delete('player_invite');u.searchParams.delete('player_group_invite');u.searchParams.delete('player_id');localStorage.removeItem('kinball_player_invite_player');history.replaceState({},'',u.pathname+(u.search||'')+(u.hash||''))}catch{}};
 
-app.authRedirectWithPlayerInvite = function authRedirectWithPlayerInvite(){const direct=app.playerInviteToken(),group=app.playerGroupInviteToken(),playerId=app.playerGroupInvitePlayerId();if(!direct&&!group)return app.AUTH_REDIRECT_URL;const u=new URL(app.AUTH_REDIRECT_URL);if(direct)u.searchParams.set('player_invite',direct);if(group)u.searchParams.set('player_group_invite',group);if(group&&playerId)u.searchParams.set('player_id',playerId);return u.toString()};
+app.authRedirectWithPlayerInvite = function authRedirectWithPlayerInvite(){
+  const direct=app.playerInviteToken(),group=app.playerGroupInviteToken(),playerId=app.playerGroupInvitePlayerId();
+  const attendance=app.trainingAttendanceRoute();
+  if(!direct&&!group&&!attendance)return app.AUTH_REDIRECT_URL;
+  const url=new URL(app.AUTH_REDIRECT_URL);
+  if(direct)url.searchParams.set('player_invite',direct);
+  if(group)url.searchParams.set('player_group_invite',group);
+  if(group&&playerId)url.searchParams.set('player_id',playerId);
+  if(attendance){
+    url.searchParams.set('player_group',attendance.group);
+    url.searchParams.set('training_poll',attendance.session);
+  }
+  return url.href;
+};
 
 app.normalizeSharedInviteState = function normalizeSharedInviteState(token,data){
   const players=data?.players||[];

@@ -118,6 +118,11 @@
    <p>Ton compte est maintenant associé à ton profil joueur. Pour tes prochaines visites, accède directement à Kinball Coach. Tu n'auras plus besoin de ce lien d'invitation.</p>
    <button class="primary" type="button" id="playerClaimSuccessContinue">Accéder à mon espace joueur</button>
   </div>`,
+  "playerTrainingAttendance": `<section class="panel hidden" id="playerTrainingAttendance" aria-labelledby="playerTrainingAttendanceTitle">
+     <h2 id="playerTrainingAttendanceTitle">Disponibilités aux entraînements</h2>
+     <p class="small" id="playerTrainingAttendanceStatus" role="status"></p>
+     <div id="playerTrainingAttendanceList"></div>
+    </section>`,
   "playerTrainingResults": `<section class="playerTrainingResults hidden" id="playerTrainingResults" aria-labelledby="playerTrainingResultsTitle">
    <div class="playerTrainingResultsHead"><div><div class="analysisSubtle">Entraînement</div><h2 id="playerTrainingResultsTitle">Mes résultats à saisir</h2></div><span class="small" id="playerTrainingResultsCount"></span></div>
    <div id="playerTrainingResultsList"></div>

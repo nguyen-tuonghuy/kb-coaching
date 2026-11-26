@@ -55,8 +55,9 @@
     const groupInviteToken=app.playerGroupInviteToken()||pending.group;
     const invited=!!(groupInviteToken||app.playerInviteToken()||pending.direct);
     let accessesPromise=null;
-    const requestedGroup=new URLSearchParams(location.search).get('player_group');
-    const pushRoute=['#player-videos','#player-messages','#player-results'].includes(location.hash) && requestedGroup;
+    const attendanceRoute=app.trainingAttendanceRoute();
+    const requestedGroup=attendanceRoute?.group||new URLSearchParams(location.search).get('player_group');
+    const pushRoute=(attendanceRoute||['#player-videos','#player-messages','#player-results'].includes(location.hash)) && requestedGroup;
     let preferredPlayerGroupId='';
     const loadAccesses=()=>accessesPromise||(accessesPromise=app.fetchMyPlayerAccesses().catch(error=>{
       if(!active())return [];
@@ -118,7 +119,7 @@
         location.replace('videos.html?group='+encodeURIComponent(notificationAccess.group_id));
         return;
       }
-      if(app.groupState.groups.length&&!invited&&!notificationAccess){
+      if(app.groupState.groups.length&&!invited&&!notificationAccess&&!attendanceRoute){
         app.displayStaffLanding();
         app.setCloud('Synchronisé',true);
         clearTimeout(splashGuard);
@@ -129,7 +130,7 @@
       }
       const accesses=await accessesPromise;
       if(!active())return;
-      if(accesses.length&&(invited||notificationAccess||!app.groupState.groups.length)){
+      if(accesses.length&&(invited||notificationAccess||attendanceRoute||!app.groupState.groups.length)){
         const portalPromise=app.openPlayerPortal(accesses,notificationAccess?.group_id||preferredPlayerGroupId);
         clearTimeout(splashGuard);
         app.hideStartupScreen();
@@ -138,7 +139,7 @@
         return;
       }
       app.displayStaffLanding(accesses);
-      app.setCloud('Synchronisé',true);
+      app.setCloud(attendanceRoute?'Sondage inaccessible avec ce compte':'Synchronisé',!attendanceRoute);
       clearTimeout(splashGuard);
       app.hideStartupScreen();
       await app.afterStaffLanding(false);

@@ -137,6 +137,7 @@
     <label>Groupe</label><select id="playerPortalGroup"></select>
    </div>
     <div class="hidden playerPortalStaffPreviewBanner" id="playerPortalStaffPreviewBanner">Vue entraîneur : tu vois ici la même page que le joueur et tu peux lui écrire directement.</div>
+    <template data-kc-component="playerTrainingAttendance"></template>
     <template data-kc-component="playerTrainingResults"></template>
     <div class="playerFollowUpHeader">
     <div><div class="analysisSubtle">Suivi</div><h2 id="playerFollowUpTitle">Mon suivi</h2><div class="small">Objectifs de travail, consignes du staff et points à revoir.</div></div>
@@ -199,6 +200,7 @@
    </div>
    <div class="trainingToolbar">
     <button class="primary" id="newTraining">＋ Nouvelle séance</button>
+    <button class="ghost" id="planTraining">Planifier sans présences</button>
     <button class="ghost" id="openExerciseLibrary">Bibliothèque d’exercices</button>
     <button class="ghost" id="openTrainingHistory">Historique joueur</button>
    </div>
@@ -232,6 +234,12 @@
     <div class="field"><label>Durée prévue (min)</label><input id="trainingDuration" type="number" min="1" inputmode="numeric" placeholder="90"></div>
    </div>
    <div class="field" style="margin-top:9px"><label>Notes générales de séance</label><textarea id="trainingNotes" class="trainingGeneralNotes" placeholder="Objectifs généraux, contexte, informations communes…"></textarea></div>
+
+   <details class="panel trainingPoll" id="trainingPoll">
+    <summary>Sondage de présence</summary>
+    <div id="trainingPollControls"></div>
+    <p class="small" id="trainingPollStatus" role="status"></p>
+   </details>
 
    <div class="trainingPlan">
     <div class="trainingPlanHead">
@@ -549,6 +557,7 @@
 <script defer src="js/shared/coaching.bundle.js"></script>
 <script defer src="js/training/local-drafts.js"></script>
 <script defer src="js/training/sessions.js"></script>
+<script defer src="js/training/attendance-poll.js"></script>
 <script defer src="js/training/tactical-diagrams.js"></script>
 <script defer src="js/training.js"></script>
 
