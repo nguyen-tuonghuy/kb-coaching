@@ -1295,7 +1295,11 @@ test('a failed autosave keeps the draft, reports the error and reschedules once'
   const app=await open(ui,{existing:true});
   const real=app.db.rpc;
   let fail=true;let attempts=0;
-  app.db.rpc=async(name,params)=>{attempts++;return fail?{data:null,error:{message:'réseau indisponible'}}:real(name,params)};
+  app.db.rpc=async(name,params)=>{
+    if(name!=='save_training_session_with_attendance_choices')return real(name,params);
+    attempts++;
+    return fail?{data:null,error:{message:'réseau indisponible'}}:real(name,params);
+  };
   editTheme(ui,'Hors ligne');
   await runCloudAutosave(ui);
   assert.equal(attempts,1,'one attempt, no burst');
