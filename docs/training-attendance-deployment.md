@@ -1,12 +1,33 @@
 # Sondages de présence aux entraînements
 
-## Validation et mise en service
+## Recette progressive en production
 
-1. Sur une base Supabase de test compatible avec la production, comparer l’historique des migrations et appliquer les migrations `20261126073554_training_attendance_polls.sql`, `20261126080225_training_attendance_review.sql` et `20261126085216_finalize_training_attendance_poll.sql` dans cet ordre. L’historique SQL versionné du projet est partiel. Vérifier le plan d’application pour éviter de rejouer des migrations existantes.
-2. Déployer la fonction Edge `training-attendance-discord` sur le projet de test. Elle vérifie le jeton utilisateur avec Supabase Auth et l’appartenance du coach au groupe dans la RPC de réservation. Si le projet utilise des jetons que la passerelle Edge ne sait pas vérifier, désactiver la vérification de la passerelle pour cette fonction uniquement. La vérification intégrée reste obligatoire.
-3. Configurer le frontend de test avec l’URL et la clé publique du projet de test ainsi que son URL de retour d’authentification. Renseigner `TRAINING_ATTENDANCE_APP_URL` sur la fonction Edge si le site de test utilise une autre URL que celle de GitHub Pages. Vérifier la connexion depuis un lien de sondage et les URL de redirection autorisées dans Supabase Auth.
-4. Tester avec un groupe et un canal Discord dédiés. Créer une séance via **Planifier sans présences**, l’enregistrer plusieurs fois et utiliser **Déclencher le sondage** quand le programme est prêt. Vérifier le choix de publier sur Discord ou de passer cette étape. Répondre avec deux comptes joueurs, fermer, rouvrir et choisir **Démarrer la séance** le jour prévu. Corriger ensuite les présences effectives et vérifier que les réponses du sondage restent consultables. Vérifier aussi un compte sans accès. Contrôler les résultats statistiques d’une séance existante avant et après.
-5. Après validation explicite de la mise en production, appliquer les trois migrations additives puis déployer la fonction Edge et ses secrets sur le projet de production. Publier ensuite le frontend via la PR sur `main`. La base de production est aussi utilisée par le frontend local par défaut.
+Le prochain entraînement réel est prévu le **dimanche 20 décembre 2026**. Réserver une fenêtre de recette et de retour arrière avant cette date, en dehors des collectes. Si la recette reste incomplète, garder le frontend publié et le parcours habituel pour cet entraînement. La validation du principe de la recette ne vaut pas autorisation d’exécution. Attendre une validation explicite avant la première écriture Supabase de mise en service, puis une validation explicite de la publication avant toute fusion dans `main`.
+
+### 1. Préparer la sauvegarde et le retour arrière
+
+- Relever le commit actuellement servi par GitHub Pages, la référence exacte du projet Supabase, les trois versions à appliquer et l’état du déploiement de la fonction. Garder la liste des comptes et groupes de test dans un espace privé.
+- Vérifier dans **Database → Backups** la disponibilité et la fraîcheur du point de restauration. Juste avant la fenêtre, disposer d’une sauvegarde ou d’un point PITR vérifié et relever son horodatage. Si le point disponible laisse un intervalle de perte inacceptable, faire réaliser une sauvegarde logique vérifiée, avec le schéma, les données et les éléments Auth et rôles nécessaires à une restauration. Garder les exports chiffrés et hors du dépôt. Distinguer la sauvegarde de base des fichiers Storage et des secrets Edge, gérés séparément.
+- Identifier la personne habilitée à restaurer, les opérations susceptibles de se produire après le point de sauvegarde et le temps de remise en service. Capturer aussi la définition et les privilèges de la RPC de statistiques en vigueur pour un éventuel correctif ciblé. Reporter l’intervention si le point de retour ou sa procédure manque.
+
+### 2. Migrer avec le frontend précédent encore publié
+
+Après accord, comparer `supabase_migrations.schema_migrations` au dépôt et examiner le plan d’application. L’historique versionné est partiel. Appliquer uniquement les versions manquantes de la liste suivante, dans l’ordre, en inscrivant chaque succès dans l’historique distant.
+
+1. `20261126073554_training_attendance_polls.sql`
+2. `20261126080225_training_attendance_review.sql`
+3. `20261126085216_finalize_training_attendance_poll.sql`
+
+Les colonnes de séance ajoutées ont des valeurs compatibles avec les écritures de l’ancien client. Les contrats de sauvegarde, de bail et de collecte existants gardent leurs signatures. La RPC de statistiques conserve sa signature et sa structure, avec un filtre qui exclut déjà les séances futures et les préparations non démarrées dès l’application SQL. Comparer les résultats du passé et les dénominateurs attendus séparément. Le frontend de la branche attend les trois migrations.
+
+Tant que GitHub Pages sert encore l’ancien frontend, vérifier avec les comptes et les séances du groupe fictif la connexion, la consultation de l’historique, le chargement des statistiques et l’enregistrement d’une séance ordinaire avec bail. Vérifier qu’une collecte existante et ses résultats restent lisibles. Arrêter la procédure dès qu’un de ces contrôles échoue.
+
+### 3. Tester la branche avec le groupe dédié
+
+- Créer un groupe fictif et un canal Discord destinés à la recette, ainsi qu’un second groupe fictif pour les essais d’accès refusé. Utiliser uniquement des comptes de test, des séances au jour de la recette pour le démarrage et des séances futures pour la préparation. Garder les séances réelles, dont celle du 20 décembre, hors des essais.
+- Déployer uniquement la fonction Edge `training-attendance-discord` sur la référence Supabase vérifiée, puis configurer le webhook du groupe de recette comme indiqué plus bas. La fonction valide le jeton via Supabase Auth et les droits du coach via la RPC de réservation. Si la passerelle ne reconnaît pas le format de jeton du projet, régler la vérification au niveau de cette seule fonction tout en conservant sa validation intégrée.
+- Servir une copie privée du commit de la PR avant fusion, sur une origine réservée aux testeurs. Cette copie accède à **la base de production**. Même une copie sur localhost peut écrire en production. Aligner temporairement son `AUTH_REDIRECT_URL`, l’URL de retour autorisée dans Supabase Auth et `TRAINING_ATTENDANCE_APP_URL` sur l’URL de recette. La fonction utilise cette dernière URL pour le lien Discord et autorise son origine uniquement. Conserver les changements de configuration frontend dans la copie privée.
+- Contrôler les scénarios de recette ci-dessous, consigner seulement des résultats anonymisés dans la PR, puis demander la validation de publication. Avant une fusion autorisée, remettre l’URL Edge sur celle de GitHub Pages et retirer l’autorisation de retour Auth temporaire. Vérifier ensuite le lien du site publié et l’ancien parcours avec le groupe dédié. Configurer le webhook du groupe réel seulement après validation de ces contrôles.
 
 ## Démarrage et assiduité
 
@@ -16,14 +37,24 @@ Le bouton **Démarrer la séance** dans le panneau **Sondage de présence** appl
 
 Une nouvelle séance future du parcours ordinaire ne garde que les choix de présence explicites. Les présélections automatiques se décochent dès que la date devient future. Les séances ordinaires du jour gardent leur présélection habituelle. Jusqu’au démarrage, une séance planifiée est hors historique et hors dénominateur d’assiduité. Les séances futures sont également exclues. Les séances historiques ordinaires suivent le calcul existant. Une séance planifiée doit être démarrée dans son éditeur avant de lancer une collecte en direct ou d’ouvrir la saisie individuelle.
 
-## Vérification sur un environnement isolé
+## Scénarios du groupe de recette
 
-Un projet Supabase distinct et un canal Discord de test avec webhook sont nécessaires pour la validation de bout en bout. Ils ne sont pas disponibles dans le contexte de développement de la PR #4.
+| Essai | Résultat attendu |
+| --- | --- |
+| Créer et enregistrer deux fois une préparation future. Ouvrir son panneau de sondage après la dernière sauvegarde. | Aucune réponse ouverte et aucun envoi Discord. La séance ordinaire du jour garde son parcours habituel. |
+| Déclencher un sondage avec échéance, puis décliner Discord. Modifier ensuite la séance. | Le lien copiable fonctionne, les réponses saisies restent présentes et la modification ne republie rien. |
+| Ouvrir le lien Discord sur téléphone avec un compte joueur déconnecté, puis se connecter. Essayer aussi avec les comptes du second groupe. | Le joueur habilité retrouve le sondage et peut répondre. Les comptes hors groupe sont refusés. |
+| Publier deux fois presque simultanément sur un sondage de test ouvert, puis effectuer une relance avant le démarrage. | Une seule publication initiale arrive dans le canal. La relance manuelle est disponible. |
+| Fermer et rouvrir une séance de test du jour. Faire coïncider une réponse et le démarrage, puis tester une séance à zéro présent. | La réponse est soit prise en compte avant la fermeture, soit refusée. Le démarrage ferme le sondage même à zéro. Les réponses sont consultables, la réouverture et la relance sont bloquées, et le coach peut corriger les présences effectives. |
+| Tenter une relance avec le webhook de test révoqué. Contrôler ensuite le canal puis rétablir un webhook de test valide. | Le refus Discord est visible. Le lien et les réponses restent disponibles. Voir la procédure ci-dessous si l’issue est incertaine. |
+| Comparer les statistiques historiques avant et après. Vérifier la préparation future et le démarrage vide du groupe de recette. | Les résultats historiques sont conservés. Les préparations restent hors dénominateur jusqu’au démarrage et les séances futures sont exclues. |
 
-- Vérifier le nom et la référence du projet de test dans le tableau de bord. Utiliser cette référence pour chaque commande. Vérifier l’historique et appliquer seulement les trois migrations de la PR sur la base de test, dans l’ordre de leurs timestamps. Déployer avec `supabase functions deploy training-attendance-discord --project-ref <ref-test>`.
-- Charger les secrets propres au canal et au frontend de test comme indiqué ci-dessous. Créer deux groupes de test, un coach du groupe cible et un compte joueur dans chacun des groupes. Depuis le groupe cible, publier le sondage, ouvrir le lien et enregistrer une réponse. Vérifier le refus quand le joueur ou le coach de l’autre groupe utilise le même identifiant de séance.
-- Ouvrir deux onglets coach et lancer simultanément la publication. Vérifier qu’un seul message arrive dans le canal de test. Vérifier le conflit fermeture/réponse dans les deux ordres, puis une relance manuelle après la publication. Avant le démarrage, vérifier aussi la relance. Tester une réponse simultanée au démarrage dans les deux ordres, puis vérifier le refus des réponses, de la réouverture et des relances après le démarrage.
-- Révoquer le webhook de test puis tenter une relance. Vérifier le message d’erreur, la possibilité de copier le lien et la persistance des réponses. Configurer un nouveau webhook de test et vérifier le réessai après le refus. Pour un résultat ambigu, suivre la procédure de rapprochement des envois ci-dessous.
+## Retour arrière
+
+1. **Avant la fusion** — Suspendre la recette et couper les publications en retirant l’entrée webhook du groupe de test. Fermer les sondages de recette encore ouverts si nécessaire. Le site déjà publié reste le point de service. Si le problème est limité à la fonction Edge, la désactiver ou rétablir la version et la configuration précédentes. Conserver les réponses, les journaux de livraison et les séances en base.
+2. **Après la fusion** — Suspendre les publications du groupe concerné. Faire valider un revert Git de la publication pour redéployer le frontend précédent via GitHub Pages. Vérifier le commit servi et recharger les clients PWA avant de tester le parcours habituel. Ce revert laisse les migrations en place, y compris le filtre statistique.
+3. **Si le problème persiste côté base** — Isoler la cause. Préférer un correctif SQL ciblé et validé, par exemple rétablir le contrat antérieur de la RPC de statistiques, puis tester le frontend publié. Éviter de supprimer les nouvelles tables ou colonnes depuis un script d’annulation. Une restauration complète est le dernier recours. Avant d’obtenir l’accord, faire le bilan des écritures postérieures au point de sauvegarde, sauvegarder l’état courant si possible et arrêter les écritures pendant l’opération. Une restauration à un point antérieur peut perdre ces écritures et doit faire l’objet d’une validation spécifique.
+4. Vérifier la connexion, la sauvegarde ordinaire, la collecte et les statistiques avec le groupe dédié. Consigner le point rétabli et les écarts avant de réouvrir le service.
 
 ## Configurer Discord
 
