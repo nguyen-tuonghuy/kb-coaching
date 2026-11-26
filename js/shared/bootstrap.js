@@ -876,7 +876,7 @@ if (page === 'training') {
   const input=app.$(sel);
   if(input)input.addEventListener('blur',()=>app.normalizeFrDateField(input));
 });
-app.$('#trainingGroup').onchange=()=>{const select=app.$('#trainingGroup'),next=select.value,previous=app.trainingPreviousGroupId,transition=++app.trainingState.groupTransitionToken;app.captureTrainingResultDraft();if(previous!=null&&previous!==next){select.value=previous;app.checkpointTrainingLocalDraft('Avant changement de groupe');select.value=next}app.trainingLocalState.groupTransition=true;app.trainingPreviousGroupId=next;app.fetchTrainingPlayers(next).then(applied=>{if(transition!==app.trainingState.groupTransitionToken||!applied)return;app.trainingLocalState.groupTransition=false;app.renderTrainingExerciseCards();app.persistTrainingLocalDraft({checkpointReason:'Changement de groupe'})}).catch(e=>{if(transition!==app.trainingState.groupTransitionToken)return;app.trainingLocalState.groupTransition=false;if(previous!=null)select.value=previous;app.handleError('training group',e)})};
+app.$('#trainingGroup').onchange=app.changeTrainingEditorGroup;
 if(app.$('#applyTrainingAttendancePreset'))app.$('#applyTrainingAttendancePreset').onclick=app.applyTrainingAttendancePreset;
 app.$('#historyGroup').onchange=()=>app.fetchTrainingPlayers(app.$('#historyGroup').value).catch(e=>app.handleError('history group',e));
 app.$('#newTraining').onclick=()=>app.startNewTraining().catch(e=>app.handleError('new training',e));

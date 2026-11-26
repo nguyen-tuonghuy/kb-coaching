@@ -18,8 +18,9 @@ Après accord, comparer `supabase_migrations.schema_migrations` au dépôt et ex
 2. `20261126080225_training_attendance_review.sql`
 3. `20261126085216_finalize_training_attendance_poll.sql`
 4. `20261126110321_correct_training_poll_initialization.sql`
+5. `20261126120642_transfer_training_preparation_group.sql`
 
-Les colonnes de séance ajoutées ont des valeurs compatibles avec les écritures de l’ancien client. Les contrats de sauvegarde, de bail et de collecte existants gardent leurs signatures. La RPC de statistiques conserve sa signature et sa structure, avec un filtre qui exclut déjà les séances futures et les préparations non démarrées dès l’application SQL. Comparer les résultats du passé et les dénominateurs attendus séparément. Le frontend de la correction attend la quatrième migration. Appliquer celle-ci avant la publication du frontend. Les anciens appels de sauvegarde restent accessibles aux clients déjà chargés.
+Les colonnes de séance ajoutées ont des valeurs compatibles avec les écritures de l’ancien client. Les contrats de sauvegarde, de bail et de collecte existants gardent leurs signatures. La RPC de statistiques conserve sa signature et sa structure, avec un filtre qui exclut déjà les séances futures et les préparations non démarrées dès l’application SQL. Comparer les résultats du passé et les dénominateurs attendus séparément. Les corrections du frontend attendent les migrations 4 et 5. Appliquer les versions manquantes avant la publication du frontend. Les anciens appels de sauvegarde restent accessibles aux clients déjà chargés.
 
 Tant que GitHub Pages sert encore l’ancien frontend, vérifier avec les comptes et les séances du groupe fictif la connexion, la consultation de l’historique, le chargement des statistiques et l’enregistrement d’une séance ordinaire avec bail. Vérifier qu’une collecte existante et ses résultats restent lisibles. Arrêter la procédure dès qu’un de ces contrôles échoue.
 
@@ -43,6 +44,14 @@ Une nouvelle séance future du parcours ordinaire ne garde que les choix de pré
 Le marqueur `initialized_at` est désormais fixé à la première action **Démarrer la séance**, y compris pour un sondage fermé manuellement. La migration ne réécrit aucune séance ni marqueur. Un ancien marqueur anticipé est remplacé uniquement quand la séance concernée démarre effectivement. Les présences construites à partir d’un sondage combinent les réponses positives du groupe actif et les choix de présence explicites du coach. Les anciennes séances déjà démarrées et les listes associées à des résultats ou à une collecte sont protégées. Le démarrage sans sondage conserve la liste enregistrée.
 
 Pour une séance déjà démarrée avec une liste incorrecte, ne pas relancer le démarrage. Après validation du coach, comparer dans le groupe concerné les réponses affichées, les présences réelles confirmées et les collectes ou résultats déjà saisis. Corriger seulement les cases nécessaires dans l’éditeur de cette séance, avec son bail et son contrôle de version, puis vérifier les résultats et l’historique. Conserver le sondage et les marqueurs comme trace. Les anciens marqueurs de correction manuelle ne permettent pas toujours de déterminer si une case avait été cochée par défaut. En cas de doute, faire confirmer la liste par le coach. Toute correction sur des données réelles nécessite une validation préalable.
+
+## Déplacer une préparation (issue #7)
+
+Un entraîneur des deux groupes peut modifier le groupe d’une préparation quand aucune collecte, aucun résultat ni aucun démarrage ne sont enregistrés et qu’aucun sondage n’a été déclenché. Un sondage déjà déclenché verrouille le groupe, même après sa fermeture. La décision est vérifiée à l’enregistrement avec le bail et la version. Les préparations déjà identifiées comme planifiées restent éligibles. Les anciennes séances ordinaires dépourvues de marqueur de préparation restent dans leur groupe.
+
+Le transfert conserve le workspace et sa saison, le plan et ses références compatibles, y compris les exercices du catalogue commun. L’équipe est résolue ou créée pour le groupe de destination dans le workspace de la séance. L’effectif et les sélections sont rechargés et les présences et choix explicites de l’ancien groupe sont effacés. En cas de référence inaccessible, de conflit de version ou de refus, l’enregistrement est annulé et le brouillon reste disponible. Les résultats en cours de saisie doivent rester dans la séance d’origine.
+
+En recette, utiliser deux groupes de test et vérifier le plan et le nombre de présents avant et après réouverture dans le nouveau groupe. Tester un changement lorsque l’autre client ouvre le sondage ou démarre la séance, ainsi que le verrouillage pour un sondage fermé et pour une collecte. Les sondages et les départs envoyés sur un ancien contexte doivent être refusés après un changement validé.
 
 ## Scénarios du groupe de recette
 

@@ -229,7 +229,7 @@
    <div class="trainingLockNotice hidden" id="trainingLockNotice" role="status" aria-live="polite"><span id="trainingLockMessage"></span><button class="ghost hidden" type="button" id="trainingLockAction">Actualiser</button></div>
    <div class="row">
     <div class="field"><label>Date</label><input id="trainingDate" type="text" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AA" autocomplete="off"></div>
-    <div class="field"><label>Groupe</label><select id="trainingGroup"><option value="">— Choisir un groupe —</option></select></div>
+    <div class="field"><label for="trainingGroup">Groupe</label><select id="trainingGroup" aria-describedby="trainingGroupStatus"><option value="">— Choisir un groupe —</option></select><span class="small" id="trainingGroupStatus" role="status"></span></div>
     <div class="field"><label>Thème</label><input id="trainingTheme" placeholder="ex. Défense et transition"></div>
     <div class="field"><label>Durée prévue (min)</label><input id="trainingDuration" type="number" min="1" inputmode="numeric" placeholder="90"></div>
    </div>

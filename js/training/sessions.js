@@ -27,6 +27,87 @@ app.fetchTrainingPlayers = async function fetchTrainingPlayers(groupId=null){
   return true;
 };
 
+app.hasPendingTrainingGroupTransfer=function hasPendingTrainingGroupTransfer(){
+  const state=app.trainingState;
+  return !!(state.currentSessionId&&state.sessionGroupId&&app.$('#trainingGroup').value!==state.sessionGroupId);
+};
+
+app.refreshTrainingGroupTransferStatus=async function refreshTrainingGroupTransferStatus(){
+  const state=app.trainingState,id=state.currentSessionId,epoch=state.editorLoadToken;
+  if(!id)return;
+  const request=state.groupTransferRequest=(state.groupTransferRequest||0)+1;
+  state.groupTransferBlocker=undefined;
+  app.applyTrainingLeaseControls();
+  let blocker;
+  try{
+    const {data,error}=await app.db.rpc('get_training_group_transfer_blocker',{p_session:id});
+    if(error)throw error;
+    blocker=data||null;
+  }catch{
+    blocker='Impossible de vérifier le changement de groupe. Rouvre la séance pour réessayer.';
+  }
+  if(request!==state.groupTransferRequest||id!==state.currentSessionId||epoch!==state.editorLoadToken)return;
+  state.groupTransferBlocker=blocker;
+  app.applyTrainingLeaseControls();
+};
+
+app.changeTrainingEditorGroup=async function changeTrainingEditorGroup(){
+  const state=app.trainingState,local=app.trainingLocalState,select=app.$('#trainingGroup');
+  const next=select.value,previous=app.trainingPreviousGroupId??state.sessionGroupId;
+  if(next===previous)return;
+  app.captureTrainingResultDraft();
+  const existing=!!state.currentSessionId;
+  const pendingResults=Object.values(state.resultDraft).some(row=>
+    Object.values(row).some(value=>String(value??'').trim()));
+  if(existing&&(!app.trainingLeaseCanMutate()||state.groupTransferBlocker!==null||pendingResults||!next)){
+    select.value=previous;
+    if(pendingResults)app.trainingStatus('Conserve les résultats saisis dans le groupe d’origine avant de changer de groupe.',true);
+    else if(!next)app.trainingStatus('Choisis un groupe de destination.',true);
+    return;
+  }
+  if(existing&&next!==state.sessionGroupId&&previous===state.sessionGroupId){
+    state.attendanceBeforeGroupTransfer=app.trainingEditorDocument({capture:false}).attendance;
+  }
+  select.value=previous;
+  if(previous!=null){
+    const checkpoint=app.checkpointTrainingLocalDraft('Avant changement de groupe');
+    if(!checkpoint.ok)return;
+  }
+  select.value=next;
+  app.trainingPreviousGroupId=next;
+  local.groupTransition=true;
+  const transition=++state.groupTransitionToken,epoch=state.editorLoadToken;
+  app.applyTrainingLeaseControls();
+  try{
+    const applied=await app.fetchTrainingPlayers(next);
+    if(transition!==state.groupTransitionToken||epoch!==state.editorLoadToken||!applied)return;
+    if(existing){
+      const original=next===state.sessionGroupId?state.attendanceBeforeGroupTransfer:null;
+      const byId=new Map((original||[]).map(item=>[item.playerId,item]));
+      app.$$('#trainingAttendance input').forEach(input=>{
+        const saved=byId.get(input.value);
+        input.checked=!!saved?.present;
+        if(saved?.coachChoice)input.dataset.coachChoice='true';
+        else delete input.dataset.coachChoice;
+      });
+      if(original)state.attendanceBeforeGroupTransfer=null;
+    }
+    local.groupTransition=false;
+    app.renderTrainingExerciseCards();
+    app.persistTrainingLocalDraft({checkpointReason:'Changement de groupe'});
+  }catch(error){
+    if(transition!==state.groupTransitionToken||epoch!==state.editorLoadToken)return;
+    select.value=previous;
+    app.trainingPreviousGroupId=previous;
+    app.trainingStatus(error.message||'Impossible de charger le groupe.',true);
+  }finally{
+    if(transition===state.groupTransitionToken&&epoch===state.editorLoadToken){
+      local.groupTransition=false;
+      app.applyTrainingLeaseControls();
+    }
+  }
+};
+
 app.populateTrainingAttendancePreset = function populateTrainingAttendancePreset(){
   const select=app.$('#trainingAttendancePreset');if(!select)return;
   const current=select.value;
@@ -234,6 +315,11 @@ app.trainingLocalState={
 // jamais réutiliser un contexte périmé.
 app.resetTrainingSessionContext=function resetTrainingSessionContext(){
   app.trainingState.attendanceStartedAt=null;
+  app.trainingState.sessionGroupId=null;
+  app.trainingState.groupTransferBlocker=undefined;
+  app.trainingState.attendanceBeforeGroupTransfer=null;
+  app.trainingPreviousGroupId=null;
+  app.trainingLocalState.groupTransition=false;
   app.trainingState.sessionWorkspaceId=null;
   app.trainingState.sessionTeamId=null;
   app.trainingState.playerCollectionRows=[];
@@ -277,6 +363,23 @@ app.applyTrainingLeaseControls=function applyTrainingLeaseControls(){
       control.disabled=false;delete control.dataset.leaseDisabled;
     }
   });
+  const state=app.trainingState,select=app.$('#trainingGroup'),hint=app.$('#trainingGroupStatus');
+  if(select&&hint){
+    const existing=!!state.currentSessionId,pending=app.hasPendingTrainingGroupTransfer();
+    select.disabled=readOnly||app.trainingLocalState.groupTransition||!!app.trainingSaveInFlight
+      ||(existing&&state.groupTransferBlocker!==null);
+    const message=existing?(state.groupTransferBlocker===undefined?'Vérification du changement de groupe…':
+      state.groupTransferBlocker|| (pending?'Le changement sera enregistré avec la préparation.':
+        'La préparation peut changer de groupe. Les présences seront remises à zéro.')):'';
+    if(hint.textContent!==message)hint.textContent=message;
+    for(const control of box.querySelectorAll('#trainingAttendance input,#trainingAttendancePreset,#applyTrainingAttendancePreset')){
+      if(pending&&!control.disabled){control.disabled=true;control.dataset.groupTransferDisabled='true'}
+      else if(!pending&&control.dataset.groupTransferDisabled){
+        control.disabled=readOnly;
+        delete control.dataset.groupTransferDisabled;
+      }
+    }
+  }
   app.syncTrainingFinishButton?.();
 };
 
@@ -412,7 +515,9 @@ app.trainingEditorDocument = function trainingEditorDocument({capture=true}={}){
       date:app.$('#trainingDate')?.value||'',groupId:app.$('#trainingGroup')?.value||'',
       theme:app.$('#trainingTheme')?.value||'',duration:app.$('#trainingDuration')?.value||'',
       notes:app.$('#trainingNotes')?.value||'',planStart:app.$('#trainingPlanStart')?.value||'',
-      ...(!app.trainingState.currentSessionId&&app.trainingState.planWithoutAttendance?{attendancePlanned:true}:{})
+      ...(!app.trainingState.currentSessionId&&app.trainingState.planWithoutAttendance?{attendancePlanned:true}:{}),
+      ...(app.hasPendingTrainingGroupTransfer()&&app.trainingState.attendanceBeforeGroupTransfer?
+        {transferSourceGroupId:app.trainingState.sessionGroupId}:{})
     },
     planBlocks:JSON.parse(JSON.stringify((app.trainingState.planBlocks||[]).map(({expanded,...block})=>block))),
     sessionExercises:JSON.parse(JSON.stringify((app.trainingState.sessionExercises||[]).map(({expanded,...exercise})=>exercise))),
@@ -753,6 +858,14 @@ app.initTrainingCloudAutosave=function initTrainingCloudAutosave(){
 app.applyTrainingEditorDocument = async function applyTrainingEditorDocument(document,{loadPlayers=true}={}){
   if(!app.trainingLocalState.store.validDocument(document))throw new Error('Ce brouillon local est incompatible.');
   const fields=document.fields;
+  const state=app.trainingState;
+  if(state.currentSessionId&&fields.groupId!==state.sessionGroupId){
+    if(fields.transferSourceGroupId!==state.sessionGroupId){
+      throw new Error('Ce brouillon appartient à un autre groupe. Tu peux le conserver ou le restaurer comme copie.');
+    }
+    if(!state.attendanceBeforeGroupTransfer)state.attendanceBeforeGroupTransfer=app.trainingEditorDocument({capture:false}).attendance;
+  }else state.attendanceBeforeGroupTransfer=null;
+  app.trainingPreviousGroupId=fields.groupId;
   if(!app.trainingState.currentSessionId)app.trainingState.planWithoutAttendance=!!fields.attendancePlanned;
   app.$('#trainingDate').value=fields.date||'';app.$('#trainingGroup').value=fields.groupId||'';
   app.$('#trainingTheme').value=fields.theme||'';app.$('#trainingDuration').value=fields.duration||'';
@@ -774,6 +887,7 @@ app.applyTrainingEditorDocument = async function applyTrainingEditorDocument(doc
     else delete input.dataset.coachChoice;
   });
   app.syncPlanStatExercises();app.renderTrainingExerciseCards({capture:false});app.renderTrainingPlan();app.autoGrowPlanTextarea(app.$('#trainingNotes'));
+  app.applyTrainingLeaseControls();
 };
 
 app.closeTrainingRecoveryDialog = function closeTrainingRecoveryDialog(){
@@ -1672,6 +1786,7 @@ app.startNewTraining = async function startNewTraining({skipRecovery=false,draft
   app.syncPlanStatExercises();
   app.clearTrainingStatus();
   app.$('#trainingGroup').value=app.groupState.groups[0]?.id||'';
+  app.trainingPreviousGroupId=app.$('#trainingGroup').value;
   await app.fetchTrainingPlayers(app.$('#trainingGroup').value||null);
   if(loadToken!==app.trainingState.editorLoadToken)return;
   if(app.$('#trainingAttendancePreset'))app.$('#trainingAttendancePreset').value='';
@@ -1850,6 +1965,7 @@ app.openTrainingPlayerCollection = async function openTrainingPlayerCollection(e
     const {error}=await app.db.rpc('open_training_player_collection',{p_session_id:sessionId,p_occurrence_id:ex.occurrenceId});
     if(error)throw error;
     await app.loadTrainingPlayerCollections();
+    void app.refreshTrainingGroupTransferStatus();
     app.renderTrainingExerciseCards();
   }finally{app.trainingState.playerCollectionBusy=false}
 };
@@ -2567,6 +2683,11 @@ app.editTrainingSessionById = async function editTrainingSessionById(sessionId,{
   if(ae)throw ae;if(xe)throw xe;if(re)throw re;if(oe)throw oe;
 
   app.trainingState.currentSessionId=sessionId;
+  app.trainingState.sessionGroupId=source.group_id;
+  app.trainingPreviousGroupId=source.group_id;
+  app.trainingState.groupTransferBlocker=undefined;
+  app.trainingState.attendanceBeforeGroupTransfer=null;
+  app.trainingLocalState.groupTransition=false;
   app.trainingState.planWithoutAttendance=!!source.attendance_planned;
   app.trainingState.attendanceStartedAt=source.attendance_started_at||null;
   app.trainingState.persistedOccurrenceIds=new Set((occurrences||[]).map(item=>item.id));
@@ -2637,9 +2758,11 @@ app.editTrainingSessionById = async function editTrainingSessionById(sessionId,{
   if(!app.trainingLeaseCanMutate())await app.acquireTrainingSessionLease(sessionId);
   if(!skipRecovery)app.offerTrainingDraftRecovery({sessionId});
   app.resetTrainingAttendancePoll?.();
+  void app.refreshTrainingGroupTransferStatus();
 };
 
 app.addTrainingPlayers = async function addTrainingPlayers(){
+  if(app.hasPendingTrainingGroupTransfer())return;
   const names=app.$('#trainingAddPlayers').value.split(',').map(x=>x.trim()).filter(Boolean);
   if(!names.length)return;
   const previous=new Map(app.$$('#trainingAttendance input').map(input=>[input.value,{checked:input.checked,defaultValue:input.dataset.attendanceDefault,coachChoice:input.dataset.coachChoice}]));
@@ -2736,6 +2859,7 @@ app.saveTrainingSession = function saveTrainingSession(options={}){
 };
 app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwrite=false,autosave=false}={}){
   const existingSessionId=app.trainingState.currentSessionId||null;
+  if(app.trainingLocalState.groupTransition)return;
   if(existingSessionId&&!app.trainingLeaseCanMutate()){
     if(!autosave)app.trainingStatus('Cette séance est en lecture seule. Passe en édition avant d’enregistrer.',true);
     return;
@@ -2744,6 +2868,7 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
   const lease=app.trainingLeaseState;
   const operationEpoch=lease.epoch;
   app.trainingSaveInFlight=true;
+  app.applyTrainingLeaseControls();
   app.stopTrainingCloudTimers();
   try{
     updateTrainingAttendanceDefaults();
@@ -2770,6 +2895,10 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
     // subsiste ici. Les autorisations sont contrôlées par les policies RLS du parent ;
     // les appels aux fonctions du schéma private ne sont pas réintroduits.
     const sessionId=app.trainingState.currentSessionId||null;
+    const transferring=app.hasPendingTrainingGroupTransfer();
+    if(transferring&&saveDocument.fields.transferSourceGroupId!==app.trainingState.sessionGroupId){
+      throw new Error('Confirme le changement de groupe dans l’éditeur avant de sauvegarder.');
+    }
     // Brouillons créés avant le suivi de version : une séance existante sans version
     // connue démarre un verrou optimiste sur la version courante, lue à la sauvegarde.
     // Une version inconnue ne produit ainsi ni faux conflit (expected_version null
@@ -2852,9 +2981,11 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
       p_force:!!forceOverwrite
     };
     const planned=!sessionId&&(saveDocument.fields.attendancePlanned||!presentIds.size||trainingDateIsFuture(date));
-    const {data:rpcResult,error:rpcError}=await app.db.rpc('save_training_session_with_attendance_choices',{
-      p_save:saveArgs,p_planned:planned
-    });
+    const {data:rpcResult,error:rpcError}=transferring
+      ?await app.db.rpc('save_training_preparation_group_transfer',{
+        p_save:saveArgs,p_source_group:app.trainingState.sessionGroupId
+      })
+      :await app.db.rpc('save_training_session_with_attendance_choices',{p_save:saveArgs,p_planned:planned});
     if(operationEpoch!==lease.epoch){
       app.persistTrainingLocalDraft({checkpointReason:'Réponse de sauvegarde ignorée',scheduleCloud:false});
       return;
@@ -2885,6 +3016,13 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
     const copiedTacticalDiagrams=occurrences.some(item=>item.copy_diagrams_from_occurrence_id);
     const previousPersistedOccurrenceIds=app.trainingState.persistedOccurrenceIds;
     app.trainingState.currentSessionId=result.session_id;
+    app.trainingState.sessionGroupId=groupId;
+    app.trainingPreviousGroupId=groupId;
+    if(transferring){
+      app.trainingState.sessionTeamId=result.team_id;
+      app.trainingState.attendanceBeforeGroupTransfer=null;
+      void app.refreshTrainingAttendancePoll?.();
+    }
     app.trainingState.persistedOccurrenceIds=new Set(occurrences.map(item=>item.id));
     if(results.length){
       const {data:stored,error}=await app.db.from('training_results').select('id,occurrence_id,player_id,result_version,variant').eq('session_id',result.session_id);
@@ -2928,6 +3066,7 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
       app.scheduleTrainingCloudSave();
     }
     if(!sessionId)app.refreshTrainingAttendancePoll?.();
+    if(!sessionId||transferring||results.length)void app.refreshTrainingGroupTransferStatus();
     return result;
   }catch(e){
     app.persistTrainingLocalDraft({scheduleCloud:false});
@@ -2947,6 +3086,10 @@ app.runTrainingSessionSave = async function runTrainingSessionSave({forceOverwri
 // est impossible, aucune réussite n'est annoncée : le brouillon local est conservé
 // et le coach choisit explicitement de rester ou de partir.
 app.finishTrainingEditing = async function finishTrainingEditing(){
+  if(app.trainingLocalState.groupTransition){
+    app.trainingStatus('Attends le chargement du groupe avant de terminer.',true);
+    return;
+  }
   const box=app.$('#trainingSession');
   if(!box||box.classList.contains('hidden'))return app.openTrainingModule();
   // Observateur en lecture seule : simple retour, aucun envoi ni attente de bail.

@@ -90,6 +90,7 @@ function store({writable=false}={}){
       mutations.push({table:'rpc',mode:name,values:clone(params??null)});
       if(!writable)return {data:null,error:{message:'store refuses rpc '+name}};
       const req=(name==='save_training_session_with_attendance_choices'?params.p_save:params)||{};
+      if(name==='get_training_group_transfer_blocker')return {data:null,error:null};
       if(name==='acquire_training_session_lease'){
         const current=tables.training_session_leases.find(row=>row.session_id===req.p_session_id);
         if(current)return {data:[{status:'held',holder_user_id:current.user_id,holder_name:'Lucas',lease_token:null,expires_at:current.expires_at}],error:null};
@@ -2199,7 +2200,7 @@ for(const confirmPublish of [false,true]){
     let poll=null,confirmations=0;
     app.db.rpc=async(name,args)=>{
       if(name==='get_training_attendance_poll')return {data:poll,error:null};
-      if(name==='manage_training_attendance_poll'){
+      if(name==='manage_training_attendance_poll_for_group'){
         mutations.push('open');
         poll={is_open:args.p_open,players:[]};
         return {error:null};
@@ -2267,4 +2268,75 @@ test('issue 5 dates and draft restoration never turn a default into a coach choi
   await app.saveTrainingSession();
   assert.equal(rpcCalls(ui).at(-1).planned,true);
   assert.ok(rpcCalls(ui).at(-1).values.p_attendance.every(row=>!row.present&&!row.coach_choice));
+});
+
+async function prepareGroupTransferEditor(ui,blocker=null){
+  const app=await open(ui,{existing:true});
+  ui.tablesRef.training_results=[];
+  ui.tablesRef.coaching_group_coaches.push({user_id:'u1',role:'coach',group:{id:'g2',name:'Destination'}});
+  ui.tablesRef.coaching_group_players.push({player_id:'p3',group_id:'g2',active:true,player:{id:'p3',display_name:'Camille'}});
+  const real=app.db.rpc.bind(app.db);
+  app.db.rpc=(name,args)=>name==='get_training_group_transfer_blocker'
+    ?Promise.resolve({data:blocker,error:null}):real(name,args);
+  await app.fetchMyGroups();
+  await app.editTrainingSessionById('s1',{skipRecovery:true});
+  await settle();
+  return app;
+}
+
+test('issue 7 switches to unchecked target players, autosaves the complete preparation and keeps the draft on refusal',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await prepareGroupTransferEditor(ui);
+  const real=app.db.rpc.bind(app.db),attempts=[];
+  let reject=true;
+  app.db.rpc=async(name,args)=>{
+    if(name!=='save_training_preparation_group_transfer')return real(name,args);
+    attempts.push(args);
+    if(reject)return {error:{code:'23514',message:'Une référence de préparation est indisponible.'}};
+    const row=ui.tablesRef.training_sessions[0];
+    row.group_id=args.p_save.p_group_id;row.team_id='t-destination';row.notes=args.p_save.p_notes;row.version=3;
+    ui.tablesRef.training_attendance=[];
+    return {data:[{status:'saved',session_id:'s1',version:3,team_id:row.team_id,updated_at:row.updated_at}],error:null};
+  };
+  const select=ui.page.$('#trainingGroup');
+  assert.equal(select.disabled,false);
+  const originalPlanCount=app.trainingState.planBlocks.length;
+  select.value='g2';await app.changeTrainingEditorGroup();
+  assert.deepEqual(Array.from(ui.page.w.document.querySelectorAll('#trainingAttendance input'),item=>[item.value,item.checked,item.disabled]),
+    [['p3',false,true]]);
+  assert.equal(app.trainingState.planBlocks.length,originalPlanCount);
+  assert.equal(serializedDraft(app).document.fields.transferSourceGroupId,'g1');
+  await runCloudAutosave(ui);
+  assert.equal(attempts.length,1);
+  assert.equal(attempts[0].p_source_group,'g1');
+  assert.equal(attempts[0].p_save.p_occurrences.length,originalPlanCount+1);
+  assert.equal(serializedDraft(app).document.fields.groupId,'g2');
+  assert.equal(ui.tablesRef.training_sessions[0].group_id,'g1');
+  reject=false;
+  await app.saveTrainingSession();await settle();
+  assert.equal(app.trainingState.sessionGroupId,'g2');
+  assert.equal(app.trainingState.sessionTeamId,'t-destination');
+  assert.equal(ui.page.$('#trainingAttendance input').disabled,false);
+  await app.fetchTrainingSessionParent('s1');
+  await app.editTrainingSessionById('s1',{skipRecovery:true});
+  assert.equal(ui.page.$('#trainingGroup').value,'g2');
+  assert.equal(ui.page.$('#trainingAttendance input').checked,false);
+  assert.equal(app.trainingState.planBlocks.length,originalPlanCount);
+});
+
+test('issue 7 locks the selector with the server reason and keeps unsaved source results intact',async t=>{
+  const ui={};t.after(()=>ui.page?.close());
+  const app=await prepareGroupTransferEditor(ui,'Le groupe est verrouillé : un sondage a déjà été déclenché.');
+  const select=ui.page.$('#trainingGroup');
+  assert.equal(select.disabled,true);
+  assert.match(ui.page.$('#trainingGroupStatus').textContent,/sondage/);
+  select.value='g2';await app.changeTrainingEditorGroup();
+  assert.equal(select.value,'g1');
+  app.trainingState.groupTransferBlocker=null;
+  app.applyTrainingLeaseControls();
+  app.trainingState.resultDraft.unrecorded={note:'À conserver'};
+  select.value='g2';await app.changeTrainingEditorGroup();
+  assert.equal(select.value,'g1');
+  assert.equal(app.trainingState.resultDraft.unrecorded.note,'À conserver');
+  assert.match(ui.page.$('#trainingCloudStatus').textContent,/groupe d’origine/);
 });

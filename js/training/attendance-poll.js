@@ -99,6 +99,10 @@
 
   async function busy(task){
     if(pending||!app.trainingLeaseCanMutate())return;
+    if(app.hasPendingTrainingGroupTransfer?.()){
+      status().textContent='Enregistre le changement de groupe avant d’agir sur le sondage.';
+      return;
+    }
     const id=session(),user=app.currentUser?.id,epoch=app.trainingState.editorLoadToken;
     const current=()=>id===session()&&user===app.currentUser?.id&&epoch===app.trainingState.editorLoadToken;
     pending=true;
@@ -135,6 +139,7 @@
     app.markTrainingSessionBaseline();
     app.trainingLocalState.baseVersion=version;
     app.trainingLocalState.baseUpdatedAt=updated_at;
+    void app.refreshTrainingGroupTransferStatus();
     await app.refreshTrainingAttendancePoll('Séance démarrée. Le sondage est fermé s’il avait été déclenché.');
   }
 
@@ -149,10 +154,13 @@
       }
       if(['trigger','open','close'].includes(action)){
         const raw=app.$('#trainingPollDeadline').value,open=action!=='close';
-        await rpc('manage_training_attendance_poll',{
-          p_session:id,p_open:open,p_deadline:open&&raw?new Date(raw).toISOString():null
+        await rpc('manage_training_attendance_poll_for_group',{
+          p_session:id,p_group:group,p_open:open,p_deadline:open&&raw?new Date(raw).toISOString():null
         });
-        if(current())await app.refreshTrainingAttendancePoll(open?'Sondage ouvert.':'Sondage fermé.');
+        if(current()){
+          void app.refreshTrainingGroupTransferStatus();
+          await app.refreshTrainingAttendancePoll(open?'Sondage ouvert.':'Sondage fermé.');
+        }
         if(action==='trigger'&&current()&&confirm('Le sondage est ouvert. Publier le lien sur Discord ?')){
           await publishDiscord(current,id,group,false);
         }
