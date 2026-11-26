@@ -1084,6 +1084,8 @@ test('empty initialization persists, historical statistics survive and Discord r
 
 const attendanceReviewMigration=fs.readdirSync(migrationDir).find(name=>name.endsWith('_training_attendance_review.sql'));
 
+const attendanceFinalMigration=fs.readdirSync(migrationDir).find(name=>name.endsWith('_finalize_training_attendance_poll.sql'));
+
 async function installAttendanceReview(db){
   const stats=fs.readFileSync(path.join(migrationDir,'20261124173651_player_training_statistics.sql'),'utf8');
   await db.exec(stats.slice(stats.indexOf('create table private.training_stats_player_aliases'),stats.indexOf('create or replace function private.can_read_training')));
@@ -1091,7 +1093,7 @@ async function installAttendanceReview(db){
     alter table coaching_group_players add column stats_access text default 'group';
     alter table exercises add column category text, add column category_id uuid, add column copied_from_exercise_id uuid;
   `);
-  for(const file of [attendanceMigration,attendanceReviewMigration]){
+  for(const file of [attendanceMigration,attendanceReviewMigration,attendanceFinalMigration]){
     await db.exec(fs.readFileSync(path.join(migrationDir,file),'utf8'));
   }
 }
@@ -1118,8 +1120,11 @@ test('attendance review: planning stays outside statistics until start, with his
     await assert.rejects(one(db,'select start_training_attendance_session($1,$2,$3,$4)',[planned.session_id,INSTANCE_A,planned.lease_token,planned.version]),{code:'42501'});
     assert.equal((await stats('player')).sessions.length,1);
     await asUser(db,U_COACH);
+    await db.query('select manage_training_attendance_poll($1,true,null)',[planned.session_id]);
     const {started}=await one(db,'select start_training_attendance_session($1,$2,$3,$4) as started',[planned.session_id,INSTANCE_A,planned.lease_token,planned.version]);
     assert.ok(started.started_at);assert.deepEqual(started.present,[]);
+    const zero=(await one(db,'select get_training_attendance_poll($1) as poll',[planned.session_id])).poll;
+    assert.equal(zero.is_open,false);assert.equal(zero.initialized_at,zero.started_at);
     const result=await stats();
     assert.deepEqual(result.sessions.map(row=>row.trained_on),['2026-01-15','2026-09-30']);
     assert.equal(result.attendance.length,4);assert.equal(result.results.length,2);
@@ -1127,7 +1132,7 @@ test('attendance review: planning stays outside statistics until start, with his
   }finally{await db.close()}
 });
 
-test('attendance review: first start fills forecasts around manual corrections and dismissal follows the response revision',async()=>{
+test('attendance final: first start copies forecasts, closes the poll and preserves later coach corrections on replay',async()=>{
   const db=await makeDB();
   try{
     await installAttendanceReview(db);
@@ -1147,34 +1152,29 @@ test('attendance review: first start fills forecasts around manual corrections a
     await answer('present',P_A);
     await answer('present',P_B);
     assert.equal((await poll()).initialized_at,null,'consultation does not initialize');
-    assert.equal((await poll()).players[0].manual,true);
     const started=(await rpc('start_training_attendance_session',[id,INSTANCE_A,token,saved.version])).value;
     assert.deepEqual(started.present,[P_B],'only the uncorrected positive answer is copied');
-    assert.equal((await poll()).players[1].manual,false,'automatic fill is not a coach correction');
+    const frozen=await poll();
+    assert.equal(frozen.is_open,false);
+    assert.equal(frozen.started_at,started.started_at);
+    assert.deepEqual(frozen.players.map(p=>p.availability),['present','present']);
 
     await asUser(db,U_NONE);
-    await answer('absent');
-    await answer('present');
+    await assert.rejects(answer('absent'),{code:'55000'});
+    assert.equal((await one(db,'select is_open from list_my_training_attendance_polls($1,$2)',[G1,id])).is_open,false);
     await asUser(db,U_COACH);
-    let [alice,bob]=(await poll()).players;
-    assert.ok(alice.late&&alice.manual,'coach correction survives a later response');
-    await asUser(db,U_NONE);
-    await assert.rejects(rpc('dismiss_training_attendance_change',[id,P_A,alice.revision]),{code:'42501'});
+    await assert.rejects(answer('unsure',P_A),{code:'55000'});
+    await assert.rejects(manage(true),{code:'55000'});
+    await db.exec('set role service_role');
+    await assert.rejects(rpc('reserve_training_attendance_discord',[id,G1,U_COACH,true,true]),{code:'55000'});
     await asUser(db,U_COACH);
-    await rpc('dismiss_training_attendance_change',[id,P_A,alice.revision]);
-    assert.equal((await poll()).players[0].dismissed,true);
-    await answer('unsure',P_A);
-    assert.equal((await poll()).players[0].dismissed,false);
-    await assert.rejects(rpc('dismiss_training_attendance_change',[id,P_A,alice.revision]),{code:'40001'});
 
-    await answer('absent',P_B);
-    assert.equal((await poll()).players[1].manual,false);
     saved={version:started.version,lease_token:token};
-    saved=await saveActual([{player_id:P_A,present:false},{player_id:P_B,present:false}]);
-    await answer('present',P_B);
-    [alice,bob]=(await poll()).players;
-    assert.ok(bob.manual&&bob.late,'coach correction after a late response also persists');
-    await manage(false);await manage(true);
-    assert.deepEqual((await rpc('start_training_attendance_session',[id,INSTANCE_A,token,saved.version])).value.present,[]);
+    saved=await saveActual([{player_id:P_A,present:true},{player_id:P_B,present:false}]);
+    const replay=(await rpc('start_training_attendance_session',[id,INSTANCE_A,token,saved.version])).value;
+    assert.deepEqual(replay.present,[P_A]);
+    assert.equal(replay.version,saved.version);
+    assert.equal(replay.started_at,started.started_at);
+    assert.deepEqual(await poll(),frozen,'official corrections do not change published forecasts');
   }finally{await db.close()}
 });
